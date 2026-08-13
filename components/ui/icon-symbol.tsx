@@ -30,6 +30,7 @@ const MAPPING = {
   "checkmark": "check",
   "checkmark.circle": "check-circle",
   "chevron.left": "chevron-left",
+  "chevron.down": "expand-more",
 } as IconMapping;
 
 /**
