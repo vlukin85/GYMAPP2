@@ -1,48 +1,29 @@
-import { ScrollView, Text, View, TouchableOpacity } from "react-native";
-
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { router } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
+import { IconSymbol } from "@/components/ui/icon-symbol";
+import { useColors } from "@/hooks/use-colors";
+import { useWorkoutStore } from "@/lib/workout-store";
+import { getProgram, formatDuration } from "@/lib/workout-data";
 
-/**
- * Home Screen - NativeWind Example
- *
- * This template uses NativeWind (Tailwind CSS for React Native).
- * You can use familiar Tailwind classes directly in className props.
- *
- * Key patterns:
- * - Use `className` instead of `style` for most styling
- * - Theme colors: use tokens directly (bg-background, text-foreground, bg-primary, etc.); no dark: prefix needed
- * - Responsive: standard Tailwind breakpoints work on web
- * - Custom colors defined in tailwind.config.js
- */
 export default function HomeScreen() {
-  return (
-    <ScreenContainer className="p-6">
-      <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
-        <View className="flex-1 gap-8">
-          {/* Hero Section */}
-          <View className="items-center gap-2">
-            <Text className="text-4xl font-bold text-foreground">Welcome</Text>
-            <Text className="text-base text-muted text-center">
-              Edit app/(tabs)/index.tsx to get started
-            </Text>
-          </View>
-
-          {/* Example Card */}
-          <View className="w-full max-w-sm self-center bg-surface rounded-2xl p-6 shadow-sm border border-border">
-            <Text className="text-lg font-semibold text-foreground mb-2">NativeWind Ready</Text>
-            <Text className="text-sm text-muted leading-relaxed">
-              Use Tailwind CSS classes directly in your React Native components.
-            </Text>
-          </View>
-
-          {/* Example Button */}
-          <View className="items-center">
-            <TouchableOpacity className="bg-primary px-6 py-3 rounded-full active:opacity-80">
-              <Text className="text-background font-semibold">Get Started</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </ScrollView>
-    </ScreenContainer>
-  );
+  const colors = useColors();
+  const { programs, completed, scheduled, startWorkout } = useWorkoutStore();
+  const today = new Date().toISOString().slice(0, 10);
+  const todayProgram = getProgram(scheduled[today]) ?? programs[0];
+  const weekVolume = completed.reduce((sum, item) => sum + item.totalVolume, 0);
+  return <ScreenContainer className="px-5" containerClassName="bg-background">
+    <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
+      <View style={styles.topRow}><View><Text style={[styles.eyebrow, { color: colors.primary }]}>ЧЕТВЕРГ, 13 АВГУСТА</Text><Text style={[styles.title, { color: colors.foreground }]}>Готов к работе?</Text></View><Pressable onPress={() => router.push("/calendar")} style={({ pressed }) => [styles.iconButton, { backgroundColor: colors.surface }, pressed && { opacity: 0.7 }]}><IconSymbol name="calendar" size={22} color={colors.foreground} /></Pressable></View>
+      <View style={[styles.heroCard, { backgroundColor: colors.primary }]}><View style={styles.heroTop}><Text style={styles.heroLabel}>ТРЕНИРОВКА ДНЯ</Text><Text style={styles.heroBadge}>ПЛАН</Text></View><Text style={styles.heroTitle}>{todayProgram?.name ?? "Свободная тренировка"}</Text><Text style={styles.heroDescription}>{todayProgram?.description ?? "Соберите программу из каталога упражнений"}</Text><View style={styles.heroMeta}><Text style={styles.heroMetaText}>{todayProgram?.exercises.length ?? 0} упражнений</Text><Text style={styles.heroMetaText}>≈ {todayProgram ? todayProgram.exercises.reduce((sum, item) => sum + Math.ceil((item.sets * 45 + item.rest * (item.sets - 1)) / 60), 0) : 0} мин</Text></View><Pressable onPress={() => { if (todayProgram) { startWorkout(todayProgram.id); router.push({ pathname: "/workout", params: { programId: todayProgram.id } }); } }} style={({ pressed }) => [styles.startButton, pressed && { transform: [{ scale: 0.97 }] }]}><Text style={styles.startText}>Начать тренировку</Text><IconSymbol name="arrow.forward" size={19} color="#101412" /></Pressable></View>
+      <View style={styles.sectionHeader}><Text style={[styles.sectionTitle, { color: colors.foreground }]}>Эта неделя</Text><Text style={[styles.sectionLink, { color: colors.primary }]}>{completed.length} тренировки</Text></View>
+      <View style={styles.statsRow}><Metric label="Тренировки" value={String(completed.length)} suffix="шт" colors={colors} /><Metric label="Общий объём" value={(weekVolume / 1000).toFixed(1)} suffix="т" colors={colors} /><Metric label="Время" value={formatDuration(completed.reduce((sum, item) => sum + item.durationMinutes, 0)).replace(" ч 0 мин", " ч")} suffix="" colors={colors} /></View>
+      <View style={styles.sectionHeader}><Text style={[styles.sectionTitle, { color: colors.foreground }]}>Быстрый доступ</Text></View>
+      <View style={styles.quickGrid}><QuickAction icon="dumbbell.fill" label="Каталог упражнений" onPress={() => router.push("/(tabs)/exercises")} colors={colors} /><QuickAction icon="calendar" label="Календарь" onPress={() => router.push("/calendar")} colors={colors} /></View>
+      <View style={[styles.tipCard, { backgroundColor: colors.surface, borderColor: colors.border }]}><View style={[styles.tipIcon, { backgroundColor: "#FF9F4320" }]}><IconSymbol name="lightbulb" size={20} color="#FF9F43" /></View><View style={{ flex: 1 }}><Text style={[styles.tipTitle, { color: colors.foreground }]}>Совет дня</Text><Text style={[styles.tipText, { color: colors.muted }]}>Фиксируй фактический вес — так рекорды и прогресс будут точнее.</Text></View></View>
+    </ScrollView>
+  </ScreenContainer>;
 }
+function Metric({ label, value, suffix, colors }: { label: string; value: string; suffix: string; colors: any }) { return <View style={[styles.metric, { backgroundColor: colors.surface }]}><Text style={[styles.metricValue, { color: colors.foreground }]}>{value}<Text style={{ fontSize: 13, color: colors.muted }}>{suffix}</Text></Text><Text style={[styles.metricLabel, { color: colors.muted }]}>{label}</Text></View>; }
+function QuickAction({ icon, label, onPress, colors }: { icon: any; label: string; onPress: () => void; colors: any }) { return <Pressable onPress={onPress} style={({ pressed }) => [styles.quick, { backgroundColor: colors.surface, borderColor: colors.border }, pressed && { opacity: 0.7 }]}><IconSymbol name={icon} size={22} color={colors.primary} /><Text style={[styles.quickText, { color: colors.foreground }]}>{label}</Text><IconSymbol name="chevron.right" size={18} color={colors.muted} /></Pressable>; }
+const styles = StyleSheet.create({ content: { paddingTop: 18, paddingBottom: 34, gap: 18 }, topRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" }, eyebrow: { fontSize: 11, fontWeight: "800", letterSpacing: 1.2 }, title: { fontSize: 30, fontWeight: "800", marginTop: 5, letterSpacing: -0.6 }, iconButton: { width: 42, height: 42, borderRadius: 14, alignItems: "center", justifyContent: "center" }, heroCard: { borderRadius: 24, padding: 20, marginTop: 8 }, heroTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" }, heroLabel: { fontSize: 11, fontWeight: "800", color: "#101412", letterSpacing: 1 }, heroBadge: { fontSize: 10, fontWeight: "800", color: "#101412", backgroundColor: "#FFFFFF55", paddingHorizontal: 9, paddingVertical: 5, borderRadius: 8 }, heroTitle: { color: "#101412", fontSize: 24, fontWeight: "800", marginTop: 22 }, heroDescription: { color: "#33402F", fontSize: 14, marginTop: 7, lineHeight: 20 }, heroMeta: { flexDirection: "row", gap: 18, marginTop: 17 }, heroMetaText: { color: "#33402F", fontWeight: "700", fontSize: 13 }, startButton: { backgroundColor: "#101412", borderRadius: 14, paddingVertical: 14, paddingHorizontal: 16, marginTop: 20, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }, startText: { color: "#F4F7F2", fontSize: 15, fontWeight: "800" }, sectionHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 4 }, sectionTitle: { fontSize: 19, fontWeight: "800" }, sectionLink: { fontSize: 13, fontWeight: "700" }, statsRow: { flexDirection: "row", gap: 9 }, metric: { flex: 1, padding: 13, borderRadius: 17 }, metricValue: { fontSize: 21, fontWeight: "800" }, metricLabel: { fontSize: 11, marginTop: 6 }, quickGrid: { gap: 9 }, quick: { minHeight: 58, borderRadius: 16, borderWidth: 1, paddingHorizontal: 14, flexDirection: "row", alignItems: "center", gap: 12 }, quickText: { flex: 1, fontSize: 14, fontWeight: "700" }, tipCard: { flexDirection: "row", padding: 14, borderRadius: 18, borderWidth: 1, gap: 12 }, tipIcon: { width: 38, height: 38, borderRadius: 13, alignItems: "center", justifyContent: "center" }, tipTitle: { fontWeight: "800", fontSize: 14 }, tipText: { fontSize: 12, lineHeight: 17, marginTop: 4 } });
