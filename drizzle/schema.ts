@@ -25,4 +25,28 @@ export const users = mysqlTable("users", {
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
 
-// TODO: Add your tables here
+export const workoutSessions = mysqlTable("workoutSessions", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  programId: varchar("programId", { length: 128 }).notNull(),
+  durationMinutes: int("durationMinutes").notNull(),
+  totalVolumeCentiKg: int("totalVolumeCentiKg").notNull(),
+  completedAt: timestamp("completedAt").defaultNow().notNull(),
+});
+
+export const workoutSets = mysqlTable("workoutSets", {
+  id: int("id").autoincrement().primaryKey(),
+  sessionId: int("sessionId").notNull(),
+  userId: int("userId").notNull(),
+  exerciseId: varchar("exerciseId", { length: 128 }).notNull(),
+  setNumber: int("setNumber").notNull(),
+  reps: int("reps").notNull(),
+  weightCentiKg: int("weightCentiKg").notNull(),
+  volumeCentiKg: int("volumeCentiKg").notNull(),
+  completedAt: timestamp("completedAt").defaultNow().notNull(),
+});
+
+export type WorkoutSession = typeof workoutSessions.$inferSelect;
+export type InsertWorkoutSession = typeof workoutSessions.$inferInsert;
+export type WorkoutSet = typeof workoutSets.$inferSelect;
+export type InsertWorkoutSet = typeof workoutSets.$inferInsert;
