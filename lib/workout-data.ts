@@ -39,6 +39,7 @@ export type ExerciseHistoryEntry = {
   date: string;
   sets: { weight: number; reps: number }[];
   volume: number;
+  bestOneRepMax?: number;
 };
 
 export const muscleGroups: MuscleGroup[] = ["Все" as MuscleGroup, "Грудь", "Спина", "Ноги", "Плечи", "Руки", "Корпус", "Кардио"];
@@ -119,4 +120,15 @@ export function getExerciseHistory(id: string) { return exerciseHistory[id] ?? [
 export function getExercise(id: string) { return exercises.find((exercise) => exercise.id === id); }
 export function getProgram(id: string) { return defaultPrograms.find((program) => program.id === id); }
 export function calculateVolume(weight: number, reps: number, sets: number) { return weight * reps * sets; }
+
+/** Estimated one-repetition maximum using the Epley formula. */
+export function estimateOneRepMax(weight: number, reps: number) {
+  if (weight <= 0 || reps <= 0) return 0;
+  if (reps === 1) return weight;
+  return weight * (1 + Math.min(reps, 30) / 30);
+}
+
+export function bestOneRepMax(sets: { weight: number; reps: number }[]) {
+  return Math.max(0, ...sets.map((set) => estimateOneRepMax(set.weight, set.reps)));
+}
 export function formatDuration(minutes: number) { return `${Math.floor(minutes / 60)} ч ${minutes % 60} мин`; }

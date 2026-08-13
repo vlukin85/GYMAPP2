@@ -51,7 +51,7 @@ export async function saveCompletedWorkout(input: { userId: number; programId: s
   const sessionId = Number((sessionResult as any)?.[0]?.insertId ?? (sessionResult as any)?.insertId);
   if (!sessionId) throw new Error("Could not determine saved workout session id");
   if (input.sets.length > 0) {
-    await db.insert(workoutSets).values(input.sets.map((set) => ({ sessionId, userId: input.userId, exerciseId: set.exerciseId, setNumber: set.setNumber, reps: set.reps, weightCentiKg: Math.round(set.weightKg * 100), volumeCentiKg: Math.round(set.weightKg * 100) * set.reps })));
+    await db.insert(workoutSets).values(input.sets.map((set) => { const weightCentiKg = Math.round(set.weightKg * 100); const oneRepMaxCentiKg = Math.round(weightCentiKg * (1 + Math.min(set.reps, 30) / 30)); return { sessionId, userId: input.userId, exerciseId: set.exerciseId, setNumber: set.setNumber, reps: set.reps, weightCentiKg, volumeCentiKg: weightCentiKg * set.reps, oneRepMaxCentiKg }; }));
   }
   return { sessionId };
 }
@@ -59,5 +59,5 @@ export async function saveCompletedWorkout(input: { userId: number; programId: s
 export async function getExerciseHistoryFromDb(userId: number, exerciseId: string) {
   const db = await getDb();
   if (!db) return [];
-  return db.select({ date: workoutSets.completedAt, setNumber: workoutSets.setNumber, reps: workoutSets.reps, weightCentiKg: workoutSets.weightCentiKg, volumeCentiKg: workoutSets.volumeCentiKg, sessionId: workoutSets.sessionId }).from(workoutSets).where(and(eq(workoutSets.userId, userId), eq(workoutSets.exerciseId, exerciseId))).orderBy(desc(workoutSets.completedAt), workoutSets.sessionId, workoutSets.setNumber);
+  return db.select({ date: workoutSets.completedAt, setNumber: workoutSets.setNumber, reps: workoutSets.reps, weightCentiKg: workoutSets.weightCentiKg, volumeCentiKg: workoutSets.volumeCentiKg, oneRepMaxCentiKg: workoutSets.oneRepMaxCentiKg, sessionId: workoutSets.sessionId }).from(workoutSets).where(and(eq(workoutSets.userId, userId), eq(workoutSets.exerciseId, exerciseId))).orderBy(desc(workoutSets.completedAt), workoutSets.sessionId, workoutSets.setNumber);
 }

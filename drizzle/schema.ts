@@ -43,6 +43,7 @@ export const workoutSets = mysqlTable("workoutSets", {
   reps: int("reps").notNull(),
   weightCentiKg: int("weightCentiKg").notNull(),
   volumeCentiKg: int("volumeCentiKg").notNull(),
+  oneRepMaxCentiKg: int("oneRepMaxCentiKg").notNull(),
   completedAt: timestamp("completedAt").defaultNow().notNull(),
 });
 
