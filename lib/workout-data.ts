@@ -42,6 +42,16 @@ export type ExerciseHistoryEntry = {
   bestOneRepMax?: number;
 };
 
+export type OneRepMaxFormula = "epley" | "brzycki";
+
+export type PersonalRecord = {
+  exerciseId: string;
+  weight: number;
+  reps: number;
+  estimatedOneRepMax: number;
+  achievedAt: string;
+};
+
 export const muscleGroups: MuscleGroup[] = ["Все" as MuscleGroup, "Грудь", "Спина", "Ноги", "Плечи", "Руки", "Корпус", "Кардио"];
 
 const images = {
@@ -121,14 +131,21 @@ export function getExercise(id: string) { return exercises.find((exercise) => ex
 export function getProgram(id: string) { return defaultPrograms.find((program) => program.id === id); }
 export function calculateVolume(weight: number, reps: number, sets: number) { return weight * reps * sets; }
 
-/** Estimated one-repetition maximum using the Epley formula. */
-export function estimateOneRepMax(weight: number, reps: number) {
+/** Estimated one-repetition maximum using Epley or Brzycki. */
+export function estimateOneRepMax(weight: number, reps: number, formula: OneRepMaxFormula = "epley") {
   if (weight <= 0 || reps <= 0) return 0;
   if (reps === 1) return weight;
-  return weight * (1 + Math.min(reps, 30) / 30);
+  const cappedReps = Math.min(reps, 30);
+  return formula === "brzycki"
+    ? weight * (36 / (37 - cappedReps))
+    : weight * (1 + cappedReps / 30);
 }
 
-export function bestOneRepMax(sets: { weight: number; reps: number }[]) {
-  return Math.max(0, ...sets.map((set) => estimateOneRepMax(set.weight, set.reps)));
+export function bestOneRepMax(sets: { weight: number; reps: number }[], formula: OneRepMaxFormula = "epley") {
+  return Math.max(0, ...sets.map((set) => estimateOneRepMax(set.weight, set.reps, formula)));
+}
+
+export function getLoadZones(oneRepMax: number) {
+  return [70, 80, 90].map((percent) => ({ percent, weight: oneRepMax * (percent / 100) }));
 }
 export function formatDuration(minutes: number) { return `${Math.floor(minutes / 60)} ч ${minutes % 60} мин`; }

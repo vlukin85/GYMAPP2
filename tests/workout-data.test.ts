@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { bestOneRepMax, calculateVolume, estimateOneRepMax, formatDuration } from "../lib/workout-data";
+import { bestOneRepMax, calculateVolume, estimateOneRepMax, formatDuration, getLoadZones } from "../lib/workout-data";
 
 describe("workout calculations", () => {
   it("calculates volume from weight, reps and sets", () => {
@@ -15,5 +15,9 @@ describe("workout calculations", () => {
   it("returns the best estimated one-rep max and handles empty work", () => {
     expect(bestOneRepMax([{ weight: 80, reps: 5 }, { weight: 85, reps: 3 }])).toBeCloseTo(93.5, 1);
     expect(bestOneRepMax([{ weight: 0, reps: 10 }])).toBe(0);
+  });
+  it("supports the Brzycki formula and calculates load zones", () => {
+    expect(estimateOneRepMax(80, 5, "brzycki")).toBeCloseTo(90, 1);
+    expect(getLoadZones(100)).toEqual([{ percent: 70, weight: 70 }, { percent: 80, weight: 80 }, { percent: 90, weight: 90 }]);
   });
 });

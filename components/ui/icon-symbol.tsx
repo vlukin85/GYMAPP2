@@ -31,6 +31,7 @@ const MAPPING = {
   "checkmark.circle": "check-circle",
   "chevron.left": "chevron-left",
   "chevron.down": "expand-more",
+  "gearshape": "settings",
 } as IconMapping;
 
 /**
