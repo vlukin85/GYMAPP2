@@ -12,6 +12,8 @@ export type Exercise = {
   recordReps: number;
 };
 
+import { expandedExercises } from "./catalog-expansion";
+
 export type ProgramExercise = {
   exerciseId: string;
   sets: number;
@@ -110,6 +112,7 @@ export const exercises: Exercise[] = [
   { id: "calf-raise", name: "Подъёмы на носки стоя", group: "Ноги", equipment: "Тренажёр", description: "Опускайте пятки до растяжения и поднимайтесь на носки с полной амплитудой.", image: images.calfRaise, videoUrl: "https://www.youtube.com/results?search_query=подъем+на+носки+стоя+техника", recordKg: 80, recordReps: 15 },
   { id: "cable-crunch", name: "Скручивания на верхнем блоке", group: "Корпус", equipment: "Тренажёр", description: "Скручивайте корпус за счёт пресса, не тяните рукоять руками и не округляйте поясницу чрезмерно.", image: images.cableCrunch, videoUrl: "https://www.youtube.com/results?search_query=скручивания+на+верхнем+блоке+техника", recordKg: 42, recordReps: 12 },
   { id: "rower", name: "Гребной тренажёр", group: "Кардио", equipment: "Тренажёр", description: "Отталкивайтесь ногами, затем подключайте корпус и руки; возвращайтесь в обратном порядке.", image: images.rower, videoUrl: "https://www.youtube.com/results?search_query=гребной+тренажер+техника", recordKg: 0, recordReps: 20 },
+  ...expandedExercises,
 ];
 
 export const defaultPrograms: WorkoutProgram[] = [

@@ -56,8 +56,9 @@ describe("workout calculations", () => {
   it("calculates a reminder time before the scheduled workout", () => {
     expect(getReminderTriggerDate("2026-08-20", "18:30", 60).toISOString()).toContain("2026-08-20T17:30:00");
   });
-  it("keeps every catalog exercise attached to a unique image", () => {
-    expect(exercises.length).toBeGreaterThanOrEqual(20);
+  it("keeps 20 exercises and a unique image for every muscle group", () => {
+    const groups = ["Грудь", "Спина", "Ноги", "Плечи", "Руки", "Корпус", "Кардио"] as const;
+    groups.forEach((group) => expect(exercises.filter((exercise) => exercise.group === group)).toHaveLength(20));
     expect(new Set(exercises.map((exercise) => exercise.image)).size).toBe(exercises.length);
   });
 });
