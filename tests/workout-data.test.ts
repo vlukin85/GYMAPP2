@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { bestOneRepMax, calculateVolume, estimateOneRepMax, formatDuration, getLoadZones, roundToWeightIncrement } from "../lib/workout-data";
+import { bestOneRepMax, calculateBarbellPlateLayout, calculateVolume, estimateOneRepMax, formatDuration, formatPlateLayout, getLoadZones, roundToWeightIncrement } from "../lib/workout-data";
+import { buildTrainingCsv } from "../lib/training-export";
 
 describe("workout calculations", () => {
   it("calculates volume from weight, reps and sets", () => {
@@ -21,5 +22,17 @@ describe("workout calculations", () => {
     expect(getLoadZones(100)).toEqual([{ percent: 70, weight: 70 }, { percent: 80, weight: 80 }, { percent: 90, weight: 90 }]);
     expect(roundToWeightIncrement(73.6, 2.5)).toBe(72.5);
     expect(roundToWeightIncrement(73.6, 1.25)).toBe(73.75);
+  });
+  it("calculates a symmetric barbell plate layout", () => {
+    const layout = calculateBarbellPlateLayout(100, { barWeightKg: 20, availablePlatesKg: [25, 20, 10, 5, 2.5] });
+    expect(layout.loadedWeightKg).toBe(100);
+    expect(layout.perSide).toEqual([25, 10, 5]);
+    expect(formatPlateLayout(layout.perSide)).toBe("25 + 10 + 5");
+  });
+  it("builds an Excel-friendly CSV history export", () => {
+    const csv = buildTrainingCsv([{ date: "2026-08-13", programId: "upper-strength", exerciseId: "bench-press", setNumber: 1, reps: 6, weightCentiKg: 8000, volumeCentiKg: 48000, oneRepMaxCentiKg: 9600 }]);
+    expect(csv).toContain('"Упражнение"');
+    expect(csv).toContain('"bench-press"');
+    expect(csv).toContain('"80.00"');
   });
 });

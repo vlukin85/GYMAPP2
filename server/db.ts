@@ -62,6 +62,12 @@ export async function getExerciseHistoryFromDb(userId: number, exerciseId: strin
   return db.select({ date: workoutSets.completedAt, setNumber: workoutSets.setNumber, reps: workoutSets.reps, weightCentiKg: workoutSets.weightCentiKg, volumeCentiKg: workoutSets.volumeCentiKg, oneRepMaxCentiKg: workoutSets.oneRepMaxCentiKg, sessionId: workoutSets.sessionId }).from(workoutSets).where(and(eq(workoutSets.userId, userId), eq(workoutSets.exerciseId, exerciseId))).orderBy(desc(workoutSets.completedAt), workoutSets.sessionId, workoutSets.setNumber);
 }
 
+export async function getAllWorkoutSetsFromDb(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select({ date: workoutSets.completedAt, programId: workoutSessions.programId, exerciseId: workoutSets.exerciseId, setNumber: workoutSets.setNumber, reps: workoutSets.reps, weightCentiKg: workoutSets.weightCentiKg, volumeCentiKg: workoutSets.volumeCentiKg, oneRepMaxCentiKg: workoutSets.oneRepMaxCentiKg }).from(workoutSets).innerJoin(workoutSessions, eq(workoutSets.sessionId, workoutSessions.id)).where(eq(workoutSets.userId, userId)).orderBy(desc(workoutSets.completedAt), workoutSets.setNumber);
+}
+
 export async function saveTrainingBackup(userId: number, snapshotJson: string) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");

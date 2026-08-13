@@ -52,6 +52,11 @@ export type PersonalRecord = {
   achievedAt: string;
 };
 
+export type BarbellProfile = {
+  barWeightKg: number;
+  availablePlatesKg: number[];
+};
+
 export const muscleGroups: MuscleGroup[] = ["Все" as MuscleGroup, "Грудь", "Спина", "Ноги", "Плечи", "Руки", "Корпус", "Кардио"];
 
 const images = {
@@ -152,5 +157,25 @@ export function getLoadZones(oneRepMax: number) {
 export function roundToWeightIncrement(weight: number, increment: number) {
   if (weight <= 0 || increment <= 0) return 0;
   return Math.round(weight / increment) * increment;
+}
+
+export function calculateBarbellPlateLayout(targetWeightKg: number, profile: BarbellProfile) {
+  let remaining = Math.max(0, Math.round(((targetWeightKg - profile.barWeightKg) / 2) * 100) / 100);
+  const perSide: number[] = [];
+  const plates = [...profile.availablePlatesKg].filter((plate) => plate > 0).sort((a, b) => b - a);
+  for (const plate of plates) {
+    while (remaining + 0.001 >= plate) {
+      perSide.push(plate);
+      remaining = Math.round((remaining - plate) * 100) / 100;
+    }
+  }
+  const loadedWeightKg = profile.barWeightKg + perSide.reduce((sum, plate) => sum + plate * 2, 0);
+  return { targetWeightKg, loadedWeightKg, perSide, differenceKg: Math.round((targetWeightKg - loadedWeightKg) * 100) / 100 };
+}
+
+export function formatPlateLayout(perSide: number[]) {
+  if (perSide.length === 0) return "без блинов";
+  const counts = perSide.reduce<Record<string, number>>((acc, plate) => { const key = String(plate); acc[key] = (acc[key] ?? 0) + 1; return acc; }, {});
+  return Object.entries(counts).sort(([a], [b]) => Number(b) - Number(a)).map(([plate, count]) => count > 1 ? `${count}×${plate}` : plate).join(" + ");
 }
 export function formatDuration(minutes: number) { return `${Math.floor(minutes / 60)} ч ${minutes % 60} мин`; }

@@ -1,6 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
-import { bestOneRepMax, completedWorkouts as seedCompleted, defaultPrograms, type CompletedWorkout, type OneRepMaxFormula, type PersonalRecord, type WorkoutProgram } from "./workout-data";
+import { bestOneRepMax, completedWorkouts as seedCompleted, defaultPrograms, type BarbellProfile, type CompletedWorkout, type OneRepMaxFormula, type PersonalRecord, type WorkoutProgram } from "./workout-data";
 
 type WorkoutState = {
   programs: WorkoutProgram[];
@@ -9,6 +9,7 @@ type WorkoutState = {
   activeWorkout: { programId: string; startedAt: number } | null;
   oneRmFormula: OneRepMaxFormula;
   plateStepKg: number;
+  barbellProfile: BarbellProfile;
   personalRecords: Record<string, PersonalRecord>;
 };
 
@@ -20,17 +21,18 @@ type WorkoutContextValue = WorkoutState & {
   addProgram: (program: WorkoutProgram) => void;
   setOneRmFormula: (formula: OneRepMaxFormula) => void;
   setPlateStepKg: (step: number) => void;
-  restoreTrainingBackup: (snapshot: Partial<Pick<WorkoutState, "oneRmFormula" | "plateStepKg" | "personalRecords">>) => void;
+  setBarbellProfile: (profile: BarbellProfile) => void;
+  restoreTrainingBackup: (snapshot: Partial<Pick<WorkoutState, "oneRmFormula" | "plateStepKg" | "barbellProfile" | "personalRecords">>) => void;
 };
 
 const STORAGE_KEY = "gym-diary-state-v1";
-const initialState: WorkoutState = { programs: defaultPrograms, completed: seedCompleted, scheduled: { "2026-08-13": "upper-strength", "2026-08-15": "leg-day" }, activeWorkout: null, oneRmFormula: "epley", plateStepKg: 2.5, personalRecords: {} };
+const initialState: WorkoutState = { programs: defaultPrograms, completed: seedCompleted, scheduled: { "2026-08-13": "upper-strength", "2026-08-15": "leg-day" }, activeWorkout: null, oneRmFormula: "epley", plateStepKg: 2.5, barbellProfile: { barWeightKg: 20, availablePlatesKg: [25, 20, 15, 10, 5, 2.5, 1.25] }, personalRecords: {} };
 const WorkoutContext = createContext<WorkoutContextValue | null>(null);
 
 export function WorkoutProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<WorkoutState>(initialState);
   const [ready, setReady] = useState(false);
-  useEffect(() => { AsyncStorage.getItem(STORAGE_KEY).then((value) => { if (value) { const parsed = JSON.parse(value) as Partial<WorkoutState>; setState({ ...initialState, ...parsed, oneRmFormula: parsed.oneRmFormula ?? "epley", plateStepKg: parsed.plateStepKg ?? 2.5, personalRecords: parsed.personalRecords ?? {} }); } setReady(true); }).catch(() => setReady(true)); }, []);
+  useEffect(() => { AsyncStorage.getItem(STORAGE_KEY).then((value) => { if (value) { const parsed = JSON.parse(value) as Partial<WorkoutState>; setState({ ...initialState, ...parsed, oneRmFormula: parsed.oneRmFormula ?? "epley", plateStepKg: parsed.plateStepKg ?? 2.5, barbellProfile: parsed.barbellProfile ?? initialState.barbellProfile, personalRecords: parsed.personalRecords ?? {} }); } setReady(true); }).catch(() => setReady(true)); }, []);
   useEffect(() => { if (ready) AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }, [state, ready]);
 
   const value = useMemo<WorkoutContextValue>(() => ({
@@ -59,7 +61,8 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
     addProgram: (program) => setState((current) => ({ ...current, programs: [...current.programs, program] })),
     setOneRmFormula: (oneRmFormula) => setState((current) => ({ ...current, oneRmFormula })),
     setPlateStepKg: (plateStepKg) => setState((current) => ({ ...current, plateStepKg })),
-    restoreTrainingBackup: (snapshot) => setState((current) => ({ ...current, oneRmFormula: snapshot.oneRmFormula ?? current.oneRmFormula, plateStepKg: snapshot.plateStepKg ?? current.plateStepKg, personalRecords: snapshot.personalRecords ?? current.personalRecords })),
+    setBarbellProfile: (barbellProfile) => setState((current) => ({ ...current, barbellProfile })),
+    restoreTrainingBackup: (snapshot) => setState((current) => ({ ...current, oneRmFormula: snapshot.oneRmFormula ?? current.oneRmFormula, plateStepKg: snapshot.plateStepKg ?? current.plateStepKg, barbellProfile: snapshot.barbellProfile ?? current.barbellProfile, personalRecords: snapshot.personalRecords ?? current.personalRecords })),
   }), [state, ready]);
   return <WorkoutContext.Provider value={value}>{children}</WorkoutContext.Provider>;
 }

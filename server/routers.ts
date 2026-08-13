@@ -27,6 +27,7 @@ export const appRouter = router({
       })).max(500),
     })).mutation(({ ctx, input }) => db.saveCompletedWorkout({ userId: ctx.user?.id ?? 0, ...input })),
     byExercise: publicProcedure.input(z.object({ exerciseId: z.string().min(1).max(128) })).query(({ ctx, input }) => db.getExerciseHistoryFromDb(ctx.user?.id ?? 0, input.exerciseId)),
+    all: publicProcedure.query(({ ctx }) => db.getAllWorkoutSetsFromDb(ctx.user?.id ?? 0)),
   }),
   trainingBackup: router({
     save: publicProcedure.input(z.object({ snapshotJson: z.string().min(2).max(200_000) })).mutation(({ ctx, input }) => db.saveTrainingBackup(ctx.user?.id ?? 0, input.snapshotJson)),

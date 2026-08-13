@@ -91,6 +91,9 @@ export default function RootLayout() {
             <Stack.Screen name="(tabs)" />
             <Stack.Screen name="oauth/callback" />
             <Stack.Screen name="settings" />
+            <Stack.Screen name="barbell" />
+            <Stack.Screen name="progress" />
+            <Stack.Screen name="export" />
           </Stack>
           <TrainingBackupSync />
           <StatusBar style="auto" />
