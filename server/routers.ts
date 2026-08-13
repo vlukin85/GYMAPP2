@@ -18,6 +18,7 @@ export const appRouter = router({
     save: publicProcedure.input(z.object({
       programId: z.string().min(1).max(128),
       durationMinutes: z.number().int().min(0).max(24 * 60),
+      formula: z.enum(["epley", "brzycki"]),
       sets: z.array(z.object({
         exerciseId: z.string().min(1).max(128),
         setNumber: z.number().int().min(1),
@@ -26,6 +27,10 @@ export const appRouter = router({
       })).max(500),
     })).mutation(({ ctx, input }) => db.saveCompletedWorkout({ userId: ctx.user?.id ?? 0, ...input })),
     byExercise: publicProcedure.input(z.object({ exerciseId: z.string().min(1).max(128) })).query(({ ctx, input }) => db.getExerciseHistoryFromDb(ctx.user?.id ?? 0, input.exerciseId)),
+  }),
+  trainingBackup: router({
+    save: publicProcedure.input(z.object({ snapshotJson: z.string().min(2).max(200_000) })).mutation(({ ctx, input }) => db.saveTrainingBackup(ctx.user?.id ?? 0, input.snapshotJson)),
+    get: publicProcedure.query(({ ctx }) => db.getTrainingBackup(ctx.user?.id ?? 0)),
   }),
 });
 

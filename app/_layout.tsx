@@ -8,6 +8,7 @@ import "react-native-reanimated";
 import { Platform } from "react-native";
 import "@/lib/_core/nativewind-pressable";
 import { ThemeProvider } from "@/lib/theme-provider";
+import { TrainingBackupSync } from "@/components/training-backup-sync";
 import { WorkoutProvider } from "@/lib/workout-store";
 import {
   SafeAreaFrameContext,
@@ -89,7 +90,9 @@ export default function RootLayout() {
           <Stack screenOptions={{ headerShown: false }}>
             <Stack.Screen name="(tabs)" />
             <Stack.Screen name="oauth/callback" />
+            <Stack.Screen name="settings" />
           </Stack>
+          <TrainingBackupSync />
           <StatusBar style="auto" />
         </QueryClientProvider>
       </trpc.Provider>

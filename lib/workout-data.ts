@@ -148,4 +148,9 @@ export function bestOneRepMax(sets: { weight: number; reps: number }[], formula:
 export function getLoadZones(oneRepMax: number) {
   return [70, 80, 90].map((percent) => ({ percent, weight: oneRepMax * (percent / 100) }));
 }
+
+export function roundToWeightIncrement(weight: number, increment: number) {
+  if (weight <= 0 || increment <= 0) return 0;
+  return Math.round(weight / increment) * increment;
+}
 export function formatDuration(minutes: number) { return `${Math.floor(minutes / 60)} ч ${minutes % 60} мин`; }

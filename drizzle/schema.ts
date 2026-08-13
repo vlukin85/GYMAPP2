@@ -47,7 +47,15 @@ export const workoutSets = mysqlTable("workoutSets", {
   completedAt: timestamp("completedAt").defaultNow().notNull(),
 });
 
+export const trainingBackups = mysqlTable("trainingBackups", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull().unique(),
+  snapshotJson: text("snapshotJson").notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
 export type WorkoutSession = typeof workoutSessions.$inferSelect;
 export type InsertWorkoutSession = typeof workoutSessions.$inferInsert;
 export type WorkoutSet = typeof workoutSets.$inferSelect;
 export type InsertWorkoutSet = typeof workoutSets.$inferInsert;
+export type TrainingBackup = typeof trainingBackups.$inferSelect;

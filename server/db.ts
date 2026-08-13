@@ -1,6 +1,6 @@
 import { and, desc, eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users, workoutSessions, workoutSets } from "../drizzle/schema";
+import { InsertUser, trainingBackups, users, workoutSessions, workoutSets } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -43,7 +43,7 @@ export async function getUserByOpenId(openId: string) {
 
 export type PersistedSetInput = { exerciseId: string; setNumber: number; reps: number; weightKg: number };
 
-export async function saveCompletedWorkout(input: { userId: number; programId: string; durationMinutes: number; sets: PersistedSetInput[] }) {
+export async function saveCompletedWorkout(input: { userId: number; programId: string; durationMinutes: number; formula: "epley" | "brzycki"; sets: PersistedSetInput[] }) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   const totalVolumeCentiKg = input.sets.reduce((sum, set) => sum + Math.round(set.weightKg * 100) * set.reps, 0);
@@ -51,7 +51,7 @@ export async function saveCompletedWorkout(input: { userId: number; programId: s
   const sessionId = Number((sessionResult as any)?.[0]?.insertId ?? (sessionResult as any)?.insertId);
   if (!sessionId) throw new Error("Could not determine saved workout session id");
   if (input.sets.length > 0) {
-    await db.insert(workoutSets).values(input.sets.map((set) => { const weightCentiKg = Math.round(set.weightKg * 100); const oneRepMaxCentiKg = Math.round(weightCentiKg * (1 + Math.min(set.reps, 30) / 30)); return { sessionId, userId: input.userId, exerciseId: set.exerciseId, setNumber: set.setNumber, reps: set.reps, weightCentiKg, volumeCentiKg: weightCentiKg * set.reps, oneRepMaxCentiKg }; }));
+    await db.insert(workoutSets).values(input.sets.map((set) => { const weightCentiKg = Math.round(set.weightKg * 100); const cappedReps = Math.min(set.reps, 30); const oneRepMaxCentiKg = Math.round(input.formula === "brzycki" ? weightCentiKg * (36 / (37 - cappedReps)) : weightCentiKg * (1 + cappedReps / 30)); return { sessionId, userId: input.userId, exerciseId: set.exerciseId, setNumber: set.setNumber, reps: set.reps, weightCentiKg, volumeCentiKg: weightCentiKg * set.reps, oneRepMaxCentiKg }; }));
   }
   return { sessionId };
 }
@@ -60,4 +60,17 @@ export async function getExerciseHistoryFromDb(userId: number, exerciseId: strin
   const db = await getDb();
   if (!db) return [];
   return db.select({ date: workoutSets.completedAt, setNumber: workoutSets.setNumber, reps: workoutSets.reps, weightCentiKg: workoutSets.weightCentiKg, volumeCentiKg: workoutSets.volumeCentiKg, oneRepMaxCentiKg: workoutSets.oneRepMaxCentiKg, sessionId: workoutSets.sessionId }).from(workoutSets).where(and(eq(workoutSets.userId, userId), eq(workoutSets.exerciseId, exerciseId))).orderBy(desc(workoutSets.completedAt), workoutSets.sessionId, workoutSets.setNumber);
+}
+
+export async function saveTrainingBackup(userId: number, snapshotJson: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.insert(trainingBackups).values({ userId, snapshotJson }).onDuplicateKeyUpdate({ set: { snapshotJson, updatedAt: new Date() } });
+}
+
+export async function getTrainingBackup(userId: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(trainingBackups).where(eq(trainingBackups.userId, userId)).limit(1);
+  return result[0];
 }
