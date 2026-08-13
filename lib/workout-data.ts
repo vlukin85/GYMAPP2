@@ -178,4 +178,17 @@ export function formatPlateLayout(perSide: number[]) {
   const counts = perSide.reduce<Record<string, number>>((acc, plate) => { const key = String(plate); acc[key] = (acc[key] ?? 0) + 1; return acc; }, {});
   return Object.entries(counts).sort(([a], [b]) => Number(b) - Number(a)).map(([plate, count]) => count > 1 ? `${count}×${plate}` : plate).join(" + ");
 }
+
+export function recommendWorkingWeight(input: { history: ExerciseHistoryEntry[]; targetReps: number; incrementKg: number; formula?: OneRepMaxFormula }) {
+  const latest = input.history[0];
+  if (!latest?.sets.length) return { weightKg: 0, changeKg: 0, reason: "Сначала зафиксируй первое выполнение" };
+  const bestSet = latest.sets.reduce((best, set) => set.weight * set.reps > best.weight * best.reps ? set : best, latest.sets[0]);
+  const estimatedOneRm = bestOneRepMax(latest.sets, input.formula);
+  const baseWeight = bestSet.reps >= input.targetReps + 2 ? bestSet.weight * 1.025 : bestSet.reps < input.targetReps ? bestSet.weight * 0.975 : bestSet.weight;
+  const strengthCap = estimatedOneRm * 0.85;
+  const weightKg = roundToWeightIncrement(Math.min(baseWeight, strengthCap), input.incrementKg);
+  const changeKg = Math.round((weightKg - bestSet.weight) * 100) / 100;
+  const reason = changeKg > 0 ? `последний лучший подход ${bestSet.weight} кг × ${bestSet.reps}; можно повысить нагрузку` : changeKg < 0 ? `последний подход ${bestSet.weight} кг × ${bestSet.reps}; лучше закрепить технику` : `последний подход ${bestSet.weight} кг × ${bestSet.reps}; повтори рабочий вес`;
+  return { weightKg, changeKg, reason };
+}
 export function formatDuration(minutes: number) { return `${Math.floor(minutes / 60)} ч ${minutes % 60} мин`; }

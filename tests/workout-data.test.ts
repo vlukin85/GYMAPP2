@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { bestOneRepMax, calculateBarbellPlateLayout, calculateVolume, estimateOneRepMax, formatDuration, formatPlateLayout, getLoadZones, roundToWeightIncrement } from "../lib/workout-data";
+import { bestOneRepMax, calculateBarbellPlateLayout, calculateVolume, estimateOneRepMax, formatDuration, formatPlateLayout, getLoadZones, recommendWorkingWeight, roundToWeightIncrement } from "../lib/workout-data";
 import { buildTrainingCsv } from "../lib/training-export";
+import { buildMonthlyReportData } from "../lib/monthly-report";
 
 describe("workout calculations", () => {
   it("calculates volume from weight, reps and sets", () => {
@@ -34,5 +35,16 @@ describe("workout calculations", () => {
     expect(csv).toContain('"Упражнение"');
     expect(csv).toContain('"bench-press"');
     expect(csv).toContain('"80.00"');
+  });
+  it("recommends a progressive working weight when reps exceed the target", () => {
+    const recommendation = recommendWorkingWeight({ history: [{ date: "2026-08-13", sets: [{ weight: 80, reps: 10 }], volume: 800 }], targetReps: 8, incrementKg: 2.5 });
+    expect(recommendation.weightKg).toBe(82.5);
+    expect(recommendation.changeKg).toBe(2.5);
+  });
+  it("summarizes the selected month for a PDF report", () => {
+    const report = buildMonthlyReportData([{ date: "2026-08-13", programId: "upper", exerciseId: "bench", setNumber: 1, reps: 5, weightCentiKg: 8000, volumeCentiKg: 40000, oneRepMaxCentiKg: 9333 }], "2026-08");
+    expect(report.trainingDays).toBe(1);
+    expect(report.totalVolumeKg).toBe(400);
+    expect(report.bestOneRmKg).toBe(93.33);
   });
 });

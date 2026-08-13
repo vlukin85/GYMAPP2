@@ -94,6 +94,8 @@ export default function RootLayout() {
             <Stack.Screen name="barbell" />
             <Stack.Screen name="progress" />
             <Stack.Screen name="export" />
+            <Stack.Screen name="recommendations" />
+            <Stack.Screen name="report" />
           </Stack>
           <TrainingBackupSync />
           <StatusBar style="auto" />
