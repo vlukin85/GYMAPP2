@@ -1,11 +1,11 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
-import { bestOneRepMax, completedWorkouts as seedCompleted, defaultPrograms, type BarbellProfile, type CompletedWorkout, type OneRepMaxFormula, type PersonalRecord, type WorkoutProgram } from "./workout-data";
+import { bestOneRepMax, completedWorkouts as seedCompleted, defaultPrograms, type BarbellProfile, type CompletedWorkout, type OneRepMaxFormula, type PersonalRecord, type ScheduledWorkout, type WorkoutProgram } from "./workout-data";
 
 type WorkoutState = {
   programs: WorkoutProgram[];
   completed: CompletedWorkout[];
-  scheduled: Record<string, string>;
+  scheduled: Record<string, ScheduledWorkout>;
   activeWorkout: { programId: string; startedAt: number } | null;
   oneRmFormula: OneRepMaxFormula;
   plateStepKg: number;
@@ -17,7 +17,8 @@ type WorkoutContextValue = WorkoutState & {
   ready: boolean;
   startWorkout: (programId: string) => void;
   finishWorkout: (programId: string, volume: number, sets: { exerciseId: string; weight: number; reps: number }[]) => { minutes: number; newRecordIds: string[]; maxOneRmDelta: number };
-  scheduleProgram: (date: string, programId: string) => void;
+  scheduleProgram: (date: string, schedule: ScheduledWorkout) => void;
+  removeSchedule: (date: string) => void;
   addProgram: (program: WorkoutProgram) => void;
   setOneRmFormula: (formula: OneRepMaxFormula) => void;
   setPlateStepKg: (step: number) => void;
@@ -26,13 +27,13 @@ type WorkoutContextValue = WorkoutState & {
 };
 
 const STORAGE_KEY = "gym-diary-state-v1";
-const initialState: WorkoutState = { programs: defaultPrograms, completed: seedCompleted, scheduled: { "2026-08-13": "upper-strength", "2026-08-15": "leg-day" }, activeWorkout: null, oneRmFormula: "epley", plateStepKg: 2.5, barbellProfile: { barWeightKg: 20, availablePlatesKg: [25, 20, 15, 10, 5, 2.5, 1.25] }, personalRecords: {} };
+const initialState: WorkoutState = { programs: defaultPrograms, completed: seedCompleted, scheduled: { "2026-08-13": { programId: "upper-strength", time: "18:30", reminderMinutes: 60 }, "2026-08-15": { programId: "leg-day", time: "11:00", reminderMinutes: 30 } }, activeWorkout: null, oneRmFormula: "epley", plateStepKg: 2.5, barbellProfile: { barWeightKg: 20, availablePlatesKg: [25, 20, 15, 10, 5, 2.5, 1.25] }, personalRecords: {} };
 const WorkoutContext = createContext<WorkoutContextValue | null>(null);
 
 export function WorkoutProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<WorkoutState>(initialState);
   const [ready, setReady] = useState(false);
-  useEffect(() => { AsyncStorage.getItem(STORAGE_KEY).then((value) => { if (value) { const parsed = JSON.parse(value) as Partial<WorkoutState>; setState({ ...initialState, ...parsed, oneRmFormula: parsed.oneRmFormula ?? "epley", plateStepKg: parsed.plateStepKg ?? 2.5, barbellProfile: parsed.barbellProfile ?? initialState.barbellProfile, personalRecords: parsed.personalRecords ?? {} }); } setReady(true); }).catch(() => setReady(true)); }, []);
+  useEffect(() => { AsyncStorage.getItem(STORAGE_KEY).then((value) => { if (value) { const parsed = JSON.parse(value) as Partial<WorkoutState>; const migratedScheduled = Object.fromEntries(Object.entries(parsed.scheduled ?? initialState.scheduled).map(([date, item]) => [date, typeof item === "string" ? { programId: item, time: "18:30", reminderMinutes: 60 } : item])) as Record<string, ScheduledWorkout>; setState({ ...initialState, ...parsed, scheduled: migratedScheduled, oneRmFormula: parsed.oneRmFormula ?? "epley", plateStepKg: parsed.plateStepKg ?? 2.5, barbellProfile: parsed.barbellProfile ?? initialState.barbellProfile, personalRecords: parsed.personalRecords ?? {} }); } setReady(true); }).catch(() => setReady(true)); }, []);
   useEffect(() => { if (ready) AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }, [state, ready]);
 
   const value = useMemo<WorkoutContextValue>(() => ({
@@ -57,7 +58,8 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
       setState((current) => ({ ...current, activeWorkout: null, personalRecords: records, completed: [{ id: `w-${Date.now()}`, programId, date: new Date().toISOString().slice(0, 10), durationMinutes: minutes, totalVolume: volume }, ...current.completed] }));
       return { minutes, newRecordIds, maxOneRmDelta };
     },
-    scheduleProgram: (date, programId) => setState((current) => ({ ...current, scheduled: { ...current.scheduled, [date]: programId } })),
+    scheduleProgram: (date, schedule) => setState((current) => ({ ...current, scheduled: { ...current.scheduled, [date]: schedule } })),
+    removeSchedule: (date) => setState((current) => { const scheduled = { ...current.scheduled }; delete scheduled[date]; return { ...current, scheduled }; }),
     addProgram: (program) => setState((current) => ({ ...current, programs: [...current.programs, program] })),
     setOneRmFormula: (oneRmFormula) => setState((current) => ({ ...current, oneRmFormula })),
     setPlateStepKg: (plateStepKg) => setState((current) => ({ ...current, plateStepKg })),

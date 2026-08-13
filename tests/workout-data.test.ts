@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { bestOneRepMax, calculateBarbellPlateLayout, calculateVolume, estimateOneRepMax, formatDuration, formatPlateLayout, getLoadZones, recommendWorkingWeight, roundToWeightIncrement } from "../lib/workout-data";
+import { bestOneRepMax, calculateBarbellPlateLayout, calculateVolume, estimateOneRepMax, exercises, formatDuration, formatPlateLayout, getLoadZones, getMonthCalendarDays, getReminderTriggerDate, recommendWorkingWeight, roundToWeightIncrement } from "../lib/workout-data";
 import { buildTrainingCsv } from "../lib/training-export";
 import { buildMonthlyReportData } from "../lib/monthly-report";
 
@@ -46,5 +46,18 @@ describe("workout calculations", () => {
     expect(report.trainingDays).toBe(1);
     expect(report.totalVolumeKg).toBe(400);
     expect(report.bestOneRmKg).toBe(93.33);
+  });
+  it("builds a Monday-first six-week calendar grid", () => {
+    const days = getMonthCalendarDays(2026, 7);
+    expect(days).toHaveLength(42);
+    expect(days[0].toISOString().slice(0, 10)).toBe("2026-07-27");
+    expect(days[41].toISOString().slice(0, 10)).toBe("2026-09-06");
+  });
+  it("calculates a reminder time before the scheduled workout", () => {
+    expect(getReminderTriggerDate("2026-08-20", "18:30", 60).toISOString()).toContain("2026-08-20T17:30:00");
+  });
+  it("keeps every catalog exercise attached to a unique image", () => {
+    expect(exercises.length).toBeGreaterThanOrEqual(20);
+    expect(new Set(exercises.map((exercise) => exercise.image)).size).toBe(exercises.length);
   });
 });
