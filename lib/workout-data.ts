@@ -53,6 +53,11 @@ export type ScheduledWorkout = {
   notificationId?: string;
 };
 
+export function isFutureScheduleDate(dateKey: string, now = new Date()) {
+  const todayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  return dateKey > todayKey;
+}
+
 export type CompletedWorkout = {
   id: string;
   programId: string;
