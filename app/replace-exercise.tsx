@@ -1,0 +1,20 @@
+import { useMemo, useState } from "react";
+import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { router, useLocalSearchParams } from "expo-router";
+import { ScreenContainer } from "@/components/screen-container";
+import { IconSymbol } from "@/components/ui/icon-symbol";
+import { useColors } from "@/hooks/use-colors";
+import { exercises, getExercise } from "@/lib/workout-data";
+import { selectReplacementExercise } from "@/lib/exercise-replacement-bus";
+
+export default function ReplaceExerciseScreen() {
+  const colors = useColors();
+  const { originalId } = useLocalSearchParams<{ originalId: string }>();
+  const [query, setQuery] = useState("");
+  const current = getExercise(originalId ?? "");
+  const matching = useMemo(() => exercises.filter((exercise) => exercise.id !== originalId && `${exercise.name} ${exercise.group} ${exercise.equipment}`.toLowerCase().includes(query.trim().toLowerCase())), [originalId, query]);
+  const choose = (replacementId: string) => { if (!originalId) return; selectReplacementExercise({ originalId, replacementId }); router.back(); };
+  return <ScreenContainer edges={["top", "left", "right", "bottom"]} className="px-5" containerClassName="bg-background"><FlatList data={matching} keyExtractor={(item) => item.id} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" ListHeaderComponent={<View style={styles.headerWrap}><View style={styles.header}><Pressable onPress={() => router.back()}><IconSymbol name="chevron.left" size={27} color={colors.foreground} /></Pressable><Text style={[styles.headerTitle, { color: colors.foreground }]}>Заменить упражнение</Text><View style={{ width: 27 }} /></View><Text style={[styles.subtitle, { color: colors.muted }]}>Вместо «{current?.name ?? "упражнение"}» выберите вариант из всей базы. Плановые подходы, фактические данные и заметки сохранятся.</Text><View style={[styles.search, { backgroundColor: colors.surface, borderColor: colors.border }]}><Text style={{ color: colors.muted, fontSize: 18 }}>⌕</Text><TextInput value={query} onChangeText={setQuery} placeholder="Поиск по названию, группе или оборудованию" placeholderTextColor={colors.muted} style={[styles.input, { color: colors.foreground }]} autoFocus /></View><Text style={[styles.counter, { color: colors.primary }]}>{matching.length} упражнений</Text></View>} renderItem={({ item }) => <Pressable onPress={() => choose(item.id)} style={({ pressed }) => [styles.item, { backgroundColor: colors.surface, borderColor: colors.border }, pressed && { opacity: 0.72 }]}><View style={[styles.badge, { backgroundColor: colors.primary + "20" }]}><Text style={[styles.badgeText, { color: colors.primary }]}>{item.group.slice(0, 1)}</Text></View><View style={{ flex: 1 }}><Text style={[styles.name, { color: colors.foreground }]}>{item.name}</Text><Text style={[styles.meta, { color: colors.muted }]}>{item.group} · {item.equipment}</Text></View><IconSymbol name="chevron.right" size={20} color={colors.muted} /></Pressable>} ListEmptyComponent={<Text style={[styles.empty, { color: colors.muted }]}>Ничего не найдено. Попробуйте другой запрос.</Text>} /></ScreenContainer>;
+}
+
+const styles = StyleSheet.create({ content: { paddingTop: 16, paddingBottom: 30, gap: 9 }, headerWrap: { gap: 12, paddingBottom: 5 }, header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" }, headerTitle: { fontSize: 16, fontWeight: "900" }, subtitle: { fontSize: 12, lineHeight: 18 }, search: { height: 48, borderRadius: 14, borderWidth: 1, flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 12 }, input: { flex: 1, fontSize: 13 }, counter: { fontSize: 11, fontWeight: "900" }, item: { minHeight: 70, borderRadius: 16, borderWidth: 1, padding: 12, flexDirection: "row", alignItems: "center", gap: 11 }, badge: { width: 35, height: 35, borderRadius: 11, justifyContent: "center", alignItems: "center" }, badgeText: { fontSize: 15, fontWeight: "900" }, name: { fontSize: 14, fontWeight: "900" }, meta: { fontSize: 11, marginTop: 4 }, empty: { paddingVertical: 30, textAlign: "center", fontSize: 13 } });

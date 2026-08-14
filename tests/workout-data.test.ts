@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { bestOneRepMax, calculateBarbellPlateLayout, calculateVolume, defaultPrograms, estimateOneRepMax, exercises, formatDuration, formatPlateLayout, getDropSetParts, getEffectiveSetWeight, getLoadZones, getMonthCalendarDays, getReminderTriggerDate, getSetVolumeWithDropSubsets, isFutureScheduleDate, mergeStoredPrograms, recommendWorkingWeight, roundToWeightIncrement } from "../lib/workout-data";
+import { selectReplacementExercise, subscribeToExerciseReplacement } from "../lib/exercise-replacement-bus";
 import { buildTrainingCsv } from "../lib/training-export";
 import { buildMonthlyReportData } from "../lib/monthly-report";
 import { buildWorkoutComparison, createImportedWorkoutFingerprint, groupImportedSessions, groupWorkoutSessions, parseTrainingCsv } from "../lib/csv-import";
@@ -63,6 +64,13 @@ describe("workout calculations", () => {
     expect(isFutureScheduleDate("2026-08-15", now)).toBe(true);
     expect(isFutureScheduleDate("2026-08-14", now)).toBe(false);
     expect(isFutureScheduleDate("2026-08-13", now)).toBe(false);
+  });
+  it("returns a chosen replacement exercise to the current workout position", () => {
+    let replacement = "";
+    const unsubscribe = subscribeToExerciseReplacement(({ originalId, replacementId }) => { if (originalId === "bench-press") replacement = replacementId; });
+    selectReplacementExercise({ originalId: "bench-press", replacementId: "incline-db-press" });
+    unsubscribe();
+    expect(replacement).toBe("incline-db-press");
   });
   it("keeps 20 exercises and generated or local teaching art for every muscle group", () => {
     const groups = ["Грудь", "Спина", "Ноги", "Плечи", "Руки", "Корпус", "Кардио"] as const;

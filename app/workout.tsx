@@ -7,6 +7,7 @@ import { useColors } from "@/hooks/use-colors";
 import { MAX_DROP_SUBSETS, bestOneRepMax, getEffectiveSetWeight, getExercise, getExerciseHistory, getLoadZones, getSetVolumeWithDropSubsets, roundToWeightIncrement, type SetType } from "@/lib/workout-data";
 import { trpc } from "@/lib/trpc";
 import { useWorkoutStore } from "@/lib/workout-store";
+import { subscribeToExerciseReplacement } from "@/lib/exercise-replacement-bus";
 
 type DropDraft = { reps: string; weight: string };
 type ActualSet = { reps: string; weight: string; type: SetType; dropSubsets?: DropDraft[] };
@@ -40,7 +41,11 @@ export default function WorkoutScreen() {
   const [elapsed, setElapsed] = useState(0);
   const [rest, setRest] = useState(0);
   const [expanded, setExpanded] = useState<string | null>(null);
-  const [showAlternatives, setShowAlternatives] = useState(false);
+  const [showAlternatives, setShowAlternativesState] = useState(false);
+  const setShowAlternatives = (value: boolean | ((current: boolean) => boolean)) => {
+    if (typeof value === "function" && activeId) router.push({ pathname: "/replace-exercise", params: { originalId: activeId } });
+    else setShowAlternativesState(false);
+  };
   const [machineSetup, setMachineSetup] = useState("");
   const [note, setNote] = useState("");
   const historyQuery = trpc.workoutHistory.byExercise.useQuery({ exerciseId: activeId ?? "" }, { enabled: Boolean(activeId) });
@@ -48,6 +53,7 @@ export default function WorkoutScreen() {
   useEffect(() => { const timer = setInterval(() => setElapsed(Math.floor((Date.now() - started) / 1000)), 1000); return () => clearInterval(timer); }, [started]);
   useEffect(() => { if (!rest) return; const timer = setInterval(() => setRest((value) => Math.max(0, value - 1)), 1000); return () => clearInterval(timer); }, [rest]);
   useEffect(() => { if (Platform.OS === "android") UIManager.setLayoutAnimationEnabledExperimental?.(true); }, []);
+  useEffect(() => subscribeToExerciseReplacement(({ originalId, replacementId }) => { setReplacements((current) => ({ ...current, [originalId]: replacementId })); setShowAlternativesState(false); }), []);
   if (!program) return null;
 
   const actualExerciseId = (originalId: string) => replacements[originalId] ?? originalId;
