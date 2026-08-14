@@ -26,8 +26,10 @@ type WorkoutContextValue = WorkoutState & {
   scheduleProgram: (date: string, schedule: ScheduledWorkout) => void;
   removeSchedule: (date: string) => void;
   addProgram: (program: WorkoutProgram) => void;
+  addPrograms: (programs: WorkoutProgram[]) => void;
   renameProgram: (programId: string, name: string) => void;
   archiveProgram: (programId: string) => void;
+  archivePrograms: (programIds: string[]) => void;
   restoreProgram: (programId: string) => void;
   deleteProgram: (programId: string) => void;
   setOneRmFormula: (formula: OneRepMaxFormula) => void;
@@ -106,8 +108,10 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
     scheduleProgram: (date, schedule) => setState((current) => ({ ...current, scheduled: { ...current.scheduled, [date]: schedule } })),
     removeSchedule: (date) => setState((current) => { const scheduled = { ...current.scheduled }; delete scheduled[date]; return { ...current, scheduled }; }),
     addProgram: (program) => setState((current) => ({ ...current, programs: [...current.programs, { ...program, createdAt: program.createdAt ?? new Date().toISOString() }] })),
+    addPrograms: (programs) => setState((current) => ({ ...current, programs: [...current.programs, ...programs.map((program) => ({ ...program, archivedAt: undefined, createdAt: program.createdAt ?? new Date().toISOString() }))] })),
     renameProgram: (programId, name) => { const normalizedName = name.trim(); if (normalizedName) setState((current) => ({ ...current, programs: current.programs.map((program) => program.id === programId ? { ...program, name: normalizedName } : program) })); },
     archiveProgram: (programId) => setState((current) => ({ ...current, programs: current.programs.map((program) => program.id === programId ? { ...program, archivedAt: new Date().toISOString() } : program) })),
+    archivePrograms: (programIds) => { const selected = new Set(programIds); if (selected.size) setState((current) => ({ ...current, programs: current.programs.map((program) => selected.has(program.id) ? { ...program, archivedAt: new Date().toISOString() } : program) })); },
     restoreProgram: (programId) => setState((current) => ({ ...current, programs: current.programs.map((program) => program.id === programId ? { ...program, archivedAt: undefined } : program) })),
     deleteProgram: (programId) => setState((current) => {
       const scheduled = Object.fromEntries(Object.entries(current.scheduled).filter(([, schedule]) => schedule.programId !== programId));
