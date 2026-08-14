@@ -61,7 +61,7 @@ describe("workout calculations", () => {
     const groups = ["Грудь", "Спина", "Ноги", "Плечи", "Руки", "Корпус", "Кардио"] as const;
     groups.forEach((group) => expect(exercises.filter((exercise) => exercise.group === group)).toHaveLength(20));
     expect(new Set(exercises.map((exercise) => exercise.image)).size).toBe(exercises.length);
-    expect(exercises.every((exercise) => exercise.image.startsWith("data:image/svg+xml"))).toBe(true);
+    expect(exercises.every((exercise) => exercise.image.startsWith("https://loremflickr.com/"))).toBe(true);
   });
   it("accounts for a configured portion of bodyweight when there is no external load", () => {
     expect(getEffectiveSetWeight({ weightKg: 0, equipment: "Вес тела", bodyWeightKg: 80, bodyweightVolumePercent: 65 })).toBe(52);

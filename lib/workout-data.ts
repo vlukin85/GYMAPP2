@@ -26,7 +26,6 @@ export function getSetVolumeWithDropSubsets(input: { weightKg: number; reps: num
 }
 
 import { expandedExercises } from "./catalog-expansion";
-import { getExerciseIllustration } from "./exercise-art";
 
 export type ProgramExercise = {
   exerciseId: string;
@@ -109,6 +108,21 @@ const images = {
   rower: "https://images.unsplash.com/photo-1517344884509-a0c97ec11bcc?auto=format&fit=crop&w=900&q=80",
 };
 
+const photoTagsByGroup: Record<Exclude<MuscleGroup, "Все">, string> = {
+  "Грудь": "gym,benchpress",
+  "Спина": "gym,backworkout",
+  "Ноги": "gym,squat",
+  "Плечи": "gym,dumbbell",
+  "Руки": "gym,bicepcurl",
+  "Корпус": "gym,coreworkout",
+  "Кардио": "gym,treadmill",
+};
+
+function exercisePhotoUrl(exercise: Exercise) {
+  const lock = [...exercise.id].reduce((hash, char) => ((hash * 31) + char.charCodeAt(0)) >>> 0, 17);
+  return `https://loremflickr.com/640/800/${photoTagsByGroup[exercise.group]}?lock=${lock}`;
+}
+
 const catalogExercises: Exercise[] = [
   { id: "bench-press", name: "Жим штанги лёжа", group: "Грудь", equipment: "Штанга", description: "Базовое упражнение для грудных мышц. Сводите лопатки, удерживайте стопы на полу и опускайте гриф к нижней части груди.", image: images.benchPress, videoUrl: "https://www.youtube.com/results?search_query=жим+штанги+лежа+техника", recordKg: 92.5, recordReps: 5 },
   { id: "incline-db-press", name: "Жим гантелей на наклонной", group: "Грудь", equipment: "Гантели", description: "Работает по верхней части груди. Двигайте гантели по естественной дуге и не разгибайте локти до щелчка.", image: images.inclinePress, videoUrl: "https://www.youtube.com/results?search_query=жим+гантелей+на+наклонной+скамье", recordKg: 34, recordReps: 8 },
@@ -135,7 +149,7 @@ const catalogExercises: Exercise[] = [
 
 export const exercises: Exercise[] = catalogExercises.map((exercise) => ({
   ...exercise,
-  image: getExerciseIllustration(exercise.id, exercise.group, exercise.equipment),
+  image: exercisePhotoUrl(exercise),
 }));
 
 export const defaultPrograms: WorkoutProgram[] = [

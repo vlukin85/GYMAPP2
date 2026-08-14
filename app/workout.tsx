@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Alert, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Alert, KeyboardAvoidingView, LayoutAnimation, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, UIManager, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
@@ -47,6 +47,7 @@ export default function WorkoutScreen() {
 
   useEffect(() => { const timer = setInterval(() => setElapsed(Math.floor((Date.now() - started) / 1000)), 1000); return () => clearInterval(timer); }, [started]);
   useEffect(() => { if (!rest) return; const timer = setInterval(() => setRest((value) => Math.max(0, value - 1)), 1000); return () => clearInterval(timer); }, [rest]);
+  useEffect(() => { if (Platform.OS === "android") UIManager.setLayoutAnimationEnabledExperimental?.(true); }, []);
   if (!program) return null;
 
   const actualExerciseId = (originalId: string) => replacements[originalId] ?? originalId;
@@ -71,10 +72,11 @@ export default function WorkoutScreen() {
     setMachineSetup(preference.machineSetup ?? ""); setNote(preference.note ?? ""); setExpanded(null); setShowAlternatives(false); setActiveId(id);
   };
   const updateSet = (index: number, update: (set: ActualSet) => ActualSet) => setDraft((current) => current.map((set, position) => position === index ? update(set) : set));
-  const selectType = (index: number, type: SetType) => updateSet(index, (set) => type === "drop" ? { ...set, type, dropSubsets: set.dropSubsets?.length ? set.dropSubsets : [{ reps: set.reps, weight: set.weight }] } : { ...set, type, dropSubsets: undefined });
+  const animateDropLayout = () => LayoutAnimation.configureNext({ duration: 220, create: { type: LayoutAnimation.Types.easeInEaseOut, property: LayoutAnimation.Properties.opacity }, update: { type: LayoutAnimation.Types.easeInEaseOut }, delete: { type: LayoutAnimation.Types.easeInEaseOut, property: LayoutAnimation.Properties.opacity } });
+  const selectType = (index: number, type: SetType) => { animateDropLayout(); updateSet(index, (set) => type === "drop" ? { ...set, type, dropSubsets: set.dropSubsets?.length ? set.dropSubsets : [{ reps: set.reps, weight: set.weight }] } : { ...set, type, dropSubsets: undefined }); };
   const updateDropSubset = (setIndex: number, subsetIndex: number, field: keyof DropDraft, value: string) => updateSet(setIndex, (set) => ({ ...set, dropSubsets: (set.dropSubsets ?? []).map((part, position) => position === subsetIndex ? { ...part, [field]: value } : part) }));
-  const addDropSubset = (setIndex: number) => updateSet(setIndex, (set) => ({ ...set, dropSubsets: [...(set.dropSubsets ?? []), { reps: set.reps, weight: set.weight }].slice(0, MAX_DROP_SUBSETS) }));
-  const removeDropSubset = (setIndex: number, subsetIndex: number) => updateSet(setIndex, (set) => ({ ...set, dropSubsets: (set.dropSubsets ?? []).filter((_, position) => position !== subsetIndex) }));
+  const addDropSubset = (setIndex: number) => { animateDropLayout(); updateSet(setIndex, (set) => ({ ...set, dropSubsets: [...(set.dropSubsets ?? []), { reps: set.reps, weight: set.weight }].slice(0, MAX_DROP_SUBSETS) })); };
+  const removeDropSubset = (setIndex: number, subsetIndex: number) => { animateDropLayout(); updateSet(setIndex, (set) => ({ ...set, dropSubsets: (set.dropSubsets ?? []).filter((_, position) => position !== subsetIndex) })); };
   const saveExercise = () => {
     if (!activeId) return;
     setSetsByExercise((current) => ({ ...current, [activeId]: draft })); setDone((current) => ({ ...current, [activeId]: true })); setExercisePreference(actualExerciseId(activeId), { machineSetup, note });
