@@ -9,7 +9,7 @@ import { useColors } from "@/hooks/use-colors";
 import { MAX_DROP_SUBSETS, bestOneRepMax, getEffectiveSetWeight, getExercise, getExerciseHistory, getLoadZones, getSetVolumeWithDropSubsets, roundToWeightIncrement, type SetType } from "@/lib/workout-data";
 import { trpc } from "@/lib/trpc";
 import { useWorkoutStore } from "@/lib/workout-store";
-import { subscribeToExerciseReplacement } from "@/lib/exercise-replacement-bus";
+import { openReplacementPicker, subscribeToExerciseReplacement } from "@/lib/exercise-replacement-bus";
 
 type DropDraft = { reps: string; weight: string };
 type ActualSet = { reps: string; weight: string; type: SetType; dropSubsets?: DropDraft[] };
@@ -48,7 +48,7 @@ export default function WorkoutScreen() {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [showAlternatives, setShowAlternativesState] = useState(false);
   const setShowAlternatives = (value: boolean | ((current: boolean) => boolean)) => {
-    if (typeof value === "function" && activeId) router.push({ pathname: "/replace-exercise", params: { originalId: activeId } });
+    if (typeof value === "function" && activeId) openReplacementPicker(activeId);
     else setShowAlternativesState(false);
   };
   const [machineSetup, setMachineSetup] = useState("");

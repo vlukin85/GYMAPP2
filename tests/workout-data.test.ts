@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { bestOneRepMax, calculateBarbellPlateLayout, calculateVolume, defaultPrograms, estimateOneRepMax, exercises, formatDuration, formatPlateLayout, getCurrentTrainingPeriodStats, getDropSetParts, getEffectiveSetWeight, getLoadZones, getMonthComparisonStats, getMonthCalendarDays, getReminderTriggerDate, getSetVolumeWithDropSubsets, isFutureScheduleDate, mergeStoredPrograms, recommendWorkingWeight, roundToWeightIncrement } from "../lib/workout-data";
-import { selectReplacementExercise, subscribeToExerciseReplacement } from "../lib/exercise-replacement-bus";
+import { openReplacementPicker, selectReplacementExercise, subscribeToExerciseReplacement, subscribeToReplacementPicker } from "../lib/exercise-replacement-bus";
 import { buildTrainingCsv } from "../lib/training-export";
 import { buildMonthlyReportData } from "../lib/monthly-report";
 import { buildWorkoutComparison, createImportedWorkoutFingerprint, groupImportedSessions, groupWorkoutSessions, parseTrainingCsv } from "../lib/csv-import";
@@ -71,6 +71,13 @@ describe("workout calculations", () => {
     selectReplacementExercise({ originalId: "bench-press", replacementId: "incline-db-press" });
     unsubscribe();
     expect(replacement).toBe("incline-db-press");
+  });
+  it("opens the embedded replacement picker for the active exercise", () => {
+    let requestedOriginalId = "";
+    const unsubscribe = subscribeToReplacementPicker((originalId) => { requestedOriginalId = originalId; });
+    openReplacementPicker("bench-press");
+    unsubscribe();
+    expect(requestedOriginalId).toBe("bench-press");
   });
   it("summarizes completed workouts for the current week and month", () => {
     const periods = getCurrentTrainingPeriodStats([

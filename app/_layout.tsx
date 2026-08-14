@@ -9,6 +9,7 @@ import { Platform } from "react-native";
 import "@/lib/_core/nativewind-pressable";
 import { ThemeProvider } from "@/lib/theme-provider";
 import { TrainingBackupSync } from "@/components/training-backup-sync";
+import { WorkoutReplacementOverlay } from "@/components/workout-replacement-overlay";
 import { WorkoutProvider } from "@/lib/workout-store";
 import {
   SafeAreaFrameContext,
@@ -104,6 +105,7 @@ export default function RootLayout() {
             <Stack.Screen name="replace-exercise" />
           </Stack>
           <TrainingBackupSync />
+          <WorkoutReplacementOverlay />
           <StatusBar style="auto" />
         </QueryClientProvider>
       </trpc.Provider>
