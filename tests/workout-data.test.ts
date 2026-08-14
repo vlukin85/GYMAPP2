@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { bestOneRepMax, calculateBarbellPlateLayout, calculateVolume, defaultPrograms, estimateOneRepMax, exercises, formatDuration, formatPlateLayout, getCurrentTrainingPeriodStats, getDropSetParts, getEffectiveSetWeight, getLoadZones, getMonthCalendarDays, getReminderTriggerDate, getSetVolumeWithDropSubsets, isFutureScheduleDate, mergeStoredPrograms, recommendWorkingWeight, roundToWeightIncrement } from "../lib/workout-data";
+import { bestOneRepMax, calculateBarbellPlateLayout, calculateVolume, defaultPrograms, estimateOneRepMax, exercises, formatDuration, formatPlateLayout, getCurrentTrainingPeriodStats, getDropSetParts, getEffectiveSetWeight, getLoadZones, getMonthComparisonStats, getMonthCalendarDays, getReminderTriggerDate, getSetVolumeWithDropSubsets, isFutureScheduleDate, mergeStoredPrograms, recommendWorkingWeight, roundToWeightIncrement } from "../lib/workout-data";
 import { selectReplacementExercise, subscribeToExerciseReplacement } from "../lib/exercise-replacement-bus";
 import { buildTrainingCsv } from "../lib/training-export";
 import { buildMonthlyReportData } from "../lib/monthly-report";
@@ -81,6 +81,15 @@ describe("workout calculations", () => {
     ], new Date("2026-08-14T12:00:00"));
     expect(periods.week).toMatchObject({ workoutCount: 2, activeDays: 2, durationMinutes: 95, totalVolume: 14300 });
     expect(periods.month).toMatchObject({ workoutCount: 3, activeDays: 3, durationMinutes: 135, totalVolume: 19500 });
+  });
+  it("compares the current month with the entire preceding month", () => {
+    const comparison = getMonthComparisonStats([
+      { id: "current", programId: "upper-strength", date: "2026-08-10", durationMinutes: 50, totalVolume: 9000 },
+      { id: "previous-a", programId: "leg-day", date: "2026-07-20", durationMinutes: 40, totalVolume: 6400 },
+      { id: "previous-b", programId: "full-body", date: "2026-07-01", durationMinutes: 35, totalVolume: 5100 },
+    ], new Date("2026-08-14T12:00:00"));
+    expect(comparison.current).toMatchObject({ workoutCount: 1, durationMinutes: 50, totalVolume: 9000 });
+    expect(comparison.previous).toMatchObject({ workoutCount: 2, durationMinutes: 75, totalVolume: 11500 });
   });
   it("keeps 20 exercises and generated or local teaching art for every muscle group", () => {
     const groups = ["Грудь", "Спина", "Ноги", "Плечи", "Руки", "Корпус", "Кардио"] as const;

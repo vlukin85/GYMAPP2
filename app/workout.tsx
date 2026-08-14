@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Alert, KeyboardAvoidingView, LayoutAnimation, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, UIManager, View } from "react-native";
 import { setAudioModeAsync, useAudioPlayer } from "expo-audio";
+import * as Haptics from "expo-haptics";
 import { router, useLocalSearchParams } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
@@ -30,7 +31,7 @@ export default function WorkoutScreen() {
   const colors = useColors();
   const { programId } = useLocalSearchParams<{ programId: string }>();
   const store = useWorkoutStore();
-  const { finishWorkout, oneRmFormula, plateStepKg, programs, bodyWeightKg, bodyweightVolumePercent, restTimerSoundEnabled, exercisePreferences, setExercisePreference } = store;
+  const { finishWorkout, oneRmFormula, plateStepKg, programs, bodyWeightKg, bodyweightVolumePercent, restTimerSoundEnabled, restTimerVibrationEnabled, exercisePreferences, setExercisePreference } = store;
   const program = programs.find((item) => item.id === (programId ?? "upper-strength"));
   const saveMutation = trpc.workoutHistory.save.useMutation();
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -57,7 +58,7 @@ export default function WorkoutScreen() {
   useEffect(() => { const timer = setInterval(() => setElapsed(Math.floor((Date.now() - started) / 1000)), 1000); return () => clearInterval(timer); }, [started]);
   useEffect(() => { if (!rest) return; const timer = setInterval(() => setRest((value) => Math.max(0, value - 1)), 1000); return () => clearInterval(timer); }, [rest]);
   useEffect(() => { setAudioModeAsync({ playsInSilentMode: true }).catch(() => undefined); }, []);
-  useEffect(() => { if (previousRestRef.current > 0 && rest === 0 && !skippedRestRef.current && restTimerSoundEnabled) { restSignalPlayer.seekTo(0); restSignalPlayer.play(); } if (rest === 0) skippedRestRef.current = false; previousRestRef.current = rest; }, [rest, restSignalPlayer, restTimerSoundEnabled]);
+  useEffect(() => { if (previousRestRef.current > 0 && rest === 0 && !skippedRestRef.current) { if (restTimerSoundEnabled) { restSignalPlayer.seekTo(0); restSignalPlayer.play(); } if (restTimerVibrationEnabled && Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); } if (rest === 0) skippedRestRef.current = false; previousRestRef.current = rest; }, [rest, restSignalPlayer, restTimerSoundEnabled, restTimerVibrationEnabled]);
   useEffect(() => { if (Platform.OS === "android") UIManager.setLayoutAnimationEnabledExperimental?.(true); }, []);
   useEffect(() => subscribeToExerciseReplacement(({ originalId, replacementId }) => { setReplacements((current) => ({ ...current, [originalId]: replacementId })); setShowAlternativesState(false); }), []);
   if (!program) return null;

@@ -14,6 +14,7 @@ type WorkoutState = {
   bodyWeightKg: number;
   bodyweightVolumePercent: number;
   restTimerSoundEnabled: boolean;
+  restTimerVibrationEnabled: boolean;
   exercisePreferences: Record<string, ExercisePreference>;
 };
 
@@ -29,6 +30,7 @@ type WorkoutContextValue = WorkoutState & {
   setBarbellProfile: (profile: BarbellProfile) => void;
   setBodyweightVolumeSettings: (bodyWeightKg: number, bodyweightVolumePercent: number) => void;
   setRestTimerSoundEnabled: (enabled: boolean) => void;
+  setRestTimerVibrationEnabled: (enabled: boolean) => void;
   setExercisePreference: (exerciseId: string, preference: ExercisePreference) => void;
   repeatLastWorkout: () => string | null;
   importCompletedWorkouts: (workouts: { id: string; programId: string; date: string; durationMinutes: number; totalVolume: number; sets: { exerciseId: string; weight: number; reps: number }[] }[]) => void;
@@ -48,6 +50,7 @@ const initialState: WorkoutState = {
   bodyWeightKg: 75,
   bodyweightVolumePercent: 65,
   restTimerSoundEnabled: true,
+  restTimerVibrationEnabled: true,
   exercisePreferences: {},
 };
 
@@ -62,7 +65,7 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
       if (value) {
         const parsed = JSON.parse(value) as Partial<WorkoutState>;
         const migratedScheduled = Object.fromEntries(Object.entries(parsed.scheduled ?? initialState.scheduled).map(([date, item]) => [date, typeof item === "string" ? { programId: item, time: "18:30", reminderMinutes: 60 } : item])) as Record<string, ScheduledWorkout>;
-        setState({ ...initialState, ...parsed, programs: mergeStoredPrograms(parsed.programs), scheduled: migratedScheduled, oneRmFormula: parsed.oneRmFormula ?? initialState.oneRmFormula, plateStepKg: parsed.plateStepKg ?? initialState.plateStepKg, barbellProfile: parsed.barbellProfile ?? initialState.barbellProfile, personalRecords: parsed.personalRecords ?? {}, bodyWeightKg: parsed.bodyWeightKg ?? initialState.bodyWeightKg, bodyweightVolumePercent: parsed.bodyweightVolumePercent ?? initialState.bodyweightVolumePercent, restTimerSoundEnabled: parsed.restTimerSoundEnabled ?? initialState.restTimerSoundEnabled, exercisePreferences: parsed.exercisePreferences ?? {} });
+        setState({ ...initialState, ...parsed, programs: mergeStoredPrograms(parsed.programs), scheduled: migratedScheduled, oneRmFormula: parsed.oneRmFormula ?? initialState.oneRmFormula, plateStepKg: parsed.plateStepKg ?? initialState.plateStepKg, barbellProfile: parsed.barbellProfile ?? initialState.barbellProfile, personalRecords: parsed.personalRecords ?? {}, bodyWeightKg: parsed.bodyWeightKg ?? initialState.bodyWeightKg, bodyweightVolumePercent: parsed.bodyweightVolumePercent ?? initialState.bodyweightVolumePercent, restTimerSoundEnabled: parsed.restTimerSoundEnabled ?? initialState.restTimerSoundEnabled, restTimerVibrationEnabled: parsed.restTimerVibrationEnabled ?? initialState.restTimerVibrationEnabled, exercisePreferences: parsed.exercisePreferences ?? {} });
       }
       setReady(true);
     }).catch(() => setReady(true));
@@ -101,6 +104,7 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
     setBarbellProfile: (barbellProfile) => setState((current) => ({ ...current, barbellProfile })),
     setBodyweightVolumeSettings: (bodyWeightKg, bodyweightVolumePercent) => setState((current) => ({ ...current, bodyWeightKg: Math.max(1, bodyWeightKg), bodyweightVolumePercent: Math.min(100, Math.max(0, bodyweightVolumePercent)) })),
     setRestTimerSoundEnabled: (restTimerSoundEnabled) => setState((current) => ({ ...current, restTimerSoundEnabled })),
+    setRestTimerVibrationEnabled: (restTimerVibrationEnabled) => setState((current) => ({ ...current, restTimerVibrationEnabled })),
     setExercisePreference: (exerciseId, preference) => setState((current) => ({ ...current, exercisePreferences: { ...current.exercisePreferences, [exerciseId]: preference } })),
     repeatLastWorkout: () => {
       const programId = state.completed[0]?.programId;

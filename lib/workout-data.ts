@@ -89,6 +89,13 @@ export function getCurrentTrainingPeriodStats(completed: CompletedWorkout[], now
   return { week: getTrainingPeriodStats(completed, toLocalDateKey(weekStart), todayKey), month: getTrainingPeriodStats(completed, toLocalDateKey(monthStart), todayKey) };
 }
 
+export function getMonthComparisonStats(completed: CompletedWorkout[], now = new Date()) {
+  const currentStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const previousStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const previousEnd = new Date(now.getFullYear(), now.getMonth(), 0);
+  return { current: getTrainingPeriodStats(completed, toLocalDateKey(currentStart), toLocalDateKey(now)), previous: getTrainingPeriodStats(completed, toLocalDateKey(previousStart), toLocalDateKey(previousEnd)) };
+}
+
 export type ExerciseHistoryEntry = {
   date: string;
   sets: { weight: number; reps: number }[];
