@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { bestOneRepMax, calculateBarbellPlateLayout, calculateVolume, estimateOneRepMax, exercises, formatDuration, formatPlateLayout, getEffectiveSetWeight, getLoadZones, getMonthCalendarDays, getReminderTriggerDate, recommendWorkingWeight, roundToWeightIncrement } from "../lib/workout-data";
 import { buildTrainingCsv } from "../lib/training-export";
 import { buildMonthlyReportData } from "../lib/monthly-report";
+import { buildWorkoutComparison, groupImportedSessions, groupWorkoutSessions, parseTrainingCsv } from "../lib/csv-import";
 
 describe("workout calculations", () => {
   it("calculates volume from weight, reps and sets", () => {
@@ -65,5 +66,31 @@ describe("workout calculations", () => {
   it("accounts for a configured portion of bodyweight when there is no external load", () => {
     expect(getEffectiveSetWeight({ weightKg: 0, equipment: "Вес тела", bodyWeightKg: 80, bodyweightVolumePercent: 65 })).toBe(52);
     expect(getEffectiveSetWeight({ weightKg: 35, equipment: "Вес тела", bodyWeightKg: 80, bodyweightVolumePercent: 65 })).toBe(35);
+  });
+  it("parses app CSV exports with Russian headers, decimal commas and quoted cells", () => {
+    const parsed = parseTrainingCsv("\uFEFF\"Дата\";\"Программа\";\"Упражнение\";\"Подход\";\"Повторы\";\"Вес_кг\"\n\"2026-08-10\";\"Верх тела\";\"bench-press\";\"1\";\"6\";\"80,5\"");
+    expect(parsed.errors).toEqual([]);
+    expect(parsed.delimiter).toBe(";");
+    expect(parsed.rows[0]).toMatchObject({ date: "2026-08-10", exerciseId: "bench-press", reps: 6, weightKg: 80.5, setNumber: 1 });
+    expect(groupImportedSessions(parsed.rows)).toMatchObject([{ programName: "Верх тела", totalVolumeKg: 483 }]);
+  });
+  it("reports invalid CSV rows without accepting them", () => {
+    const parsed = parseTrainingCsv("date,exercise,reps,weight\n2026-08-10,Жим штанги лёжа,0,80\n2026-08-11,Неизвестное,6,80\n");
+    expect(parsed.rows).toHaveLength(0);
+    expect(parsed.errors).toHaveLength(2);
+    expect(parsed.errors.map((error) => error.line)).toEqual([2, 3]);
+  });
+  it("groups server sets by session and compares volume and 1RM per exercise", () => {
+    const sessions = groupWorkoutSessions([
+      { sessionId: 1, date: "2026-08-01", programId: "upper", durationMinutes: 50, exerciseId: "bench-press", reps: 5, weightCentiKg: 8000, volumeCentiKg: 40000, oneRepMaxCentiKg: 9333 },
+      { sessionId: 1, date: "2026-08-01", programId: "upper", durationMinutes: 50, exerciseId: "barbell-row", reps: 6, weightCentiKg: 6000, volumeCentiKg: 36000, oneRepMaxCentiKg: 7200 },
+      { sessionId: 2, date: "2026-08-08", programId: "upper", durationMinutes: 55, exerciseId: "bench-press", reps: 5, weightCentiKg: 8500, volumeCentiKg: 42500, oneRepMaxCentiKg: 9917 },
+      { sessionId: 2, date: "2026-08-08", programId: "upper", durationMinutes: 55, exerciseId: "shoulder-press", reps: 8, weightCentiKg: 2200, volumeCentiKg: 17600, oneRepMaxCentiKg: 2787 },
+    ]);
+    const comparison = buildWorkoutComparison(sessions.find((session) => session.id === "1")!, sessions.find((session) => session.id === "2")!);
+    expect(comparison.volumeDeltaKg).toBeCloseTo(-159);
+    expect(comparison.durationDeltaMinutes).toBe(5);
+    expect(comparison.exerciseDeltas.find((exercise) => exercise.exerciseId === "bench-press")?.deltaKg).toBeCloseTo(5.84);
+    expect(comparison.exerciseDeltas.find((exercise) => exercise.exerciseId === "barbell-row")?.deltaKg).toBeNull();
   });
 });

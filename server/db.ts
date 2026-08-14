@@ -43,17 +43,37 @@ export async function getUserByOpenId(openId: string) {
 
 export type PersistedSetInput = { exerciseId: string; setNumber: number; reps: number; weightKg: number; setType?: "warmup" | "working" | "drop" | "failure"; supersetGroup?: string };
 
-export async function saveCompletedWorkout(input: { userId: number; programId: string; durationMinutes: number; formula: "epley" | "brzycki"; sets: PersistedSetInput[] }) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
+type WorkoutPersistenceInput = { userId: number; programId: string; durationMinutes: number; formula: "epley" | "brzycki"; completedAt?: Date; sets: PersistedSetInput[] };
+
+async function writeCompletedWorkout(db: any, input: WorkoutPersistenceInput) {
   const totalVolumeCentiKg = input.sets.reduce((sum, set) => sum + Math.round(set.weightKg * 100) * set.reps, 0);
-  const sessionResult = await db.insert(workoutSessions).values({ userId: input.userId, programId: input.programId, durationMinutes: input.durationMinutes, totalVolumeCentiKg });
+  const completedAt = input.completedAt ?? new Date();
+  const sessionResult = await db.insert(workoutSessions).values({ userId: input.userId, programId: input.programId, durationMinutes: input.durationMinutes, totalVolumeCentiKg, completedAt });
   const sessionId = Number((sessionResult as any)?.[0]?.insertId ?? (sessionResult as any)?.insertId);
   if (!sessionId) throw new Error("Could not determine saved workout session id");
   if (input.sets.length > 0) {
-    await db.insert(workoutSets).values(input.sets.map((set) => { const weightCentiKg = Math.round(set.weightKg * 100); const cappedReps = Math.min(set.reps, 30); const oneRepMaxCentiKg = Math.round(input.formula === "brzycki" ? weightCentiKg * (36 / (37 - cappedReps)) : weightCentiKg * (1 + cappedReps / 30)); return { sessionId, userId: input.userId, exerciseId: set.exerciseId, setNumber: set.setNumber, reps: set.reps, weightCentiKg, volumeCentiKg: weightCentiKg * set.reps, oneRepMaxCentiKg, setType: set.setType ?? "working", supersetGroup: set.supersetGroup }; }));
+    await db.insert(workoutSets).values(input.sets.map((set) => { const weightCentiKg = Math.round(set.weightKg * 100); const cappedReps = Math.min(set.reps, 30); const oneRepMaxCentiKg = Math.round(input.formula === "brzycki" ? weightCentiKg * (36 / (37 - cappedReps)) : weightCentiKg * (1 + cappedReps / 30)); return { sessionId, userId: input.userId, exerciseId: set.exerciseId, setNumber: set.setNumber, reps: set.reps, weightCentiKg, volumeCentiKg: weightCentiKg * set.reps, oneRepMaxCentiKg, setType: set.setType ?? "working", supersetGroup: set.supersetGroup, completedAt }; }));
   }
   return { sessionId };
+}
+
+export async function saveCompletedWorkout(input: WorkoutPersistenceInput) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  return writeCompletedWorkout(db, input);
+}
+
+export async function saveImportedWorkouts(input: { userId: number; formula: "epley" | "brzycki"; sessions: Omit<WorkoutPersistenceInput, "userId" | "formula">[] }) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  return db.transaction(async (tx) => {
+    const sessionIds: number[] = [];
+    for (const session of input.sessions) {
+      const saved = await writeCompletedWorkout(tx, { userId: input.userId, formula: input.formula, ...session });
+      sessionIds.push(saved.sessionId);
+    }
+    return { sessionIds };
+  });
 }
 
 export async function getExerciseHistoryFromDb(userId: number, exerciseId: string) {
@@ -65,7 +85,7 @@ export async function getExerciseHistoryFromDb(userId: number, exerciseId: strin
 export async function getAllWorkoutSetsFromDb(userId: number) {
   const db = await getDb();
   if (!db) return [];
-  return db.select({ date: workoutSets.completedAt, programId: workoutSessions.programId, exerciseId: workoutSets.exerciseId, setNumber: workoutSets.setNumber, reps: workoutSets.reps, weightCentiKg: workoutSets.weightCentiKg, volumeCentiKg: workoutSets.volumeCentiKg, oneRepMaxCentiKg: workoutSets.oneRepMaxCentiKg }).from(workoutSets).innerJoin(workoutSessions, eq(workoutSets.sessionId, workoutSessions.id)).where(eq(workoutSets.userId, userId)).orderBy(desc(workoutSets.completedAt), workoutSets.setNumber);
+  return db.select({ sessionId: workoutSets.sessionId, date: workoutSessions.completedAt, programId: workoutSessions.programId, durationMinutes: workoutSessions.durationMinutes, exerciseId: workoutSets.exerciseId, setNumber: workoutSets.setNumber, reps: workoutSets.reps, weightCentiKg: workoutSets.weightCentiKg, volumeCentiKg: workoutSets.volumeCentiKg, oneRepMaxCentiKg: workoutSets.oneRepMaxCentiKg }).from(workoutSets).innerJoin(workoutSessions, eq(workoutSets.sessionId, workoutSessions.id)).where(eq(workoutSets.userId, userId)).orderBy(desc(workoutSessions.completedAt), workoutSets.setNumber);
 }
 
 export async function saveTrainingBackup(userId: number, snapshotJson: string) {

@@ -29,6 +29,7 @@ type WorkoutContextValue = WorkoutState & {
   setBodyweightVolumeSettings: (bodyWeightKg: number, bodyweightVolumePercent: number) => void;
   setExercisePreference: (exerciseId: string, preference: ExercisePreference) => void;
   repeatLastWorkout: () => string | null;
+  importCompletedWorkouts: (workouts: { id: string; programId: string; date: string; durationMinutes: number; totalVolume: number; sets: { exerciseId: string; weight: number; reps: number }[] }[]) => void;
   restoreTrainingBackup: (snapshot: Partial<Pick<WorkoutState, "oneRmFormula" | "plateStepKg" | "barbellProfile" | "personalRecords" | "bodyWeightKg" | "bodyweightVolumePercent" | "exercisePreferences">>) => void;
 };
 
@@ -102,6 +103,20 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
       if (programId) setState((current) => ({ ...current, activeWorkout: { programId, startedAt: Date.now() } }));
       return programId ?? null;
     },
+    importCompletedWorkouts: (workouts) => setState((current) => {
+      const personalRecords = { ...current.personalRecords };
+      workouts.forEach((workout) => {
+        const grouped = workout.sets.reduce<Record<string, { weight: number; reps: number }[]>>((acc, set) => { (acc[set.exerciseId] ??= []).push({ weight: set.weight, reps: set.reps }); return acc; }, {});
+        Object.entries(grouped).forEach(([exerciseId, exerciseSets]) => {
+          const bestSet = exerciseSets.reduce((best, set) => bestOneRepMax([set], current.oneRmFormula) > bestOneRepMax([best], current.oneRmFormula) ? set : best, exerciseSets[0]);
+          const estimatedOneRepMax = bestOneRepMax(exerciseSets, current.oneRmFormula);
+          if (!personalRecords[exerciseId] || estimatedOneRepMax > personalRecords[exerciseId].estimatedOneRepMax) personalRecords[exerciseId] = { exerciseId, weight: bestSet.weight, reps: bestSet.reps, estimatedOneRepMax, achievedAt: `${workout.date}T12:00:00.000Z` };
+        });
+      });
+      const existing = new Map(current.completed.map((workout) => [workout.id, workout]));
+      workouts.forEach((workout) => existing.set(workout.id, { id: workout.id, programId: workout.programId, date: workout.date, durationMinutes: workout.durationMinutes, totalVolume: workout.totalVolume }));
+      return { ...current, personalRecords, completed: Array.from(existing.values()).sort((a, b) => b.date.localeCompare(a.date)) };
+    }),
     restoreTrainingBackup: (snapshot) => setState((current) => ({ ...current, oneRmFormula: snapshot.oneRmFormula ?? current.oneRmFormula, plateStepKg: snapshot.plateStepKg ?? current.plateStepKg, barbellProfile: snapshot.barbellProfile ?? current.barbellProfile, personalRecords: snapshot.personalRecords ?? current.personalRecords, bodyWeightKg: snapshot.bodyWeightKg ?? current.bodyWeightKg, bodyweightVolumePercent: snapshot.bodyweightVolumePercent ?? current.bodyweightVolumePercent, exercisePreferences: snapshot.exercisePreferences ?? current.exercisePreferences })),
   }), [state, ready]);
 

@@ -4,6 +4,15 @@ import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router } from "./_core/trpc";
 import * as db from "./db";
 
+const persistedSetSchema = z.object({
+  exerciseId: z.string().min(1).max(128),
+  setNumber: z.number().int().min(1),
+  reps: z.number().int().min(0).max(1000),
+  weightKg: z.number().min(0).max(10000),
+  setType: z.enum(["warmup", "working", "drop", "failure"]).optional(),
+  supersetGroup: z.string().min(1).max(32).optional(),
+});
+
 export const appRouter = router({
   system: systemRouter,
   auth: router({
@@ -19,15 +28,18 @@ export const appRouter = router({
       programId: z.string().min(1).max(128),
       durationMinutes: z.number().int().min(0).max(24 * 60),
       formula: z.enum(["epley", "brzycki"]),
-      sets: z.array(z.object({
-        exerciseId: z.string().min(1).max(128),
-        setNumber: z.number().int().min(1),
-        reps: z.number().int().min(0).max(1000),
-        weightKg: z.number().min(0).max(10000),
-        setType: z.enum(["warmup", "working", "drop", "failure"]).optional(),
-        supersetGroup: z.string().min(1).max(32).optional(),
-      })).max(500),
+      completedAt: z.coerce.date().optional(),
+      sets: z.array(persistedSetSchema).max(500),
     })).mutation(({ ctx, input }) => db.saveCompletedWorkout({ userId: ctx.user?.id ?? 0, ...input })),
+    import: publicProcedure.input(z.object({
+      formula: z.enum(["epley", "brzycki"]),
+      sessions: z.array(z.object({
+        programId: z.string().min(1).max(128),
+        durationMinutes: z.number().int().min(0).max(24 * 60),
+        completedAt: z.coerce.date(),
+        sets: z.array(persistedSetSchema).min(1).max(500),
+      })).min(1).max(100),
+    })).mutation(({ ctx, input }) => db.saveImportedWorkouts({ userId: ctx.user?.id ?? 0, ...input })),
     byExercise: publicProcedure.input(z.object({ exerciseId: z.string().min(1).max(128) })).query(({ ctx, input }) => db.getExerciseHistoryFromDb(ctx.user?.id ?? 0, input.exerciseId)),
     all: publicProcedure.query(({ ctx }) => db.getAllWorkoutSetsFromDb(ctx.user?.id ?? 0)),
   }),
