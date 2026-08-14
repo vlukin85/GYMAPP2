@@ -3,6 +3,7 @@ import { bestOneRepMax, calculateBarbellPlateLayout, calculateVolume, defaultPro
 import { buildTrainingCsv } from "../lib/training-export";
 import { buildMonthlyReportData } from "../lib/monthly-report";
 import { buildWorkoutComparison, createImportedWorkoutFingerprint, groupImportedSessions, groupWorkoutSessions, parseTrainingCsv } from "../lib/csv-import";
+import { canDownloadPhotosOnWifi, getUniquePhotoUrls } from "../lib/offline-media";
 
 describe("workout calculations", () => {
   it("calculates volume from weight, reps and sets", () => {
@@ -68,6 +69,12 @@ describe("workout calculations", () => {
     expect(defaultPrograms.length).toBeGreaterThanOrEqual(15);
     expect(defaultPrograms.map((program) => program.id)).toEqual(expect.arrayContaining(["full-body-start", "full-body-strength", "endurance-circuit", "five-by-five", "active-recovery", "upper-strength", "leg-day"]));
     expect(defaultPrograms.every((program) => program.exercises.length >= 3)).toBe(true);
+  });
+  it("allows mass photo caching only on reachable Wi-Fi and removes duplicate URLs", () => {
+    expect(canDownloadPhotosOnWifi({ type: "WIFI", isInternetReachable: true })).toBe(true);
+    expect(canDownloadPhotosOnWifi({ type: "CELLULAR", isInternetReachable: true })).toBe(false);
+    expect(canDownloadPhotosOnWifi({ type: "WIFI", isInternetReachable: false })).toBe(false);
+    expect(getUniquePhotoUrls([{ image: "https://photo/one", photoAngles: [{ url: "https://photo/one" }, { url: "https://photo/two" }] }, { image: "https://photo/one" }])).toEqual(["https://photo/one", "https://photo/two"]);
   });
   it("accounts for a configured portion of bodyweight when there is no external load", () => {
     expect(getEffectiveSetWeight({ weightKg: 0, equipment: "Вес тела", bodyWeightKg: 80, bodyweightVolumePercent: 65 })).toBe(52);
