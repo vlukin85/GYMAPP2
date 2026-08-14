@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { bestOneRepMax, calculateBarbellPlateLayout, calculateVolume, defaultPrograms, estimateOneRepMax, exercises, formatDuration, formatPlateLayout, getDropSetParts, getEffectiveSetWeight, getLoadZones, getMonthCalendarDays, getReminderTriggerDate, getSetVolumeWithDropSubsets, isFutureScheduleDate, mergeStoredPrograms, recommendWorkingWeight, roundToWeightIncrement } from "../lib/workout-data";
+import { bestOneRepMax, calculateBarbellPlateLayout, calculateVolume, defaultPrograms, estimateOneRepMax, exercises, formatDuration, formatPlateLayout, getCurrentTrainingPeriodStats, getDropSetParts, getEffectiveSetWeight, getLoadZones, getMonthCalendarDays, getReminderTriggerDate, getSetVolumeWithDropSubsets, isFutureScheduleDate, mergeStoredPrograms, recommendWorkingWeight, roundToWeightIncrement } from "../lib/workout-data";
 import { selectReplacementExercise, subscribeToExerciseReplacement } from "../lib/exercise-replacement-bus";
 import { buildTrainingCsv } from "../lib/training-export";
 import { buildMonthlyReportData } from "../lib/monthly-report";
@@ -71,6 +71,16 @@ describe("workout calculations", () => {
     selectReplacementExercise({ originalId: "bench-press", replacementId: "incline-db-press" });
     unsubscribe();
     expect(replacement).toBe("incline-db-press");
+  });
+  it("summarizes completed workouts for the current week and month", () => {
+    const periods = getCurrentTrainingPeriodStats([
+      { id: "a", programId: "upper-strength", date: "2026-08-10", durationMinutes: 50, totalVolume: 8100 },
+      { id: "b", programId: "leg-day", date: "2026-08-14", durationMinutes: 45, totalVolume: 6200 },
+      { id: "c", programId: "full-body", date: "2026-08-01", durationMinutes: 40, totalVolume: 5200 },
+      { id: "d", programId: "full-body", date: "2026-07-31", durationMinutes: 30, totalVolume: 3200 },
+    ], new Date("2026-08-14T12:00:00"));
+    expect(periods.week).toMatchObject({ workoutCount: 2, activeDays: 2, durationMinutes: 95, totalVolume: 14300 });
+    expect(periods.month).toMatchObject({ workoutCount: 3, activeDays: 3, durationMinutes: 135, totalVolume: 19500 });
   });
   it("keeps 20 exercises and generated or local teaching art for every muscle group", () => {
     const groups = ["Грудь", "Спина", "Ноги", "Плечи", "Руки", "Корпус", "Кардио"] as const;

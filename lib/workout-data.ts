@@ -66,6 +66,29 @@ export type CompletedWorkout = {
   totalVolume: number;
 };
 
+export type TrainingPeriodStats = {
+  workoutCount: number;
+  activeDays: number;
+  durationMinutes: number;
+  totalVolume: number;
+};
+
+const toLocalDateKey = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+
+export function getTrainingPeriodStats(completed: CompletedWorkout[], startKey: string, endKey: string): TrainingPeriodStats {
+  const workouts = completed.filter((workout) => workout.date.slice(0, 10) >= startKey && workout.date.slice(0, 10) <= endKey);
+  return { workoutCount: workouts.length, activeDays: new Set(workouts.map((workout) => workout.date.slice(0, 10))).size, durationMinutes: workouts.reduce((sum, workout) => sum + workout.durationMinutes, 0), totalVolume: workouts.reduce((sum, workout) => sum + workout.totalVolume, 0) };
+}
+
+export function getCurrentTrainingPeriodStats(completed: CompletedWorkout[], now = new Date()) {
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const mondayOffset = (today.getDay() + 6) % 7;
+  const weekStart = new Date(today); weekStart.setDate(today.getDate() - mondayOffset);
+  const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+  const todayKey = toLocalDateKey(today);
+  return { week: getTrainingPeriodStats(completed, toLocalDateKey(weekStart), todayKey), month: getTrainingPeriodStats(completed, toLocalDateKey(monthStart), todayKey) };
+}
+
 export type ExerciseHistoryEntry = {
   date: string;
   sets: { weight: number; reps: number }[];
