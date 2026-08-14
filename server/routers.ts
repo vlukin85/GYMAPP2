@@ -3,6 +3,9 @@ import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router } from "./_core/trpc";
 import * as db from "./db";
+import { invokeLLM } from "./_core/llm";
+import { exercises } from "../lib/workout-data";
+import { buildAiProgramPrompt, normalizeAiProgram } from "../lib/ai-program";
 
 const persistedSetSchema = z.object({
   exerciseId: z.string().min(1).max(128),
@@ -14,6 +17,15 @@ const persistedSetSchema = z.object({
   dropSubsets: z.array(z.object({ weightKg: z.number().min(0).max(10000), reps: z.number().int().min(1).max(1000) })).max(5).optional(),
 });
 
+const aiProgramInputSchema = z.object({
+  prompt: z.string().trim().min(12, "Опиши цель программы немного подробнее.").max(1200),
+  daysPerWeek: z.number().int().min(1).max(7),
+  experience: z.enum(["beginner", "intermediate", "advanced"]),
+  equipment: z.enum(["full-gym", "machines", "free-weights", "home"]),
+  sessionMinutes: z.number().int().min(20).max(180),
+  limitations: z.string().trim().max(500).optional(),
+});
+
 export const appRouter = router({
   system: systemRouter,
   auth: router({
@@ -22,6 +34,25 @@ export const appRouter = router({
       const cookieOptions = getSessionCookieOptions(ctx.req);
       ctx.res.clearCookie("manus_session", { ...cookieOptions, maxAge: -1 });
       return { success: true } as const;
+    }),
+  }),
+  aiProgram: router({
+    generate: publicProcedure.input(aiProgramInputSchema).mutation(async ({ input }) => {
+      const response = await invokeLLM({
+        model: "claude-haiku-4-5",
+        messages: [
+          { role: "system", content: "Ты внимательный помощник по составлению тренировочных программ. Строго соблюдай формат ответа и список разрешённых упражнений. Верни только валидный JSON без markdown-разметки и пояснений." },
+          { role: "user", content: buildAiProgramPrompt(input, exercises) },
+        ],
+        maxTokens: 2200,
+      });
+      const content = Array.isArray(response.choices) ? response.choices[0]?.message.content : "";
+      const text = typeof content === "string" ? content.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim() : "";
+      if (!text) throw new Error("ИИ не вернул текст программы. Попробуй ещё раз.");
+      let parsed: unknown;
+      try { parsed = JSON.parse(text); } catch { throw new Error("ИИ вернул ответ, который не удалось обработать. Попробуй ещё раз."); }
+      const program = normalizeAiProgram(parsed, exercises);
+      return { ...program, id: `ai-${Date.now()}` };
     }),
   }),
   workoutHistory: router({

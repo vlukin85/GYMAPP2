@@ -103,6 +103,7 @@ export default function RootLayout() {
             <Stack.Screen name="calendar" />
             <Stack.Screen name="profile" />
             <Stack.Screen name="replace-exercise" />
+            <Stack.Screen name="program/ai" />
           </Stack>
           <TrainingBackupSync />
           <WorkoutReplacementOverlay />
