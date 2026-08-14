@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { bestOneRepMax, calculateBarbellPlateLayout, calculateVolume, defaultPrograms, estimateOneRepMax, exercises, formatDuration, formatPlateLayout, getDropSetParts, getEffectiveSetWeight, getLoadZones, getMonthCalendarDays, getReminderTriggerDate, getSetVolumeWithDropSubsets, recommendWorkingWeight, roundToWeightIncrement } from "../lib/workout-data";
+import { bestOneRepMax, calculateBarbellPlateLayout, calculateVolume, defaultPrograms, estimateOneRepMax, exercises, formatDuration, formatPlateLayout, getDropSetParts, getEffectiveSetWeight, getLoadZones, getMonthCalendarDays, getReminderTriggerDate, getSetVolumeWithDropSubsets, mergeStoredPrograms, recommendWorkingWeight, roundToWeightIncrement } from "../lib/workout-data";
 import { buildTrainingCsv } from "../lib/training-export";
 import { buildMonthlyReportData } from "../lib/monthly-report";
 import { buildWorkoutComparison, createImportedWorkoutFingerprint, groupImportedSessions, groupWorkoutSessions, parseTrainingCsv } from "../lib/csv-import";
@@ -58,17 +58,20 @@ describe("workout calculations", () => {
   it("calculates a reminder time before the scheduled workout", () => {
     expect(getReminderTriggerDate("2026-08-20", "18:30", 60).toISOString()).toContain("2026-08-20T17:30:00");
   });
-  it("keeps 20 exercises and a unique image for every muscle group", () => {
+  it("keeps 20 exercises and generated or local teaching art for every muscle group", () => {
     const groups = ["Грудь", "Спина", "Ноги", "Плечи", "Руки", "Корпус", "Кардио"] as const;
     groups.forEach((group) => expect(exercises.filter((exercise) => exercise.group === group)).toHaveLength(20));
-    expect(new Set(exercises.map((exercise) => exercise.image)).size).toBe(exercises.length);
-    expect(exercises.every((exercise) => exercise.image.startsWith("https://loremflickr.com/"))).toBe(true);
-    expect(exercises.every((exercise) => exercise.photoAngles?.length === 3 && exercise.photoAngles[0].url === exercise.image && new Set(exercise.photoAngles.map((photo) => photo.url)).size === 3)).toBe(true);
+    expect(exercises.every((exercise) => !exercise.image.includes("loremflickr") && !exercise.image.includes("images.unsplash"))).toBe(true);
+    expect(exercises.filter((exercise) => exercise.image.startsWith("/manus-storage/")).length).toBeGreaterThanOrEqual(10);
+    expect(exercises.every((exercise) => exercise.photoAngles?.length === 1 && exercise.photoAngles[0].url === exercise.image)).toBe(true);
   });
   it("offers at least fifteen varied ready-to-use training programs", () => {
     expect(defaultPrograms.length).toBeGreaterThanOrEqual(15);
     expect(defaultPrograms.map((program) => program.id)).toEqual(expect.arrayContaining(["full-body-start", "full-body-strength", "endurance-circuit", "five-by-five", "active-recovery", "upper-strength", "leg-day"]));
     expect(defaultPrograms.every((program) => program.exercises.length >= 3)).toBe(true);
+    const migrated = mergeStoredPrograms([{ id: "upper-strength", name: "Старая версия", description: "", exercises: [] }, { id: "custom", name: "Моя программа", description: "", exercises: [] }]);
+    expect(migrated).toHaveLength(defaultPrograms.length + 1);
+    expect(migrated.find((program) => program.id === "upper-strength")?.name).toBe("Верх тела · Сила");
   });
   it("allows mass photo caching only on reachable Wi-Fi and removes duplicate URLs", () => {
     expect(canDownloadPhotosOnWifi({ type: "WIFI", isInternetReachable: true })).toBe(true);

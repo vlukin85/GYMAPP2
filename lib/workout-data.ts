@@ -27,6 +27,7 @@ export function getSetVolumeWithDropSubsets(input: { weightKg: number; reps: num
 }
 
 import { expandedExercises } from "./catalog-expansion";
+import { getExerciseIllustration } from "./exercise-art";
 
 export type ProgramExercise = {
   exerciseId: string;
@@ -109,19 +110,21 @@ const images = {
   rower: "https://images.unsplash.com/photo-1517344884509-a0c97ec11bcc?auto=format&fit=crop&w=900&q=80",
 };
 
-const photoTagsByGroup: Record<Exclude<MuscleGroup, "Все">, string> = {
-  "Грудь": "gym,benchpress",
-  "Спина": "gym,backworkout",
-  "Ноги": "gym,squat",
-  "Плечи": "gym,dumbbell",
-  "Руки": "gym,bicepcurl",
-  "Корпус": "gym,coreworkout",
-  "Кардио": "gym,treadmill",
+const generatedTechniqueImages: Record<string, string> = {
+  "bench-press": "/manus-storage/bench-press-generated_cf86ab4c.jpg",
+  "incline-db-press": "/manus-storage/incline-db-press-generated_b616826b.jpg",
+  "lat-pulldown": "/manus-storage/lat-pulldown-generated_0d30afee.jpg",
+  "barbell-row": "/manus-storage/barbell-row-generated_42731093.jpg",
+  "squat": "/manus-storage/squat-generated_641bb3fc.jpg",
+  "leg-press": "/manus-storage/leg-press-generated_dfcf2f0c.jpg",
+  "shoulder-press": "/manus-storage/shoulder-press-generated_e9bc1122.jpg",
+  "lateral-raise": "/manus-storage/lateral-raise-generated_58a12e78.jpg",
+  "biceps-curl": "/manus-storage/biceps-curl-generated_fd515260.jpg",
+  "triceps-pushdown": "/manus-storage/triceps-pushdown-generated_1c2829f4.jpg",
 };
 
-function exercisePhotoUrl(exercise: Exercise, angleOffset = 0) {
-  const lock = [...exercise.id].reduce((hash, char) => ((hash * 31) + char.charCodeAt(0)) >>> 0, 17);
-  return `https://loremflickr.com/640/800/${photoTagsByGroup[exercise.group]}?lock=${lock + angleOffset}`;
+function exerciseTechniqueImage(exercise: Exercise) {
+  return generatedTechniqueImages[exercise.id] ?? getExerciseIllustration(exercise.id, exercise.group, exercise.equipment);
 }
 
 const catalogExercises: Exercise[] = [
@@ -150,11 +153,9 @@ const catalogExercises: Exercise[] = [
 
 export const exercises: Exercise[] = catalogExercises.map((exercise) => ({
   ...exercise,
-  image: exercisePhotoUrl(exercise),
+  image: exerciseTechniqueImage(exercise),
   photoAngles: [
-    { id: "main", label: "Основной", url: exercisePhotoUrl(exercise) },
-    { id: "side", label: "Сбоку", url: exercisePhotoUrl(exercise, 1) },
-    { id: "rear", label: "Сзади", url: exercisePhotoUrl(exercise, 2) },
+    { id: "main", label: "Техника", url: exerciseTechniqueImage(exercise) },
   ],
 }));
 
@@ -205,6 +206,12 @@ export const defaultPrograms: WorkoutProgram[] = [
     { exerciseId: "treadmill", sets: 1, reps: 25, weight: 0, rest: 60, setType: "warmup" }, { exerciseId: "rower", sets: 2, reps: 8, weight: 0, rest: 60 }, { exerciseId: "walking-lunge", sets: 2, reps: 12, weight: 0, rest: 45 }, { exerciseId: "plank", sets: 3, reps: 35, weight: 0, rest: 45 },
   ] },
 ];
+
+export function mergeStoredPrograms(storedPrograms: WorkoutProgram[] | undefined) {
+  const defaultIds = new Set(defaultPrograms.map((program) => program.id));
+  const customPrograms = (storedPrograms ?? []).filter((program) => !defaultIds.has(program.id));
+  return [...defaultPrograms, ...customPrograms];
+}
 
 export const completedWorkouts: CompletedWorkout[] = [
   { id: "w1", programId: "upper-strength", date: "2026-08-10", durationMinutes: 52, totalVolume: 4860 },
