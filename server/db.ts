@@ -41,7 +41,7 @@ export async function getUserByOpenId(openId: string) {
   return result.length > 0 ? result[0] : undefined;
 }
 
-export type PersistedSetInput = { exerciseId: string; setNumber: number; reps: number; weightKg: number };
+export type PersistedSetInput = { exerciseId: string; setNumber: number; reps: number; weightKg: number; setType?: "warmup" | "working" | "drop" | "failure"; supersetGroup?: string };
 
 export async function saveCompletedWorkout(input: { userId: number; programId: string; durationMinutes: number; formula: "epley" | "brzycki"; sets: PersistedSetInput[] }) {
   const db = await getDb();
@@ -51,7 +51,7 @@ export async function saveCompletedWorkout(input: { userId: number; programId: s
   const sessionId = Number((sessionResult as any)?.[0]?.insertId ?? (sessionResult as any)?.insertId);
   if (!sessionId) throw new Error("Could not determine saved workout session id");
   if (input.sets.length > 0) {
-    await db.insert(workoutSets).values(input.sets.map((set) => { const weightCentiKg = Math.round(set.weightKg * 100); const cappedReps = Math.min(set.reps, 30); const oneRepMaxCentiKg = Math.round(input.formula === "brzycki" ? weightCentiKg * (36 / (37 - cappedReps)) : weightCentiKg * (1 + cappedReps / 30)); return { sessionId, userId: input.userId, exerciseId: set.exerciseId, setNumber: set.setNumber, reps: set.reps, weightCentiKg, volumeCentiKg: weightCentiKg * set.reps, oneRepMaxCentiKg }; }));
+    await db.insert(workoutSets).values(input.sets.map((set) => { const weightCentiKg = Math.round(set.weightKg * 100); const cappedReps = Math.min(set.reps, 30); const oneRepMaxCentiKg = Math.round(input.formula === "brzycki" ? weightCentiKg * (36 / (37 - cappedReps)) : weightCentiKg * (1 + cappedReps / 30)); return { sessionId, userId: input.userId, exerciseId: set.exerciseId, setNumber: set.setNumber, reps: set.reps, weightCentiKg, volumeCentiKg: weightCentiKg * set.reps, oneRepMaxCentiKg, setType: set.setType ?? "working", supersetGroup: set.supersetGroup }; }));
   }
   return { sessionId };
 }
@@ -59,7 +59,7 @@ export async function saveCompletedWorkout(input: { userId: number; programId: s
 export async function getExerciseHistoryFromDb(userId: number, exerciseId: string) {
   const db = await getDb();
   if (!db) return [];
-  return db.select({ date: workoutSets.completedAt, setNumber: workoutSets.setNumber, reps: workoutSets.reps, weightCentiKg: workoutSets.weightCentiKg, volumeCentiKg: workoutSets.volumeCentiKg, oneRepMaxCentiKg: workoutSets.oneRepMaxCentiKg, sessionId: workoutSets.sessionId }).from(workoutSets).where(and(eq(workoutSets.userId, userId), eq(workoutSets.exerciseId, exerciseId))).orderBy(desc(workoutSets.completedAt), workoutSets.sessionId, workoutSets.setNumber);
+  return db.select({ date: workoutSets.completedAt, setNumber: workoutSets.setNumber, reps: workoutSets.reps, weightCentiKg: workoutSets.weightCentiKg, volumeCentiKg: workoutSets.volumeCentiKg, oneRepMaxCentiKg: workoutSets.oneRepMaxCentiKg, setType: workoutSets.setType, supersetGroup: workoutSets.supersetGroup, sessionId: workoutSets.sessionId }).from(workoutSets).where(and(eq(workoutSets.userId, userId), eq(workoutSets.exerciseId, exerciseId))).orderBy(desc(workoutSets.completedAt), workoutSets.sessionId, workoutSets.setNumber);
 }
 
 export async function getAllWorkoutSetsFromDb(userId: number) {

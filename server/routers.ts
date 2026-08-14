@@ -24,6 +24,8 @@ export const appRouter = router({
         setNumber: z.number().int().min(1),
         reps: z.number().int().min(0).max(1000),
         weightKg: z.number().min(0).max(10000),
+        setType: z.enum(["warmup", "working", "drop", "failure"]).optional(),
+        supersetGroup: z.string().min(1).max(32).optional(),
       })).max(500),
     })).mutation(({ ctx, input }) => db.saveCompletedWorkout({ userId: ctx.user?.id ?? 0, ...input })),
     byExercise: publicProcedure.input(z.object({ exerciseId: z.string().min(1).max(128) })).query(({ ctx, input }) => db.getExerciseHistoryFromDb(ctx.user?.id ?? 0, input.exerciseId)),

@@ -44,6 +44,8 @@ export const workoutSets = mysqlTable("workoutSets", {
   weightCentiKg: int("weightCentiKg").notNull(),
   volumeCentiKg: int("volumeCentiKg").notNull(),
   oneRepMaxCentiKg: int("oneRepMaxCentiKg").notNull(),
+  setType: varchar("setType", { length: 16 }).notNull().default("working"),
+  supersetGroup: varchar("supersetGroup", { length: 32 }),
   completedAt: timestamp("completedAt").defaultNow().notNull(),
 });
 

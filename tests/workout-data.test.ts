@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { bestOneRepMax, calculateBarbellPlateLayout, calculateVolume, estimateOneRepMax, exercises, formatDuration, formatPlateLayout, getLoadZones, getMonthCalendarDays, getReminderTriggerDate, recommendWorkingWeight, roundToWeightIncrement } from "../lib/workout-data";
+import { bestOneRepMax, calculateBarbellPlateLayout, calculateVolume, estimateOneRepMax, exercises, formatDuration, formatPlateLayout, getEffectiveSetWeight, getLoadZones, getMonthCalendarDays, getReminderTriggerDate, recommendWorkingWeight, roundToWeightIncrement } from "../lib/workout-data";
 import { buildTrainingCsv } from "../lib/training-export";
 import { buildMonthlyReportData } from "../lib/monthly-report";
 
@@ -60,5 +60,10 @@ describe("workout calculations", () => {
     const groups = ["Грудь", "Спина", "Ноги", "Плечи", "Руки", "Корпус", "Кардио"] as const;
     groups.forEach((group) => expect(exercises.filter((exercise) => exercise.group === group)).toHaveLength(20));
     expect(new Set(exercises.map((exercise) => exercise.image)).size).toBe(exercises.length);
+    expect(exercises.every((exercise) => exercise.image.startsWith("data:image/svg+xml"))).toBe(true);
+  });
+  it("accounts for a configured portion of bodyweight when there is no external load", () => {
+    expect(getEffectiveSetWeight({ weightKg: 0, equipment: "Вес тела", bodyWeightKg: 80, bodyweightVolumePercent: 65 })).toBe(52);
+    expect(getEffectiveSetWeight({ weightKg: 35, equipment: "Вес тела", bodyWeightKg: 80, bodyweightVolumePercent: 65 })).toBe(35);
   });
 });

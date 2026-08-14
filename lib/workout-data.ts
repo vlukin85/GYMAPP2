@@ -12,7 +12,10 @@ export type Exercise = {
   recordReps: number;
 };
 
+export type SetType = "warmup" | "working" | "drop" | "failure";
+
 import { expandedExercises } from "./catalog-expansion";
+import { getExerciseIllustration } from "./exercise-art";
 
 export type ProgramExercise = {
   exerciseId: string;
@@ -20,6 +23,8 @@ export type ProgramExercise = {
   reps: number;
   weight: number;
   rest: number;
+  setType?: SetType;
+  supersetGroup?: string;
 };
 
 export type WorkoutProgram = {
@@ -66,6 +71,8 @@ export type BarbellProfile = {
   availablePlatesKg: number[];
 };
 
+export type ExercisePreference = { machineSetup?: string; note?: string };
+
 export const muscleGroups: MuscleGroup[] = ["Все" as MuscleGroup, "Грудь", "Спина", "Ноги", "Плечи", "Руки", "Корпус", "Кардио"];
 
 const images = {
@@ -91,7 +98,7 @@ const images = {
   rower: "https://images.unsplash.com/photo-1517344884509-a0c97ec11bcc?auto=format&fit=crop&w=900&q=80",
 };
 
-export const exercises: Exercise[] = [
+const catalogExercises: Exercise[] = [
   { id: "bench-press", name: "Жим штанги лёжа", group: "Грудь", equipment: "Штанга", description: "Базовое упражнение для грудных мышц. Сводите лопатки, удерживайте стопы на полу и опускайте гриф к нижней части груди.", image: images.benchPress, videoUrl: "https://www.youtube.com/results?search_query=жим+штанги+лежа+техника", recordKg: 92.5, recordReps: 5 },
   { id: "incline-db-press", name: "Жим гантелей на наклонной", group: "Грудь", equipment: "Гантели", description: "Работает по верхней части груди. Двигайте гантели по естественной дуге и не разгибайте локти до щелчка.", image: images.inclinePress, videoUrl: "https://www.youtube.com/results?search_query=жим+гантелей+на+наклонной+скамье", recordKg: 34, recordReps: 8 },
   { id: "lat-pulldown", name: "Тяга верхнего блока", group: "Спина", equipment: "Тренажёр", description: "Тяните рукоять к верхней части груди, направляя локти вниз. Не раскачивайте корпус.", image: images.latPulldown, videoUrl: "https://www.youtube.com/results?search_query=тяга+верхнего+блока+техника", recordKg: 70, recordReps: 8 },
@@ -114,6 +121,11 @@ export const exercises: Exercise[] = [
   { id: "rower", name: "Гребной тренажёр", group: "Кардио", equipment: "Тренажёр", description: "Отталкивайтесь ногами, затем подключайте корпус и руки; возвращайтесь в обратном порядке.", image: images.rower, videoUrl: "https://www.youtube.com/results?search_query=гребной+тренажер+техника", recordKg: 0, recordReps: 20 },
   ...expandedExercises,
 ];
+
+export const exercises: Exercise[] = catalogExercises.map((exercise) => ({
+  ...exercise,
+  image: getExerciseIllustration(exercise.id, exercise.group, exercise.equipment),
+}));
 
 export const defaultPrograms: WorkoutProgram[] = [
   { id: "upper-strength", name: "Верх тела · Сила", description: "Грудь, спина и плечи", exercises: [
@@ -161,6 +173,11 @@ export function getExerciseHistory(id: string) { return exerciseHistory[id] ?? [
 export function getExercise(id: string) { return exercises.find((exercise) => exercise.id === id); }
 export function getProgram(id: string) { return defaultPrograms.find((program) => program.id === id); }
 export function calculateVolume(weight: number, reps: number, sets: number) { return weight * reps * sets; }
+export function getEffectiveSetWeight(input: { weightKg: number; equipment: string; bodyWeightKg: number; bodyweightVolumePercent: number }) {
+  if (input.weightKg > 0) return input.weightKg;
+  if (input.equipment === "Вес тела") return input.bodyWeightKg * (input.bodyweightVolumePercent / 100);
+  return 0;
+}
 
 /** Estimated one-repetition maximum using Epley or Brzycki. */
 export function estimateOneRepMax(weight: number, reps: number, formula: OneRepMaxFormula = "epley") {
@@ -207,7 +224,7 @@ export function formatPlateLayout(perSide: number[]) {
 
 export function recommendWorkingWeight(input: { history: ExerciseHistoryEntry[]; targetReps: number; incrementKg: number; formula?: OneRepMaxFormula }) {
   const latest = input.history[0];
-  if (!latest?.sets.length) return { weightKg: 0, changeKg: 0, reason: "Сначала зафиксируй первое выполнение" };
+  if (!latest?.sets.length) return { weightKg: 0, changeKg: 0, reason: "Сначала зафиксируй первое выполнение", latestWeightKg: 0, latestReps: 0, estimatedOneRmKg: 0, targetIntensityPercent: 85 };
   const bestSet = latest.sets.reduce((best, set) => set.weight * set.reps > best.weight * best.reps ? set : best, latest.sets[0]);
   const estimatedOneRm = bestOneRepMax(latest.sets, input.formula);
   const baseWeight = bestSet.reps >= input.targetReps + 2 ? bestSet.weight * 1.025 : bestSet.reps < input.targetReps ? bestSet.weight * 0.975 : bestSet.weight;
@@ -215,7 +232,7 @@ export function recommendWorkingWeight(input: { history: ExerciseHistoryEntry[];
   const weightKg = roundToWeightIncrement(Math.min(baseWeight, strengthCap), input.incrementKg);
   const changeKg = Math.round((weightKg - bestSet.weight) * 100) / 100;
   const reason = changeKg > 0 ? `последний лучший подход ${bestSet.weight} кг × ${bestSet.reps}; можно повысить нагрузку` : changeKg < 0 ? `последний подход ${bestSet.weight} кг × ${bestSet.reps}; лучше закрепить технику` : `последний подход ${bestSet.weight} кг × ${bestSet.reps}; повтори рабочий вес`;
-  return { weightKg, changeKg, reason };
+  return { weightKg, changeKg, reason, latestWeightKg: bestSet.weight, latestReps: bestSet.reps, estimatedOneRmKg: estimatedOneRm, targetIntensityPercent: 85 };
 }
 export function formatDuration(minutes: number) { return `${Math.floor(minutes / 60)} ч ${minutes % 60} мин`; }
 

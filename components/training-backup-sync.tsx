@@ -6,7 +6,7 @@ import { useWorkoutStore } from "@/lib/workout-store";
 const PENDING_BACKUP_KEY = "gym-diary-pending-backup-v1";
 
 export function TrainingBackupSync() {
-  const { ready, oneRmFormula, plateStepKg, barbellProfile, personalRecords, restoreTrainingBackup } = useWorkoutStore();
+  const { ready, oneRmFormula, plateStepKg, barbellProfile, personalRecords, bodyWeightKg, bodyweightVolumePercent, exercisePreferences, restoreTrainingBackup } = useWorkoutStore();
   const restored = useRef(false);
   const lastQueuedSnapshot = useRef("");
   const backupQuery = trpc.trainingBackup.get.useQuery(undefined, { enabled: ready });
@@ -25,12 +25,12 @@ export function TrainingBackupSync() {
 
   useEffect(() => {
     if (!ready || backupQuery.isLoading || !restored.current) return;
-    const snapshotJson = JSON.stringify({ oneRmFormula, plateStepKg, barbellProfile, personalRecords });
+    const snapshotJson = JSON.stringify({ oneRmFormula, plateStepKg, barbellProfile, personalRecords, bodyWeightKg, bodyweightVolumePercent, exercisePreferences });
     if (snapshotJson === lastQueuedSnapshot.current) return;
     lastQueuedSnapshot.current = snapshotJson;
     const timer = setTimeout(() => { saveMutation.mutate({ snapshotJson }, { onSuccess: () => AsyncStorage.removeItem(PENDING_BACKUP_KEY), onError: () => AsyncStorage.setItem(PENDING_BACKUP_KEY, snapshotJson) }); }, 700);
     return () => clearTimeout(timer);
-  }, [ready, backupQuery.isLoading, oneRmFormula, plateStepKg, barbellProfile, personalRecords, saveMutation]);
+  }, [ready, backupQuery.isLoading, oneRmFormula, plateStepKg, barbellProfile, personalRecords, bodyWeightKg, bodyweightVolumePercent, exercisePreferences, saveMutation]);
 
   useEffect(() => {
     if (!ready || backupQuery.isLoading || !restored.current) return;
