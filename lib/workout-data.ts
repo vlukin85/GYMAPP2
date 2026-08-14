@@ -44,7 +44,15 @@ export type WorkoutProgram = {
   name: string;
   description: string;
   exercises: ProgramExercise[];
+  createdAt?: string;
 };
+
+const defaultProgramCreatedAt = "2026-08-01T12:00:00.000Z";
+
+export function formatProgramCreatedAt(createdAt?: string) {
+  const date = new Date(createdAt ?? defaultProgramCreatedAt);
+  return `Создано ${new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "short", year: "numeric" }).format(date)}`;
+}
 
 export type ScheduledWorkout = {
   programId: string;

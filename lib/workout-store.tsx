@@ -98,7 +98,7 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
     },
     scheduleProgram: (date, schedule) => setState((current) => ({ ...current, scheduled: { ...current.scheduled, [date]: schedule } })),
     removeSchedule: (date) => setState((current) => { const scheduled = { ...current.scheduled }; delete scheduled[date]; return { ...current, scheduled }; }),
-    addProgram: (program) => setState((current) => ({ ...current, programs: [...current.programs, program] })),
+    addProgram: (program) => setState((current) => ({ ...current, programs: [...current.programs, { ...program, createdAt: program.createdAt ?? new Date().toISOString() }] })),
     setOneRmFormula: (oneRmFormula) => setState((current) => ({ ...current, oneRmFormula })),
     setPlateStepKg: (plateStepKg) => setState((current) => ({ ...current, plateStepKg })),
     setBarbellProfile: (barbellProfile) => setState((current) => ({ ...current, barbellProfile })),

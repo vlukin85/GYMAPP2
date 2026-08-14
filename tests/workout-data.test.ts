@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { bestOneRepMax, calculateBarbellPlateLayout, calculateVolume, defaultPrograms, estimateOneRepMax, exercises, formatDuration, formatPlateLayout, getCurrentTrainingPeriodStats, getDropSetParts, getEffectiveSetWeight, getLoadZones, getMonthComparisonStats, getMonthCalendarDays, getReminderTriggerDate, getSetVolumeWithDropSubsets, isFutureScheduleDate, mergeStoredPrograms, recommendWorkingWeight, roundToWeightIncrement } from "../lib/workout-data";
+import { bestOneRepMax, calculateBarbellPlateLayout, calculateVolume, defaultPrograms, estimateOneRepMax, exercises, formatDuration, formatPlateLayout, formatProgramCreatedAt, getCurrentTrainingPeriodStats, getDropSetParts, getEffectiveSetWeight, getLoadZones, getMonthComparisonStats, getMonthCalendarDays, getReminderTriggerDate, getSetVolumeWithDropSubsets, isFutureScheduleDate, mergeStoredPrograms, recommendWorkingWeight, roundToWeightIncrement } from "../lib/workout-data";
 import { openReplacementPicker, selectReplacementExercise, subscribeToExerciseReplacement, subscribeToReplacementPicker } from "../lib/exercise-replacement-bus";
 import { buildTrainingCsv } from "../lib/training-export";
 import { buildMonthlyReportData } from "../lib/monthly-report";
@@ -12,6 +12,9 @@ describe("workout calculations", () => {
   });
   it("formats duration in hours and minutes", () => {
     expect(formatDuration(67)).toBe("1 ч 7 мин");
+  });
+  it("formats the program creation date in Russian", () => {
+    expect(formatProgramCreatedAt("2026-08-14T12:00:00.000Z")).toBe("Создано 14 авг. 2026 г.");
   });
   it("estimates one-rep max with the Epley formula", () => {
     expect(estimateOneRepMax(80, 5)).toBeCloseTo(93.333, 2);
