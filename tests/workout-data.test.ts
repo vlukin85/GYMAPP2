@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { bestOneRepMax, calculateBarbellPlateLayout, calculateVolume, estimateOneRepMax, exercises, formatDuration, formatPlateLayout, getEffectiveSetWeight, getLoadZones, getMonthCalendarDays, getReminderTriggerDate, recommendWorkingWeight, roundToWeightIncrement } from "../lib/workout-data";
+import { bestOneRepMax, calculateBarbellPlateLayout, calculateVolume, estimateOneRepMax, exercises, formatDuration, formatPlateLayout, getDropSetParts, getEffectiveSetWeight, getLoadZones, getMonthCalendarDays, getReminderTriggerDate, getSetVolumeWithDropSubsets, recommendWorkingWeight, roundToWeightIncrement } from "../lib/workout-data";
 import { buildTrainingCsv } from "../lib/training-export";
 import { buildMonthlyReportData } from "../lib/monthly-report";
-import { buildWorkoutComparison, groupImportedSessions, groupWorkoutSessions, parseTrainingCsv } from "../lib/csv-import";
+import { buildWorkoutComparison, createImportedWorkoutFingerprint, groupImportedSessions, groupWorkoutSessions, parseTrainingCsv } from "../lib/csv-import";
 
 describe("workout calculations", () => {
   it("calculates volume from weight, reps and sets", () => {
@@ -92,5 +92,26 @@ describe("workout calculations", () => {
     expect(comparison.durationDeltaMinutes).toBe(5);
     expect(comparison.exerciseDeltas.find((exercise) => exercise.exerciseId === "bench-press")?.deltaKg).toBeCloseTo(5.84);
     expect(comparison.exerciseDeltas.find((exercise) => exercise.exerciseId === "barbell-row")?.deltaKg).toBeNull();
+    expect(comparison.muscleGroupDeltas.find((group) => group.group === "Грудь")).toMatchObject({ firstVolumeKg: 400, secondVolumeKg: 425, deltaKg: 25 });
+  });
+  it("limits a drop-set to five persisted sub-sets and sums their volume", () => {
+    const dropSubsets = [50, 45, 40, 35, 30, 25].map((weightKg) => ({ weightKg, reps: 8 }));
+    const parts = getDropSetParts({ weightKg: 0, reps: 0, setType: "drop", dropSubsets });
+    expect(parts).toHaveLength(5);
+    expect(getSetVolumeWithDropSubsets({ weightKg: 0, reps: 0, setType: "drop", dropSubsets })).toBe(1600);
+  });
+  it("recognizes Strong and Hevy templates with their dates, columns and pound conversion", () => {
+    const strong = parseTrainingCsv('"Date","Workout Name","Exercise Name","Set Order","Weight","Reps"\n"2025-03-28","Upper","Bench Press (Barbell)","1","80","5"');
+    const hevy = parseTrainingCsv('"title","start_time","end_time","exercise_title","set_index","set_type","weight_lbs","reps","duration_seconds"\n"Upper","28 Mar 2025, 17:29","28 Mar 2025, 18:20","Bench Press (Barbell)","0","normal","220.462","5","3060"');
+    expect(strong).toMatchObject({ source: "strong", errors: [] });
+    expect(strong.rows[0]).toMatchObject({ exerciseId: "bench-press", setNumber: 1, weightKg: 80 });
+    expect(hevy).toMatchObject({ source: "hevy", errors: [] });
+    expect(hevy.rows[0]).toMatchObject({ date: "2025-03-28", exerciseId: "bench-press", setNumber: 1, durationMinutes: 51 });
+    expect(hevy.rows[0].weightKg).toBeCloseTo(100, 1);
+  });
+  it("creates a stable import fingerprint independent of CSV row order", () => {
+    const sessions = groupImportedSessions(parseTrainingCsv("date,program,exercise,reps,weight\n2025-03-28,Upper,Жим штанги лёжа,5,80\n2025-03-28,Upper,Тяга штанги в наклоне,6,60").rows);
+    const original = sessions[0];
+    expect(createImportedWorkoutFingerprint({ ...original, sets: [...original.sets].reverse() })).toBe(original.fingerprint);
   });
 });

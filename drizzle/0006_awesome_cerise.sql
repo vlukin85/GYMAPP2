@@ -1,0 +1,2 @@
+ALTER TABLE `workoutSessions` ADD `importFingerprint` varchar(64);--> statement-breakpoint
+ALTER TABLE `workoutSessions` ADD CONSTRAINT `workoutSessions_user_import_fingerprint` UNIQUE(`userId`,`importFingerprint`);

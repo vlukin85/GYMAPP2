@@ -1,0 +1,1 @@
+ALTER TABLE `workoutSets` ADD `dropSubsetsJson` text;

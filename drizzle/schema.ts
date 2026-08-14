@@ -1,4 +1,4 @@
-import { int, mysqlEnum, mysqlTable, text, timestamp, varchar } from "drizzle-orm/mysql-core";
+import { int, mysqlEnum, mysqlTable, text, timestamp, uniqueIndex, varchar } from "drizzle-orm/mysql-core";
 
 /**
  * Core user table backing auth flow.
@@ -31,8 +31,9 @@ export const workoutSessions = mysqlTable("workoutSessions", {
   programId: varchar("programId", { length: 128 }).notNull(),
   durationMinutes: int("durationMinutes").notNull(),
   totalVolumeCentiKg: int("totalVolumeCentiKg").notNull(),
+  importFingerprint: varchar("importFingerprint", { length: 64 }),
   completedAt: timestamp("completedAt").defaultNow().notNull(),
-});
+}, (table) => [uniqueIndex("workoutSessions_user_import_fingerprint").on(table.userId, table.importFingerprint)]);
 
 export const workoutSets = mysqlTable("workoutSets", {
   id: int("id").autoincrement().primaryKey(),
@@ -46,6 +47,7 @@ export const workoutSets = mysqlTable("workoutSets", {
   oneRepMaxCentiKg: int("oneRepMaxCentiKg").notNull(),
   setType: varchar("setType", { length: 16 }).notNull().default("working"),
   supersetGroup: varchar("supersetGroup", { length: 32 }),
+  dropSubsetsJson: text("dropSubsetsJson"),
   completedAt: timestamp("completedAt").defaultNow().notNull(),
 });
 

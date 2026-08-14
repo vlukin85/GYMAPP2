@@ -11,6 +11,7 @@ const persistedSetSchema = z.object({
   weightKg: z.number().min(0).max(10000),
   setType: z.enum(["warmup", "working", "drop", "failure"]).optional(),
   supersetGroup: z.string().min(1).max(32).optional(),
+  dropSubsets: z.array(z.object({ weightKg: z.number().min(0).max(10000), reps: z.number().int().min(1).max(1000) })).max(5).optional(),
 });
 
 export const appRouter = router({
@@ -37,9 +38,11 @@ export const appRouter = router({
         programId: z.string().min(1).max(128),
         durationMinutes: z.number().int().min(0).max(24 * 60),
         completedAt: z.coerce.date(),
+        importFingerprint: z.string().regex(/^v1-[0-9a-f]{8}$/),
         sets: z.array(persistedSetSchema).min(1).max(500),
       })).min(1).max(100),
     })).mutation(({ ctx, input }) => db.saveImportedWorkouts({ userId: ctx.user?.id ?? 0, ...input })),
+    importedFingerprints: publicProcedure.input(z.object({ fingerprints: z.array(z.string().regex(/^v1-[0-9a-f]{8}$/)).max(100) })).query(({ ctx, input }) => db.getExistingImportFingerprints(ctx.user?.id ?? 0, input.fingerprints)),
     byExercise: publicProcedure.input(z.object({ exerciseId: z.string().min(1).max(128) })).query(({ ctx, input }) => db.getExerciseHistoryFromDb(ctx.user?.id ?? 0, input.exerciseId)),
     all: publicProcedure.query(({ ctx }) => db.getAllWorkoutSetsFromDb(ctx.user?.id ?? 0)),
   }),

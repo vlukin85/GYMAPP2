@@ -13,6 +13,17 @@ export type Exercise = {
 };
 
 export type SetType = "warmup" | "working" | "drop" | "failure";
+export type DropSubset = { weightKg: number; reps: number };
+export const MAX_DROP_SUBSETS = 5;
+
+export function getDropSetParts(input: { weightKg: number; reps: number; setType: SetType; dropSubsets?: DropSubset[] }) {
+  if (input.setType !== "drop" || !input.dropSubsets?.length) return [{ weightKg: input.weightKg, reps: input.reps }];
+  return input.dropSubsets.slice(0, MAX_DROP_SUBSETS).filter((part) => part.weightKg >= 0 && Number.isInteger(part.reps) && part.reps > 0);
+}
+
+export function getSetVolumeWithDropSubsets(input: { weightKg: number; reps: number; setType: SetType; dropSubsets?: DropSubset[] }) {
+  return getDropSetParts(input).reduce((sum, part) => sum + part.weightKg * part.reps, 0);
+}
 
 import { expandedExercises } from "./catalog-expansion";
 import { getExerciseIllustration } from "./exercise-art";
