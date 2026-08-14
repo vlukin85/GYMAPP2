@@ -45,6 +45,7 @@ export type WorkoutProgram = {
   description: string;
   exercises: ProgramExercise[];
   createdAt?: string;
+  archivedAt?: string;
 };
 
 const defaultProgramCreatedAt = "2026-08-01T12:00:00.000Z";
@@ -251,9 +252,10 @@ export const defaultPrograms: WorkoutProgram[] = [
 ];
 
 export function mergeStoredPrograms(storedPrograms: WorkoutProgram[] | undefined) {
+  const storedById = new Map((storedPrograms ?? []).map((program) => [program.id, program]));
   const defaultIds = new Set(defaultPrograms.map((program) => program.id));
   const customPrograms = (storedPrograms ?? []).filter((program) => !defaultIds.has(program.id));
-  return [...defaultPrograms, ...customPrograms];
+  return [...defaultPrograms.map((program) => storedById.get(program.id) ?? program), ...customPrograms];
 }
 
 export const completedWorkouts: CompletedWorkout[] = [

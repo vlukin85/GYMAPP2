@@ -16,6 +16,7 @@ type WorkoutState = {
   restTimerSoundEnabled: boolean;
   restTimerVibrationEnabled: boolean;
   exercisePreferences: Record<string, ExercisePreference>;
+  deletedProgramIds: string[];
 };
 
 type WorkoutContextValue = WorkoutState & {
@@ -26,6 +27,9 @@ type WorkoutContextValue = WorkoutState & {
   removeSchedule: (date: string) => void;
   addProgram: (program: WorkoutProgram) => void;
   renameProgram: (programId: string, name: string) => void;
+  archiveProgram: (programId: string) => void;
+  restoreProgram: (programId: string) => void;
+  deleteProgram: (programId: string) => void;
   setOneRmFormula: (formula: OneRepMaxFormula) => void;
   setPlateStepKg: (step: number) => void;
   setBarbellProfile: (profile: BarbellProfile) => void;
@@ -53,6 +57,7 @@ const initialState: WorkoutState = {
   restTimerSoundEnabled: true,
   restTimerVibrationEnabled: true,
   exercisePreferences: {},
+  deletedProgramIds: [],
 };
 
 const WorkoutContext = createContext<WorkoutContextValue | null>(null);
@@ -66,7 +71,8 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
       if (value) {
         const parsed = JSON.parse(value) as Partial<WorkoutState>;
         const migratedScheduled = Object.fromEntries(Object.entries(parsed.scheduled ?? initialState.scheduled).map(([date, item]) => [date, typeof item === "string" ? { programId: item, time: "18:30", reminderMinutes: 60 } : item])) as Record<string, ScheduledWorkout>;
-        setState({ ...initialState, ...parsed, programs: mergeStoredPrograms(parsed.programs), scheduled: migratedScheduled, oneRmFormula: parsed.oneRmFormula ?? initialState.oneRmFormula, plateStepKg: parsed.plateStepKg ?? initialState.plateStepKg, barbellProfile: parsed.barbellProfile ?? initialState.barbellProfile, personalRecords: parsed.personalRecords ?? {}, bodyWeightKg: parsed.bodyWeightKg ?? initialState.bodyWeightKg, bodyweightVolumePercent: parsed.bodyweightVolumePercent ?? initialState.bodyweightVolumePercent, restTimerSoundEnabled: parsed.restTimerSoundEnabled ?? initialState.restTimerSoundEnabled, restTimerVibrationEnabled: parsed.restTimerVibrationEnabled ?? initialState.restTimerVibrationEnabled, exercisePreferences: parsed.exercisePreferences ?? {} });
+        const deletedProgramIds = parsed.deletedProgramIds ?? [];
+        setState({ ...initialState, ...parsed, programs: mergeStoredPrograms(parsed.programs).filter((program) => !deletedProgramIds.includes(program.id)), scheduled: migratedScheduled, deletedProgramIds, oneRmFormula: parsed.oneRmFormula ?? initialState.oneRmFormula, plateStepKg: parsed.plateStepKg ?? initialState.plateStepKg, barbellProfile: parsed.barbellProfile ?? initialState.barbellProfile, personalRecords: parsed.personalRecords ?? {}, bodyWeightKg: parsed.bodyWeightKg ?? initialState.bodyWeightKg, bodyweightVolumePercent: parsed.bodyweightVolumePercent ?? initialState.bodyweightVolumePercent, restTimerSoundEnabled: parsed.restTimerSoundEnabled ?? initialState.restTimerSoundEnabled, restTimerVibrationEnabled: parsed.restTimerVibrationEnabled ?? initialState.restTimerVibrationEnabled, exercisePreferences: parsed.exercisePreferences ?? {} });
       }
       setReady(true);
     }).catch(() => setReady(true));
@@ -101,6 +107,12 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
     removeSchedule: (date) => setState((current) => { const scheduled = { ...current.scheduled }; delete scheduled[date]; return { ...current, scheduled }; }),
     addProgram: (program) => setState((current) => ({ ...current, programs: [...current.programs, { ...program, createdAt: program.createdAt ?? new Date().toISOString() }] })),
     renameProgram: (programId, name) => { const normalizedName = name.trim(); if (normalizedName) setState((current) => ({ ...current, programs: current.programs.map((program) => program.id === programId ? { ...program, name: normalizedName } : program) })); },
+    archiveProgram: (programId) => setState((current) => ({ ...current, programs: current.programs.map((program) => program.id === programId ? { ...program, archivedAt: new Date().toISOString() } : program) })),
+    restoreProgram: (programId) => setState((current) => ({ ...current, programs: current.programs.map((program) => program.id === programId ? { ...program, archivedAt: undefined } : program) })),
+    deleteProgram: (programId) => setState((current) => {
+      const scheduled = Object.fromEntries(Object.entries(current.scheduled).filter(([, schedule]) => schedule.programId !== programId));
+      return { ...current, programs: current.programs.filter((program) => program.id !== programId), scheduled, activeWorkout: current.activeWorkout?.programId === programId ? null : current.activeWorkout, deletedProgramIds: [...new Set([...current.deletedProgramIds, programId])] };
+    }),
     setOneRmFormula: (oneRmFormula) => setState((current) => ({ ...current, oneRmFormula })),
     setPlateStepKg: (plateStepKg) => setState((current) => ({ ...current, plateStepKg })),
     setBarbellProfile: (barbellProfile) => setState((current) => ({ ...current, barbellProfile })),

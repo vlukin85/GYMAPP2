@@ -114,7 +114,7 @@ describe("workout calculations", () => {
     expect(defaultPrograms.every((program) => program.exercises.length >= 3)).toBe(true);
     const migrated = mergeStoredPrograms([{ id: "upper-strength", name: "Старая версия", description: "", exercises: [] }, { id: "custom", name: "Моя программа", description: "", exercises: [] }]);
     expect(migrated).toHaveLength(defaultPrograms.length + 1);
-    expect(migrated.find((program) => program.id === "upper-strength")?.name).toBe("Верх тела · Сила");
+    expect(migrated.find((program) => program.id === "upper-strength")?.name).toBe("Старая версия");
   });
   it("allows mass photo caching only on reachable Wi-Fi and removes duplicate URLs", () => {
     expect(canDownloadPhotosOnWifi({ type: "WIFI", isInternetReachable: true })).toBe(true);
