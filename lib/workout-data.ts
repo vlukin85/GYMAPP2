@@ -7,6 +7,7 @@ export type Exercise = {
   equipment: string;
   description: string;
   image: string;
+  photoAngles?: { id: "main" | "side" | "rear"; label: string; url: string }[];
   videoUrl: string;
   recordKg: number;
   recordReps: number;
@@ -118,9 +119,9 @@ const photoTagsByGroup: Record<Exclude<MuscleGroup, "Все">, string> = {
   "Кардио": "gym,treadmill",
 };
 
-function exercisePhotoUrl(exercise: Exercise) {
+function exercisePhotoUrl(exercise: Exercise, angleOffset = 0) {
   const lock = [...exercise.id].reduce((hash, char) => ((hash * 31) + char.charCodeAt(0)) >>> 0, 17);
-  return `https://loremflickr.com/640/800/${photoTagsByGroup[exercise.group]}?lock=${lock}`;
+  return `https://loremflickr.com/640/800/${photoTagsByGroup[exercise.group]}?lock=${lock + angleOffset}`;
 }
 
 const catalogExercises: Exercise[] = [
@@ -150,17 +151,58 @@ const catalogExercises: Exercise[] = [
 export const exercises: Exercise[] = catalogExercises.map((exercise) => ({
   ...exercise,
   image: exercisePhotoUrl(exercise),
+  photoAngles: [
+    { id: "main", label: "Основной", url: exercisePhotoUrl(exercise) },
+    { id: "side", label: "Сбоку", url: exercisePhotoUrl(exercise, 1) },
+    { id: "rear", label: "Сзади", url: exercisePhotoUrl(exercise, 2) },
+  ],
 }));
 
 export const defaultPrograms: WorkoutProgram[] = [
-  { id: "upper-strength", name: "Верх тела · Сила", description: "Грудь, спина и плечи", exercises: [
-    { exerciseId: "bench-press", sets: 4, reps: 6, weight: 80, rest: 120 },
-    { exerciseId: "barbell-row", sets: 4, reps: 6, weight: 70, rest: 120 },
-    { exerciseId: "shoulder-press", sets: 3, reps: 8, weight: 22, rest: 90 },
+  { id: "upper-strength", name: "Верх тела · Сила", description: "Тяжёлые базовые движения на грудь, спину и плечи", exercises: [
+    { exerciseId: "bench-press", sets: 4, reps: 6, weight: 80, rest: 120 }, { exerciseId: "barbell-row", sets: 4, reps: 6, weight: 70, rest: 120 }, { exerciseId: "shoulder-press", sets: 3, reps: 8, weight: 22, rest: 90 },
   ] },
-  { id: "leg-day", name: "Ноги · Объём", description: "Сила и выносливость ног", exercises: [
-    { exerciseId: "squat", sets: 4, reps: 8, weight: 90, rest: 150 },
-    { exerciseId: "leg-press", sets: 3, reps: 10, weight: 160, rest: 120 },
+  { id: "leg-day", name: "Ноги · Объём", description: "Квадрицепсы, бицепс бедра и икры в среднем диапазоне повторов", exercises: [
+    { exerciseId: "squat", sets: 4, reps: 8, weight: 90, rest: 150 }, { exerciseId: "leg-press", sets: 3, reps: 10, weight: 160, rest: 120 }, { exerciseId: "leg-curl", sets: 3, reps: 12, weight: 55, rest: 75 }, { exerciseId: "calf-raise", sets: 3, reps: 15, weight: 80, rest: 60 },
+  ] },
+  { id: "full-body-start", name: "Full body · Старт", description: "Мягкое знакомство с базовыми движениями всего тела", exercises: [
+    { exerciseId: "squat", sets: 3, reps: 10, weight: 45, rest: 90 }, { exerciseId: "bench-press", sets: 3, reps: 10, weight: 40, rest: 90 }, { exerciseId: "lat-pulldown", sets: 3, reps: 10, weight: 40, rest: 75 }, { exerciseId: "plank", sets: 3, reps: 40, weight: 0, rest: 45 },
+  ] },
+  { id: "full-body-strength", name: "Full body · Сила", description: "Пять базовых упражнений для развития общей силы", exercises: [
+    { exerciseId: "squat", sets: 5, reps: 5, weight: 95, rest: 180 }, { exerciseId: "bench-press", sets: 5, reps: 5, weight: 82.5, rest: 150 }, { exerciseId: "barbell-row", sets: 4, reps: 6, weight: 72.5, rest: 120 }, { exerciseId: "romanian-deadlift", sets: 3, reps: 6, weight: 95, rest: 120 },
+  ] },
+  { id: "push-power", name: "Push · Мощность", description: "Грудь, плечи и трицепс с акцентом на силовые подходы", exercises: [
+    { exerciseId: "bench-press", sets: 5, reps: 4, weight: 85, rest: 180 }, { exerciseId: "shoulder-press", sets: 4, reps: 6, weight: 24, rest: 120 }, { exerciseId: "dips", sets: 3, reps: 8, weight: 0, rest: 90 }, { exerciseId: "triceps-pushdown", sets: 3, reps: 10, weight: 45, rest: 60 },
+  ] },
+  { id: "pull-power", name: "Pull · Сила", description: "Спина и бицепс: тяги для мощного верха тела", exercises: [
+    { exerciseId: "barbell-row", sets: 5, reps: 5, weight: 75, rest: 150 }, { exerciseId: "lat-pulldown", sets: 4, reps: 8, weight: 65, rest: 90 }, { exerciseId: "dumbbell-row", sets: 3, reps: 10, weight: 32, rest: 75 }, { exerciseId: "biceps-curl", sets: 3, reps: 8, weight: 40, rest: 60 },
+  ] },
+  { id: "upper-hypertrophy", name: "Верх тела · Гипертрофия", description: "Объёмная тренировка верха в диапазоне 8–15 повторов", exercises: [
+    { exerciseId: "incline-db-press", sets: 4, reps: 10, weight: 28, rest: 90 }, { exerciseId: "lat-pulldown", sets: 4, reps: 12, weight: 55, rest: 75 }, { exerciseId: "lateral-raise", sets: 4, reps: 15, weight: 10, rest: 45 }, { exerciseId: "triceps-pushdown", sets: 3, reps: 14, weight: 35, rest: 45 }, { exerciseId: "biceps-curl", sets: 3, reps: 12, weight: 30, rest: 45 },
+  ] },
+  { id: "lower-hypertrophy", name: "Низ тела · Гипертрофия", description: "Объём для ног и ягодиц с контролируемой техникой", exercises: [
+    { exerciseId: "leg-press", sets: 4, reps: 12, weight: 140, rest: 90 }, { exerciseId: "romanian-deadlift", sets: 4, reps: 10, weight: 80, rest: 90 }, { exerciseId: "walking-lunge", sets: 3, reps: 12, weight: 16, rest: 75 }, { exerciseId: "leg-curl", sets: 3, reps: 15, weight: 45, rest: 60 }, { exerciseId: "calf-raise", sets: 4, reps: 15, weight: 70, rest: 45 },
+  ] },
+  { id: "endurance-circuit", name: "Круговая · Выносливость", description: "Круг из всего тела с коротким отдыхом и высоким пульсом", exercises: [
+    { exerciseId: "walking-lunge", sets: 3, reps: 16, weight: 10, rest: 30 }, { exerciseId: "dips", sets: 3, reps: 10, weight: 0, rest: 30 }, { exerciseId: "lat-pulldown", sets: 3, reps: 15, weight: 40, rest: 30 }, { exerciseId: "cable-crunch", sets: 3, reps: 15, weight: 30, rest: 30 }, { exerciseId: "treadmill", sets: 3, reps: 4, weight: 0, rest: 60 },
+  ] },
+  { id: "cardio-conditioning", name: "Кардио · Кондиция", description: "Интервалы для сердца и общей работоспособности", exercises: [
+    { exerciseId: "treadmill", sets: 6, reps: 3, weight: 0, rest: 60 }, { exerciseId: "rower", sets: 5, reps: 2, weight: 0, rest: 45 }, { exerciseId: "plank", sets: 4, reps: 45, weight: 0, rest: 45 },
+  ] },
+  { id: "posterior-chain", name: "Задняя цепь · Сила", description: "Ягодицы, бицепс бедра и мышцы спины", exercises: [
+    { exerciseId: "romanian-deadlift", sets: 5, reps: 6, weight: 100, rest: 150 }, { exerciseId: "barbell-row", sets: 4, reps: 8, weight: 67.5, rest: 90 }, { exerciseId: "leg-curl", sets: 4, reps: 10, weight: 55, rest: 75 }, { exerciseId: "dumbbell-row", sets: 3, reps: 10, weight: 34, rest: 60 },
+  ] },
+  { id: "chest-shoulders", name: "Грудь и плечи · Рельеф", description: "Наклонный жим, плечи и контролируемый объём", exercises: [
+    { exerciseId: "incline-db-press", sets: 4, reps: 12, weight: 24, rest: 75 }, { exerciseId: "bench-press", sets: 3, reps: 10, weight: 60, rest: 90 }, { exerciseId: "shoulder-press", sets: 3, reps: 12, weight: 18, rest: 75 }, { exerciseId: "lateral-raise", sets: 4, reps: 15, weight: 8, rest: 45 },
+  ] },
+  { id: "arms-core", name: "Руки и корпус", description: "Добивка бицепса, трицепса и мышц пресса", exercises: [
+    { exerciseId: "biceps-curl", sets: 4, reps: 12, weight: 30, rest: 60 }, { exerciseId: "triceps-pushdown", sets: 4, reps: 12, weight: 35, rest: 60 }, { exerciseId: "dips", sets: 3, reps: 10, weight: 0, rest: 60 }, { exerciseId: "cable-crunch", sets: 4, reps: 15, weight: 35, rest: 45 }, { exerciseId: "plank", sets: 3, reps: 50, weight: 0, rest: 45 },
+  ] },
+  { id: "five-by-five", name: "5×5 · База", description: "Минималистичная силовая схема с прогрессией веса", exercises: [
+    { exerciseId: "squat", sets: 5, reps: 5, weight: 90, rest: 180 }, { exerciseId: "bench-press", sets: 5, reps: 5, weight: 80, rest: 150 }, { exerciseId: "barbell-row", sets: 5, reps: 5, weight: 70, rest: 120 },
+  ] },
+  { id: "active-recovery", name: "Активное восстановление", description: "Лёгкая работа, мобильность и техника между тяжёлыми днями", exercises: [
+    { exerciseId: "treadmill", sets: 1, reps: 25, weight: 0, rest: 60, setType: "warmup" }, { exerciseId: "rower", sets: 2, reps: 8, weight: 0, rest: 60 }, { exerciseId: "walking-lunge", sets: 2, reps: 12, weight: 0, rest: 45 }, { exerciseId: "plank", sets: 3, reps: 35, weight: 0, rest: 45 },
   ] },
 ];
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { bestOneRepMax, calculateBarbellPlateLayout, calculateVolume, estimateOneRepMax, exercises, formatDuration, formatPlateLayout, getDropSetParts, getEffectiveSetWeight, getLoadZones, getMonthCalendarDays, getReminderTriggerDate, getSetVolumeWithDropSubsets, recommendWorkingWeight, roundToWeightIncrement } from "../lib/workout-data";
+import { bestOneRepMax, calculateBarbellPlateLayout, calculateVolume, defaultPrograms, estimateOneRepMax, exercises, formatDuration, formatPlateLayout, getDropSetParts, getEffectiveSetWeight, getLoadZones, getMonthCalendarDays, getReminderTriggerDate, getSetVolumeWithDropSubsets, recommendWorkingWeight, roundToWeightIncrement } from "../lib/workout-data";
 import { buildTrainingCsv } from "../lib/training-export";
 import { buildMonthlyReportData } from "../lib/monthly-report";
 import { buildWorkoutComparison, createImportedWorkoutFingerprint, groupImportedSessions, groupWorkoutSessions, parseTrainingCsv } from "../lib/csv-import";
@@ -62,6 +62,12 @@ describe("workout calculations", () => {
     groups.forEach((group) => expect(exercises.filter((exercise) => exercise.group === group)).toHaveLength(20));
     expect(new Set(exercises.map((exercise) => exercise.image)).size).toBe(exercises.length);
     expect(exercises.every((exercise) => exercise.image.startsWith("https://loremflickr.com/"))).toBe(true);
+    expect(exercises.every((exercise) => exercise.photoAngles?.length === 3 && exercise.photoAngles[0].url === exercise.image && new Set(exercise.photoAngles.map((photo) => photo.url)).size === 3)).toBe(true);
+  });
+  it("offers at least fifteen varied ready-to-use training programs", () => {
+    expect(defaultPrograms.length).toBeGreaterThanOrEqual(15);
+    expect(defaultPrograms.map((program) => program.id)).toEqual(expect.arrayContaining(["full-body-start", "full-body-strength", "endurance-circuit", "five-by-five", "active-recovery", "upper-strength", "leg-day"]));
+    expect(defaultPrograms.every((program) => program.exercises.length >= 3)).toBe(true);
   });
   it("accounts for a configured portion of bodyweight when there is no external load", () => {
     expect(getEffectiveSetWeight({ weightKg: 0, equipment: "Вес тела", bodyWeightKg: 80, bodyweightVolumePercent: 65 })).toBe(52);
