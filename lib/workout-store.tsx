@@ -25,6 +25,7 @@ type WorkoutContextValue = WorkoutState & {
   scheduleProgram: (date: string, schedule: ScheduledWorkout) => void;
   removeSchedule: (date: string) => void;
   addProgram: (program: WorkoutProgram) => void;
+  renameProgram: (programId: string, name: string) => void;
   setOneRmFormula: (formula: OneRepMaxFormula) => void;
   setPlateStepKg: (step: number) => void;
   setBarbellProfile: (profile: BarbellProfile) => void;
@@ -99,6 +100,7 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
     scheduleProgram: (date, schedule) => setState((current) => ({ ...current, scheduled: { ...current.scheduled, [date]: schedule } })),
     removeSchedule: (date) => setState((current) => { const scheduled = { ...current.scheduled }; delete scheduled[date]; return { ...current, scheduled }; }),
     addProgram: (program) => setState((current) => ({ ...current, programs: [...current.programs, { ...program, createdAt: program.createdAt ?? new Date().toISOString() }] })),
+    renameProgram: (programId, name) => { const normalizedName = name.trim(); if (normalizedName) setState((current) => ({ ...current, programs: current.programs.map((program) => program.id === programId ? { ...program, name: normalizedName } : program) })); },
     setOneRmFormula: (oneRmFormula) => setState((current) => ({ ...current, oneRmFormula })),
     setPlateStepKg: (plateStepKg) => setState((current) => ({ ...current, plateStepKg })),
     setBarbellProfile: (barbellProfile) => setState((current) => ({ ...current, barbellProfile })),
