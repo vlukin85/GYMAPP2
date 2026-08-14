@@ -104,6 +104,7 @@ export default function RootLayout() {
             <Stack.Screen name="profile" />
             <Stack.Screen name="replace-exercise" />
             <Stack.Screen name="program/ai" />
+            <Stack.Screen name="dev/services" />
           </Stack>
           <TrainingBackupSync />
           <WorkoutReplacementOverlay />

@@ -36,6 +36,13 @@ export const appRouter = router({
       return { success: true } as const;
     }),
   }),
+  devStatus: router({
+    health: publicProcedure.query(() => ({
+      api: "online" as const,
+      checkedAt: new Date().toISOString(),
+      uptimeSeconds: Math.floor(process.uptime()),
+    })),
+  }),
   aiProgram: router({
     generate: publicProcedure.input(aiProgramInputSchema).mutation(async ({ input }) => {
       const response = await invokeLLM({
