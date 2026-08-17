@@ -13,6 +13,13 @@ export type Exercise = {
   recordReps: number;
 };
 
+export type CustomExerciseDraft = {
+  name: string;
+  group: MuscleGroup;
+  equipment: string;
+  description?: string;
+};
+
 export type SetType = "warmup" | "working" | "drop" | "failure";
 export type DropSubset = { weightKg: number; reps: number };
 export const MAX_DROP_SUBSETS = 5;
@@ -53,6 +60,16 @@ const defaultProgramCreatedAt = "2026-08-01T12:00:00.000Z";
 export function formatProgramCreatedAt(createdAt?: string) {
   const date = new Date(createdAt ?? defaultProgramCreatedAt);
   return `Создано ${new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "short", year: "numeric" }).format(date)}`;
+}
+
+export function sortProgramsByCreatedAt(programs: WorkoutProgram[], direction: "newest" | "oldest" = "newest") {
+  const factor = direction === "newest" ? -1 : 1;
+  return [...programs].sort((first, second) => {
+    const firstTime = Date.parse(first.createdAt ?? defaultProgramCreatedAt) || 0;
+    const secondTime = Date.parse(second.createdAt ?? defaultProgramCreatedAt) || 0;
+    if (firstTime !== secondTime) return (firstTime - secondTime) * factor;
+    return first.name.localeCompare(second.name, "ru");
+  });
 }
 
 export type ScheduledWorkout = {
@@ -203,6 +220,32 @@ export const exercises: Exercise[] = catalogExercises.map((exercise) => ({
   ],
 }));
 
+let customExercises: Exercise[] = [];
+
+export function setCustomExercises(nextExercises: Exercise[]) {
+  customExercises = nextExercises;
+}
+
+export function createCustomExercise(draft: CustomExerciseDraft, id: string): Exercise {
+  const image = getExerciseIllustration(id, draft.group, draft.equipment);
+  return {
+    id,
+    name: draft.name.trim(),
+    group: draft.group,
+    equipment: draft.equipment.trim() || "Без оборудования",
+    description: draft.description?.trim() || "Пользовательское упражнение. Добавьте заметку по технике в карточке упражнения.",
+    image,
+    photoAngles: [{ id: "main", label: "Техника", url: image }],
+    videoUrl: `https://www.youtube.com/results?search_query=${encodeURIComponent(`${draft.name} техника выполнения`)}`,
+    recordKg: 0,
+    recordReps: 0,
+  };
+}
+
+export function getAllExercises() {
+  return [...exercises, ...customExercises];
+}
+
 export const defaultPrograms: WorkoutProgram[] = [
   { id: "upper-strength", name: "Верх тела · Сила", description: "Тяжёлые базовые движения на грудь, спину и плечи", exercises: [
     { exerciseId: "bench-press", sets: 4, reps: 6, weight: 80, rest: 120 }, { exerciseId: "barbell-row", sets: 4, reps: 6, weight: 70, rest: 120 }, { exerciseId: "shoulder-press", sets: 3, reps: 8, weight: 22, rest: 90 },
@@ -289,7 +332,7 @@ export const exerciseHistory: Record<string, ExerciseHistoryEntry[]> = {
 
 export function getExerciseHistory(id: string) { return exerciseHistory[id] ?? []; }
 
-export function getExercise(id: string) { return exercises.find((exercise) => exercise.id === id); }
+export function getExercise(id: string) { return exercises.find((exercise) => exercise.id === id) ?? customExercises.find((exercise) => exercise.id === id); }
 export function getProgram(id: string) { return defaultPrograms.find((program) => program.id === id); }
 export function calculateVolume(weight: number, reps: number, sets: number) { return weight * reps * sets; }
 export function getEffectiveSetWeight(input: { weightKg: number; equipment: string; bodyWeightKg: number; bodyweightVolumePercent: number }) {

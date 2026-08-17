@@ -7,11 +7,13 @@ import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
 import { cacheExercisePhotos } from "@/lib/exercise-image-cache";
 import { getExercise } from "@/lib/workout-data";
+import { useWorkoutStore } from "@/lib/workout-store";
 
 export default function ExerciseDetail() {
   const colors = useColors();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const exercise = getExercise(id ?? "bench-press");
+  const { customExercises } = useWorkoutStore();
+  const exercise = getExercise(id ?? "bench-press") ?? customExercises.find((item) => item.id === id);
   const photos = useMemo(() => exercise?.photoAngles?.length ? exercise.photoAngles : exercise ? [{ id: "main" as const, label: "Основной", url: exercise.image }] : [], [exercise]);
   const [angleId, setAngleId] = useState<"main" | "side" | "rear">("main");
   const [cacheLabel, setCacheLabel] = useState("Сохраняем для офлайн-просмотра…");
