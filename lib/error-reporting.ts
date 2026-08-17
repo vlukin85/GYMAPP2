@@ -1,7 +1,9 @@
 import Constants from "expo-constants";
-import * as Sentry from "@sentry/react-native";
+import type * as SentryType from "@sentry/react-native";
 
 let initialized = false;
+let ready = false;
+let sentry: typeof SentryType | null = null;
 
 function getDsn() {
   const value = Constants.expoConfig?.extra?.sentryDsn;
@@ -13,31 +15,37 @@ export function isErrorReportingConfigured() {
 }
 
 export function initializeErrorReporting() {
-  if (initialized) return isErrorReportingConfigured();
+  if (initialized) return ready;
   initialized = true;
   const dsn = getDsn();
   if (!dsn) return false;
-  Sentry.init({
-    dsn,
-    enableNative: true,
-    enableAutoSessionTracking: true,
-    attachStacktrace: true,
-    sendDefaultPii: false,
-    beforeSend(event) {
-      if (event.user) event.user = undefined;
-      return event;
-    },
-  });
-  Sentry.setTag("app.surface", "gym-training-diary");
-  return true;
+  try {
+    sentry = require("@sentry/react-native") as typeof SentryType;
+    sentry.init({
+      dsn,
+      enableNative: false,
+      enableAutoSessionTracking: false,
+      attachStacktrace: true,
+      sendDefaultPii: false,
+      beforeSend(event) {
+        if (event.user) event.user = undefined;
+        return event;
+      },
+    });
+    sentry.setTag("app.surface", "gym-training-diary");
+    ready = true;
+  } catch {
+    ready = false;
+  }
+  return ready;
 }
 
 export function reportException(error: unknown, context: Record<string, string> = {}) {
-  if (!isErrorReportingConfigured()) return;
-  Sentry.captureException(error, { tags: context });
+  if (!ready || !sentry) return;
+  try { sentry.captureException(error, { tags: context }); } catch { /* diagnostics must not crash the app */ }
 }
 
 export function addDiagnosticBreadcrumb(message: string, level: "info" | "warning" | "error" = "info") {
-  if (!isErrorReportingConfigured()) return;
-  Sentry.addBreadcrumb({ category: "startup", message, level });
+  if (!ready || !sentry) return;
+  try { sentry.addBreadcrumb({ category: "startup", message, level }); } catch { /* diagnostics must not crash the app */ }
 }

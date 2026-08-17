@@ -8,7 +8,8 @@ describe("Sentry release credentials", () => {
     expect(org, "SENTRY_ORG должен быть задан").toBeTruthy();
     expect(project, "SENTRY_PROJECT должен быть задан").toBeTruthy();
     expect(token, "SENTRY_AUTH_TOKEN должен быть задан").toBeTruthy();
-    const response = await fetch(`https://sentry.io/api/0/projects/${encodeURIComponent(org!)}/${encodeURIComponent(project!)}/releases/?query=`, { headers: { Authorization: `Bearer ${token}` } });
+    const url = `https://sentry.io/api/0/projects/${encodeURIComponent(org!)}/${encodeURIComponent(project!)}/releases/?query=`;
+    const response = await fetch(url, { headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(12_000) });
     expect(response.status, `Sentry вернул ${response.status}`).toBeLessThan(400);
-  });
+  }, 15_000);
 });

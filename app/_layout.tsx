@@ -25,8 +25,6 @@ import { initManusRuntime, subscribeSafeAreaInsets } from "@/lib/_core/manus-run
 import { initializeErrorReporting } from "@/lib/error-reporting";
 import { beginLaunchDiagnostics, completeLaunchDiagnostics, recordStartupChecks } from "@/lib/launch-diagnostics";
 
-initializeErrorReporting();
-
 const DEFAULT_WEB_INSETS: EdgeInsets = { top: 0, right: 0, bottom: 0, left: 0 };
 const DEFAULT_WEB_FRAME: Rect = { x: 0, y: 0, width: 0, height: 0 };
 
@@ -46,12 +44,13 @@ export default function RootLayout() {
     initManusRuntime();
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
+    const reportingTimer = setTimeout(() => { if (!cancelled) initializeErrorReporting(); }, 800);
     void (async () => {
       const launchId = await beginLaunchDiagnostics();
       await recordStartupChecks();
       if (!cancelled) timer = setTimeout(() => void completeLaunchDiagnostics(launchId), 1200);
     })();
-    return () => { cancelled = true; if (timer) clearTimeout(timer); };
+    return () => { cancelled = true; clearTimeout(reportingTimer); if (timer) clearTimeout(timer); };
   }, []);
 
   const handleSafeAreaUpdate = useCallback((metrics: Metrics) => {

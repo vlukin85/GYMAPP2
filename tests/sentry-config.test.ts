@@ -9,7 +9,7 @@ describe("Sentry DSN", () => {
     expect(url.username.length).toBeGreaterThan(0);
     expect(url.hostname).toContain("sentry.io");
     expect(url.pathname.replaceAll("/", "")).toMatch(/^\d+$/);
-    const response = await fetch(`${url.protocol}//${url.host}/`, { method: "OPTIONS" });
+    const response = await fetch(`${url.protocol}//${url.host}/`, { method: "OPTIONS", signal: AbortSignal.timeout(12_000) });
     expect(response.status).toBeGreaterThan(0);
-  });
+  }, 15_000);
 });
