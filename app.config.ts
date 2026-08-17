@@ -84,8 +84,12 @@ const config: ExpoConfig = {
     output: "static",
     favicon: "./assets/images/favicon.png",
   },
+  extra: {
+    sentryDsn: process.env.SENTRY_DSN ?? "",
+  },
   plugins: [
     "expo-router",
+    "@sentry/react-native/expo",
     "expo-notifications",
     [
       "expo-audio",

@@ -10,6 +10,7 @@ import "@/lib/_core/nativewind-pressable";
 import { ThemeProvider } from "@/lib/theme-provider";
 import { TrainingBackupSync } from "@/components/training-backup-sync";
 import { WorkoutReplacementOverlay } from "@/components/workout-replacement-overlay";
+import { StartupErrorBoundary } from "@/components/startup-error-boundary";
 import { WorkoutProvider } from "@/lib/workout-store";
 import {
   SafeAreaFrameContext,
@@ -21,6 +22,10 @@ import type { EdgeInsets, Metrics, Rect } from "react-native-safe-area-context";
 
 import { trpc, createTRPCClient } from "@/lib/trpc";
 import { initManusRuntime, subscribeSafeAreaInsets } from "@/lib/_core/manus-runtime";
+import { initializeErrorReporting } from "@/lib/error-reporting";
+import { recordStartupChecks } from "@/lib/launch-diagnostics";
+
+initializeErrorReporting();
 
 const DEFAULT_WEB_INSETS: EdgeInsets = { top: 0, right: 0, bottom: 0, left: 0 };
 const DEFAULT_WEB_FRAME: Rect = { x: 0, y: 0, width: 0, height: 0 };
@@ -39,6 +44,7 @@ export default function RootLayout() {
   // Initialize Manus runtime for cookie injection from parent container
   useEffect(() => {
     initManusRuntime();
+    void recordStartupChecks();
   }, []);
 
   const handleSafeAreaUpdate = useCallback((metrics: Metrics) => {
@@ -105,6 +111,7 @@ export default function RootLayout() {
             <Stack.Screen name="replace-exercise" />
             <Stack.Screen name="program/ai" />
             <Stack.Screen name="dev/services" />
+            <Stack.Screen name="diagnostics" />
           </Stack>
           <TrainingBackupSync />
           <WorkoutReplacementOverlay />
@@ -118,7 +125,7 @@ export default function RootLayout() {
 
   if (shouldOverrideSafeArea) {
     return (
-      <ThemeProvider>
+      <StartupErrorBoundary><ThemeProvider>
         <WorkoutProvider>
         <SafeAreaProvider initialMetrics={providerInitialMetrics}>
           <SafeAreaFrameContext.Provider value={frame}>
@@ -128,15 +135,15 @@ export default function RootLayout() {
           </SafeAreaFrameContext.Provider>
         </SafeAreaProvider>
         </WorkoutProvider>
-      </ThemeProvider>
+      </ThemeProvider></StartupErrorBoundary>
     );
   }
 
   return (
-    <ThemeProvider>
+    <StartupErrorBoundary><ThemeProvider>
       <WorkoutProvider>
         <SafeAreaProvider initialMetrics={providerInitialMetrics}>{content}</SafeAreaProvider>
       </WorkoutProvider>
-    </ThemeProvider>
+    </ThemeProvider></StartupErrorBoundary>
   );
 }
