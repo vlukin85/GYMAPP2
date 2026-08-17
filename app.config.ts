@@ -89,7 +89,14 @@ const config: ExpoConfig = {
   },
   plugins: [
     "expo-router",
-    "@sentry/react-native/expo",
+    [
+      "@sentry/react-native/expo",
+      {
+        url: "https://sentry.io/",
+        organization: process.env.SENTRY_ORG,
+        project: process.env.SENTRY_PROJECT,
+      },
+    ],
     "expo-notifications",
     [
       "expo-audio",

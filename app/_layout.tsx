@@ -23,7 +23,7 @@ import type { EdgeInsets, Metrics, Rect } from "react-native-safe-area-context";
 import { trpc, createTRPCClient } from "@/lib/trpc";
 import { initManusRuntime, subscribeSafeAreaInsets } from "@/lib/_core/manus-runtime";
 import { initializeErrorReporting } from "@/lib/error-reporting";
-import { recordStartupChecks } from "@/lib/launch-diagnostics";
+import { beginLaunchDiagnostics, completeLaunchDiagnostics, recordStartupChecks } from "@/lib/launch-diagnostics";
 
 initializeErrorReporting();
 
@@ -44,7 +44,14 @@ export default function RootLayout() {
   // Initialize Manus runtime for cookie injection from parent container
   useEffect(() => {
     initManusRuntime();
-    void recordStartupChecks();
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    void (async () => {
+      const launchId = await beginLaunchDiagnostics();
+      await recordStartupChecks();
+      if (!cancelled) timer = setTimeout(() => void completeLaunchDiagnostics(launchId), 1200);
+    })();
+    return () => { cancelled = true; if (timer) clearTimeout(timer); };
   }, []);
 
   const handleSafeAreaUpdate = useCallback((metrics: Metrics) => {
