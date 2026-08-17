@@ -15,6 +15,27 @@ export type Exercise = {
 
 export type ExerciseGalleryImage = { id: string; label: string; url: string };
 
+export type AiExerciseArtStyle = "editorial" | "neon" | "minimal";
+
+export const aiExerciseArtStyles: { id: AiExerciseArtStyle; label: string; hint: string }[] = [
+  { id: "editorial", label: "Фитнес-арт", hint: "Объёмная журнальная иллюстрация" },
+  { id: "neon", label: "Неон", hint: "Контрастный спортивный свет" },
+  { id: "minimal", label: "Минимализм", hint: "Чистая графика без лишних деталей" },
+];
+
+export type ExerciseImagePreference = {
+  style: AiExerciseArtStyle;
+  favoriteImageIds: string[];
+  ratings: Record<string, number>;
+};
+
+export function normalizeExerciseImagePreference(input?: Partial<ExerciseImagePreference>): ExerciseImagePreference {
+  const style = input?.style === "neon" || input?.style === "minimal" || input?.style === "editorial" ? input.style : "editorial";
+  const favoriteImageIds = Array.from(new Set((input?.favoriteImageIds ?? []).filter(Boolean)));
+  const ratings = Object.fromEntries(Object.entries(input?.ratings ?? {}).filter(([, rating]) => Number.isInteger(rating) && rating >= 1 && rating <= 5));
+  return { style, favoriteImageIds, ratings };
+}
+
 export type CustomExerciseDraft = {
   name: string;
   group: MuscleGroup;
@@ -216,6 +237,19 @@ const generatedTechniqueImages: Record<string, string> = {
   "triceps-pushdown": "/manus-storage/triceps-pushdown-generated_1c2829f4.jpg",
 };
 
+const individualAiExerciseIllustrations: Record<string, string> = {
+  "bench-press": "/manus-storage/ai-bench-press_756cc228.jpg",
+  "incline-db-press": "/manus-storage/ai-incline-db-press_7a539224.jpg",
+  "lat-pulldown": "/manus-storage/ai-lat-pulldown_cc21da0f.jpg",
+  "barbell-row": "/manus-storage/ai-barbell-row_a89f2a77.jpg",
+  squat: "/manus-storage/ai-squat_0c5c6809.jpg",
+  "leg-press": "/manus-storage/ai-leg-press_934bf838.jpg",
+  "shoulder-press": "/manus-storage/ai-shoulder-press_29292814.jpg",
+  "lateral-raise": "/manus-storage/ai-lateral-raise_e8e3b233.jpg",
+  "biceps-curl": "/manus-storage/ai-biceps-curl_72e5630b.jpg",
+  "triceps-pushdown": "/manus-storage/ai-triceps-pushdown_905e9bc9.jpg",
+};
+
 const aiGroupExerciseIllustrations: Record<Exclude<MuscleGroup, "Все">, string> = {
   "Грудь": "/manus-storage/gym-ai-chest_72d19524.jpg",
   "Спина": "/manus-storage/gym-ai-back_38bf7525.jpg",
@@ -229,15 +263,17 @@ const aiGroupExerciseIllustrations: Record<Exclude<MuscleGroup, "Все">, strin
 export const generatedExerciseIllustrationLibrary = Object.entries(generatedTechniqueImages).map(([exerciseId, url]) => ({ exerciseId, url, label: "Ранее созданная иллюстрация техники" }));
 
 function exerciseTechniqueImage(exercise: Exercise) {
-  return generatedTechniqueImages[exercise.id] ?? aiGroupExerciseIllustrations[exercise.group] ?? getExerciseIllustration(exercise.id, exercise.group, exercise.equipment);
+  return individualAiExerciseIllustrations[exercise.id] ?? generatedTechniqueImages[exercise.id] ?? aiGroupExerciseIllustrations[exercise.group] ?? getExerciseIllustration(exercise.id, exercise.group, exercise.equipment);
 }
 
 export function getExerciseIllustrationCandidates(exercise: Exercise) {
   const generated = generatedTechniqueImages[exercise.id];
+  const individualAi = individualAiExerciseIllustrations[exercise.id];
   const aiGroupImage = aiGroupExerciseIllustrations[exercise.group];
   const defaultIllustration = exerciseTechniqueImage(exercise);
-  const candidates = generated ? [{ id: `generated-${exercise.id}`, label: "Ранее созданная иллюстрация", url: generated }] : [];
-  if (aiGroupImage && aiGroupImage !== generated) candidates.push({ id: `ai-${exercise.group}`, label: "AI-иллюстрация группы", url: aiGroupImage });
+  const candidates = individualAi ? [{ id: `ai-${exercise.id}`, label: "Отдельная AI-иллюстрация", url: individualAi }] : [];
+  if (generated && generated !== individualAi) candidates.push({ id: `generated-${exercise.id}`, label: "Ранее созданная иллюстрация", url: generated });
+  if (aiGroupImage && aiGroupImage !== generated && aiGroupImage !== individualAi) candidates.push({ id: `ai-${exercise.group}`, label: "AI-иллюстрация группы", url: aiGroupImage });
   candidates.push({ id: `illustration-${exercise.id}`, label: "Иллюстрация упражнения", url: defaultIllustration });
   return candidates;
 }

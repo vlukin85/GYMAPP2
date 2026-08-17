@@ -35,4 +35,9 @@ describe("catalog and program workflow", () => {
     const exercise = getExercise("treadmill");
     expect(exercise && getExerciseIllustrationCandidates(exercise).some((candidate) => candidate.id === "ai-Кардио")).toBe(true);
   });
+
+  it("uses an individual AI illustration before the group fallback", () => {
+    const exercise = getExercise("bench-press");
+    expect(exercise && getExerciseIllustrationCandidates(exercise)[0]?.id).toBe("ai-bench-press");
+  });
 });

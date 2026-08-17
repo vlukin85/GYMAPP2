@@ -1,6 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
-import { bestOneRepMax, completedWorkouts as seedCompleted, createCustomExercise, defaultPrograms, mergeStoredPrograms, setCustomExercises, type BarbellProfile, type CompletedWorkout, type CustomExerciseDraft, type Exercise, type ExerciseGalleryImage, type ExercisePreference, type OneRepMaxFormula, type PersonalRecord, type ScheduledWorkout, type WorkoutProgram } from "./workout-data";
+import { bestOneRepMax, completedWorkouts as seedCompleted, createCustomExercise, defaultPrograms, mergeStoredPrograms, normalizeExerciseImagePreference, setCustomExercises, type AiExerciseArtStyle, type BarbellProfile, type CompletedWorkout, type CustomExerciseDraft, type Exercise, type ExerciseGalleryImage, type ExerciseImagePreference, type ExercisePreference, type OneRepMaxFormula, type PersonalRecord, type ScheduledWorkout, type WorkoutProgram } from "./workout-data";
 
 type WorkoutState = {
   programs: WorkoutProgram[];
@@ -20,6 +20,7 @@ type WorkoutState = {
   customExercises: Exercise[];
   exerciseImageOverrides: Record<string, string>;
   exerciseGalleries: Record<string, ExerciseGalleryImage[]>;
+  exerciseImagePreferences: Record<string, ExerciseImagePreference>;
 };
 
 type WorkoutContextValue = WorkoutState & {
@@ -37,6 +38,9 @@ type WorkoutContextValue = WorkoutState & {
   addExerciseImage: (exerciseId: string, image: string) => void;
   removeExerciseImage: (exerciseId: string, imageId: string) => void;
   moveExerciseImage: (exerciseId: string, imageId: string, direction: -1 | 1) => void;
+  setExerciseImageStyle: (exerciseId: string, style: AiExerciseArtStyle) => void;
+  toggleExerciseImageFavorite: (exerciseId: string, imageId: string) => void;
+  rateExerciseImage: (exerciseId: string, imageId: string, rating: number) => void;
   setProgramCover: (programId: string, coverImage: string) => void;
   renameProgram: (programId: string, name: string) => void;
   archiveProgram: (programId: string) => void;
@@ -74,6 +78,7 @@ const initialState: WorkoutState = {
   customExercises: [],
   exerciseImageOverrides: {},
   exerciseGalleries: {},
+  exerciseImagePreferences: {},
 };
 
 const WorkoutContext = createContext<WorkoutContextValue | null>(null);
@@ -90,7 +95,8 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
         const deletedProgramIds = parsed.deletedProgramIds ?? [];
         const customExercises = parsed.customExercises ?? [];
         setCustomExercises(customExercises);
-        setState({ ...initialState, ...parsed, programs: mergeStoredPrograms(parsed.programs).filter((program) => !deletedProgramIds.includes(program.id)), scheduled: migratedScheduled, deletedProgramIds, customExercises, exerciseImageOverrides: parsed.exerciseImageOverrides ?? {}, exerciseGalleries: parsed.exerciseGalleries ?? {}, oneRmFormula: parsed.oneRmFormula ?? initialState.oneRmFormula, plateStepKg: parsed.plateStepKg ?? initialState.plateStepKg, barbellProfile: parsed.barbellProfile ?? initialState.barbellProfile, personalRecords: parsed.personalRecords ?? {}, bodyWeightKg: parsed.bodyWeightKg ?? initialState.bodyWeightKg, bodyweightVolumePercent: parsed.bodyweightVolumePercent ?? initialState.bodyweightVolumePercent, restTimerSoundEnabled: parsed.restTimerSoundEnabled ?? initialState.restTimerSoundEnabled, restTimerVibrationEnabled: parsed.restTimerVibrationEnabled ?? initialState.restTimerVibrationEnabled, exercisePreferences: parsed.exercisePreferences ?? {} });
+        const exerciseImagePreferences = Object.fromEntries(Object.entries(parsed.exerciseImagePreferences ?? {}).map(([exerciseId, preference]) => [exerciseId, normalizeExerciseImagePreference(preference)]));
+        setState({ ...initialState, ...parsed, programs: mergeStoredPrograms(parsed.programs).filter((program) => !deletedProgramIds.includes(program.id)), scheduled: migratedScheduled, deletedProgramIds, customExercises, exerciseImageOverrides: parsed.exerciseImageOverrides ?? {}, exerciseGalleries: parsed.exerciseGalleries ?? {}, exerciseImagePreferences, oneRmFormula: parsed.oneRmFormula ?? initialState.oneRmFormula, plateStepKg: parsed.plateStepKg ?? initialState.plateStepKg, barbellProfile: parsed.barbellProfile ?? initialState.barbellProfile, personalRecords: parsed.personalRecords ?? {}, bodyWeightKg: parsed.bodyWeightKg ?? initialState.bodyWeightKg, bodyweightVolumePercent: parsed.bodyweightVolumePercent ?? initialState.bodyweightVolumePercent, restTimerSoundEnabled: parsed.restTimerSoundEnabled ?? initialState.restTimerSoundEnabled, restTimerVibrationEnabled: parsed.restTimerVibrationEnabled ?? initialState.restTimerVibrationEnabled, exercisePreferences: parsed.exercisePreferences ?? {} });
       }
       setReady(true);
     }).catch(() => setReady(true));
@@ -165,6 +171,17 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
       if (index < 0 || target < 0 || target >= gallery.length) return current;
       [gallery[index], gallery[target]] = [gallery[target], gallery[index]];
       return { ...current, exerciseGalleries: { ...current.exerciseGalleries, [exerciseId]: gallery } };
+    }),
+    setExerciseImageStyle: (exerciseId, style) => setState((current) => ({ ...current, exerciseImagePreferences: { ...current.exerciseImagePreferences, [exerciseId]: { ...normalizeExerciseImagePreference(current.exerciseImagePreferences[exerciseId]), style } } })),
+    toggleExerciseImageFavorite: (exerciseId, imageId) => setState((current) => {
+      const preference = normalizeExerciseImagePreference(current.exerciseImagePreferences[exerciseId]);
+      const favoriteImageIds = preference.favoriteImageIds.includes(imageId) ? preference.favoriteImageIds.filter((id) => id !== imageId) : [...preference.favoriteImageIds, imageId];
+      return { ...current, exerciseImagePreferences: { ...current.exerciseImagePreferences, [exerciseId]: { ...preference, favoriteImageIds } } };
+    }),
+    rateExerciseImage: (exerciseId, imageId, rating) => setState((current) => {
+      const preference = normalizeExerciseImagePreference(current.exerciseImagePreferences[exerciseId]);
+      const safeRating = Math.max(1, Math.min(5, Math.round(rating)));
+      return { ...current, exerciseImagePreferences: { ...current.exerciseImagePreferences, [exerciseId]: { ...preference, ratings: { ...preference.ratings, [imageId]: safeRating } } } };
     }),
     setProgramCover: (programId, coverImage) => setState((current) => ({ ...current, programs: current.programs.map((program) => program.id === programId ? { ...program, coverImage } : program) })),
     renameProgram: (programId, name) => { const normalizedName = name.trim(); if (normalizedName) setState((current) => ({ ...current, programs: current.programs.map((program) => program.id === programId ? { ...program, name: normalizedName } : program) })); },
