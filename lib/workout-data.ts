@@ -13,6 +13,8 @@ export type Exercise = {
   recordReps: number;
 };
 
+export type ExerciseGalleryImage = { id: string; label: string; url: string };
+
 export type CustomExerciseDraft = {
   name: string;
   group: MuscleGroup;

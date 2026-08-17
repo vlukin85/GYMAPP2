@@ -11,13 +11,14 @@ import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
 import { formatProgramCreatedAt, getExercise, getProgramCoverImage, programCoverIllustrationLibrary, sortProgramsByCreatedAt, type WorkoutProgram } from "@/lib/workout-data";
 import { buildProgramExchange, parseProgramExchange } from "@/lib/program-exchange";
+import { buildPortableProgramMedia, portableMediaKey, restorePortableProgramMedia } from "@/lib/program-media";
 import { useWorkoutStore } from "@/lib/workout-store";
 
 const MAX_PROGRAM_FILE_SIZE = 1024 * 1024;
 
 export default function ProgramsScreen() {
   const colors = useColors();
-  const { programs, customExercises, startWorkout, renameProgram, archiveProgram, archivePrograms, restoreProgram, deleteProgram, addPrograms, setProgramCover } = useWorkoutStore();
+  const { programs, customExercises, exerciseImageOverrides, exerciseGalleries, startWorkout, renameProgram, archiveProgram, archivePrograms, restoreProgram, deleteProgram, addPrograms, setProgramCover, setExerciseImage, addExerciseImage } = useWorkoutStore();
   const [editingProgram, setEditingProgram] = useState<WorkoutProgram | null>(null);
   const [draftName, setDraftName] = useState("");
   const [showArchive, setShowArchive] = useState(false);
@@ -42,7 +43,8 @@ export default function ProgramsScreen() {
   const exportPrograms = async () => {
     if (!activePrograms.length) { Alert.alert("Нет программ", "Сначала создайте или восстановите хотя бы одну программу."); return; }
     try {
-      const content = buildProgramExchange(activePrograms);
+      const portable = await buildPortableProgramMedia(activePrograms, exerciseImageOverrides, exerciseGalleries);
+      const content = buildProgramExchange(portable.programs, portable.media);
       const name = `gym-programs-${new Date().toISOString().slice(0, 10)}.json`;
       if (Platform.OS === "web") {
         const url = URL.createObjectURL(new Blob([content], { type: "application/json" }));
@@ -67,8 +69,25 @@ export default function ProgramsScreen() {
       const content = Platform.OS === "web" && asset.file ? await asset.file.text() : await FileSystem.readAsStringAsync(asset.uri, { encoding: FileSystem.EncodingType.UTF8 });
       const parsed = parseProgramExchange(content, programs);
       if (parsed.error) { Alert.alert("Импорт не выполнен", parsed.error); return; }
-      addPrograms(parsed.programs);
-      Alert.alert("Импорт завершён", `Добавлено программ: ${parsed.programs.length}.${parsed.duplicateIds.length ? ` Пропущено повторов: ${parsed.duplicateIds.length}.` : ""}`);
+      const restoredMedia = await restorePortableProgramMedia(parsed.media ?? {});
+      const importedPrograms = parsed.programs.map((program) => {
+        const key = portableMediaKey(program.coverImage);
+        return key && restoredMedia[key] ? { ...program, coverImage: restoredMedia[key] } : program;
+      });
+      addPrograms(importedPrograms);
+      importedPrograms.forEach((program) => {
+        if (program.coverImage) setProgramCover(program.id, program.coverImage);
+        program.exercises.forEach(({ exerciseId }) => {
+          const main = restoredMedia[`exercise-${exerciseId}-main`];
+          if (main) setExerciseImage(exerciseId, main);
+          for (let index = 0; index < 8; index += 1) {
+            const extra = restoredMedia[`exercise-${exerciseId}-extra-${index}`];
+            if (extra) addExerciseImage(exerciseId, extra);
+          }
+        });
+      });
+      const mediaText = Object.keys(restoredMedia).length ? ` Восстановлено изображений: ${Object.keys(restoredMedia).length}.` : "";
+      Alert.alert("Импорт завершён", `Добавлено программ: ${importedPrograms.length}.${parsed.duplicateIds.length ? ` Пропущено повторов: ${parsed.duplicateIds.length}.` : ""}${mediaText}`);
     } catch { Alert.alert("Не удалось прочитать файл", "Выберите экспортированный JSON-файл программ Дневника тренировок."); }
     finally { setIsImporting(false); }
   };

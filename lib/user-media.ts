@@ -1,34 +1,38 @@
 import * as DocumentPicker from "expo-document-picker";
 import * as FileSystem from "expo-file-system/legacy";
-import { Platform } from "react-native";
+import * as ImageManipulator from "expo-image-manipulator";
+import { Image, Platform } from "react-native";
+import { getCenteredCrop, isSupportedUserImage, type CropPreset } from "./user-media-utils";
 
-export const MAX_USER_IMAGE_BYTES = 8 * 1024 * 1024;
+export { MAX_USER_IMAGE_BYTES, getCenteredCrop, isSupportedUserImage, type CropPreset } from "./user-media-utils";
+export type PickedUserImage = { uri: string; name: string; mimeType?: string | null };
 
-export function isSupportedUserImage(asset: { mimeType?: string | null; name?: string; size?: number }) {
-  const extension = asset.name?.split(".").pop()?.toLowerCase() ?? "";
-  const imageExtension = ["jpg", "jpeg", "png", "webp", "heic"].includes(extension);
-  const mimeIsImage = !asset.mimeType || asset.mimeType.startsWith("image/");
-  return mimeIsImage && imageExtension && (asset.size ?? 0) <= MAX_USER_IMAGE_BYTES;
+function safeOwnerId(ownerId: string) { return ownerId.replace(/[^a-zA-Z0-9_-]/g, "_"); }
+
+function getImageSize(uri: string) {
+  return new Promise<{ width: number; height: number }>((resolve, reject) => Image.getSize(uri, (width, height) => resolve({ width, height }), reject));
 }
 
-function safeExtension(name: string) {
-  const extension = name.split(".").pop()?.toLowerCase();
-  return ["jpg", "jpeg", "png", "webp", "heic"].includes(extension ?? "") ? extension : "jpg";
-}
-
-/** Picks an image and keeps a durable local copy on Android/iOS. The web fallback is a self-contained data URI. */
-export async function pickAndPersistUserImage(scope: "exercise" | "program", ownerId: string) {
+/** Opens the system picker but does not persist anything until cropping is confirmed. */
+export async function pickUserImage(): Promise<PickedUserImage | null> {
   const result = await DocumentPicker.getDocumentAsync({ type: "image/*", copyToCacheDirectory: true, multiple: false, base64: Platform.OS === "web" });
   if (result.canceled) return null;
   const asset = result.assets[0];
   if (!isSupportedUserImage(asset)) throw new Error("Выберите изображение JPG, PNG, WEBP или HEIC размером до 8 МБ.");
-  if (Platform.OS === "web") {
-    if (asset.base64) return `data:${asset.mimeType ?? "image/jpeg"};base64,${asset.base64}`;
-    return asset.uri;
-  }
+  const uri = Platform.OS === "web" && asset.base64 ? `data:${asset.mimeType ?? "image/jpeg"};base64,${asset.base64}` : asset.uri;
+  return { uri, name: asset.name, mimeType: asset.mimeType };
+}
+
+/** Crops/compresses a picked image and stores only the finalized rendition. */
+export async function cropAndPersistUserImage(source: PickedUserImage, scope: "exercise" | "program", ownerId: string, preset: CropPreset) {
+  const actions: ImageManipulator.Action[] = [];
+  if (preset !== "original") { const size = await getImageSize(source.uri); actions.push({ crop: getCenteredCrop(size.width, size.height, preset) }); }
+  actions.push({ resize: { width: preset === "square" ? 960 : 1400 } });
+  const rendered = await ImageManipulator.manipulateAsync(source.uri, actions, { compress: 0.86, format: ImageManipulator.SaveFormat.JPEG, base64: Platform.OS === "web" });
+  if (Platform.OS === "web") return rendered.base64 ? `data:image/jpeg;base64,${rendered.base64}` : rendered.uri;
   const directory = `${FileSystem.documentDirectory}gym-diary-media/`;
   await FileSystem.makeDirectoryAsync(directory, { intermediates: true });
-  const target = `${directory}${scope}-${ownerId.replace(/[^a-zA-Z0-9_-]/g, "_")}-${Date.now()}.${safeExtension(asset.name)}`;
-  await FileSystem.copyAsync({ from: asset.uri, to: target });
+  const target = `${directory}${scope}-${safeOwnerId(ownerId)}-${Date.now()}.jpg`;
+  await FileSystem.copyAsync({ from: rendered.uri, to: target });
   return target;
 }

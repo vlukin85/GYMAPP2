@@ -1,6 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
-import { bestOneRepMax, completedWorkouts as seedCompleted, createCustomExercise, defaultPrograms, mergeStoredPrograms, setCustomExercises, type BarbellProfile, type CompletedWorkout, type CustomExerciseDraft, type Exercise, type ExercisePreference, type OneRepMaxFormula, type PersonalRecord, type ScheduledWorkout, type WorkoutProgram } from "./workout-data";
+import { bestOneRepMax, completedWorkouts as seedCompleted, createCustomExercise, defaultPrograms, mergeStoredPrograms, setCustomExercises, type BarbellProfile, type CompletedWorkout, type CustomExerciseDraft, type Exercise, type ExerciseGalleryImage, type ExercisePreference, type OneRepMaxFormula, type PersonalRecord, type ScheduledWorkout, type WorkoutProgram } from "./workout-data";
 
 type WorkoutState = {
   programs: WorkoutProgram[];
@@ -19,6 +19,7 @@ type WorkoutState = {
   deletedProgramIds: string[];
   customExercises: Exercise[];
   exerciseImageOverrides: Record<string, string>;
+  exerciseGalleries: Record<string, ExerciseGalleryImage[]>;
 };
 
 type WorkoutContextValue = WorkoutState & {
@@ -33,6 +34,7 @@ type WorkoutContextValue = WorkoutState & {
   addExerciseToProgram: (programId: string, exerciseId: string) => boolean;
   addCustomExercise: (draft: CustomExerciseDraft) => string | null;
   setExerciseImage: (exerciseId: string, image: string) => void;
+  addExerciseImage: (exerciseId: string, image: string) => void;
   setProgramCover: (programId: string, coverImage: string) => void;
   renameProgram: (programId: string, name: string) => void;
   archiveProgram: (programId: string) => void;
@@ -69,6 +71,7 @@ const initialState: WorkoutState = {
   deletedProgramIds: [],
   customExercises: [],
   exerciseImageOverrides: {},
+  exerciseGalleries: {},
 };
 
 const WorkoutContext = createContext<WorkoutContextValue | null>(null);
@@ -85,7 +88,7 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
         const deletedProgramIds = parsed.deletedProgramIds ?? [];
         const customExercises = parsed.customExercises ?? [];
         setCustomExercises(customExercises);
-        setState({ ...initialState, ...parsed, programs: mergeStoredPrograms(parsed.programs).filter((program) => !deletedProgramIds.includes(program.id)), scheduled: migratedScheduled, deletedProgramIds, customExercises, exerciseImageOverrides: parsed.exerciseImageOverrides ?? {}, oneRmFormula: parsed.oneRmFormula ?? initialState.oneRmFormula, plateStepKg: parsed.plateStepKg ?? initialState.plateStepKg, barbellProfile: parsed.barbellProfile ?? initialState.barbellProfile, personalRecords: parsed.personalRecords ?? {}, bodyWeightKg: parsed.bodyWeightKg ?? initialState.bodyWeightKg, bodyweightVolumePercent: parsed.bodyweightVolumePercent ?? initialState.bodyweightVolumePercent, restTimerSoundEnabled: parsed.restTimerSoundEnabled ?? initialState.restTimerSoundEnabled, restTimerVibrationEnabled: parsed.restTimerVibrationEnabled ?? initialState.restTimerVibrationEnabled, exercisePreferences: parsed.exercisePreferences ?? {} });
+        setState({ ...initialState, ...parsed, programs: mergeStoredPrograms(parsed.programs).filter((program) => !deletedProgramIds.includes(program.id)), scheduled: migratedScheduled, deletedProgramIds, customExercises, exerciseImageOverrides: parsed.exerciseImageOverrides ?? {}, exerciseGalleries: parsed.exerciseGalleries ?? {}, oneRmFormula: parsed.oneRmFormula ?? initialState.oneRmFormula, plateStepKg: parsed.plateStepKg ?? initialState.plateStepKg, barbellProfile: parsed.barbellProfile ?? initialState.barbellProfile, personalRecords: parsed.personalRecords ?? {}, bodyWeightKg: parsed.bodyWeightKg ?? initialState.bodyWeightKg, bodyweightVolumePercent: parsed.bodyweightVolumePercent ?? initialState.bodyweightVolumePercent, restTimerSoundEnabled: parsed.restTimerSoundEnabled ?? initialState.restTimerSoundEnabled, restTimerVibrationEnabled: parsed.restTimerVibrationEnabled ?? initialState.restTimerVibrationEnabled, exercisePreferences: parsed.exercisePreferences ?? {} });
       }
       setReady(true);
     }).catch(() => setReady(true));
@@ -142,6 +145,12 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
       const customExercises = current.customExercises.map((exercise) => exercise.id === exerciseId ? { ...exercise, image, photoAngles: [{ id: "main" as const, label: "Моё изображение", url: image }] } : exercise);
       setCustomExercises(customExercises);
       return { ...current, customExercises, exerciseImageOverrides: { ...current.exerciseImageOverrides, [exerciseId]: image } };
+    }),
+    addExerciseImage: (exerciseId, image) => setState((current) => {
+      const gallery = current.exerciseGalleries[exerciseId] ?? [];
+      if (gallery.some((item) => item.url === image) || gallery.length >= 8) return current;
+      const nextGallery = [...gallery, { id: `user-image-${Date.now()}`, label: `Моё фото ${gallery.length + 1}`, url: image }];
+      return { ...current, exerciseGalleries: { ...current.exerciseGalleries, [exerciseId]: nextGallery } };
     }),
     setProgramCover: (programId, coverImage) => setState((current) => ({ ...current, programs: current.programs.map((program) => program.id === programId ? { ...program, coverImage } : program) })),
     renameProgram: (programId, name) => { const normalizedName = name.trim(); if (normalizedName) setState((current) => ({ ...current, programs: current.programs.map((program) => program.id === programId ? { ...program, name: normalizedName } : program) })); },
