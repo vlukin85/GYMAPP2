@@ -12,9 +12,11 @@ import { useColors } from "@/hooks/use-colors";
 import { formatProgramCreatedAt, getExercise, getProgramCoverImage, programCoverIllustrationLibrary, sortProgramsByCreatedAt, type WorkoutProgram } from "@/lib/workout-data";
 import { buildProgramExchange, parseProgramExchange } from "@/lib/program-exchange";
 import { buildPortableProgramMedia, portableMediaKey, restorePortableProgramMedia } from "@/lib/program-media";
+import { buildProgramZip, unpackProgramZip } from "@/lib/program-zip";
+import { fromByteArray, toByteArray } from "base64-js";
 import { useWorkoutStore } from "@/lib/workout-store";
 
-const MAX_PROGRAM_FILE_SIZE = 1024 * 1024;
+const MAX_PROGRAM_FILE_SIZE = 24 * 1024 * 1024;
 
 export default function ProgramsScreen() {
   const colors = useColors();
@@ -44,17 +46,17 @@ export default function ProgramsScreen() {
     if (!activePrograms.length) { Alert.alert("Нет программ", "Сначала создайте или восстановите хотя бы одну программу."); return; }
     try {
       const portable = await buildPortableProgramMedia(activePrograms, exerciseImageOverrides, exerciseGalleries);
-      const content = buildProgramExchange(portable.programs, portable.media);
-      const name = `gym-programs-${new Date().toISOString().slice(0, 10)}.json`;
+      const zip = buildProgramZip(portable.programs, portable.media);
+      const name = `gym-programs-${new Date().toISOString().slice(0, 10)}.zip`;
       if (Platform.OS === "web") {
-        const url = URL.createObjectURL(new Blob([content], { type: "application/json" }));
+        const url = URL.createObjectURL(new Blob([zip], { type: "application/zip" }));
         const link = document.createElement("a"); link.href = url; link.download = name; link.click(); URL.revokeObjectURL(url);
         Alert.alert("Файл подготовлен", "Браузер начал скачивание файла программ.");
         return;
       }
       const uri = `${FileSystem.cacheDirectory}${name}`;
-      await FileSystem.writeAsStringAsync(uri, content, { encoding: FileSystem.EncodingType.UTF8 });
-      if (await Sharing.isAvailableAsync()) await Sharing.shareAsync(uri, { mimeType: "application/json", dialogTitle: "Поделиться программами" });
+      await FileSystem.writeAsStringAsync(uri, fromByteArray(zip), { encoding: FileSystem.EncodingType.Base64 });
+      if (await Sharing.isAvailableAsync()) await Sharing.shareAsync(uri, { mimeType: "application/zip", dialogTitle: "Поделиться программами" });
       else Alert.alert("Файл подготовлен", "На этом устройстве недоступно системное меню обмена файлами.");
     } catch { Alert.alert("Не удалось экспортировать", "Попробуйте ещё раз — программы не были изменены."); }
   };
@@ -62,11 +64,12 @@ export default function ProgramsScreen() {
   const importPrograms = async () => {
     try {
       setIsImporting(true);
-      const result = await DocumentPicker.getDocumentAsync({ type: ["application/json", "text/json", "text/plain"], copyToCacheDirectory: true, multiple: false });
+      const result = await DocumentPicker.getDocumentAsync({ type: ["application/zip", "application/json", "text/json", "text/plain"], copyToCacheDirectory: true, multiple: false });
       if (result.canceled) return;
       const asset = result.assets[0];
-      if ((asset.size ?? 0) > MAX_PROGRAM_FILE_SIZE) { Alert.alert("Файл слишком большой", "Выберите JSON-файл программ размером до 1 МБ."); return; }
-      const content = Platform.OS === "web" && asset.file ? await asset.file.text() : await FileSystem.readAsStringAsync(asset.uri, { encoding: FileSystem.EncodingType.UTF8 });
+      if ((asset.size ?? 0) > MAX_PROGRAM_FILE_SIZE) { Alert.alert("Файл слишком большой", "Выберите ZIP или JSON-файл программ размером до 24 МБ."); return; }
+      const isZip = asset.name.toLowerCase().endsWith(".zip") || asset.mimeType === "application/zip";
+      const content = isZip ? unpackProgramZip(Platform.OS === "web" && asset.file ? new Uint8Array(await asset.file.arrayBuffer()) : toByteArray(await FileSystem.readAsStringAsync(asset.uri, { encoding: FileSystem.EncodingType.Base64 }))) : Platform.OS === "web" && asset.file ? await asset.file.text() : await FileSystem.readAsStringAsync(asset.uri, { encoding: FileSystem.EncodingType.UTF8 });
       const parsed = parseProgramExchange(content, programs);
       if (parsed.error) { Alert.alert("Импорт не выполнен", parsed.error); return; }
       const restoredMedia = await restorePortableProgramMedia(parsed.media ?? {});
@@ -88,7 +91,7 @@ export default function ProgramsScreen() {
       });
       const mediaText = Object.keys(restoredMedia).length ? ` Восстановлено изображений: ${Object.keys(restoredMedia).length}.` : "";
       Alert.alert("Импорт завершён", `Добавлено программ: ${importedPrograms.length}.${parsed.duplicateIds.length ? ` Пропущено повторов: ${parsed.duplicateIds.length}.` : ""}${mediaText}`);
-    } catch { Alert.alert("Не удалось прочитать файл", "Выберите экспортированный JSON-файл программ Дневника тренировок."); }
+    } catch { Alert.alert("Не удалось прочитать файл", "Выберите экспортированный ZIP или JSON-файл программ Дневника тренировок."); }
     finally { setIsImporting(false); }
   };
 
@@ -113,7 +116,7 @@ export default function ProgramsScreen() {
     <View style={styles.header}><View><Text style={[styles.eyebrow, { color: colors.primary }]}>ТВОИ ПЛАНЫ</Text><Text style={[styles.title, { color: colors.foreground }]}>Программы</Text></View><Pressable style={[styles.add, { backgroundColor: colors.primary }]} onPress={() => router.push("/program/new")}><Text style={styles.plus}>＋</Text></Pressable></View>
     <Text style={[styles.subtitle, { color: colors.muted }]}>Собирай тренировки под цель и повторяй их с прогрессом.</Text>
     <Pressable onPress={() => router.push("/program/ai")} style={({ pressed }) => [styles.aiCard, { backgroundColor: colors.primary, opacity: pressed ? 0.82 : 1 }]}><View style={{ flex: 1 }}><Text style={styles.aiEyebrow}>ИИ-КОНСТРУКТОР</Text><Text style={styles.aiTitle}>Сгенерировать программу</Text><Text style={styles.aiText}>Опиши цель, затем доработай упражнения и подходы.</Text></View><Text style={styles.aiArrow}>›</Text></Pressable>
-    {!showArchive && <View style={styles.transferRow}><Pressable onPress={() => setSortDirection((value) => value === "newest" ? "oldest" : "newest")} style={[styles.transferButton, { borderColor: colors.primary, backgroundColor: colors.primary + "18" }]}><Text style={[styles.transferText, { color: colors.primary }]}>{sortDirection === "newest" ? "Сначала новые" : "Сначала старые"}</Text></Pressable><Pressable onPress={exportPrograms} style={[styles.transferButton, { borderColor: colors.border, backgroundColor: colors.surface }]}><Text style={[styles.transferText, { color: colors.foreground }]}>Экспорт</Text></Pressable><Pressable onPress={importPrograms} disabled={isImporting} style={[styles.transferButton, { borderColor: colors.border, backgroundColor: colors.surface, opacity: isImporting ? 0.55 : 1 }]}><Text style={[styles.transferText, { color: colors.foreground }]}>{isImporting ? "Читаем…" : "Импорт"}</Text></Pressable><Pressable onPress={() => bulkMode ? exitBulkMode() : setBulkMode(true)} style={[styles.transferButton, { borderColor: colors.primary, backgroundColor: colors.primary + "18" }]}><Text style={[styles.transferText, { color: colors.primary }]}>{bulkMode ? "Готово" : "Выбрать"}</Text></Pressable></View>}
+    {!showArchive && <View style={styles.transferRow}><Pressable onPress={() => setSortDirection((value) => value === "newest" ? "oldest" : "newest")} style={[styles.transferButton, { borderColor: colors.primary, backgroundColor: colors.primary + "18" }]}><Text style={[styles.transferText, { color: colors.primary }]}>{sortDirection === "newest" ? "Сначала новые" : "Сначала старые"}</Text></Pressable><Pressable onPress={exportPrograms} style={[styles.transferButton, { borderColor: colors.border, backgroundColor: colors.surface }]}><Text style={[styles.transferText, { color: colors.foreground }]}>Экспорт ZIP</Text></Pressable><Pressable onPress={importPrograms} disabled={isImporting} style={[styles.transferButton, { borderColor: colors.border, backgroundColor: colors.surface, opacity: isImporting ? 0.55 : 1 }]}><Text style={[styles.transferText, { color: colors.foreground }]}>{isImporting ? "Читаем…" : "Импорт"}</Text></Pressable><Pressable onPress={() => bulkMode ? exitBulkMode() : setBulkMode(true)} style={[styles.transferButton, { borderColor: colors.primary, backgroundColor: colors.primary + "18" }]}><Text style={[styles.transferText, { color: colors.primary }]}>{bulkMode ? "Готово" : "Выбрать"}</Text></Pressable></View>}
     {bulkMode && <View style={[styles.selectionBar, { backgroundColor: colors.primary + "18", borderColor: colors.primary + "55" }]}><Text style={[styles.selectionText, { color: colors.foreground }]}>Выбрано: {selectedIds.size}</Text><Pressable onPress={selectAllActive}><Text style={[styles.selectionAction, { color: colors.primary }]}>Все</Text></Pressable><Pressable onPress={archiveSelected} disabled={!selectedIds.size}><Text style={[styles.selectionAction, { color: selectedIds.size ? colors.primary : colors.muted }]}>В архив</Text></Pressable></View>}
     {archivedPrograms.length > 0 && <Pressable onPress={() => { setShowArchive((value) => !value); setArchiveQuery(""); exitBulkMode(); }} style={[styles.archiveToggle, { borderColor: colors.border, backgroundColor: colors.surface }]}><Text style={[styles.archiveToggleText, { color: colors.foreground }]}>{showArchive ? "← Ко всем программам" : `Архив · ${archivedPrograms.length}`}</Text><Text style={[styles.archiveToggleArrow, { color: colors.primary }]}>{showArchive ? "" : "›"}</Text></Pressable>}
     {showArchive && <><Text style={[styles.archiveTitle, { color: colors.foreground }]}>Архив программ</Text><TextInput value={archiveQuery} onChangeText={setArchiveQuery} placeholder="Поиск по названию" placeholderTextColor={colors.muted} style={[styles.searchInput, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.surface }]} /></>}

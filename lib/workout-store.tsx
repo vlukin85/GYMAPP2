@@ -35,6 +35,8 @@ type WorkoutContextValue = WorkoutState & {
   addCustomExercise: (draft: CustomExerciseDraft) => string | null;
   setExerciseImage: (exerciseId: string, image: string) => void;
   addExerciseImage: (exerciseId: string, image: string) => void;
+  removeExerciseImage: (exerciseId: string, imageId: string) => void;
+  moveExerciseImage: (exerciseId: string, imageId: string, direction: -1 | 1) => void;
   setProgramCover: (programId: string, coverImage: string) => void;
   renameProgram: (programId: string, name: string) => void;
   archiveProgram: (programId: string) => void;
@@ -151,6 +153,18 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
       if (gallery.some((item) => item.url === image) || gallery.length >= 8) return current;
       const nextGallery = [...gallery, { id: `user-image-${Date.now()}`, label: `Моё фото ${gallery.length + 1}`, url: image }];
       return { ...current, exerciseGalleries: { ...current.exerciseGalleries, [exerciseId]: nextGallery } };
+    }),
+    removeExerciseImage: (exerciseId, imageId) => setState((current) => {
+      const nextGallery = (current.exerciseGalleries[exerciseId] ?? []).filter((item) => item.id !== imageId);
+      return { ...current, exerciseGalleries: { ...current.exerciseGalleries, [exerciseId]: nextGallery } };
+    }),
+    moveExerciseImage: (exerciseId, imageId, direction) => setState((current) => {
+      const gallery = [...(current.exerciseGalleries[exerciseId] ?? [])];
+      const index = gallery.findIndex((item) => item.id === imageId);
+      const target = index + direction;
+      if (index < 0 || target < 0 || target >= gallery.length) return current;
+      [gallery[index], gallery[target]] = [gallery[target], gallery[index]];
+      return { ...current, exerciseGalleries: { ...current.exerciseGalleries, [exerciseId]: gallery } };
     }),
     setProgramCover: (programId, coverImage) => setState((current) => ({ ...current, programs: current.programs.map((program) => program.id === programId ? { ...program, coverImage } : program) })),
     renameProgram: (programId, name) => { const normalizedName = name.trim(); if (normalizedName) setState((current) => ({ ...current, programs: current.programs.map((program) => program.id === programId ? { ...program, name: normalizedName } : program) })); },

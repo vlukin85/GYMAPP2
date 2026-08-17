@@ -2,9 +2,9 @@ import * as DocumentPicker from "expo-document-picker";
 import * as FileSystem from "expo-file-system/legacy";
 import * as ImageManipulator from "expo-image-manipulator";
 import { Image, Platform } from "react-native";
-import { getCenteredCrop, isSupportedUserImage, type CropPreset } from "./user-media-utils";
+import { getCropRect, isSupportedUserImage, type CropAdjustment, type CropPreset } from "./user-media-utils";
 
-export { MAX_USER_IMAGE_BYTES, getCenteredCrop, isSupportedUserImage, type CropPreset } from "./user-media-utils";
+export { DEFAULT_CROP_ADJUSTMENT, MAX_USER_IMAGE_BYTES, getCenteredCrop, getCropRect, isSupportedUserImage, type CropAdjustment, type CropPreset } from "./user-media-utils";
 export type PickedUserImage = { uri: string; name: string; mimeType?: string | null };
 
 function safeOwnerId(ownerId: string) { return ownerId.replace(/[^a-zA-Z0-9_-]/g, "_"); }
@@ -24,9 +24,9 @@ export async function pickUserImage(): Promise<PickedUserImage | null> {
 }
 
 /** Crops/compresses a picked image and stores only the finalized rendition. */
-export async function cropAndPersistUserImage(source: PickedUserImage, scope: "exercise" | "program", ownerId: string, preset: CropPreset) {
+export async function cropAndPersistUserImage(source: PickedUserImage, scope: "exercise" | "program", ownerId: string, preset: CropPreset, adjustment?: CropAdjustment) {
   const actions: ImageManipulator.Action[] = [];
-  if (preset !== "original") { const size = await getImageSize(source.uri); actions.push({ crop: getCenteredCrop(size.width, size.height, preset) }); }
+  if (preset !== "original") { const size = await getImageSize(source.uri); actions.push({ crop: getCropRect(size.width, size.height, preset, adjustment ?? { focusX: 0.5, focusY: 0.5, zoom: 1 }) }); }
   actions.push({ resize: { width: preset === "square" ? 960 : 1400 } });
   const rendered = await ImageManipulator.manipulateAsync(source.uri, actions, { compress: 0.86, format: ImageManipulator.SaveFormat.JPEG, base64: Platform.OS === "web" });
   if (Platform.OS === "web") return rendered.base64 ? `data:image/jpeg;base64,${rendered.base64}` : rendered.uri;
