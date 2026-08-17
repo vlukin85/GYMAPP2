@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createCustomExercise, getExerciseIllustrationCandidates, hasCompletedWorkoutSet, sortProgramsByCreatedAt, type Exercise, type WorkoutProgram } from "../lib/workout-data";
+import { createCustomExercise, getExercise, getExerciseIllustrationCandidates, hasCompletedWorkoutSet, sortProgramsByCreatedAt, type Exercise, type WorkoutProgram } from "../lib/workout-data";
 
 describe("catalog and program workflow", () => {
   it("creates a manual exercise with an individual local illustration and technique link", () => {
@@ -29,5 +29,10 @@ describe("catalog and program workflow", () => {
   it("keeps prior generated technique art available as an exercise image candidate", () => {
     const exercise: Exercise = { id: "bench-press", name: "Жим", group: "Грудь", equipment: "Штанга", description: "", image: "", videoUrl: "", recordKg: 0, recordReps: 0 };
     expect(getExerciseIllustrationCandidates(exercise).some((candidate) => candidate.url.includes("bench-press-generated"))).toBe(true);
+  });
+
+  it("offers an AI group illustration for every catalog exercise group", () => {
+    const exercise = getExercise("treadmill");
+    expect(exercise && getExerciseIllustrationCandidates(exercise).some((candidate) => candidate.id === "ai-Кардио")).toBe(true);
   });
 });

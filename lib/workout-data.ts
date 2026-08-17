@@ -216,16 +216,30 @@ const generatedTechniqueImages: Record<string, string> = {
   "triceps-pushdown": "/manus-storage/triceps-pushdown-generated_1c2829f4.jpg",
 };
 
+const aiGroupExerciseIllustrations: Record<Exclude<MuscleGroup, "Все">, string> = {
+  "Грудь": "/manus-storage/gym-ai-chest_72d19524.jpg",
+  "Спина": "/manus-storage/gym-ai-back_38bf7525.jpg",
+  "Ноги": "/manus-storage/gym-ai-legs_e26a7490.jpg",
+  "Плечи": "/manus-storage/gym-ai-shoulders_539dae84.jpg",
+  "Руки": "/manus-storage/gym-ai-arms_0b4670ba.jpg",
+  "Корпус": "/manus-storage/gym-ai-core_443dab3b.jpg",
+  "Кардио": "/manus-storage/gym-ai-functional_59960858.jpg",
+};
+
 export const generatedExerciseIllustrationLibrary = Object.entries(generatedTechniqueImages).map(([exerciseId, url]) => ({ exerciseId, url, label: "Ранее созданная иллюстрация техники" }));
 
 function exerciseTechniqueImage(exercise: Exercise) {
-  return generatedTechniqueImages[exercise.id] ?? getExerciseIllustration(exercise.id, exercise.group, exercise.equipment);
+  return generatedTechniqueImages[exercise.id] ?? aiGroupExerciseIllustrations[exercise.group] ?? getExerciseIllustration(exercise.id, exercise.group, exercise.equipment);
 }
 
 export function getExerciseIllustrationCandidates(exercise: Exercise) {
   const generated = generatedTechniqueImages[exercise.id];
+  const aiGroupImage = aiGroupExerciseIllustrations[exercise.group];
   const defaultIllustration = exerciseTechniqueImage(exercise);
-  return generated ? [{ id: `generated-${exercise.id}`, label: "Ранее созданная иллюстрация", url: generated }, { id: `illustration-${exercise.id}`, label: "Иллюстрация упражнения", url: defaultIllustration }] : [{ id: `illustration-${exercise.id}`, label: "Иллюстрация упражнения", url: defaultIllustration }];
+  const candidates = generated ? [{ id: `generated-${exercise.id}`, label: "Ранее созданная иллюстрация", url: generated }] : [];
+  if (aiGroupImage && aiGroupImage !== generated) candidates.push({ id: `ai-${exercise.group}`, label: "AI-иллюстрация группы", url: aiGroupImage });
+  candidates.push({ id: `illustration-${exercise.id}`, label: "Иллюстрация упражнения", url: defaultIllustration });
+  return candidates;
 }
 
 const catalogExercises: Exercise[] = [
