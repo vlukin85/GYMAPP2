@@ -24,6 +24,15 @@ export type SetType = "warmup" | "working" | "drop" | "failure";
 export type DropSubset = { weightKg: number; reps: number };
 export const MAX_DROP_SUBSETS = 5;
 
+export function hasCompletedWorkoutSet(input: { reps: string; weight: string; type: SetType; dropSubsets?: { reps: string; weight: string }[] }) {
+  const parts = input.type === "drop" && input.dropSubsets?.length ? input.dropSubsets : [{ reps: input.reps, weight: input.weight }];
+  return parts.some((part) => {
+    const reps = Number(part.reps);
+    const weight = Number(part.weight);
+    return part.reps.trim() !== "" && part.weight.trim() !== "" && Number.isInteger(reps) && reps > 0 && Number.isFinite(weight) && weight >= 0;
+  });
+}
+
 export function getDropSetParts(input: { weightKg: number; reps: number; setType: SetType; dropSubsets?: DropSubset[] }) {
   if (input.setType !== "drop" || !input.dropSubsets?.length) return [{ weightKg: input.weightKg, reps: input.reps }];
   return input.dropSubsets.slice(0, MAX_DROP_SUBSETS).filter((part) => part.weightKg >= 0 && Number.isInteger(part.reps) && part.reps > 0);

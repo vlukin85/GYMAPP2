@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createCustomExercise, sortProgramsByCreatedAt, type WorkoutProgram } from "../lib/workout-data";
+import { createCustomExercise, hasCompletedWorkoutSet, sortProgramsByCreatedAt, type WorkoutProgram } from "../lib/workout-data";
 
 describe("catalog and program workflow", () => {
   it("creates a manual exercise with an individual local illustration and technique link", () => {
@@ -17,5 +17,12 @@ describe("catalog and program workflow", () => {
     ];
     expect(sortProgramsByCreatedAt(programs, "newest").map((program) => program.id)).toEqual(["newer", "older"]);
     expect(sortProgramsByCreatedAt(programs, "oldest").map((program) => program.id)).toEqual(["older", "newer"]);
+  });
+
+  it("accepts only a real set for partial-workout persistence", () => {
+    expect(hasCompletedWorkoutSet({ reps: "8", weight: "40", type: "working" })).toBe(true);
+    expect(hasCompletedWorkoutSet({ reps: "", weight: "40", type: "working" })).toBe(false);
+    expect(hasCompletedWorkoutSet({ reps: "8", weight: "", type: "working" })).toBe(false);
+    expect(hasCompletedWorkoutSet({ reps: "", weight: "", type: "drop", dropSubsets: [{ reps: "6", weight: "25" }] })).toBe(true);
   });
 });
