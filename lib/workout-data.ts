@@ -101,6 +101,14 @@ export type CompletedWorkout = {
   totalVolume: number;
 };
 
+export function isScheduledWorkoutCompleted(completed: CompletedWorkout[], date: string, programId: string) {
+  return completed.some((workout) => workout.programId === programId && workout.date.slice(0, 10) === date);
+}
+
+export function shiftCalendarMonth(cursor: Date, offset: number) {
+  return new Date(cursor.getFullYear(), cursor.getMonth() + offset, 1);
+}
+
 export type TrainingPeriodStats = {
   workoutCount: number;
   activeDays: number;
