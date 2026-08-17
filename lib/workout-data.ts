@@ -18,6 +18,7 @@ export type CustomExerciseDraft = {
   group: MuscleGroup;
   equipment: string;
   description?: string;
+  image?: string;
 };
 
 export type SetType = "warmup" | "working" | "drop" | "failure";
@@ -60,6 +61,7 @@ export type WorkoutProgram = {
   name: string;
   description: string;
   exercises: ProgramExercise[];
+  coverImage?: string;
   createdAt?: string;
   archivedAt?: string;
 };
@@ -80,6 +82,17 @@ export function sortProgramsByCreatedAt(programs: WorkoutProgram[], direction: "
     return first.name.localeCompare(second.name, "ru");
   });
 }
+
+export function getProgramCoverImage(program: WorkoutProgram) {
+  return program.coverImage ?? getExerciseIllustration(`program-${program.id}`, "Программа тренировок", "План");
+}
+
+export const programCoverIllustrationLibrary = [
+  { id: "strength", label: "Сила", url: getExerciseIllustration("program-cover-strength", "Сила", "Штанга") },
+  { id: "volume", label: "Объём", url: getExerciseIllustration("program-cover-volume", "Объём", "Гантели") },
+  { id: "full-body", label: "Full Body", url: getExerciseIllustration("program-cover-full-body", "Full Body", "Тренажёр") },
+  { id: "conditioning", label: "Выносливость", url: getExerciseIllustration("program-cover-conditioning", "Выносливость", "Кардио") },
+];
 
 export type ScheduledWorkout = {
   programId: string;
@@ -201,8 +214,16 @@ const generatedTechniqueImages: Record<string, string> = {
   "triceps-pushdown": "/manus-storage/triceps-pushdown-generated_1c2829f4.jpg",
 };
 
+export const generatedExerciseIllustrationLibrary = Object.entries(generatedTechniqueImages).map(([exerciseId, url]) => ({ exerciseId, url, label: "Ранее созданная иллюстрация техники" }));
+
 function exerciseTechniqueImage(exercise: Exercise) {
   return generatedTechniqueImages[exercise.id] ?? getExerciseIllustration(exercise.id, exercise.group, exercise.equipment);
+}
+
+export function getExerciseIllustrationCandidates(exercise: Exercise) {
+  const generated = generatedTechniqueImages[exercise.id];
+  const defaultIllustration = exerciseTechniqueImage(exercise);
+  return generated ? [{ id: `generated-${exercise.id}`, label: "Ранее созданная иллюстрация", url: generated }, { id: `illustration-${exercise.id}`, label: "Иллюстрация упражнения", url: defaultIllustration }] : [{ id: `illustration-${exercise.id}`, label: "Иллюстрация упражнения", url: defaultIllustration }];
 }
 
 const catalogExercises: Exercise[] = [
@@ -244,7 +265,7 @@ export function setCustomExercises(nextExercises: Exercise[]) {
 }
 
 export function createCustomExercise(draft: CustomExerciseDraft, id: string): Exercise {
-  const image = getExerciseIllustration(id, draft.group, draft.equipment);
+  const image = draft.image ?? getExerciseIllustration(id, draft.group, draft.equipment);
   return {
     id,
     name: draft.name.trim(),

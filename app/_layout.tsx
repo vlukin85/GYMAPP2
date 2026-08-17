@@ -10,6 +10,7 @@ import "@/lib/_core/nativewind-pressable";
 import { ThemeProvider } from "@/lib/theme-provider";
 import { TrainingBackupSync } from "@/components/training-backup-sync";
 import { WorkoutReplacementOverlay } from "@/components/workout-replacement-overlay";
+import { ReleaseNotesOverlay } from "@/components/release-notes-overlay";
 import { StartupErrorBoundary } from "@/components/startup-error-boundary";
 import { WorkoutProvider } from "@/lib/workout-store";
 import {
@@ -121,6 +122,7 @@ export default function RootLayout() {
           </Stack>
           <TrainingBackupSync />
           <WorkoutReplacementOverlay />
+          <ReleaseNotesOverlay />
           <StatusBar style="auto" />
         </QueryClientProvider>
       </trpc.Provider>

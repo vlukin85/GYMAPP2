@@ -11,7 +11,7 @@ const selectableGroups: MuscleGroup[] = ["Грудь", "Спина", "Ноги",
 
 export default function ExercisesScreen() {
   const colors = useColors();
-  const { customExercises, programs, addCustomExercise, addExerciseToProgram } = useWorkoutStore();
+  const { customExercises, exerciseImageOverrides, programs, addCustomExercise, addExerciseToProgram } = useWorkoutStore();
   const [query, setQuery] = useState("");
   const [active, setActive] = useState<MuscleGroup | "Все">("Все");
   const [programPickerExercise, setProgramPickerExercise] = useState<Exercise | null>(null);
@@ -22,7 +22,7 @@ export default function ExercisesScreen() {
   const [manualEquipment, setManualEquipment] = useState("Тренажёр");
   const [manualDescription, setManualDescription] = useState("");
 
-  const catalog = useMemo(() => [...exercises, ...customExercises], [customExercises]);
+  const catalog = useMemo(() => [...exercises.map((exercise) => exerciseImageOverrides[exercise.id] ? { ...exercise, image: exerciseImageOverrides[exercise.id], photoAngles: [{ id: "main" as const, label: "Моё изображение", url: exerciseImageOverrides[exercise.id] }] } : exercise), ...customExercises], [customExercises, exerciseImageOverrides]);
   const filtered = useMemo(() => catalog.filter((exercise) => (active === "Все" || exercise.group === active) && `${exercise.name} ${exercise.equipment}`.toLocaleLowerCase("ru").includes(query.trim().toLocaleLowerCase("ru"))), [active, catalog, query]);
   const availablePrograms = useMemo(() => sortProgramsByCreatedAt(programs.filter((program) => !program.archivedAt && `${program.name} ${program.description}`.toLocaleLowerCase("ru").includes(programQuery.trim().toLocaleLowerCase("ru"))), "newest"), [programQuery, programs]);
 

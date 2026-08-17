@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createCustomExercise, hasCompletedWorkoutSet, sortProgramsByCreatedAt, type WorkoutProgram } from "../lib/workout-data";
+import { createCustomExercise, getExerciseIllustrationCandidates, hasCompletedWorkoutSet, sortProgramsByCreatedAt, type Exercise, type WorkoutProgram } from "../lib/workout-data";
 
 describe("catalog and program workflow", () => {
   it("creates a manual exercise with an individual local illustration and technique link", () => {
@@ -24,5 +24,10 @@ describe("catalog and program workflow", () => {
     expect(hasCompletedWorkoutSet({ reps: "", weight: "40", type: "working" })).toBe(false);
     expect(hasCompletedWorkoutSet({ reps: "8", weight: "", type: "working" })).toBe(false);
     expect(hasCompletedWorkoutSet({ reps: "", weight: "", type: "drop", dropSubsets: [{ reps: "6", weight: "25" }] })).toBe(true);
+  });
+
+  it("keeps prior generated technique art available as an exercise image candidate", () => {
+    const exercise: Exercise = { id: "bench-press", name: "Жим", group: "Грудь", equipment: "Штанга", description: "", image: "", videoUrl: "", recordKg: 0, recordReps: 0 };
+    expect(getExerciseIllustrationCandidates(exercise).some((candidate) => candidate.url.includes("bench-press-generated"))).toBe(true);
   });
 });

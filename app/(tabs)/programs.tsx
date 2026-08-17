@@ -1,13 +1,15 @@
 import { useMemo, useState } from "react";
 import { Alert, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Image } from "expo-image";
 import * as DocumentPicker from "expo-document-picker";
 import * as FileSystem from "expo-file-system/legacy";
 import * as Sharing from "expo-sharing";
 import { router } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
+import { MediaPickerSheet } from "@/components/media-picker-sheet";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
-import { formatProgramCreatedAt, getExercise, sortProgramsByCreatedAt, type WorkoutProgram } from "@/lib/workout-data";
+import { formatProgramCreatedAt, getExercise, getProgramCoverImage, programCoverIllustrationLibrary, sortProgramsByCreatedAt, type WorkoutProgram } from "@/lib/workout-data";
 import { buildProgramExchange, parseProgramExchange } from "@/lib/program-exchange";
 import { useWorkoutStore } from "@/lib/workout-store";
 
@@ -15,7 +17,7 @@ const MAX_PROGRAM_FILE_SIZE = 1024 * 1024;
 
 export default function ProgramsScreen() {
   const colors = useColors();
-  const { programs, customExercises, startWorkout, renameProgram, archiveProgram, archivePrograms, restoreProgram, deleteProgram, addPrograms } = useWorkoutStore();
+  const { programs, customExercises, startWorkout, renameProgram, archiveProgram, archivePrograms, restoreProgram, deleteProgram, addPrograms, setProgramCover } = useWorkoutStore();
   const [editingProgram, setEditingProgram] = useState<WorkoutProgram | null>(null);
   const [draftName, setDraftName] = useState("");
   const [showArchive, setShowArchive] = useState(false);
@@ -24,6 +26,7 @@ export default function ProgramsScreen() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isImporting, setIsImporting] = useState(false);
   const [sortDirection, setSortDirection] = useState<"newest" | "oldest">("newest");
+  const [coverProgram, setCoverProgram] = useState<WorkoutProgram | null>(null);
   const activePrograms = useMemo(() => sortProgramsByCreatedAt(programs.filter((program) => !program.archivedAt), sortDirection), [programs, sortDirection]);
   const archivedPrograms = useMemo(() => sortProgramsByCreatedAt(programs.filter((program) => Boolean(program.archivedAt)), sortDirection), [programs, sortDirection]);
   const visiblePrograms = useMemo(() => showArchive ? archivedPrograms.filter((program) => program.name.toLocaleLowerCase("ru").includes(archiveQuery.trim().toLocaleLowerCase("ru"))) : activePrograms, [activePrograms, archiveQuery, archivedPrograms, showArchive]);
@@ -75,14 +78,15 @@ export default function ProgramsScreen() {
     const isSelected = selectedIds.has(program.id);
     return <View key={program.id} style={[styles.card, { backgroundColor: colors.surface, borderColor: isSelected ? colors.primary : colors.border, opacity: isArchived ? 0.82 : 1 }]}>
       <View style={styles.cardHeader}>
-        <View style={[styles.programIcon, { backgroundColor: colors.primary + "22" }]}><IconSymbol name="list.bullet" size={22} color={colors.primary} /></View>
+        <Image source={getProgramCoverImage(program)} contentFit="cover" transition={180} style={styles.programIcon} />
         <View style={{ flex: 1 }}><Text style={[styles.cardTitle, { color: colors.foreground }]}>{program.name}</Text><Text style={[styles.cardSub, { color: colors.muted }]}>{program.description}</Text><Text style={[styles.createdAt, { color: colors.muted }]}>{formatProgramCreatedAt(program.createdAt)}{isArchived ? " · В архиве" : ""}</Text></View>
         <View style={styles.cardActions}>{bulkMode && !isArchived ? <Pressable onPress={() => toggleSelected(program.id)} hitSlop={7} style={[styles.check, { borderColor: isSelected ? colors.primary : colors.border, backgroundColor: isSelected ? colors.primary : colors.background }]}><Text style={[styles.checkText, { color: isSelected ? "#101412" : colors.muted }]}>{isSelected ? "✓" : ""}</Text></Pressable> : <><Pressable onPress={() => router.push({ pathname: "/program/new", params: { programId: program.id } })} hitSlop={7}><Text style={[styles.rename, { color: colors.primary }]}>Редактировать</Text></Pressable><Pressable onPress={() => startRename(program)} hitSlop={7}><Text style={[styles.renameSecondary, { color: colors.muted }]}>Переименовать</Text></Pressable>{!isArchived && <Pressable onPress={() => router.push({ pathname: "/calendar", params: { programId: program.id } })} hitSlop={7}><IconSymbol name="calendar" size={20} color={colors.muted} /></Pressable>}</>}</View>
       </View>
       <View style={[styles.divider, { backgroundColor: colors.border }]} />
       <Text style={[styles.exerciseLine, { color: colors.muted }]}>{program.exercises.map((item) => getExercise(item.exerciseId)?.name ?? customExercises.find((exercise) => exercise.id === item.exerciseId)?.name ?? item.exerciseId).join("  ·  ")}</Text>
-      {!bulkMode && <View style={styles.managementRow}><Pressable onPress={() => isArchived ? restoreProgram(program.id) : archiveProgram(program.id)}><Text style={[styles.managementAction, { color: colors.primary }]}>{isArchived ? "Вернуть из архива" : "В архив"}</Text></Pressable><Pressable onPress={() => confirmDelete(program)}><Text style={[styles.managementAction, { color: colors.error }]}>Удалить</Text></Pressable></View>}
+      {!bulkMode && <View style={styles.managementRow}><Pressable onPress={() => setCoverProgram(program)}><Text style={[styles.managementAction, { color: colors.primary }]}>Обложка</Text></Pressable><Pressable onPress={() => isArchived ? restoreProgram(program.id) : archiveProgram(program.id)}><Text style={[styles.managementAction, { color: colors.primary }]}>{isArchived ? "Вернуть из архива" : "В архив"}</Text></Pressable><Pressable onPress={() => confirmDelete(program)}><Text style={[styles.managementAction, { color: colors.error }]}>Удалить</Text></Pressable></View>}
       <View style={styles.cardFooter}><Text style={[styles.meta, { color: colors.muted }]}>{program.exercises.length} упражнения  ·  {program.exercises.reduce((sum, item) => sum + item.sets, 0)} подходов</Text>{isArchived ? <Text style={[styles.archivedLabel, { color: colors.muted }]}>Скрыта из списка</Text> : !bulkMode && <Pressable onPress={() => { startWorkout(program.id); router.push({ pathname: "/workout", params: { programId: program.id } }); }} style={[styles.start, { backgroundColor: colors.primary }]}><Text style={styles.startText}>Начать</Text></Pressable>}</View>
+      <MediaPickerSheet visible={coverProgram?.id === program.id} title={`Обложка: ${program.name}`} ownerId={program.id} scope="program" currentImage={program.coverImage} library={programCoverIllustrationLibrary} onSelect={(uri) => setProgramCover(program.id, uri)} onClose={() => setCoverProgram(null)} />
     </View>;
   };
 
