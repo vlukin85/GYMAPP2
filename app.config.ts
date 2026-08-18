@@ -26,7 +26,7 @@ const schemeFromBundleId = `manus${timestamp}`;
 
 const env = {
   // App branding - update these values directly (do not use env vars)
-  appName: "Дневник тренировок",
+  appName: "IronRise",
   appSlug: "gym-training-diary",
   // S3 URL of the app logo - set this to the URL returned by generate_image when creating custom logo
   // Leave empty to use the default icon from assets/images/icon.png
@@ -107,11 +107,11 @@ const config: ExpoConfig = {
       "expo-splash-screen",
       {
         image: "./assets/images/splash-icon.png",
-        imageWidth: 200,
+        imageWidth: 220,
         resizeMode: "contain",
         backgroundColor: "#FBF8FF",
         dark: {
-          backgroundColor: "#000000",
+          backgroundColor: "#160E24",
         },
       },
     ],

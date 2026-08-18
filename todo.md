@@ -312,3 +312,8 @@
 - [x] Убрать знак IronRise из главного экрана и полноэкранных окон тренировки
 - [x] Вернуть прежнюю палитру и оформление интерфейса приложения
 - [x] Проверить откат интерфейса и Android-иконку TypeScript, тестами и Android production export
+- [x] Создать и валидировать reusable skill для Android-брендинга и splash screen
+- [x] Подготовить монохромную Android themed icon IronRise
+- [x] Настроить короткое имя приложения IronRise под launcher icon
+- [x] Добавить плавное появление логотипа на стартовом экране
+- [x] Проверить themed icon, splash screen TypeScript, тестами и Android production export
