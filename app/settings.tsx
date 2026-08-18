@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Alert, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Alert, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
 import { router } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
@@ -29,7 +29,7 @@ export default function SettingsScreen() {
   const colors = useColors();
   const store = useWorkoutStore();
   const { theme: svgIconTheme, setThemeId } = useSvgIconTheme();
-  const { oneRmFormula, setOneRmFormula, plateStepKg, setPlateStepKg, bodyWeightKg, bodyweightVolumePercent, setBodyweightVolumeSettings, hapticIntensity, setHapticIntensity } = store;
+  const { oneRmFormula, setOneRmFormula, plateStepKg, setPlateStepKg, bodyWeightKg, bodyweightVolumePercent, setBodyweightVolumeSettings, hapticIntensity, setHapticIntensity, restTimerSoundEnabled, setRestTimerSoundEnabled } = store;
   const [bodyWeight, setBodyWeight] = useState(String(bodyWeightKg));
   const [bodyPercent, setBodyPercent] = useState(String(bodyweightVolumePercent));
   const [bulkState, setBulkState] = useState({ loading: false, completed: 0, total: 0, message: "Скачивай все фото по Wi‑Fi для просмотра без интернета." });
@@ -165,6 +165,10 @@ export default function SettingsScreen() {
         </View>
 
         <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Тактильный отклик</Text>
+        <View style={[styles.restSoundCard, { backgroundColor: colors.surface, borderColor: colors.border }]}> 
+          <View style={{ flex: 1 }}><Text style={[styles.vibrationTitle, { color: colors.foreground }]}>Звук окончания отдыха</Text><Text style={[styles.vibrationHint, { color: colors.muted }]}>{restTimerSoundEnabled ? "Короткий сигнал прозвучит сразу после нулевого таймера." : "Окончание отдыха будет без звукового сигнала."}</Text></View>
+          <Switch value={restTimerSoundEnabled} onValueChange={setRestTimerSoundEnabled} trackColor={{ false: colors.border, true: `${colors.primary}88` }} thumbColor={restTimerSoundEnabled ? colors.primary : colors.muted} />
+        </View>
         <View style={[styles.vibrationCard, { backgroundColor: colors.surface, borderColor: colors.border }]}> 
           <Text style={[styles.vibrationTitle, { color: colors.foreground }]}>Вибрация при завершении подхода</Text>
           <Text style={[styles.vibrationHint, { color: colors.muted }]}>Интенсивность сохраняется на этом устройстве. В веб-просмотре вибрация не запускается.</Text>
@@ -317,6 +321,7 @@ const styles = StyleSheet.create({
   iconThemeOptionTitle: { fontSize: 12, fontWeight: "900" },
   iconThemeOptionHint: { fontSize: 10, marginTop: 2 },
   vibrationCard: { borderWidth: 1, borderRadius: 18, padding: 14, gap: 10 },
+  restSoundCard: { borderWidth: 1, borderRadius: 18, padding: 14, flexDirection: "row", alignItems: "center", gap: 12 },
   vibrationTitle: { fontSize: 14, fontWeight: "900" },
   vibrationHint: { fontSize: 11, lineHeight: 16 },
   vibrationOptions: { gap: 8 },
