@@ -10,6 +10,7 @@ import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { SafeMaterialIcon } from "@/components/ui/safe-material-icon";
 import { useColors } from "@/hooks/use-colors";
+import { clearActiveWorkoutDraft, isDraftForProgram, loadActiveWorkoutDraft, saveActiveWorkoutDraft } from "@/lib/active-workout-draft-storage";
 import { MAX_DROP_SUBSETS, bestOneRepMax, exercises, getEffectiveSetWeight, getExercise, getExerciseHistory, getLoadZones, getSetVolumeWithDropSubsets, hasCompletedWorkoutSet, muscleGroups, roundToWeightIncrement, type Exercise, type ProgramExercise, type SetType } from "@/lib/workout-data";
 import { getRemainingRestSeconds, getRestProgress } from "@/lib/rest-timer";
 import { getHistoricalQuickWeightOptions, getPreviousWorkingResult, prefillWorkingSet } from "@/lib/workout-set-entry";
@@ -197,6 +198,7 @@ export default function WorkoutScreen() {
     setExercisePreference,
   } = store;
   const program = programs.find((item) => item.id === (programId ?? "upper-strength"));
+  const programSnapshotId = program?.id ?? programId ?? "upper-strength";
   const [activeId, setActiveId] = useState<string | null>(null);
   const [focusedSetIndex, setFocusedSetIndex] = useState<number | null>(null);
   const [focusedSubsetIndex, setFocusedSubsetIndex] = useState<number | null>(null);
@@ -205,7 +207,7 @@ export default function WorkoutScreen() {
   const [removedExerciseIds, setRemovedExerciseIds] = useState<string[]>([]);
   const [draft, setDraft] = useState<ActualSet[]>([]);
   const [done, setDone] = useState<Record<string, boolean>>({});
-  const [started] = useState(Date.now());
+  const [started, setStarted] = useState(Date.now());
   const [elapsed, setElapsed] = useState(0);
   const [rest, setRest] = useState(0);
   const [restTotal, setRestTotal] = useState(0);
@@ -225,6 +227,8 @@ export default function WorkoutScreen() {
   const [catalogGroup, setCatalogGroup] = useState("Все");
   const [sessionOrder, setSessionOrder] = useState<string[]>([]);
   const [dragState, setDragState] = useState<{ sourceId: string; sourceIndex: number; targetIndex: number | null } | null>(null);
+  const [isRestoringDraft, setIsRestoringDraft] = useState(true);
+  const isDraftPersistenceEnabledRef = useRef(true);
   const dragStateRef = useRef<{ sourceId: string; sourceIndex: number; targetIndex: number | null } | null>(null);
   const workoutScrollRef = useRef<ScrollView>(null);
   const scrollMetricsRef = useRef({ offsetY: 0, viewportTop: 0, viewportHeight: 0, contentHeight: 0 });
@@ -330,6 +334,80 @@ export default function WorkoutScreen() {
     }),
     [],
   );
+
+  useEffect(() => {
+    let mounted = true;
+    isDraftPersistenceEnabledRef.current = true;
+    setIsRestoringDraft(true);
+    void loadActiveWorkoutDraft()
+      .then((snapshot) => {
+        if (!mounted) return;
+        if (snapshot && isDraftForProgram(snapshot, programSnapshotId)) {
+          setActiveId(snapshot.activeId);
+          setSetsByExercise(snapshot.setsByExercise);
+          setReplacements(snapshot.replacements);
+          setRemovedExerciseIds(snapshot.removedExerciseIds);
+          setDraft(snapshot.draft);
+          setDone(snapshot.done);
+          setStarted(snapshot.startedAt);
+          setRestEndAt(snapshot.restEndAt);
+          restEndRef.current = snapshot.restEndAt;
+          setRestTotal(snapshot.restTotal);
+          setRest(snapshot.restEndAt ? getRemainingRestSeconds(snapshot.restEndAt) : 0);
+          setMachineSetup(snapshot.machineSetup);
+          setNote(snapshot.note);
+          setAddedSessionExercises(snapshot.addedSessionExercises);
+          setSessionOrder(snapshot.sessionOrder);
+        } else {
+          setActiveId(null);
+          setSetsByExercise({});
+          setReplacements({});
+          setRemovedExerciseIds([]);
+          setDraft([]);
+          setDone({});
+          setStarted(Date.now());
+          setRestEndAt(null);
+          restEndRef.current = null;
+          setRestTotal(0);
+          setRest(0);
+          setMachineSetup("");
+          setNote("");
+          setAddedSessionExercises([]);
+          setSessionOrder([]);
+        }
+      })
+      .catch(() => undefined)
+      .finally(() => {
+        if (mounted) setIsRestoringDraft(false);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, [programSnapshotId]);
+
+  useEffect(() => {
+    if (isRestoringDraft) return;
+    const snapshotTimer = setTimeout(() => {
+      if (!isDraftPersistenceEnabledRef.current) return;
+      void saveActiveWorkoutDraft({
+        programId: programSnapshotId,
+        startedAt: started,
+        activeId,
+        draft,
+        setsByExercise,
+        replacements,
+        removedExerciseIds,
+        done,
+        addedSessionExercises,
+        sessionOrder,
+        restEndAt,
+        restTotal,
+        machineSetup,
+        note,
+      }).catch(() => undefined);
+    }, 180);
+    return () => clearTimeout(snapshotTimer);
+  }, [activeId, addedSessionExercises, done, draft, isRestoringDraft, machineSetup, note, programSnapshotId, removedExerciseIds, replacements, restEndAt, restTotal, sessionOrder, setsByExercise, started]);
 
   if (!program) return null;
 
@@ -649,6 +727,8 @@ export default function WorkoutScreen() {
         : [{ exerciseId: set.exerciseId, reps: set.reps, weight: set.weightKg }],
     );
     const result = finishWorkout(program.id, total, recordSets);
+    isDraftPersistenceEnabledRef.current = false;
+    void clearActiveWorkoutDraft().catch(() => undefined);
     if (result.newRecordIds.length) {
       const progress = result.maxOneRmDelta > 0 ? ` · лучший прирост 1RM +${result.maxOneRmDelta.toFixed(1)} кг` : "";
       Alert.alert("Новый личный рекорд", `Обновлено рекордов: ${result.newRecordIds.length}${progress}`, [

@@ -1,19 +1,20 @@
-import { Text, type OpaqueColorValue, type StyleProp, type TextStyle } from "react-native";
+import type { OpaqueColorValue, StyleProp, TextStyle, ViewStyle } from "react-native";
+import { WebSvgIcon, type WebSvgIconName } from "./web-svg-icon";
 
-const GLYPHS: Record<string, string> = {
-  "add-circle": "+",
-  "add-circle-outline": "+",
-  "auto-awesome": "✦",
-  check: "✓",
-  "delete-outline": "×",
-  "drag-handle": "≡",
-  "open-with": "↕",
-  refresh: "↻",
-  south: "↓",
-  storage: "▣",
+const MAPPING: Record<string, WebSvgIconName> = {
+  "add-circle": "add-circle",
+  "add-circle-outline": "add-circle",
+  "auto-awesome": "auto-awesome",
+  check: "check",
+  "delete-outline": "delete",
+  "drag-handle": "drag-handle",
+  "open-with": "move",
+  refresh: "refresh",
+  south: "south",
+  storage: "storage",
 };
 
-/** Avoids @expo/vector-icons font loading in the web preview. */
+/** Browser counterpart of Material Icons implemented as font-free inline SVG. */
 export function SafeMaterialIcon({
   name,
   size = 24,
@@ -23,14 +24,7 @@ export function SafeMaterialIcon({
   name: string;
   size?: number;
   color: string | OpaqueColorValue;
-  style?: StyleProp<TextStyle>;
+  style?: StyleProp<TextStyle | ViewStyle>;
 }) {
-  return (
-    <Text
-      accessibilityRole="image"
-      style={[{ color, fontSize: size, fontWeight: "700", lineHeight: size + 2, textAlign: "center" }, style]}
-    >
-      {GLYPHS[name] ?? "•"}
-    </Text>
-  );
+  return <WebSvgIcon name={MAPPING[name] ?? "check"} size={size} color={color} style={style as StyleProp<ViewStyle>} />;
 }

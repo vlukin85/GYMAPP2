@@ -1,30 +1,31 @@
-import type { SymbolWeight } from "expo-symbols";
-import { Text, type OpaqueColorValue, type StyleProp, type TextStyle } from "react-native";
+import type { SymbolWeight, SymbolViewProps } from "expo-symbols";
+import type { OpaqueColorValue, StyleProp, TextStyle, ViewStyle } from "react-native";
+import { WebSvgIcon, type WebSvgIconName } from "./web-svg-icon";
 
-const GLYPHS = {
-  "house.fill": "⌂",
-  "paperplane.fill": "↗",
-  "chevron.left.forwardslash.chevron.right": "‹/›",
-  "chevron.right": "›",
-  "dumbbell.fill": "⌁",
-  "list.bullet": "☷",
-  "chart.bar.fill": "▥",
-  calendar: "□",
-  "arrow.forward": "→",
-  lightbulb: "◉",
-  timer: "◷",
-  trophy: "★",
-  "play.fill": "▶",
-  checkmark: "✓",
-  "checkmark.circle": "✓",
-  "chevron.left": "‹",
-  "chevron.down": "⌄",
-  gearshape: "⚙",
-} as const;
+const MAPPING = {
+  "house.fill": "home",
+  "paperplane.fill": "send",
+  "chevron.left.forwardslash.chevron.right": "code",
+  "chevron.right": "chevron-right",
+  "dumbbell.fill": "dumbbell",
+  "list.bullet": "list",
+  "chart.bar.fill": "chart",
+  calendar: "calendar",
+  "arrow.forward": "arrow-forward",
+  lightbulb: "lightbulb",
+  timer: "timer",
+  trophy: "trophy",
+  "play.fill": "play",
+  checkmark: "check",
+  "checkmark.circle": "check-circle",
+  "chevron.left": "chevron-left",
+  "chevron.down": "chevron-down",
+  gearshape: "gear",
+} as const satisfies Partial<Record<SymbolViewProps["name"], WebSvgIconName>>;
 
-type IconSymbolName = keyof typeof GLYPHS;
+type IconSymbolName = keyof typeof MAPPING;
 
-/** Uses system glyphs on web so preview rendering never waits for an icon font. */
+/** Crisp inline SVGs on web keep the UI polished without icon-font timeouts. */
 export function IconSymbol({
   name,
   size = 24,
@@ -34,15 +35,8 @@ export function IconSymbol({
   name: IconSymbolName;
   size?: number;
   color: string | OpaqueColorValue;
-  style?: StyleProp<TextStyle>;
+  style?: StyleProp<TextStyle | ViewStyle>;
   weight?: SymbolWeight;
 }) {
-  return (
-    <Text
-      accessibilityRole="image"
-      style={[{ color, fontSize: size, fontWeight: "600", lineHeight: size + 2, textAlign: "center" }, style]}
-    >
-      {GLYPHS[name]}
-    </Text>
-  );
+  return <WebSvgIcon name={MAPPING[name]} size={size} color={color} style={style as StyleProp<ViewStyle>} />;
 }

@@ -79,7 +79,7 @@ export default function RootLayout() {
           {/* Default to hiding native headers so raw route segments don't appear (e.g. "(tabs)", "products/[id]"). */}
           {/* If a screen needs the native header, explicitly enable it and set a human title via Stack.Screen options. */}
           {/* in order for ios apps tab switching to work properly, use presentation: "fullScreenModal" for login page, whenever you decide to use presentation: "modal*/}
-          <Stack screenOptions={{ headerShown: false }}>
+          <Stack screenOptions={{ headerShown: false, animation: Platform.OS === "web" ? "fade" : "slide_from_right" }}>
             <Stack.Screen name="(tabs)" />
             <Stack.Screen name="settings" />
             <Stack.Screen name="barbell" />
@@ -89,7 +89,7 @@ export default function RootLayout() {
             <Stack.Screen name="compare" />
             <Stack.Screen name="recommendations" />
             <Stack.Screen name="report" />
-            <Stack.Screen name="workout" />
+            <Stack.Screen name="workout" options={{ animation: Platform.OS === "web" ? "fade_from_bottom" : "slide_from_right" }} />
             <Stack.Screen name="profile" />
             <Stack.Screen name="replace-exercise" />
             <Stack.Screen name="program/ai" />
