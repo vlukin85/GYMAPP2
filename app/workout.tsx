@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Alert, AppState, FlatList, Image, Keyboard, KeyboardAvoidingView, LayoutAnimation, Modal, PanResponder, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, UIManager, View } from "react-native";
+import { Alert, AppState, FlatList, Keyboard, KeyboardAvoidingView, LayoutAnimation, Modal, PanResponder, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, UIManager, View } from "react-native";
 import { setAudioModeAsync, useAudioPlayer } from "expo-audio";
 import { activateKeepAwakeAsync, deactivateKeepAwake } from "expo-keep-awake";
 import * as Haptics from "expo-haptics";
@@ -66,7 +66,7 @@ function RestTimerOverlay({
   return (
     <Modal visible transparent animationType="fade" presentationStyle="fullScreen" statusBarTranslucent onRequestClose={onSkip}>
       <View style={[styles.restOverlay, { backgroundColor: colors.background }]}> 
-        <View style={styles.restBrandHeader}><Image source={require("../assets/images/ironrise-logo.png")} style={styles.restBrandMark} resizeMode="contain" /><Text style={[styles.restOverlayEyebrow, { color: colors.primary }]}>ТАЙМЕР ОТДЫХА</Text></View>
+        <Text style={[styles.restOverlayEyebrow, { color: colors.primary }]}>ТАЙМЕР ОТДЫХА</Text>
         <View style={[styles.restOverlayCard, { backgroundColor: colors.surface, borderColor: colors.primary }]}> 
         <View style={styles.restCircleWrap}>
           <Svg width={REST_CIRCLE_SIZE} height={REST_CIRCLE_SIZE} viewBox={`0 0 ${REST_CIRCLE_SIZE} ${REST_CIRCLE_SIZE}`}>
@@ -920,7 +920,7 @@ export default function WorkoutScreen() {
                 <View style={[styles.setEditorSheet, { backgroundColor: colors.background, borderColor: colors.primary }]}>
                   <View style={styles.setEditorHeader}>
                     <View>
-                      <View style={styles.setEditorBrandLine}><Image source={require("../assets/images/ironrise-logo.png")} style={styles.setEditorBrandMark} resizeMode="contain" /><Text style={[styles.setEditorEyebrow, { color: colors.primary }]}>{focusedSubsetIndex === null ? `ФАКТИЧЕСКИЙ ПОДХОД ${focusedSetIndex + 1}` : `ДРОП-СЕТ ${focusedSetIndex + 1} · ПОДПОДХОД ${focusedSubsetIndex + 1}`}</Text></View>
+                      <Text style={[styles.setEditorEyebrow, { color: colors.primary }]}>{focusedSubsetIndex === null ? `ФАКТИЧЕСКИЙ ПОДХОД ${focusedSetIndex + 1}` : `ДРОП-СЕТ ${focusedSetIndex + 1} · ПОДПОДХОД ${focusedSubsetIndex + 1}`}</Text>
                       <Text style={[styles.setEditorTitle, { color: colors.foreground }]}>Запишите результат</Text>
                     </View>
                     <Pressable onPress={closeSetEditor} style={[styles.setEditorClose, { backgroundColor: colors.surface }]} accessibilityLabel="Закрыть форму ввода">
@@ -1015,8 +1015,6 @@ const styles = StyleSheet.create({
   complete: { minHeight: 55, borderRadius: 16, alignItems: "center", justifyContent: "center" },
   completeText: { color: "#101412", fontSize: 15, fontWeight: "800" },
   restOverlay: { flex: 1, paddingHorizontal: 24, paddingTop: 48, paddingBottom: 32, justifyContent: "space-between", alignItems: "stretch" },
-  restBrandHeader: { alignItems: "center", gap: 8 },
-  restBrandMark: { width: 42, height: 42, borderRadius: 12, backgroundColor: "#FFFFFF" },
   restOverlayEyebrow: { textAlign: "center", fontSize: 12, fontWeight: "900", letterSpacing: 1.4 },
   restOverlayCard: { flex: 1, borderWidth: 1, borderRadius: 30, padding: 24, justifyContent: "center", alignItems: "center", gap: 28, elevation: 12, shadowColor: "#000000", shadowOpacity: 0.2, shadowRadius: 14, shadowOffset: { width: 0, height: 7 }, marginVertical: 22 },
   restCircleWrap: { width: REST_CIRCLE_SIZE, height: REST_CIRCLE_SIZE, alignItems: "center", justifyContent: "center" },
@@ -1034,8 +1032,6 @@ const styles = StyleSheet.create({
   setEditorBackdrop: { flex: 1 },
   setEditorSheet: { flex: 1, padding: 24, paddingTop: 42 },
   setEditorHeader: { position: "absolute", top: 42, left: 24, right: 24, flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", gap: 12 },
-  setEditorBrandLine: { flexDirection: "row", alignItems: "center", gap: 7 },
-  setEditorBrandMark: { width: 25, height: 25, borderRadius: 8, backgroundColor: "#FFFFFF" },
   setEditorEyebrow: { fontSize: 10, fontWeight: "900", letterSpacing: 0.9 },
   setEditorTitle: { fontSize: 28, fontWeight: "900", marginTop: 5 },
   setEditorClose: { width: 46, height: 46, borderRadius: 15, alignItems: "center", justifyContent: "center" },
