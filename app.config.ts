@@ -88,6 +88,7 @@ const config: ExpoConfig = {
     "expo-document-picker",
     "expo-asset",
     "expo-font",
+    "expo-secure-store",
     "expo-web-browser",
     "expo-notifications",
     [
