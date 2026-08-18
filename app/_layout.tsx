@@ -91,7 +91,6 @@ export default function RootLayout() {
             <Stack.Screen name="recommendations" />
             <Stack.Screen name="report" />
             <Stack.Screen name="workout" />
-            <Stack.Screen name="calendar" />
             <Stack.Screen name="profile" />
             <Stack.Screen name="replace-exercise" />
             <Stack.Screen name="program/ai" />
