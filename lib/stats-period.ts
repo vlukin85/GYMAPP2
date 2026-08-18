@@ -22,6 +22,33 @@ export function getStatsFilterBounds(filter: StatsDateFilter, now = new Date()) 
   return { start, end: now.toISOString().slice(0, 10) };
 }
 
+function toDate(value: string) {
+  return new Date(`${value}T12:00:00`);
+}
+
+function toIsoDate(value: Date) {
+  return value.toISOString().slice(0, 10);
+}
+
+/** Returns the complete preceding calendar week or month for comparisons. */
+export function getPreviousPeriodBounds(filter: StatsDateFilter, now = new Date()) {
+  if (filter.mode !== "week" && filter.mode !== "month") return null;
+  const current = getStatsFilterBounds(filter, now);
+  const currentStart = toDate(current.start);
+
+  if (filter.mode === "week") {
+    const start = new Date(currentStart);
+    start.setDate(start.getDate() - 7);
+    const end = new Date(currentStart);
+    end.setDate(end.getDate() - 1);
+    return { start: toIsoDate(start), end: toIsoDate(end) };
+  }
+
+  const previousMonth = new Date(currentStart.getFullYear(), currentStart.getMonth() - 1, 1);
+  const end = new Date(previousMonth.getFullYear(), previousMonth.getMonth() + 1, 0);
+  return { start: toIsoDate(previousMonth), end: toIsoDate(end) };
+}
+
 export function getStatsPeriodStart(period: StatsPeriod, now = new Date()) {
   const date = new Date(now);
   date.setHours(0, 0, 0, 0);
