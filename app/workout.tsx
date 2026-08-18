@@ -20,8 +20,8 @@ type ActualSet = { reps: string; weight: string; type: SetType; dropSubsets?: Dr
 type HistorySet = { weight: number; reps: number; type?: string; drop?: DropDraft[] };
 
 const REST_KEEP_AWAKE_TAG = "gym-training-diary-rest-timer";
-const REST_CIRCLE_RADIUS = 54;
-const REST_CIRCLE_SIZE = 132;
+const REST_CIRCLE_RADIUS = 108;
+const REST_CIRCLE_SIZE = 252;
 const REST_CIRCUMFERENCE = 2 * Math.PI * REST_CIRCLE_RADIUS;
 const setTypes: { id: SetType; label: string }[] = [
   { id: "warmup", label: "Разм." },
@@ -62,8 +62,10 @@ function RestTimerOverlay({
   const dashOffset = REST_CIRCUMFERENCE * (1 - progress);
 
   return (
-    <View style={styles.restOverlay} pointerEvents="box-none">
-      <View style={[styles.restOverlayCard, { backgroundColor: colors.surface, borderColor: colors.primary }]}>
+    <Modal visible transparent animationType="fade" presentationStyle="fullScreen" statusBarTranslucent onRequestClose={onSkip}>
+      <View style={[styles.restOverlay, { backgroundColor: colors.background }]}> 
+        <Text style={[styles.restOverlayEyebrow, { color: colors.primary }]}>ТАЙМЕР ОТДЫХА</Text>
+        <View style={[styles.restOverlayCard, { backgroundColor: colors.surface, borderColor: colors.primary }]}> 
         <View style={styles.restCircleWrap}>
           <Svg width={REST_CIRCLE_SIZE} height={REST_CIRCLE_SIZE} viewBox={`0 0 ${REST_CIRCLE_SIZE} ${REST_CIRCLE_SIZE}`}>
             <Circle
@@ -97,17 +99,18 @@ function RestTimerOverlay({
         <View style={styles.restCopy}>
           <Text style={[styles.restTitle, { color: colors.foreground }]}>Следующий подход — после сигнала</Text>
           <Text style={[styles.restHint, { color: colors.muted }]}>Отсчёт привязан ко времени и корректно продолжится после блокировки экрана.</Text>
-          <View style={styles.restActions}>
-            <Pressable onPress={onAddTime} style={({ pressed }) => [styles.restSecondaryAction, { borderColor: colors.border, opacity: pressed ? 0.65 : 1 }]}>
-              <Text style={[styles.restSecondaryText, { color: colors.foreground }]}>+30 сек</Text>
-            </Pressable>
-            <Pressable onPress={onSkip} style={({ pressed }) => [styles.restSkipAction, { backgroundColor: colors.primary, opacity: pressed ? 0.8 : 1 }]}>
-              <Text style={styles.restSkipText}>Пропустить</Text>
-            </Pressable>
-          </View>
+        </View>
+        </View>
+        <View style={styles.restActions}>
+          <Pressable onPress={onAddTime} style={({ pressed }) => [styles.restSecondaryAction, { borderColor: colors.border, opacity: pressed ? 0.65 : 1 }]}> 
+            <Text style={[styles.restSecondaryText, { color: colors.foreground }]}>+30 сек</Text>
+          </Pressable>
+          <Pressable onPress={onSkip} style={({ pressed }) => [styles.restSkipAction, { backgroundColor: colors.primary, opacity: pressed ? 0.8 : 1 }]}> 
+            <Text style={styles.restSkipText}>Пропустить отдых</Text>
+          </Pressable>
         </View>
       </View>
-    </View>
+    </Modal>
   );
 }
 
@@ -777,13 +780,13 @@ export default function WorkoutScreen() {
             >
               <Text style={[styles.addSetText, { color: colors.primary }]}>＋ Добавить подход</Text>
             </Pressable>
-            <Pressable onPress={saveExercise} style={[styles.saveButton, { backgroundColor: colors.primary }]}>
-              <Text style={styles.saveButtonText}>Сохранить подходы</Text>
+            <Pressable onPress={saveExercise} style={[styles.saveButton, { backgroundColor: colors.primary }]}> 
+              <Text style={styles.saveButtonText}>Завершить тренировку</Text>
             </Pressable>
           </ScrollView>
           <RestTimerOverlay colors={colors} rest={rest} totalRest={restTotal} onAddTime={extendRestTimer} onSkip={skipRest} />
-          <Modal visible={focusedSetIndex !== null} transparent animationType="fade" onRequestClose={closeSetEditor} statusBarTranslucent>
-            <KeyboardAvoidingView style={styles.setEditorBackdrop} behavior={Platform.OS === "ios" ? "padding" : "height"} keyboardVerticalOffset={Platform.OS === "ios" ? 12 : 0}>
+          <Modal visible={focusedSetIndex !== null} animationType="slide" presentationStyle="fullScreen" onRequestClose={closeSetEditor} statusBarTranslucent>
+            <KeyboardAvoidingView style={[styles.setEditorBackdrop, { backgroundColor: colors.background }]} behavior={Platform.OS === "ios" ? "padding" : "height"} keyboardVerticalOffset={Platform.OS === "ios" ? 12 : 0}>
               {focusedSetIndex !== null && focusedSet && focusedPart && (
                 <View style={[styles.setEditorSheet, { backgroundColor: colors.background, borderColor: colors.primary }]}>
                   <View style={styles.setEditorHeader}>
@@ -795,7 +798,7 @@ export default function WorkoutScreen() {
                       <Text style={[styles.setEditorCloseText, { color: colors.foreground }]}>×</Text>
                     </Pressable>
                   </View>
-                  <Text style={[styles.setEditorHint, { color: colors.muted }]}>Форма находится поверх тренировки и остаётся выше клавиатуры.</Text>
+                  <Text style={[styles.setEditorHint, { color: colors.muted }]}>Полноэкранная форма остаётся выше клавиатуры и не скрывает результат.</Text>
                   <View style={styles.setEditorFields}>
                     <View style={styles.setEditorFieldWrap}>
                       <Text style={[styles.setEditorLabel, { color: colors.muted }]}>ПОВТОРЫ</Text>
@@ -846,34 +849,35 @@ const styles = StyleSheet.create({
   totalHint: { fontSize: 10, marginTop: 4 },
   complete: { minHeight: 55, borderRadius: 16, alignItems: "center", justifyContent: "center" },
   completeText: { color: "#101412", fontSize: 15, fontWeight: "800" },
-  restOverlay: { ...StyleSheet.absoluteFillObject, zIndex: 30, justifyContent: "flex-end", padding: 18, paddingBottom: 26 },
-  restOverlayCard: { borderWidth: 1, borderRadius: 23, padding: 13, flexDirection: "row", gap: 11, alignItems: "center", elevation: 12, shadowColor: "#000000", shadowOpacity: 0.2, shadowRadius: 14, shadowOffset: { width: 0, height: 7 } },
+  restOverlay: { flex: 1, paddingHorizontal: 24, paddingTop: 48, paddingBottom: 32, justifyContent: "space-between", alignItems: "stretch" },
+  restOverlayEyebrow: { textAlign: "center", fontSize: 12, fontWeight: "900", letterSpacing: 1.4 },
+  restOverlayCard: { flex: 1, borderWidth: 1, borderRadius: 30, padding: 24, justifyContent: "center", alignItems: "center", gap: 28, elevation: 12, shadowColor: "#000000", shadowOpacity: 0.2, shadowRadius: 14, shadowOffset: { width: 0, height: 7 }, marginVertical: 22 },
   restCircleWrap: { width: REST_CIRCLE_SIZE, height: REST_CIRCLE_SIZE, alignItems: "center", justifyContent: "center" },
   restCircleText: { position: "absolute", alignItems: "center" },
-  restCircleLabel: { fontSize: 9, fontWeight: "900", letterSpacing: 1 },
-  restCircleValue: { fontSize: 20, fontWeight: "900", marginTop: 3 },
-  restCopy: { flex: 1, gap: 5 },
-  restTitle: { fontSize: 13, fontWeight: "900", lineHeight: 18 },
-  restHint: { fontSize: 10, lineHeight: 14 },
-  restActions: { flexDirection: "row", gap: 7, marginTop: 3 },
-  restSecondaryAction: { minHeight: 34, paddingHorizontal: 10, borderRadius: 10, borderWidth: 1, alignItems: "center", justifyContent: "center" },
-  restSecondaryText: { fontSize: 11, fontWeight: "900" },
-  restSkipAction: { minHeight: 34, paddingHorizontal: 10, borderRadius: 10, alignItems: "center", justifyContent: "center" },
-  restSkipText: { color: "#101412", fontSize: 11, fontWeight: "900" },
-  setEditorBackdrop: { flex: 1, justifyContent: "flex-end", backgroundColor: "#090611A8", padding: 14 },
-  setEditorSheet: { borderWidth: 1, borderRadius: 25, padding: 17, gap: 13, elevation: 28, shadowColor: "#000000", shadowOpacity: 0.36, shadowRadius: 20, shadowOffset: { width: 0, height: 9 } },
+  restCircleLabel: { fontSize: 13, fontWeight: "900", letterSpacing: 1.2 },
+  restCircleValue: { fontSize: 40, fontWeight: "900", marginTop: 4 },
+  restCopy: { alignItems: "center", gap: 8, maxWidth: 280 },
+  restTitle: { textAlign: "center", fontSize: 20, fontWeight: "900", lineHeight: 27 },
+  restHint: { textAlign: "center", fontSize: 13, lineHeight: 19 },
+  restActions: { flexDirection: "row", gap: 10 },
+  restSecondaryAction: { flex: 1, minHeight: 54, paddingHorizontal: 12, borderRadius: 16, borderWidth: 1, alignItems: "center", justifyContent: "center" },
+  restSecondaryText: { fontSize: 14, fontWeight: "900" },
+  restSkipAction: { flex: 1.55, minHeight: 54, paddingHorizontal: 12, borderRadius: 16, alignItems: "center", justifyContent: "center" },
+  restSkipText: { color: "#101412", fontSize: 14, fontWeight: "900" },
+  setEditorBackdrop: { flex: 1 },
+  setEditorSheet: { flex: 1, padding: 24, paddingTop: 42, gap: 18, justifyContent: "space-between" },
   setEditorHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", gap: 12 },
   setEditorEyebrow: { fontSize: 10, fontWeight: "900", letterSpacing: 0.9 },
-  setEditorTitle: { fontSize: 20, fontWeight: "900", marginTop: 4 },
-  setEditorClose: { width: 38, height: 38, borderRadius: 13, alignItems: "center", justifyContent: "center" },
+  setEditorTitle: { fontSize: 28, fontWeight: "900", marginTop: 5 },
+  setEditorClose: { width: 46, height: 46, borderRadius: 15, alignItems: "center", justifyContent: "center" },
   setEditorCloseText: { fontSize: 25, lineHeight: 28 },
-  setEditorHint: { fontSize: 11, lineHeight: 16 },
-  setEditorFields: { flexDirection: "row", gap: 10 },
-  setEditorFieldWrap: { flex: 1, gap: 6 },
-  setEditorLabel: { fontSize: 10, fontWeight: "900", letterSpacing: 0.65 },
-  setEditorInput: { height: 58, borderRadius: 15, borderWidth: 1, textAlign: "center", fontSize: 20, fontWeight: "900" },
-  setEditorFinish: { minHeight: 54, borderRadius: 16, alignItems: "center", justifyContent: "center", marginTop: 2 },
-  setEditorFinishText: { color: "#101412", fontSize: 15, fontWeight: "900" },
+  setEditorHint: { fontSize: 14, lineHeight: 20, marginBottom: "auto" },
+  setEditorFields: { flexDirection: "row", gap: 14, paddingVertical: 24 },
+  setEditorFieldWrap: { flex: 1, gap: 9 },
+  setEditorLabel: { fontSize: 11, fontWeight: "900", letterSpacing: 0.75 },
+  setEditorInput: { height: 86, borderRadius: 20, borderWidth: 1, textAlign: "center", fontSize: 30, fontWeight: "900" },
+  setEditorFinish: { minHeight: 62, borderRadius: 18, alignItems: "center", justifyContent: "center", marginTop: 8 },
+  setEditorFinishText: { color: "#101412", fontSize: 17, fontWeight: "900" },
   modalRoot: { flex: 1, paddingTop: 10 },
   modalHeader: { minHeight: 56, paddingHorizontal: 18, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   cancel: { fontSize: 14 },
