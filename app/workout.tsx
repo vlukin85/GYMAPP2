@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Alert, AppState, KeyboardAvoidingView, LayoutAnimation, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, UIManager, View } from "react-native";
+import { Alert, AppState, Keyboard, KeyboardAvoidingView, LayoutAnimation, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, UIManager, View } from "react-native";
 import { setAudioModeAsync, useAudioPlayer } from "expo-audio";
 import { activateKeepAwakeAsync, deactivateKeepAwake } from "expo-keep-awake";
 import * as Haptics from "expo-haptics";
@@ -130,6 +130,8 @@ export default function WorkoutScreen() {
   } = store;
   const program = programs.find((item) => item.id === (programId ?? "upper-strength"));
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [focusedSetIndex, setFocusedSetIndex] = useState<number | null>(null);
+  const [focusedSubsetIndex, setFocusedSubsetIndex] = useState<number | null>(null);
   const [setsByExercise, setSetsByExercise] = useState<Record<string, ActualSet[]>>({});
   const [replacements, setReplacements] = useState<Record<string, string>>({});
   const [removedExerciseIds, setRemovedExerciseIds] = useState<string[]>([]);
@@ -365,8 +367,14 @@ export default function WorkoutScreen() {
     animateDropLayout();
     updateSet(setIndex, (set) => ({ ...set, dropSubsets: (set.dropSubsets ?? []).filter((_, position) => position !== subsetIndex) }));
   };
-  const scrollInputIntoView = () => {
-    setTimeout(() => modalScrollRef.current?.scrollToEnd({ animated: true }), 180);
+  const openSetEditor = (index: number, subsetIndex?: number) => {
+    setFocusedSetIndex(index);
+    setFocusedSubsetIndex(subsetIndex ?? null);
+  };
+  const closeSetEditor = () => {
+    Keyboard.dismiss();
+    setFocusedSetIndex(null);
+    setFocusedSubsetIndex(null);
   };
   const startRestAfterSetInput = (setIndex: number) => {
     if (!activeId || !activePlan) return;
@@ -377,6 +385,18 @@ export default function WorkoutScreen() {
     if (restedSetSignatures.current[key] === signature) return;
     restedSetSignatures.current[key] = signature;
     startRestTimer(activePlan.rest ?? 90);
+  };
+  const finishFocusedSet = () => {
+    if (focusedSetIndex === null) return;
+    startRestAfterSetInput(focusedSetIndex);
+    closeSetEditor();
+  };
+  const focusedSet = focusedSetIndex === null ? undefined : draft[focusedSetIndex];
+  const focusedPart = focusedSet && focusedSubsetIndex !== null ? focusedSet.dropSubsets?.[focusedSubsetIndex] : focusedSet;
+  const updateFocusedPart = (field: keyof DropDraft, value: string) => {
+    if (focusedSetIndex === null) return;
+    if (focusedSubsetIndex === null) updateSet(focusedSetIndex, (item) => ({ ...item, [field]: value }));
+    else updateDropSubset(focusedSetIndex, focusedSubsetIndex, field, value);
   };
   const saveExercise = () => {
     if (!activeId) return;
@@ -556,14 +576,14 @@ export default function WorkoutScreen() {
 
       {!activeId && <RestTimerOverlay colors={colors} rest={rest} totalRest={restTotal} onAddTime={extendRestTimer} onSkip={skipRest} />}
 
-      <Modal visible={Boolean(activeId)} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setActiveId(null)}>
+      <Modal visible={Boolean(activeId)} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => { closeSetEditor(); setActiveId(null); }}>
         <KeyboardAvoidingView
           style={[styles.modalRoot, { backgroundColor: colors.background }]}
           behavior={Platform.OS === "ios" ? "padding" : "height"}
           keyboardVerticalOffset={Platform.OS === "ios" ? 8 : 0}
         >
           <View style={styles.modalHeader}>
-            <Pressable onPress={() => setActiveId(null)}>
+            <Pressable onPress={() => { closeSetEditor(); setActiveId(null); }}>
               <Text style={[styles.cancel, { color: colors.muted }]}>Отмена</Text>
             </Pressable>
             <Text style={[styles.modalTitle, { color: colors.foreground }]}>{activeExercise?.name ?? "Упражнение"}</Text>
@@ -650,7 +670,7 @@ export default function WorkoutScreen() {
                       <TextInput
                         value={set.reps}
                         onChangeText={(value) => updateSet(index, (item) => ({ ...item, reps: value }))}
-                        onFocus={scrollInputIntoView}
+                        onFocus={() => openSetEditor(index)}
                         onEndEditing={() => startRestAfterSetInput(index)}
                         keyboardType="number-pad"
                         returnKeyType="done"
@@ -661,7 +681,7 @@ export default function WorkoutScreen() {
                       <TextInput
                         value={set.weight}
                         onChangeText={(value) => updateSet(index, (item) => ({ ...item, weight: value }))}
-                        onFocus={scrollInputIntoView}
+                        onFocus={() => openSetEditor(index)}
                         onEndEditing={() => startRestAfterSetInput(index)}
                         keyboardType="decimal-pad"
                         returnKeyType="done"
@@ -704,7 +724,7 @@ export default function WorkoutScreen() {
                         <TextInput
                           value={part.reps}
                           onChangeText={(value) => updateDropSubset(index, subsetIndex, "reps", value)}
-                          onFocus={scrollInputIntoView}
+                          onFocus={() => openSetEditor(index, subsetIndex)}
                           onEndEditing={() => startRestAfterSetInput(index)}
                           keyboardType="number-pad"
                           returnKeyType="done"
@@ -715,7 +735,7 @@ export default function WorkoutScreen() {
                         <TextInput
                           value={part.weight}
                           onChangeText={(value) => updateDropSubset(index, subsetIndex, "weight", value)}
-                          onFocus={scrollInputIntoView}
+                          onFocus={() => openSetEditor(index, subsetIndex)}
                           onEndEditing={() => startRestAfterSetInput(index)}
                           keyboardType="decimal-pad"
                           returnKeyType="done"
@@ -762,6 +782,37 @@ export default function WorkoutScreen() {
             </Pressable>
           </ScrollView>
           <RestTimerOverlay colors={colors} rest={rest} totalRest={restTotal} onAddTime={extendRestTimer} onSkip={skipRest} />
+          <Modal visible={focusedSetIndex !== null} transparent animationType="fade" onRequestClose={closeSetEditor} statusBarTranslucent>
+            <KeyboardAvoidingView style={styles.setEditorBackdrop} behavior={Platform.OS === "ios" ? "padding" : "height"} keyboardVerticalOffset={Platform.OS === "ios" ? 12 : 0}>
+              {focusedSetIndex !== null && focusedSet && focusedPart && (
+                <View style={[styles.setEditorSheet, { backgroundColor: colors.background, borderColor: colors.primary }]}>
+                  <View style={styles.setEditorHeader}>
+                    <View>
+                      <Text style={[styles.setEditorEyebrow, { color: colors.primary }]}>{focusedSubsetIndex === null ? `ФАКТИЧЕСКИЙ ПОДХОД ${focusedSetIndex + 1}` : `ДРОП-СЕТ ${focusedSetIndex + 1} · ПОДПОДХОД ${focusedSubsetIndex + 1}`}</Text>
+                      <Text style={[styles.setEditorTitle, { color: colors.foreground }]}>Запишите результат</Text>
+                    </View>
+                    <Pressable onPress={closeSetEditor} style={[styles.setEditorClose, { backgroundColor: colors.surface }]} accessibilityLabel="Закрыть форму ввода">
+                      <Text style={[styles.setEditorCloseText, { color: colors.foreground }]}>×</Text>
+                    </Pressable>
+                  </View>
+                  <Text style={[styles.setEditorHint, { color: colors.muted }]}>Форма находится поверх тренировки и остаётся выше клавиатуры.</Text>
+                  <View style={styles.setEditorFields}>
+                    <View style={styles.setEditorFieldWrap}>
+                      <Text style={[styles.setEditorLabel, { color: colors.muted }]}>ПОВТОРЫ</Text>
+                      <TextInput autoFocus value={focusedPart.reps} onChangeText={(value) => updateFocusedPart("reps", value)} onEndEditing={() => startRestAfterSetInput(focusedSetIndex)} keyboardType="number-pad" returnKeyType="done" placeholder={`план ${activePlan?.reps ?? "—"}`} placeholderTextColor={colors.muted} style={[styles.setEditorInput, { color: focusedPart.reps.trim() ? colors.foreground : colors.muted, backgroundColor: focusedPart.reps.trim() ? colors.surface : `${colors.muted}1A`, borderColor: focusedPart.reps.trim() ? colors.primary : colors.border }]} />
+                    </View>
+                    <View style={styles.setEditorFieldWrap}>
+                      <Text style={[styles.setEditorLabel, { color: colors.muted }]}>ВЕС, КГ</Text>
+                      <TextInput value={focusedPart.weight} onChangeText={(value) => updateFocusedPart("weight", value)} onEndEditing={() => startRestAfterSetInput(focusedSetIndex)} keyboardType="decimal-pad" returnKeyType="done" placeholder={`план ${activePlan?.weight ?? "—"}`} placeholderTextColor={colors.muted} style={[styles.setEditorInput, { color: focusedPart.weight.trim() ? colors.foreground : colors.muted, backgroundColor: focusedPart.weight.trim() ? colors.surface : `${colors.muted}1A`, borderColor: focusedPart.weight.trim() ? colors.primary : colors.border }]} />
+                    </View>
+                  </View>
+                  <Pressable disabled={!setParts(focusedSet).length} onPress={finishFocusedSet} style={({ pressed }) => [styles.setEditorFinish, { backgroundColor: colors.primary, opacity: !setParts(focusedSet).length ? 0.45 : pressed ? 0.78 : 1 }]}>
+                    <Text style={styles.setEditorFinishText}>Завершено</Text>
+                  </Pressable>
+                </View>
+              )}
+            </KeyboardAvoidingView>
+          </Modal>
         </KeyboardAvoidingView>
       </Modal>
     </ScreenContainer>
@@ -809,6 +860,20 @@ const styles = StyleSheet.create({
   restSecondaryText: { fontSize: 11, fontWeight: "900" },
   restSkipAction: { minHeight: 34, paddingHorizontal: 10, borderRadius: 10, alignItems: "center", justifyContent: "center" },
   restSkipText: { color: "#101412", fontSize: 11, fontWeight: "900" },
+  setEditorBackdrop: { flex: 1, justifyContent: "flex-end", backgroundColor: "#090611A8", padding: 14 },
+  setEditorSheet: { borderWidth: 1, borderRadius: 25, padding: 17, gap: 13, elevation: 28, shadowColor: "#000000", shadowOpacity: 0.36, shadowRadius: 20, shadowOffset: { width: 0, height: 9 } },
+  setEditorHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", gap: 12 },
+  setEditorEyebrow: { fontSize: 10, fontWeight: "900", letterSpacing: 0.9 },
+  setEditorTitle: { fontSize: 20, fontWeight: "900", marginTop: 4 },
+  setEditorClose: { width: 38, height: 38, borderRadius: 13, alignItems: "center", justifyContent: "center" },
+  setEditorCloseText: { fontSize: 25, lineHeight: 28 },
+  setEditorHint: { fontSize: 11, lineHeight: 16 },
+  setEditorFields: { flexDirection: "row", gap: 10 },
+  setEditorFieldWrap: { flex: 1, gap: 6 },
+  setEditorLabel: { fontSize: 10, fontWeight: "900", letterSpacing: 0.65 },
+  setEditorInput: { height: 58, borderRadius: 15, borderWidth: 1, textAlign: "center", fontSize: 20, fontWeight: "900" },
+  setEditorFinish: { minHeight: 54, borderRadius: 16, alignItems: "center", justifyContent: "center", marginTop: 2 },
+  setEditorFinishText: { color: "#101412", fontSize: 15, fontWeight: "900" },
   modalRoot: { flex: 1, paddingTop: 10 },
   modalHeader: { minHeight: 56, paddingHorizontal: 18, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   cancel: { fontSize: 14 },
