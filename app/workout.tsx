@@ -798,20 +798,22 @@ export default function WorkoutScreen() {
                       <Text style={[styles.setEditorCloseText, { color: colors.foreground }]}>×</Text>
                     </Pressable>
                   </View>
-                  <Text style={[styles.setEditorHint, { color: colors.muted }]}>Полноэкранная форма остаётся выше клавиатуры и не скрывает результат.</Text>
-                  <View style={styles.setEditorFields}>
-                    <View style={styles.setEditorFieldWrap}>
-                      <Text style={[styles.setEditorLabel, { color: colors.muted }]}>ПОВТОРЫ</Text>
-                      <TextInput autoFocus value={focusedPart.reps} onChangeText={(value) => updateFocusedPart("reps", value)} onEndEditing={() => startRestAfterSetInput(focusedSetIndex)} keyboardType="number-pad" returnKeyType="done" placeholder={`план ${activePlan?.reps ?? "—"}`} placeholderTextColor={colors.muted} style={[styles.setEditorInput, { color: focusedPart.reps.trim() ? colors.foreground : colors.muted, backgroundColor: focusedPart.reps.trim() ? colors.surface : `${colors.muted}1A`, borderColor: focusedPart.reps.trim() ? colors.primary : colors.border }]} />
+                  <View style={styles.setEditorCenter}>
+                    <Text style={[styles.setEditorHint, { color: colors.muted }]}>Полноэкранная форма остаётся выше клавиатуры и не скрывает результат.</Text>
+                    <View style={styles.setEditorFields}>
+                      <View style={styles.setEditorFieldWrap}>
+                        <Text style={[styles.setEditorLabel, { color: colors.muted }]}>ПОВТОРЫ</Text>
+                        <TextInput autoFocus value={focusedPart.reps} onChangeText={(value) => updateFocusedPart("reps", value)} onEndEditing={() => startRestAfterSetInput(focusedSetIndex)} keyboardType="number-pad" returnKeyType="done" placeholder={`план ${activePlan?.reps ?? "—"}`} placeholderTextColor={colors.muted} style={[styles.setEditorInput, { color: focusedPart.reps.trim() ? colors.foreground : colors.muted, backgroundColor: focusedPart.reps.trim() ? colors.surface : `${colors.muted}1A`, borderColor: focusedPart.reps.trim() ? colors.primary : colors.border }]} />
+                      </View>
+                      <View style={styles.setEditorFieldWrap}>
+                        <Text style={[styles.setEditorLabel, { color: colors.muted }]}>ВЕС, КГ</Text>
+                        <TextInput value={focusedPart.weight} onChangeText={(value) => updateFocusedPart("weight", value)} onEndEditing={() => startRestAfterSetInput(focusedSetIndex)} keyboardType="decimal-pad" returnKeyType="done" placeholder={`план ${activePlan?.weight ?? "—"}`} placeholderTextColor={colors.muted} style={[styles.setEditorInput, { color: focusedPart.weight.trim() ? colors.foreground : colors.muted, backgroundColor: focusedPart.weight.trim() ? colors.surface : `${colors.muted}1A`, borderColor: focusedPart.weight.trim() ? colors.primary : colors.border }]} />
+                      </View>
                     </View>
-                    <View style={styles.setEditorFieldWrap}>
-                      <Text style={[styles.setEditorLabel, { color: colors.muted }]}>ВЕС, КГ</Text>
-                      <TextInput value={focusedPart.weight} onChangeText={(value) => updateFocusedPart("weight", value)} onEndEditing={() => startRestAfterSetInput(focusedSetIndex)} keyboardType="decimal-pad" returnKeyType="done" placeholder={`план ${activePlan?.weight ?? "—"}`} placeholderTextColor={colors.muted} style={[styles.setEditorInput, { color: focusedPart.weight.trim() ? colors.foreground : colors.muted, backgroundColor: focusedPart.weight.trim() ? colors.surface : `${colors.muted}1A`, borderColor: focusedPart.weight.trim() ? colors.primary : colors.border }]} />
-                    </View>
+                    <Pressable disabled={!setParts(focusedSet).length} onPress={finishFocusedSet} style={({ pressed }) => [styles.setEditorFinish, { backgroundColor: colors.primary, opacity: !setParts(focusedSet).length ? 0.45 : pressed ? 0.78 : 1 }]}>
+                      <Text style={styles.setEditorFinishText}>Завершено</Text>
+                    </Pressable>
                   </View>
-                  <Pressable disabled={!setParts(focusedSet).length} onPress={finishFocusedSet} style={({ pressed }) => [styles.setEditorFinish, { backgroundColor: colors.primary, opacity: !setParts(focusedSet).length ? 0.45 : pressed ? 0.78 : 1 }]}>
-                    <Text style={styles.setEditorFinishText}>Завершено</Text>
-                  </Pressable>
                 </View>
               )}
             </KeyboardAvoidingView>
@@ -865,18 +867,19 @@ const styles = StyleSheet.create({
   restSkipAction: { flex: 1.55, minHeight: 54, paddingHorizontal: 12, borderRadius: 16, alignItems: "center", justifyContent: "center" },
   restSkipText: { color: "#101412", fontSize: 14, fontWeight: "900" },
   setEditorBackdrop: { flex: 1 },
-  setEditorSheet: { flex: 1, padding: 24, paddingTop: 42, gap: 18, justifyContent: "space-between" },
-  setEditorHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", gap: 12 },
+  setEditorSheet: { flex: 1, padding: 24, paddingTop: 42 },
+  setEditorHeader: { position: "absolute", top: 42, left: 24, right: 24, flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", gap: 12 },
   setEditorEyebrow: { fontSize: 10, fontWeight: "900", letterSpacing: 0.9 },
   setEditorTitle: { fontSize: 28, fontWeight: "900", marginTop: 5 },
   setEditorClose: { width: 46, height: 46, borderRadius: 15, alignItems: "center", justifyContent: "center" },
   setEditorCloseText: { fontSize: 25, lineHeight: 28 },
-  setEditorHint: { fontSize: 14, lineHeight: 20, marginBottom: "auto" },
-  setEditorFields: { flexDirection: "row", gap: 14, paddingVertical: 24 },
+  setEditorCenter: { flex: 1, width: "100%", maxWidth: 360, alignSelf: "center", justifyContent: "center", gap: 22 },
+  setEditorHint: { fontSize: 14, lineHeight: 20, textAlign: "center" },
+  setEditorFields: { flexDirection: "row", gap: 14 },
   setEditorFieldWrap: { flex: 1, gap: 9 },
   setEditorLabel: { fontSize: 11, fontWeight: "900", letterSpacing: 0.75 },
   setEditorInput: { height: 86, borderRadius: 20, borderWidth: 1, textAlign: "center", fontSize: 30, fontWeight: "900" },
-  setEditorFinish: { minHeight: 62, borderRadius: 18, alignItems: "center", justifyContent: "center", marginTop: 8 },
+  setEditorFinish: { minHeight: 62, borderRadius: 18, alignItems: "center", justifyContent: "center", marginTop: 2 },
   setEditorFinishText: { color: "#101412", fontSize: 17, fontWeight: "900" },
   modalRoot: { flex: 1, paddingTop: 10 },
   modalHeader: { minHeight: 56, paddingHorizontal: 18, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
