@@ -12,7 +12,7 @@ import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
 import { MAX_DROP_SUBSETS, bestOneRepMax, getEffectiveSetWeight, getExercise, getExerciseHistory, getLoadZones, getSetVolumeWithDropSubsets, hasCompletedWorkoutSet, roundToWeightIncrement, type SetType } from "@/lib/workout-data";
 import { getRemainingRestSeconds, getRestProgress } from "@/lib/rest-timer";
-import { getPreviousWorkingResult, getQuickWeightOptions, prefillWorkingSet } from "@/lib/workout-set-entry";
+import { getHistoricalQuickWeightOptions, getPreviousWorkingResult, prefillWorkingSet } from "@/lib/workout-set-entry";
 import { useWorkoutStore } from "@/lib/workout-store";
 import { openReplacementPicker, subscribeToExerciseReplacement } from "@/lib/exercise-replacement-bus";
 
@@ -372,7 +372,12 @@ export default function WorkoutScreen() {
     updateSet(setIndex, (set) => ({ ...set, dropSubsets: (set.dropSubsets ?? []).filter((_, position) => position !== subsetIndex) }));
   };
   const openSetEditor = (index: number, subsetIndex?: number) => {
-    if (subsetIndex === undefined) setDraft((current) => prefillWorkingSet(current, index));
+    if (subsetIndex === undefined) {
+      setDraft((current) => prefillWorkingSet(current, index, {
+        reps: String(activePlan?.reps ?? ""),
+        weight: String(activePlan?.weight ?? ""),
+      }));
+    }
     setFocusedSetIndex(index);
     setFocusedSubsetIndex(subsetIndex ?? null);
   };
@@ -400,8 +405,9 @@ export default function WorkoutScreen() {
   const focusedPart = focusedSet && focusedSubsetIndex !== null ? focusedSet.dropSubsets?.[focusedSubsetIndex] : focusedSet;
   const previousWorkingResult = focusedSetIndex === null ? null : getPreviousWorkingResult(draft, focusedSetIndex);
   const quickWeightOptions = focusedPart
-    ? getQuickWeightOptions(focusedPart.weight, previousWorkingResult?.weight ?? String(activePlan?.weight ?? ""), plateStepKg)
+    ? getHistoricalQuickWeightOptions(history.flatMap((entry) => entry.sets), previousWorkingResult?.weight ?? String(activePlan?.weight ?? ""), plateStepKg)
     : [];
+  const hasHistoricalWeights = history.some((entry) => entry.sets.some((set) => set.weight > 0 || set.drop?.some((part) => Number(part.weight) > 0)));
   const updateFocusedPart = (field: keyof DropDraft, value: string) => {
     if (focusedSetIndex === null) return;
     if (focusedSubsetIndex === null) updateSet(focusedSetIndex, (item) => ({ ...item, [field]: value }));
@@ -816,16 +822,19 @@ export default function WorkoutScreen() {
                       </View>
                     </View>
                     {quickWeightOptions.length > 0 && (
-                      <View style={styles.quickWeightRow}>
-                        {quickWeightOptions.map((weight) => (
-                          <Pressable key={weight} onPress={() => updateFocusedPart("weight", weight)} style={({ pressed }) => [styles.quickWeightButton, { borderColor: focusedPart.weight === weight ? colors.primary : colors.border, backgroundColor: focusedPart.weight === weight ? colors.primary + "18" : colors.surface, opacity: pressed ? 0.7 : 1 }]}>
-                            <Text style={[styles.quickWeightText, { color: focusedPart.weight === weight ? colors.primary : colors.foreground }]}>{weight} кг</Text>
-                          </Pressable>
-                        ))}
+                      <View style={styles.quickWeightGroup}>
+                        <Text style={[styles.quickWeightLabel, { color: colors.muted }]}>{hasHistoricalWeights ? "ВЕС ИЗ ПРОШЛЫХ ТРЕНИРОВОК" : "БЫСТРЫЙ ВЫБОР ВЕСА"}</Text>
+                        <View style={styles.quickWeightRow}>
+                          {quickWeightOptions.map((weight) => (
+                            <Pressable key={weight} onPress={() => updateFocusedPart("weight", weight)} style={({ pressed }) => [styles.quickWeightButton, { borderColor: focusedPart.weight === weight ? colors.primary : colors.border, backgroundColor: focusedPart.weight === weight ? colors.primary + "18" : colors.surface, opacity: pressed ? 0.7 : 1 }]}>
+                              <Text style={[styles.quickWeightText, { color: focusedPart.weight === weight ? colors.primary : colors.foreground }]}>{weight} кг</Text>
+                            </Pressable>
+                          ))}
+                        </View>
                       </View>
                     )}
                     <Pressable disabled={!setParts(focusedSet).length} onPress={finishFocusedSet} style={({ pressed }) => [styles.setEditorFinish, { backgroundColor: colors.primary, opacity: !setParts(focusedSet).length ? 0.45 : pressed ? 0.78 : 1 }]}>
-                      <Text style={styles.setEditorFinishText}>Завершено</Text>
+                      <Text style={styles.setEditorFinishText}>Завершить подход</Text>
                     </Pressable>
                   </View>
                 </View>
@@ -892,6 +901,8 @@ const styles = StyleSheet.create({
   setEditorFieldWrap: { flex: 1, gap: 9 },
   setEditorLabel: { fontSize: 11, fontWeight: "900", letterSpacing: 0.75 },
   setEditorInput: { height: 86, borderRadius: 20, borderWidth: 1, textAlign: "center", fontSize: 30, fontWeight: "900" },
+  quickWeightGroup: { gap: 8 },
+  quickWeightLabel: { fontSize: 10, fontWeight: "900", letterSpacing: 0.65, textAlign: "center" },
   quickWeightRow: { flexDirection: "row", gap: 8, justifyContent: "center" },
   quickWeightButton: { flex: 1, minHeight: 42, borderRadius: 13, borderWidth: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 4 },
   quickWeightText: { fontSize: 12, fontWeight: "900" },
