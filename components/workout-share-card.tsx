@@ -11,9 +11,10 @@ type WorkoutShareCardProps = {
   programName: string;
   records: ShareableWorkoutRecord[];
   theme?: "dark" | "light";
+  note?: string;
 };
 
-export function WorkoutShareCard({ captureRef, workout, programName, records, theme = "dark" }: WorkoutShareCardProps) {
+export function WorkoutShareCard({ captureRef, workout, programName, records, theme = "dark", note = "" }: WorkoutShareCardProps) {
   const date = new Date(`${workout.date.slice(0, 10)}T12:00:00`).toLocaleDateString("ru-RU", { day: "numeric", month: "long", year: "numeric" });
   const volume = Math.round(workout.totalVolume).toLocaleString("ru-RU").replace(/\u00a0/g, " ");
   const light = theme === "light";
@@ -25,6 +26,7 @@ export function WorkoutShareCard({ captureRef, workout, programName, records, th
     <View style={[styles.rule, light && styles.lightRule]} />
     <View style={styles.metrics}><View><Text style={[styles.metricValue, light && styles.lightMetricValue]}>{workout.durationMinutes}</Text><Text style={[styles.metricUnit, light && styles.lightMetricUnit]}>МИНУТ</Text></View><View><Text style={[styles.metricValue, light && styles.lightMetricValue]}>{volume}</Text><Text style={[styles.metricUnit, light && styles.lightMetricUnit]}>КГ ОБЪЁМ</Text></View><View><Text style={[styles.metricValue, light && styles.lightMetricValue]}>{workout.sets?.length ?? 0}</Text><Text style={[styles.metricUnit, light && styles.lightMetricUnit]}>ПОДХОДОВ</Text></View></View>
     <View style={[styles.recordPanel, light && styles.lightRecordPanel]}><Text style={[styles.recordEyebrow, light && styles.lightRecordEyebrow]}>{records.length ? `НОВЫЕ ЛИЧНЫЕ РЕКОРДЫ · ${records.length}` : "ТРЕНИРОВКА ЗАВЕРШЕНА"}</Text>{records.length ? records.slice(0, 3).map((record) => <View key={record.exerciseId} style={styles.recordRow}><View style={{ flex: 1 }}><Text numberOfLines={1} style={[styles.recordName, light && styles.lightRecordName]}>{record.name}</Text><Text style={[styles.recordMeta, light && styles.lightRecordMeta]}>{record.weight} кг × {record.reps}</Text></View><Text style={styles.oneRm}>1RM {record.estimatedOneRepMax.toFixed(1)} кг</Text></View>) : <Text style={[styles.noRecords, light && styles.lightRecordMeta]}>Фиксируй фактические подходы — рекорды появятся здесь.</Text>}</View>
+    {note.trim() ? <View style={[styles.notePanel, light && styles.lightNotePanel]}><Text style={[styles.noteLabel, light && styles.lightNoteLabel]}>МОЯ ЗАМЕТКА</Text><Text numberOfLines={3} style={[styles.noteText, light && styles.lightRecordName]}>{note.trim()}</Text></View> : null}
     <View style={styles.footer}><View style={styles.footerMark}><Text style={styles.footerMarkText}>IR</Text></View><Text style={[styles.footerText, light && styles.lightFooterText]}>Сильнее, чем вчера</Text></View>
   </ViewShotComponent>;
 }
@@ -42,6 +44,7 @@ const styles = StyleSheet.create({
   lightMetricValue: { color: "#211335" }, lightMetricUnit: { color: "#665979" },
   recordPanel: { backgroundColor: "#FFFFFF15", borderColor: "#FFFFFF28", borderWidth: 1, borderRadius: 18, padding: 14, gap: 10 }, recordEyebrow: { color: "#C8F169", fontSize: 9, fontWeight: "900", letterSpacing: 0.8 }, recordRow: { flexDirection: "row", alignItems: "center", gap: 9 }, recordName: { color: "#FFFFFF", fontSize: 13, fontWeight: "900" }, recordMeta: { color: "#E8DFFF", fontSize: 10, marginTop: 3 }, oneRm: { color: "#C8F169", fontSize: 10, fontWeight: "900" }, noRecords: { color: "#E8DFFF", fontSize: 12, lineHeight: 17 },
   lightRecordPanel: { backgroundColor: "#FFFFFFB8", borderColor: "#6D3EAD35" }, lightRecordEyebrow: { color: "#3F8129" }, lightRecordName: { color: "#211335" }, lightRecordMeta: { color: "#5F5470" },
+  notePanel: { borderLeftWidth: 2, borderLeftColor: "#C8F169", paddingLeft: 10, marginTop: -6 }, lightNotePanel: { borderLeftColor: "#7A42C7" }, noteLabel: { color: "#C8F169", fontSize: 8, fontWeight: "900", letterSpacing: 0.7 }, lightNoteLabel: { color: "#6333A5" }, noteText: { color: "#FFFFFF", fontSize: 12, fontWeight: "700", lineHeight: 17, marginTop: 4 },
   footer: { flexDirection: "row", alignItems: "center", gap: 10 }, footerMark: { width: 28, height: 28, borderRadius: 9, alignItems: "center", justifyContent: "center", backgroundColor: "#C8F169" }, footerMarkText: { color: "#160E24", fontSize: 10, fontWeight: "900" }, footerText: { color: "#FFFFFF", fontSize: 12, fontWeight: "900" },
   lightFooterText: { color: "#211335" },
 });

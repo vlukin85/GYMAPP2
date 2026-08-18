@@ -17,6 +17,8 @@ describe("calendar result achievements", () => {
     expect(calendarScreen).toContain("shareTheme");
     expect(calendarScreen).toContain("Тёмная");
     expect(calendarScreen).toContain("Светлая");
+    expect(calendarScreen).toContain("ЛИЧНАЯ ЗАМЕТКА НА КАРТОЧКЕ");
+    expect(calendarScreen).toContain("shareNote");
     expect(calendarScreen).toContain("Sharing.shareAsync");
     expect(calendarScreen).toContain('mimeType: "image/png"');
     expect(calendarScreen).toContain("Share.share");

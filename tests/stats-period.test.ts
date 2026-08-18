@@ -29,5 +29,6 @@ describe("statistics period filters", () => {
     ];
     expect(filterWorkoutsByStatsFilter(workouts, { mode: "date", date: "2026-08-12" }, now).map((workout) => workout.id)).toEqual(["target"]);
     expect(getStatsFilterBounds({ mode: "custom", start: "2026-08-14", end: "2026-08-10" }, now)).toEqual({ start: "2026-08-10", end: "2026-08-14" });
+    expect(getStatsFilterBounds({ mode: "last30" }, now)).toEqual({ start: "2026-07-20", end: "2026-08-18" });
   });
 });

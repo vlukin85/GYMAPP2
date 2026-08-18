@@ -1,7 +1,7 @@
 import type { CompletedWorkout, PersonalRecord } from "./workout-data";
 
 export type StatsPeriod = "week" | "month" | "year";
-export type StatsFilterMode = StatsPeriod | "date" | "custom";
+export type StatsFilterMode = StatsPeriod | "date" | "custom" | "last30" | "last90";
 export type StatsDateFilter = { mode: StatsFilterMode; date?: string; start?: string; end?: string };
 
 function isIsoDate(value: string | undefined) {
@@ -12,6 +12,11 @@ export function getStatsFilterBounds(filter: StatsDateFilter, now = new Date()) 
   if (filter.mode === "date" && isIsoDate(filter.date)) return { start: filter.date!, end: filter.date! };
   if (filter.mode === "custom" && isIsoDate(filter.start) && isIsoDate(filter.end)) {
     return filter.start! <= filter.end! ? { start: filter.start!, end: filter.end! } : { start: filter.end!, end: filter.start! };
+  }
+  if (filter.mode === "last30" || filter.mode === "last90") {
+    const start = new Date(now);
+    start.setDate(start.getDate() - (filter.mode === "last30" ? 29 : 89));
+    return { start: start.toISOString().slice(0, 10), end: now.toISOString().slice(0, 10) };
   }
   const start = getStatsPeriodStart(filter.mode as StatsPeriod, now).toISOString().slice(0, 10);
   return { start, end: now.toISOString().slice(0, 10) };
