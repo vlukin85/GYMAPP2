@@ -3,12 +3,12 @@ import { Alert, AppState, FlatList, Keyboard, KeyboardAvoidingView, LayoutAnimat
 import { setAudioModeAsync, useAudioPlayer } from "expo-audio";
 import { activateKeepAwakeAsync, deactivateKeepAwake } from "expo-keep-awake";
 import * as Haptics from "expo-haptics";
-import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import Svg, { Circle } from "react-native-svg";
 import { router, useLocalSearchParams } from "expo-router";
 import { Swipeable } from "react-native-gesture-handler";
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
+import { SafeMaterialIcon } from "@/components/ui/safe-material-icon";
 import { useColors } from "@/hooks/use-colors";
 import { MAX_DROP_SUBSETS, bestOneRepMax, exercises, getEffectiveSetWeight, getExercise, getExerciseHistory, getLoadZones, getSetVolumeWithDropSubsets, hasCompletedWorkoutSet, muscleGroups, roundToWeightIncrement, type Exercise, type ProgramExercise, type SetType } from "@/lib/workout-data";
 import { getRemainingRestSeconds, getRestProgress } from "@/lib/rest-timer";
@@ -174,7 +174,7 @@ function ExerciseDragHandle({
 
   return (
     <View {...panResponder.panHandlers} style={[styles.dragHandle, isDragging && [styles.dragHandleActive, { backgroundColor: colors.primary, borderColor: colors.primary }], !isDragging && { backgroundColor: colors.background, borderColor: colors.border }]} accessibilityLabel="Перетащите для изменения порядка">
-      <MaterialIcons name="drag-handle" size={21} color={isDragging ? "#101412" : colors.muted} />
+      <SafeMaterialIcon name="drag-handle" size={21} color={isDragging ? "#101412" : colors.muted} />
     </View>
   );
 }
@@ -723,18 +723,18 @@ export default function WorkoutScreen() {
                   accessibilityRole="button"
                   accessibilityLabel={`Удалить ${exercise?.name ?? "упражнение"}`}
                 >
-                  <MaterialIcons name="delete-outline" size={26} color="#FFFFFF" />
+                  <SafeMaterialIcon name="delete-outline" size={26} color="#FFFFFF" />
                   <Text style={styles.swipeDeleteText}>Удалить</Text>
                 </Pressable>
               )}
             >
               <View style={[styles.exerciseWrap, isDragging && styles.exerciseWrapDragging]}>
-                {isDropTarget && <View pointerEvents="none" style={[styles.dropIndicator, { backgroundColor: colors.primary }]}><MaterialIcons name="south" size={16} color="#101412" /><Text style={styles.dropIndicatorText}>Отпустите здесь</Text></View>}
+                {isDropTarget && <View pointerEvents="none" style={[styles.dropIndicator, { backgroundColor: colors.primary }]}><SafeMaterialIcon name="south" size={16} color="#101412" /><Text style={styles.dropIndicatorText}>Отпустите здесь</Text></View>}
                 {supersetStart && <Text style={[styles.supersetFlag, { color: colors.primary }]}>СУПЕРСЕТ {item.supersetGroup}</Text>}
                 <Pressable onPress={() => openExercise(item.exerciseId)} style={[styles.exercise, isDragging && styles.exerciseDragging, { backgroundColor: colors.surface, borderColor: isDragging || filled ? colors.primary : colors.border }]}>
                   <View style={styles.exerciseRow}>
                     <View style={[styles.number, { backgroundColor: filled ? colors.success : colors.background }]}>
-                      {filled ? <MaterialIcons name="check" size={18} color="#FFFFFF" /> : <Text style={{ color: colors.muted, fontWeight: "800" }}>{index + 1}</Text>}
+                      {filled ? <SafeMaterialIcon name="check" size={18} color="#FFFFFF" /> : <Text style={{ color: colors.muted, fontWeight: "800" }}>{index + 1}</Text>}
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text style={[styles.exerciseName, { color: colors.foreground }]}>{exercise?.name}</Text>
@@ -754,7 +754,7 @@ export default function WorkoutScreen() {
                     />
                     <IconSymbol name="chevron.right" size={20} color={colors.muted} />
                   </View>
-                  {isDragging && <View style={[styles.draggingLabel, { backgroundColor: colors.primary + "18" }]}><MaterialIcons name="open-with" size={15} color={colors.primary} /><Text style={[styles.draggingLabelText, { color: colors.primary }]}>ПЕРЕМЕЩЕНИЕ УПРАЖНЕНИЯ</Text></View>}
+                  {isDragging && <View style={[styles.draggingLabel, { backgroundColor: colors.primary + "18" }]}><SafeMaterialIcon name="open-with" size={15} color={colors.primary} /><Text style={[styles.draggingLabelText, { color: colors.primary }]}>ПЕРЕМЕЩЕНИЕ УПРАЖНЕНИЯ</Text></View>}
                 </Pressable>
                 <Pressable onPress={() => openReplacementPicker(item.exerciseId)} style={({ pressed }) => [styles.replaceButton, { backgroundColor: colors.primary + "12", borderColor: colors.primary + "3D" }, pressed && { opacity: 0.72 }]}>
                   <Text style={[styles.replaceButtonText, { color: colors.primary }]}>⇄ Заменить упражнение</Text>
@@ -765,7 +765,7 @@ export default function WorkoutScreen() {
         })}
 
         <Pressable onPress={() => setCatalogVisible(true)} style={({ pressed }) => [styles.addExercise, { borderColor: colors.primary, backgroundColor: colors.primary + "10", opacity: pressed ? 0.72 : 1 }]}>
-          <MaterialIcons name="add-circle-outline" size={20} color={colors.primary} />
+          <SafeMaterialIcon name="add-circle-outline" size={20} color={colors.primary} />
           <Text style={[styles.addExerciseText, { color: colors.primary }]}>Добавить упражнение</Text>
         </Pressable>
 
@@ -823,7 +823,7 @@ export default function WorkoutScreen() {
                   <Text style={[styles.catalogItemName, { color: colors.foreground }]}>{item.name}</Text>
                   <Text style={[styles.catalogItemMeta, { color: colors.muted }]}>{item.group} · {item.equipment}</Text>
                 </View>
-                <MaterialIcons name="add-circle" size={24} color={colors.primary} />
+                <SafeMaterialIcon name="add-circle" size={24} color={colors.primary} />
               </Pressable>
             )}
           />

@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { Alert, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
-import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { router } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
+import { SafeMaterialIcon } from "@/components/ui/safe-material-icon";
 import { useColors } from "@/hooks/use-colors";
 import { cacheAllExercisePhotosOnWifi } from "@/lib/exercise-image-cache";
 import { getLocalStorageUsage } from "@/lib/local-storage-usage";
@@ -151,7 +151,7 @@ export default function SettingsScreen() {
         <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Groq AI</Text>
         <View style={[styles.groqCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <View style={styles.groqHeader}>
-            <View style={[styles.groqIcon, { backgroundColor: `${colors.primary}17` }]}><MaterialIcons name="auto-awesome" size={20} color={colors.primary} /></View>
+            <View style={[styles.groqIcon, { backgroundColor: `${colors.primary}17` }]}><SafeMaterialIcon name="auto-awesome" size={20} color={colors.primary} /></View>
             <View style={{ flex: 1 }}><Text style={[styles.groqTitle, { color: colors.foreground }]}>Личный API-ключ Groq</Text><Text style={[styles.groqSubtitle, { color: colors.muted }]}>{hasGroqKey ? "Ключ сохранён на этом устройстве. Можно заменить его в любой момент." : "Добавь ключ, чтобы создавать программы через Groq AI."}</Text></View>
             <Text style={[styles.groqStatus, { color: hasGroqKey ? colors.success : colors.muted, backgroundColor: hasGroqKey ? `${colors.success}18` : colors.border }]}>{hasGroqKey ? "ГОТОВО" : "НЕТ КЛЮЧА"}</Text>
           </View>
@@ -163,7 +163,7 @@ export default function SettingsScreen() {
         <View style={[styles.storageCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <View style={styles.storageHeader}>
             <View style={[styles.storageIcon, { backgroundColor: `${colors.primary}17` }]}>
-              <MaterialIcons name="storage" size={22} color={colors.primary} />
+              <SafeMaterialIcon name="storage" size={22} color={colors.primary} />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={[styles.storageTitle, { color: colors.foreground }]}>Данные на этом устройстве</Text>
@@ -172,7 +172,7 @@ export default function SettingsScreen() {
               </Text>
             </View>
             <Pressable onPress={refreshStorageUsage} accessibilityLabel="Обновить объём хранилища" style={({ pressed }) => [styles.refreshStorage, { borderColor: colors.border, opacity: pressed ? 0.65 : 1 }]}>
-              <MaterialIcons name="refresh" size={19} color={colors.primary} />
+              <SafeMaterialIcon name="refresh" size={19} color={colors.primary} />
             </Pressable>
           </View>
 
