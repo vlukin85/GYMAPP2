@@ -17,6 +17,7 @@ import { getRemainingRestSeconds, getRestProgress } from "@/lib/rest-timer";
 import { getHistoricalQuickWeightOptions, getPreviousWorkingResult, prefillWorkingSet } from "@/lib/workout-set-entry";
 import { filterActiveWorkoutCatalog, reorderActiveWorkoutExercises } from "@/lib/active-workout-utils";
 import { countWorkoutSetUnits, getWorkoutProgress } from "@/lib/workout-progress";
+import { formatForecastDuration, getWorkoutFinishForecast } from "@/lib/workout-finish-forecast";
 import { useWorkoutStore } from "@/lib/workout-store";
 import { openReplacementPicker, subscribeToExerciseReplacement } from "@/lib/exercise-replacement-bus";
 
@@ -185,8 +186,9 @@ function ExerciseDragHandle({
   );
 }
 
-function WorkoutProgressCard({ completedSets, totalSets, lastAutosavedAt, colors }: { completedSets: number; totalSets: number; lastAutosavedAt: number | null; colors: ReturnType<typeof useColors> }) {
+function WorkoutProgressCard({ completedSets, totalSets, elapsedSeconds, lastAutosavedAt, colors }: { completedSets: number; totalSets: number; elapsedSeconds: number; lastAutosavedAt: number | null; colors: ReturnType<typeof useColors> }) {
   const progress = getWorkoutProgress(completedSets, totalSets);
+  const forecast = getWorkoutFinishForecast(elapsedSeconds, completedSets, totalSets);
   const progressWidth = useSharedValue(progress.ratio * 100);
   useEffect(() => {
     progressWidth.value = withTiming(progress.ratio * 100, { duration: 280, easing: Easing.out(Easing.cubic) });
@@ -196,6 +198,9 @@ function WorkoutProgressCard({ completedSets, totalSets, lastAutosavedAt, colors
   const savedLabel = lastAutosavedAt
     ? new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }).format(new Date(lastAutosavedAt))
     : "ожидание первого сохранения";
+  const finishLabel = forecast.estimatedFinishAt
+    ? new Intl.DateTimeFormat("ru-RU", { hour: "2-digit", minute: "2-digit" }).format(new Date(forecast.estimatedFinishAt))
+    : null;
   return (
     <View style={[styles.workoutProgressCard, { backgroundColor: colors.surface, borderColor: colors.border }]}> 
       <View style={styles.workoutProgressHeader}>
@@ -203,6 +208,7 @@ function WorkoutProgressCard({ completedSets, totalSets, lastAutosavedAt, colors
           <Text style={[styles.workoutProgressEyebrow, { color: colors.primary }]}>ПРОГРЕСС ТРЕНИРОВКИ</Text>
           <Text style={[styles.workoutProgressCopy, { color: colors.foreground }]}>{progress.completed} из {progress.total || "—"} подходов завершено</Text>
           <Text style={[styles.workoutProgressSaved, { color: colors.muted }]}>Автосохранено: {savedLabel}</Text>
+          <Text style={[styles.workoutForecast, { color: colors.muted }]}>{finishLabel ? `Текущий темп: ${formatForecastDuration(forecast.secondsRemaining)} · завершение к ${finishLabel}` : "Прогноз появится после первого завершённого подхода"}</Text>
         </View>
         <View style={styles.workoutProgressRing}>
           <Svg width={WORKOUT_PROGRESS_CIRCLE_SIZE} height={WORKOUT_PROGRESS_CIRCLE_SIZE} viewBox={`0 0 ${WORKOUT_PROGRESS_CIRCLE_SIZE} ${WORKOUT_PROGRESS_CIRCLE_SIZE}`}>
@@ -616,6 +622,7 @@ export default function WorkoutScreen() {
   const finishFocusedSet = () => {
     if (focusedSetIndex === null) return;
     startRestAfterSetInput(focusedSetIndex);
+    if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => undefined);
     closeSetEditor();
   };
   const focusedSet = focusedSetIndex === null ? undefined : draft[focusedSetIndex];
@@ -859,7 +866,7 @@ export default function WorkoutScreen() {
         </View>
         <Text style={[styles.title, { color: colors.foreground }]}>{program.name}</Text>
         <Text style={[styles.helper, { color: colors.muted }]}>Сохраняйте только выполненные упражнения. Свайпните карточку влево для удаления, перетащите маркер ⠿ для смены порядка.</Text>
-        <WorkoutProgressCard completedSets={completedSetCount} totalSets={totalPlannedSetCount} lastAutosavedAt={lastAutosavedAt} colors={colors} />
+        <WorkoutProgressCard completedSets={completedSetCount} totalSets={totalPlannedSetCount} elapsedSeconds={elapsed} lastAutosavedAt={lastAutosavedAt} colors={colors} />
 
         {renderedSessionExercises.map((item, index) => {
           const exercise = getExercise(actualExerciseId(item.exerciseId));
@@ -1253,6 +1260,7 @@ const styles = StyleSheet.create({
   workoutProgressEyebrow: { fontSize: 9, fontWeight: "900", letterSpacing: 0.9 },
   workoutProgressCopy: { fontSize: 13, fontWeight: "800", marginTop: 4 },
   workoutProgressSaved: { fontSize: 10, lineHeight: 15, marginTop: 5 },
+  workoutForecast: { fontSize: 10, lineHeight: 15, marginTop: 2 },
   workoutProgressRing: { width: WORKOUT_PROGRESS_CIRCLE_SIZE, height: WORKOUT_PROGRESS_CIRCLE_SIZE, alignItems: "center", justifyContent: "center" },
   workoutProgressRingLabel: { position: "absolute", alignItems: "center", justifyContent: "center" },
   workoutProgressPercent: { fontSize: 16, fontWeight: "900" },
