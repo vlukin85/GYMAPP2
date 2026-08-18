@@ -6,6 +6,7 @@ import * as Haptics from "expo-haptics";
 import Svg, { Circle } from "react-native-svg";
 import { router, useLocalSearchParams } from "expo-router";
 import { Swipeable } from "react-native-gesture-handler";
+import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { SafeMaterialIcon } from "@/components/ui/safe-material-icon";
@@ -15,6 +16,7 @@ import { MAX_DROP_SUBSETS, bestOneRepMax, exercises, getEffectiveSetWeight, getE
 import { getRemainingRestSeconds, getRestProgress } from "@/lib/rest-timer";
 import { getHistoricalQuickWeightOptions, getPreviousWorkingResult, prefillWorkingSet } from "@/lib/workout-set-entry";
 import { filterActiveWorkoutCatalog, reorderActiveWorkoutExercises } from "@/lib/active-workout-utils";
+import { getWorkoutProgress } from "@/lib/workout-progress";
 import { useWorkoutStore } from "@/lib/workout-store";
 import { openReplacementPicker, subscribeToExerciseReplacement } from "@/lib/exercise-replacement-bus";
 
@@ -180,6 +182,29 @@ function ExerciseDragHandle({
   );
 }
 
+function WorkoutProgressCard({ completedExercises, totalExercises, colors }: { completedExercises: number; totalExercises: number; colors: ReturnType<typeof useColors> }) {
+  const progress = getWorkoutProgress(completedExercises, totalExercises);
+  const progressWidth = useSharedValue(progress.ratio * 100);
+  useEffect(() => {
+    progressWidth.value = withTiming(progress.ratio * 100, { duration: 280, easing: Easing.out(Easing.cubic) });
+  }, [progress.ratio, progressWidth]);
+  const progressStyle = useAnimatedStyle(() => ({ width: `${progressWidth.value}%` }));
+  return (
+    <View style={[styles.workoutProgressCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+      <View style={styles.workoutProgressHeader}>
+        <View>
+          <Text style={[styles.workoutProgressEyebrow, { color: colors.primary }]}>ПРОГРЕСС ТРЕНИРОВКИ</Text>
+          <Text style={[styles.workoutProgressCopy, { color: colors.foreground }]}>{progress.completed} из {progress.total || "—"} упражнений завершено</Text>
+        </View>
+        <Text style={[styles.workoutProgressPercent, { color: colors.primary }]}>{progress.percent}%</Text>
+      </View>
+      <View style={[styles.workoutProgressTrack, { backgroundColor: colors.border }]}>
+        <Animated.View style={[styles.workoutProgressFill, { backgroundColor: colors.primary }, progressStyle]} />
+      </View>
+    </View>
+  );
+}
+
 export default function WorkoutScreen() {
   const colors = useColors();
   const { programId } = useLocalSearchParams<{ programId: string }>();
@@ -196,6 +221,7 @@ export default function WorkoutScreen() {
     restTimerVibrationEnabled,
     exercisePreferences,
     setExercisePreference,
+    discardActiveWorkout,
   } = store;
   const program = programs.find((item) => item.id === (programId ?? "upper-strength"));
   const programSnapshotId = program?.id ?? programId ?? "upper-strength";
@@ -739,6 +765,28 @@ export default function WorkoutScreen() {
     }
   };
 
+  const resetActiveWorkout = () => {
+    Alert.alert("Сбросить текущую тренировку?", "Черновик подходов, изменения порядка, замены и таймер будут удалены без возможности восстановления.", [
+      { text: "Отмена", style: "cancel" },
+      {
+        text: "Сбросить тренировку",
+        style: "destructive",
+        onPress: () => {
+          isDraftPersistenceEnabledRef.current = false;
+          void clearActiveWorkoutDraft()
+            .then(() => {
+              discardActiveWorkout();
+              router.replace("/(tabs)");
+            })
+            .catch(() => {
+              isDraftPersistenceEnabledRef.current = true;
+              Alert.alert("Не удалось сбросить тренировку", "Данные не были удалены. Попробуйте ещё раз.");
+            });
+        },
+      },
+    ]);
+  };
+
   const fieldStyle = (value: string) => [
     styles.input,
     {
@@ -755,6 +803,7 @@ export default function WorkoutScreen() {
       backgroundColor: value.trim() ? colors.background : `${colors.muted}1A`,
     },
   ];
+  const completedExerciseCount = sessionExercises.filter((item) => done[item.exerciseId]).length;
 
   return (
     <ScreenContainer edges={["top", "left", "right", "bottom"]} className="px-5" containerClassName="bg-background">
@@ -777,12 +826,14 @@ export default function WorkoutScreen() {
             <IconSymbol name="chevron.left" size={27} color={colors.foreground} />
           </Pressable>
           <Text style={[styles.navTitle, { color: colors.foreground }]}>Активная тренировка</Text>
-          <Text style={[styles.timer, { color: colors.primary }]}>
-            {String(Math.floor(elapsed / 60)).padStart(2, "0")}:{String(elapsed % 60).padStart(2, "0")}
-          </Text>
+          <View style={styles.navActions}>
+            <Pressable onPress={resetActiveWorkout} hitSlop={8}><Text style={[styles.resetNavText, { color: colors.error }]}>Сбросить</Text></Pressable>
+            <Text style={[styles.timer, { color: colors.primary }]}>{String(Math.floor(elapsed / 60)).padStart(2, "0")}:{String(elapsed % 60).padStart(2, "0")}</Text>
+          </View>
         </View>
         <Text style={[styles.title, { color: colors.foreground }]}>{program.name}</Text>
         <Text style={[styles.helper, { color: colors.muted }]}>Сохраняйте только выполненные упражнения. Свайпните карточку влево для удаления, перетащите маркер ⠿ для смены порядка.</Text>
+        <WorkoutProgressCard completedExercises={completedExerciseCount} totalExercises={sessionExercises.length} colors={colors} />
 
         {renderedSessionExercises.map((item, index) => {
           const exercise = getExercise(actualExerciseId(item.exerciseId));
@@ -1165,10 +1216,19 @@ export default function WorkoutScreen() {
 const styles = StyleSheet.create({
   content: { paddingTop: 16, paddingBottom: 32, gap: 13 },
   nav: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  navActions: { flexDirection: "row", alignItems: "center", gap: 10 },
   navTitle: { fontSize: 16, fontWeight: "800" },
   timer: { fontSize: 14, fontWeight: "800" },
+  resetNavText: { fontSize: 11, fontWeight: "900" },
   title: { fontSize: 23, fontWeight: "800", marginTop: 8 },
   helper: { fontSize: 12, lineHeight: 18 },
+  workoutProgressCard: { borderWidth: 1, borderRadius: 17, padding: 13, gap: 10, marginTop: 2 },
+  workoutProgressHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end", gap: 12 },
+  workoutProgressEyebrow: { fontSize: 9, fontWeight: "900", letterSpacing: 0.9 },
+  workoutProgressCopy: { fontSize: 13, fontWeight: "800", marginTop: 4 },
+  workoutProgressPercent: { fontSize: 23, fontWeight: "900" },
+  workoutProgressTrack: { height: 8, borderRadius: 6, overflow: "hidden" },
+  workoutProgressFill: { height: "100%", borderRadius: 6, minWidth: 0 },
   exerciseWrap: { gap: 5, position: "relative" },
   exerciseWrapDragging: { zIndex: 5 },
   dropIndicator: { position: "absolute", left: 14, right: 14, top: -9, height: 26, borderRadius: 9, zIndex: 8, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 4, elevation: 8, shadowColor: "#000000", shadowOpacity: 0.16, shadowRadius: 6, shadowOffset: { width: 0, height: 3 } },

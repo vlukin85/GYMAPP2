@@ -8,6 +8,7 @@ import "react-native-reanimated";
 import { Platform } from "react-native";
 import "@/lib/_core/nativewind-pressable";
 import { ThemeProvider } from "@/lib/theme-provider";
+import { SvgIconThemeProvider } from "@/lib/svg-icon-theme";
 import { WorkoutReplacementOverlay } from "@/components/workout-replacement-overlay";
 import { ReleaseNotesOverlay } from "@/components/release-notes-overlay";
 import { StartupErrorBoundary } from "@/components/startup-error-boundary";
@@ -106,7 +107,7 @@ export default function RootLayout() {
 
   if (shouldOverrideSafeArea) {
     return (
-      <StartupErrorBoundary><ThemeProvider>
+      <StartupErrorBoundary><ThemeProvider><SvgIconThemeProvider>
         <WorkoutProvider>
         <SafeAreaProvider initialMetrics={providerInitialMetrics}>
           <SafeAreaFrameContext.Provider value={frame}>
@@ -116,15 +117,15 @@ export default function RootLayout() {
           </SafeAreaFrameContext.Provider>
         </SafeAreaProvider>
         </WorkoutProvider>
-      </ThemeProvider></StartupErrorBoundary>
+      </SvgIconThemeProvider></ThemeProvider></StartupErrorBoundary>
     );
   }
 
   return (
-    <StartupErrorBoundary><ThemeProvider>
+    <StartupErrorBoundary><ThemeProvider><SvgIconThemeProvider>
       <WorkoutProvider>
         <SafeAreaProvider initialMetrics={providerInitialMetrics}>{content}</SafeAreaProvider>
       </WorkoutProvider>
-    </ThemeProvider></StartupErrorBoundary>
+    </SvgIconThemeProvider></ThemeProvider></StartupErrorBoundary>
   );
 }

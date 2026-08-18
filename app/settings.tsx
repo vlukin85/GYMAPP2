@@ -5,6 +5,7 @@ import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { SafeMaterialIcon } from "@/components/ui/safe-material-icon";
 import { useColors } from "@/hooks/use-colors";
+import { SVG_ICON_THEMES, useSvgIconTheme } from "@/lib/svg-icon-theme";
 import { cacheAllExercisePhotosOnWifi } from "@/lib/exercise-image-cache";
 import { getLocalStorageUsage } from "@/lib/local-storage-usage";
 import { formatStorageBytes, getUsagePercent } from "@/lib/storage-usage-utils";
@@ -21,6 +22,7 @@ const formulas: { id: OneRepMaxFormula; title: string; formula: string; descript
 export default function SettingsScreen() {
   const colors = useColors();
   const store = useWorkoutStore();
+  const { theme: svgIconTheme, setThemeId } = useSvgIconTheme();
   const { oneRmFormula, setOneRmFormula, plateStepKg, setPlateStepKg, bodyWeightKg, bodyweightVolumePercent, setBodyweightVolumeSettings } = store;
   const [bodyWeight, setBodyWeight] = useState(String(bodyWeightKg));
   const [bodyPercent, setBodyPercent] = useState(String(bodyweightVolumePercent));
@@ -133,6 +135,27 @@ export default function SettingsScreen() {
               <Text style={{ color: plateStepKg === step ? "#101412" : colors.foreground, fontWeight: "800" }}>{step} кг</Text>
             </Pressable>
           ))}
+        </View>
+
+        <Text style={[styles.sectionTitle, { color: colors.foreground }]}>SVG-иконки</Text>
+        <View style={[styles.iconThemeCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <Text style={[styles.iconThemeTitle, { color: colors.foreground }]}>Цвет интерфейсных иконок</Text>
+          <Text style={[styles.iconThemeHint, { color: colors.muted }]}>Меняет акцентные SVG-иконки в web-версии без повторной загрузки шрифтов.</Text>
+          <View style={styles.iconThemeOptions}>
+            {SVG_ICON_THEMES.map((theme) => {
+              const selected = theme.id === svgIconTheme.id;
+              return (
+                <Pressable key={theme.id} onPress={() => setThemeId(theme.id)} style={({ pressed }) => [styles.iconThemeOption, { borderColor: selected ? theme.color : colors.border, backgroundColor: selected ? `${theme.color}16` : colors.background, opacity: pressed ? 0.7 : 1 }]}>
+                  <View style={[styles.iconThemeSwatch, { backgroundColor: theme.color }]} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.iconThemeOptionTitle, { color: colors.foreground }]}>{theme.title}</Text>
+                    <Text style={[styles.iconThemeOptionHint, { color: colors.muted }]}>{theme.description}</Text>
+                  </View>
+                  {selected && <IconSymbol name="checkmark" size={18} color={theme.color} />}
+                </Pressable>
+              );
+            })}
+          </View>
         </View>
 
         <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Упражнения с весом тела</Text>
@@ -262,6 +285,14 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: 18, fontWeight: "800", marginTop: 9 },
   stepRow: { flexDirection: "row", gap: 9 },
   step: { flex: 1, minHeight: 44, borderRadius: 13, borderWidth: 1, alignItems: "center", justifyContent: "center" },
+  iconThemeCard: { borderWidth: 1, borderRadius: 18, padding: 14, gap: 10 },
+  iconThemeTitle: { fontSize: 14, fontWeight: "900" },
+  iconThemeHint: { fontSize: 11, lineHeight: 16 },
+  iconThemeOptions: { gap: 8 },
+  iconThemeOption: { minHeight: 52, borderWidth: 1, borderRadius: 13, paddingHorizontal: 11, flexDirection: "row", alignItems: "center", gap: 9 },
+  iconThemeSwatch: { width: 18, height: 18, borderRadius: 9 },
+  iconThemeOptionTitle: { fontSize: 12, fontWeight: "900" },
+  iconThemeOptionHint: { fontSize: 10, marginTop: 2 },
   bodyFields: { flexDirection: "row", gap: 9 },
   fieldLabel: { fontSize: 10, fontWeight: "800", marginBottom: 5 },
   field: { height: 48, borderWidth: 1, borderRadius: 13, paddingHorizontal: 12, fontSize: 15, fontWeight: "800" },

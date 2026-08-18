@@ -1,5 +1,6 @@
 import Svg, { Circle, Path, Rect, type SvgProps } from "react-native-svg";
 import type { OpaqueColorValue, StyleProp, ViewStyle } from "react-native";
+import { useSvgIconTheme } from "@/lib/svg-icon-theme";
 
 export type WebSvgIconName =
   | "add-circle"
@@ -38,8 +39,10 @@ type WebSvgIconProps = {
 
 /** Inline SVG icon set for browser preview: crisp at every scale and free of font loading. */
 export function WebSvgIcon({ name, size = 24, color, style }: WebSvgIconProps) {
+  const { theme } = useSvgIconTheme();
+  const effectiveColor = color === "#7C3AED" ? theme.color : color;
   const stroke: Pick<SvgProps, "stroke" | "strokeWidth" | "strokeLinecap" | "strokeLinejoin"> = {
-    stroke: color,
+    stroke: effectiveColor,
     strokeWidth: 1.9,
     strokeLinecap: "round",
     strokeLinejoin: "round",
@@ -62,9 +65,9 @@ export function WebSvgIcon({ name, size = 24, color, style }: WebSvgIconProps) {
       case "dumbbell":
         return <><Path {...stroke} d="m7 8-2-2-2 2 2 2m12-2 2-2 2 2-2 2M7 16l-2 2-2-2 2-2m12 2 2 2 2-2-2-2M7 9l10 6M7 15l10-6" /></>;
       case "list":
-        return <><Circle {...stroke} cx="5" cy="6" r=".8" fill={color} /><Circle {...stroke} cx="5" cy="12" r=".8" fill={color} /><Circle {...stroke} cx="5" cy="18" r=".8" fill={color} /><Path {...stroke} d="M9 6h10M9 12h10M9 18h10" /></>;
+        return <><Circle {...stroke} cx="5" cy="6" r=".8" fill={effectiveColor} /><Circle {...stroke} cx="5" cy="12" r=".8" fill={effectiveColor} /><Circle {...stroke} cx="5" cy="18" r=".8" fill={effectiveColor} /><Path {...stroke} d="M9 6h10M9 12h10M9 18h10" /></>;
       case "chart":
-        return <><Path {...stroke} d="M4 20V10M10 20V4M16 20v-7M22 20H2" /><Rect x="3" y="10" width="2" height="10" rx="1" fill={color} /><Rect x="9" y="4" width="2" height="16" rx="1" fill={color} /><Rect x="15" y="13" width="2" height="7" rx="1" fill={color} /></>;
+        return <><Path {...stroke} d="M4 20V10M10 20V4M16 20v-7M22 20H2" /><Rect x="3" y="10" width="2" height="10" rx="1" fill={effectiveColor} /><Rect x="9" y="4" width="2" height="16" rx="1" fill={effectiveColor} /><Rect x="15" y="13" width="2" height="7" rx="1" fill={effectiveColor} /></>;
       case "calendar":
         return <><Rect {...stroke} x="3" y="5" width="18" height="16" rx="3" /><Path {...stroke} d="M7 3v4M17 3v4M3 10h18M8 14h.01M12 14h.01M16 14h.01M8 17h.01M12 17h.01" /></>;
       case "arrow-forward":
@@ -76,7 +79,7 @@ export function WebSvgIcon({ name, size = 24, color, style }: WebSvgIconProps) {
       case "trophy":
         return <><Path {...stroke} d="M8 4h8v6a4 4 0 0 1-8 0zM8 6H4v1a4 4 0 0 0 4 4M16 6h4v1a4 4 0 0 1-4 4M12 14v4M8 21h8M9 18h6" /></>;
       case "play":
-        return <><Circle {...stroke} cx="12" cy="12" r="9" /><Path d="m10 8 6 4-6 4z" fill={color} /></>;
+        return <><Circle {...stroke} cx="12" cy="12" r="9" /><Path d="m10 8 6 4-6 4z" fill={effectiveColor} /></>;
       case "check":
         return <Path {...stroke} strokeWidth={2.3} d="m5 12 4.2 4.2L19 6.7" />;
       case "check-circle":
@@ -90,7 +93,7 @@ export function WebSvgIcon({ name, size = 24, color, style }: WebSvgIconProps) {
       case "delete":
         return <><Path {...stroke} d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13M10 11v5M14 11v5" /></>;
       case "drag-handle":
-        return <><Circle fill={color} cx="8" cy="6" r="1.2" /><Circle fill={color} cx="16" cy="6" r="1.2" /><Circle fill={color} cx="8" cy="12" r="1.2" /><Circle fill={color} cx="16" cy="12" r="1.2" /><Circle fill={color} cx="8" cy="18" r="1.2" /><Circle fill={color} cx="16" cy="18" r="1.2" /></>;
+        return <><Circle fill={effectiveColor} cx="8" cy="6" r="1.2" /><Circle fill={effectiveColor} cx="16" cy="6" r="1.2" /><Circle fill={effectiveColor} cx="8" cy="12" r="1.2" /><Circle fill={effectiveColor} cx="16" cy="12" r="1.2" /><Circle fill={effectiveColor} cx="8" cy="18" r="1.2" /><Circle fill={effectiveColor} cx="16" cy="18" r="1.2" /></>;
       case "move":
         return <><Path {...stroke} d="M12 3v18M3 12h18M12 3 9 6m3-3 3 3M12 21l-3-3m3 3 3-3M3 12l3-3m-3 3 3 3M21 12l-3-3m3 3-3 3" /></>;
       case "refresh":
