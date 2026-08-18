@@ -27,6 +27,7 @@ type WorkoutContextValue = WorkoutState & {
   ready: boolean;
   startWorkout: (programId: string) => void;
   finishWorkout: (programId: string, volume: number, sets: { exerciseId: string; weight: number; reps: number }[]) => { minutes: number; newRecordIds: string[]; maxOneRmDelta: number };
+  deleteCompletedWorkout: (workoutId: string) => void;
   scheduleProgram: (date: string, schedule: ScheduledWorkout) => void;
   removeSchedule: (date: string) => void;
   addProgram: (program: WorkoutProgram) => void;
@@ -60,6 +61,26 @@ type WorkoutContextValue = WorkoutState & {
 };
 
 const STORAGE_KEY = "gym-diary-state-v1";
+
+export function rebuildPersonalRecords(completed: CompletedWorkout[], formula: OneRepMaxFormula): Record<string, PersonalRecord> {
+  return [...completed]
+    .sort((first, second) => `${first.date}-${first.id}`.localeCompare(`${second.date}-${second.id}`))
+    .reduce<Record<string, PersonalRecord>>((records, workout) => {
+      const grouped = (workout.sets ?? []).reduce<Record<string, { weight: number; reps: number }[]>>((current, set) => {
+        (current[set.exerciseId] ??= []).push({ weight: set.weight, reps: set.reps });
+        return current;
+      }, {});
+      Object.entries(grouped).forEach(([exerciseId, sets]) => {
+        const bestSet = sets.reduce((best, set) => bestOneRepMax([set], formula) > bestOneRepMax([best], formula) ? set : best, sets[0]);
+        const estimatedOneRepMax = bestOneRepMax(sets, formula);
+        if (!records[exerciseId] || estimatedOneRepMax > records[exerciseId].estimatedOneRepMax) {
+          records[exerciseId] = { exerciseId, weight: bestSet.weight, reps: bestSet.reps, estimatedOneRepMax, achievedAt: `${workout.date}T12:00:00.000Z`, achievedWorkoutId: workout.id };
+        }
+      });
+      return records;
+    }, {});
+}
+
 const initialState: WorkoutState = {
   programs: defaultPrograms,
   completed: seedCompleted,
@@ -128,6 +149,10 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
       setState((current) => ({ ...current, activeWorkout: null, personalRecords: records, completed: [{ id: workoutId, programId, date: new Date().toISOString().slice(0, 10), durationMinutes: minutes, totalVolume: volume, sets }, ...current.completed] }));
       return { minutes, newRecordIds, maxOneRmDelta };
     },
+    deleteCompletedWorkout: (workoutId) => setState((current) => {
+      const completed = current.completed.filter((workout) => workout.id !== workoutId);
+      return { ...current, completed, personalRecords: rebuildPersonalRecords(completed, current.oneRmFormula) };
+    }),
     scheduleProgram: (date, schedule) => setState((current) => ({ ...current, scheduled: { ...current.scheduled, [date]: schedule } })),
     removeSchedule: (date) => setState((current) => { const scheduled = { ...current.scheduled }; delete scheduled[date]; return { ...current, scheduled }; }),
     addProgram: (program) => setState((current) => ({ ...current, programs: [...current.programs, { ...program, createdAt: program.createdAt ?? new Date().toISOString() }] })),

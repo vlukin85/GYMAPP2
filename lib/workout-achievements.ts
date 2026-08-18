@@ -2,6 +2,7 @@ import type { CompletedWorkout, PersonalRecord } from "./workout-data";
 
 export type WorkoutRecordAchievement = PersonalRecord;
 export type ShareableWorkoutRecord = WorkoutRecordAchievement & { name: string };
+export type SocialShareTemplate = "telegram" | "instagram";
 
 export function getWorkoutRecordAchievements(workout: CompletedWorkout, records: Record<string, PersonalRecord>): WorkoutRecordAchievement[] {
   const workoutExerciseIds = new Set((workout.sets ?? []).map((set) => set.exerciseId));
@@ -33,4 +34,11 @@ export function formatWorkoutAchievementShare({
   }
   lines.push("", "#IronRise #Тренировка");
   return lines.join("\n");
+}
+
+export function formatWorkoutSocialTemplate(template: SocialShareTemplate, input: Parameters<typeof formatWorkoutAchievementShare>[0]) {
+  const base = formatWorkoutAchievementShare(input);
+  if (template === "telegram") return `🏋️ ${base.replace("IronRise · ", "")}`;
+  const records = input.records.length ? `\n\n🔥 Рекорды: ${input.records.map((record) => `${record.name} — ${record.estimatedOneRepMax.toFixed(1)} кг 1RM`).join(" · ")}` : "";
+  return `IronRise · ${input.programName}\n${input.workout.durationMinutes} мин · ${Math.round(input.workout.totalVolume).toLocaleString("ru-RU").replace(/\u00a0/g, " ")} кг объёма${records}\n\n#IronRise #тренировка #силовойтренинг #прогресс`;
 }

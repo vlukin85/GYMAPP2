@@ -512,13 +512,6 @@ export default function WorkoutScreen() {
     setSetsByExercise((current) => ({ ...current, [activeId]: draft }));
     setDone((current) => ({ ...current, [activeId]: true }));
     setExercisePreference(actualExerciseId(activeId), { machineSetup, note });
-    const index = sessionExercises.findIndex((item) => item.exerciseId === activeId);
-    const currentPlan = sessionExercises[index];
-    const nextPlan = sessionExercises[index + 1];
-    const isSupersetTransition = currentPlan?.supersetGroup && nextPlan?.supersetGroup === currentPlan.supersetGroup && !done[nextPlan.exerciseId];
-    if (!isSupersetTransition && restEndRef.current === null && draft.some((set) => setParts(set).length)) {
-      startRestTimer(activePlan?.rest ?? 90);
-    }
     setActiveId(null);
   };
   const removeExerciseFromSession = (exerciseId: string) => {
@@ -740,8 +733,8 @@ export default function WorkoutScreen() {
                 {supersetStart && <Text style={[styles.supersetFlag, { color: colors.primary }]}>СУПЕРСЕТ {item.supersetGroup}</Text>}
                 <Pressable onPress={() => openExercise(item.exerciseId)} style={[styles.exercise, isDragging && styles.exerciseDragging, { backgroundColor: colors.surface, borderColor: isDragging || filled ? colors.primary : colors.border }]}>
                   <View style={styles.exerciseRow}>
-                    <View style={[styles.number, { backgroundColor: filled ? colors.primary : colors.background }]}>
-                      <Text style={{ color: filled ? "#101412" : colors.muted, fontWeight: "800" }}>{index + 1}</Text>
+                    <View style={[styles.number, { backgroundColor: filled ? colors.success : colors.background }]}>
+                      {filled ? <MaterialIcons name="check" size={18} color="#FFFFFF" /> : <Text style={{ color: colors.muted, fontWeight: "800" }}>{index + 1}</Text>}
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text style={[styles.exerciseName, { color: colors.foreground }]}>{exercise?.name}</Text>
@@ -932,7 +925,6 @@ export default function WorkoutScreen() {
                         value={set.reps}
                         onChangeText={(value) => updateSet(index, (item) => ({ ...item, reps: value }))}
                         onFocus={() => openSetEditor(index)}
-                        onEndEditing={() => startRestAfterSetInput(index)}
                         keyboardType="number-pad"
                         returnKeyType="done"
                         placeholder={`план ${activePlan?.reps ?? "—"}`}
@@ -943,7 +935,6 @@ export default function WorkoutScreen() {
                         value={set.weight}
                         onChangeText={(value) => updateSet(index, (item) => ({ ...item, weight: value }))}
                         onFocus={() => openSetEditor(index)}
-                        onEndEditing={() => startRestAfterSetInput(index)}
                         keyboardType="decimal-pad"
                         returnKeyType="done"
                         placeholder={`план ${activePlan?.weight ?? "—"} кг`}
@@ -986,7 +977,6 @@ export default function WorkoutScreen() {
                           value={part.reps}
                           onChangeText={(value) => updateDropSubset(index, subsetIndex, "reps", value)}
                           onFocus={() => openSetEditor(index, subsetIndex)}
-                          onEndEditing={() => startRestAfterSetInput(index)}
                           keyboardType="number-pad"
                           returnKeyType="done"
                           placeholder={`план ${activePlan?.reps ?? "—"}`}
@@ -997,7 +987,6 @@ export default function WorkoutScreen() {
                           value={part.weight}
                           onChangeText={(value) => updateDropSubset(index, subsetIndex, "weight", value)}
                           onFocus={() => openSetEditor(index, subsetIndex)}
-                          onEndEditing={() => startRestAfterSetInput(index)}
                           keyboardType="decimal-pad"
                           returnKeyType="done"
                           placeholder={`план ${activePlan?.weight ?? "—"} кг`}
@@ -1060,11 +1049,11 @@ export default function WorkoutScreen() {
                     <View style={styles.setEditorFields}>
                       <View style={styles.setEditorFieldWrap}>
                         <Text style={[styles.setEditorLabel, { color: colors.muted }]}>ПОВТОРЫ</Text>
-                        <TextInput autoFocus value={focusedPart.reps} onChangeText={(value) => updateFocusedPart("reps", value)} onEndEditing={() => startRestAfterSetInput(focusedSetIndex)} keyboardType="number-pad" returnKeyType="done" placeholder={`план ${activePlan?.reps ?? "—"}`} placeholderTextColor={colors.muted} style={[styles.setEditorInput, { color: focusedPart.reps.trim() ? colors.foreground : colors.muted, backgroundColor: focusedPart.reps.trim() ? colors.surface : `${colors.muted}1A`, borderColor: focusedPart.reps.trim() ? colors.primary : colors.border }]} />
+                        <TextInput autoFocus value={focusedPart.reps} onChangeText={(value) => updateFocusedPart("reps", value)} keyboardType="number-pad" returnKeyType="done" placeholder={`план ${activePlan?.reps ?? "—"}`} placeholderTextColor={colors.muted} style={[styles.setEditorInput, { color: focusedPart.reps.trim() ? colors.foreground : colors.muted, backgroundColor: focusedPart.reps.trim() ? colors.surface : `${colors.muted}1A`, borderColor: focusedPart.reps.trim() ? colors.primary : colors.border }]} />
                       </View>
                       <View style={styles.setEditorFieldWrap}>
                         <Text style={[styles.setEditorLabel, { color: colors.muted }]}>ВЕС, КГ</Text>
-                        <TextInput value={focusedPart.weight} onChangeText={(value) => updateFocusedPart("weight", value)} onEndEditing={() => startRestAfterSetInput(focusedSetIndex)} keyboardType="decimal-pad" returnKeyType="done" placeholder={`план ${activePlan?.weight ?? "—"}`} placeholderTextColor={colors.muted} style={[styles.setEditorInput, { color: focusedPart.weight.trim() ? colors.foreground : colors.muted, backgroundColor: focusedPart.weight.trim() ? colors.surface : `${colors.muted}1A`, borderColor: focusedPart.weight.trim() ? colors.primary : colors.border }]} />
+                        <TextInput value={focusedPart.weight} onChangeText={(value) => updateFocusedPart("weight", value)} keyboardType="decimal-pad" returnKeyType="done" placeholder={`план ${activePlan?.weight ?? "—"}`} placeholderTextColor={colors.muted} style={[styles.setEditorInput, { color: focusedPart.weight.trim() ? colors.foreground : colors.muted, backgroundColor: focusedPart.weight.trim() ? colors.surface : `${colors.muted}1A`, borderColor: focusedPart.weight.trim() ? colors.primary : colors.border }]} />
                       </View>
                     </View>
                     {quickWeightOptions.length > 0 && (

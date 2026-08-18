@@ -8,7 +8,7 @@ import { getProgram, formatDuration } from "@/lib/workout-data";
 
 export default function HomeScreen() {
   const colors = useColors();
-  const { programs, completed, scheduled, startWorkout, repeatLastWorkout } = useWorkoutStore();
+  const { programs, completed, scheduled, startWorkout } = useWorkoutStore();
   const today = new Date().toISOString().slice(0, 10);
   const todaySchedule = scheduled[today];
   const todayProgram = getProgram(todaySchedule?.programId) ?? programs[0];
@@ -20,7 +20,7 @@ export default function HomeScreen() {
       <View style={styles.sectionHeader}><Text style={[styles.sectionTitle, { color: colors.foreground }]}>Эта неделя</Text><Text style={[styles.sectionLink, { color: colors.primary }]}>{completed.length} тренировки</Text></View>
       <View style={styles.statsRow}><Metric label="Тренировки" value={String(completed.length)} suffix="шт" colors={colors} /><Metric label="Общий объём" value={(weekVolume / 1000).toFixed(1)} suffix="т" colors={colors} /><Metric label="Время" value={formatDuration(completed.reduce((sum, item) => sum + item.durationMinutes, 0)).replace(" ч 0 мин", " ч")} suffix="" colors={colors} /></View>
       <View style={styles.sectionHeader}><Text style={[styles.sectionTitle, { color: colors.foreground }]}>Быстрый доступ</Text></View>
-      <View style={styles.quickGrid}><QuickAction icon="dumbbell.fill" label="Каталог упражнений" onPress={() => router.push("/(tabs)/exercises")} colors={colors} /><QuickAction icon="calendar" label="Календарь" onPress={() => router.push("/calendar")} colors={colors} />{completed[0] && <QuickAction icon="arrow.forward" label="Повторить последнюю тренировку" onPress={() => { const repeatedId = repeatLastWorkout(); if (repeatedId) router.push({ pathname: "/workout", params: { programId: repeatedId } }); }} colors={colors} />}</View>
+      <View style={styles.quickGrid}><QuickAction icon="dumbbell.fill" label="Каталог упражнений" onPress={() => router.push("/(tabs)/exercises")} colors={colors} /><QuickAction icon="calendar" label="Календарь" onPress={() => router.push("/(tabs)/calendar")} colors={colors} /></View>
       <View style={[styles.tipCard, { backgroundColor: colors.surface, borderColor: colors.border }]}><View style={[styles.tipIcon, { backgroundColor: "#FF9F4320" }]}><IconSymbol name="lightbulb" size={20} color="#FF9F43" /></View><View style={{ flex: 1 }}><Text style={[styles.tipTitle, { color: colors.foreground }]}>Совет дня</Text><Text style={[styles.tipText, { color: colors.muted }]}>Фиксируй фактический вес — так рекорды и прогресс будут точнее.</Text></View></View>
     </ScrollView>
   </ScreenContainer>;
