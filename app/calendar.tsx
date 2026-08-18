@@ -1,7 +1,9 @@
 import { useCallback, useMemo, useRef, useState } from "react";
-import { Alert, Dimensions, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Alert, Dimensions, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { runOnJS } from "react-native-reanimated";
+import * as FileSystem from "expo-file-system/legacy";
+import * as Sharing from "expo-sharing";
 import { router } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
@@ -9,6 +11,7 @@ import { useColors } from "@/hooks/use-colors";
 import { useWorkoutStore } from "@/lib/workout-store";
 import { cancelWorkoutReminder, scheduleWorkoutReminder } from "@/lib/workout-notifications";
 import { getCompletedWorkoutForDate, getExercise, getMonthCalendarDays, isFutureScheduleDate, isScheduledWorkoutCompleted, shiftCalendarMonth } from "@/lib/workout-data";
+import { formatWorkoutAchievementShare, getWorkoutRecordAchievements } from "@/lib/workout-achievements";
 
 const weekDays = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
 const reminderOptions = [15, 30, 60, 120];
@@ -17,7 +20,7 @@ const readableDate = (key: string) => new Date(`${key}T12:00:00`).toLocaleDateSt
 
 export default function CalendarScreen() {
   const colors = useColors();
-  const { programs, scheduled, completed, scheduleProgram, removeSchedule, startWorkout } = useWorkoutStore();
+  const { programs, scheduled, completed, personalRecords, scheduleProgram, removeSchedule, startWorkout } = useWorkoutStore();
   const [cursor, setCursor] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(dateKey(new Date()));
   const [programId, setProgramId] = useState("");
@@ -40,6 +43,8 @@ export default function CalendarScreen() {
   const draftProgram = programs.find((item) => item.id === draftProgramId);
   const selectedCompletedWorkout = useMemo(() => getCompletedWorkoutForDate(completed, selectedDate), [completed, selectedDate]);
   const completedProgram = selectedCompletedWorkout ? programs.find((item) => item.id === selectedCompletedWorkout.programId) : undefined;
+  const workoutAchievements = useMemo(() => selectedCompletedWorkout ? getWorkoutRecordAchievements(selectedCompletedWorkout, personalRecords) : [], [personalRecords, selectedCompletedWorkout]);
+  const shareText = useMemo(() => selectedCompletedWorkout ? formatWorkoutAchievementShare({ workout: selectedCompletedWorkout, programName: completedProgram?.name ?? "Тренировка", records: workoutAchievements.map((record) => ({ ...record, name: getExercise(record.exerciseId)?.name ?? record.exerciseId })) }) : "", [completedProgram?.name, selectedCompletedWorkout, workoutAchievements]);
   const hasCompletedResult = Boolean(selectedCompletedWorkout);
   const futureSchedule = Boolean(activeSchedule && isFutureScheduleDate(selectedDate));
   const completedDates = useMemo(() => new Set(completed.map((workout) => workout.date.slice(0, 10))), [completed]);
@@ -145,6 +150,29 @@ export default function CalendarScreen() {
   const monthSwipeGesture = Gesture.Pan().activeOffsetX([-28, 28]).failOffsetY([-18, 18]).onEnd((event) => {
     if (Math.abs(event.translationX) >= 58) runOnJS(changeMonth)(event.translationX > 0 ? -1 : 1);
   });
+  const shareCompletedWorkout = async () => {
+    if (!selectedCompletedWorkout || !shareText) return;
+    try {
+      if (Platform.OS === "web") {
+        if (typeof navigator !== "undefined" && "share" in navigator) {
+          await navigator.share({ title: `IronRise · ${completedProgram?.name ?? "Тренировка"}`, text: shareText });
+          return;
+        }
+        Alert.alert("Достижения готовы", shareText);
+        return;
+      }
+      if (!(await Sharing.isAvailableAsync())) {
+        Alert.alert("Обмен недоступен", "На этом устройстве не удалось открыть системное меню обмена.");
+        return;
+      }
+      const uri = `${FileSystem.cacheDirectory}ironrise-result-${selectedCompletedWorkout.id}.txt`;
+      await FileSystem.writeAsStringAsync(uri, shareText, { encoding: FileSystem.EncodingType.UTF8 });
+      await Sharing.shareAsync(uri, { dialogTitle: "Поделиться достижениями IronRise", mimeType: "text/plain" });
+    } catch (error) {
+      if (error instanceof Error && error.name === "AbortError") return;
+      Alert.alert("Не удалось поделиться", "Попробуйте ещё раз — результаты тренировки сохранены.");
+    }
+  };
 
   return <ScreenContainer edges={["top", "left", "right", "bottom"]} className="px-5" containerClassName="bg-background">
     <ScrollView contentContainerStyle={styles.content} scrollEnabled={!isDragging}>
@@ -168,7 +196,9 @@ export default function CalendarScreen() {
         {hasCompletedResult && selectedCompletedWorkout ? <View style={[styles.resultCard, { backgroundColor: colors.background, borderColor: colors.success + "66" }]}>
           <View style={styles.resultHeader}><View style={[styles.resultIcon, { backgroundColor: colors.success + "20" }]}><Text style={[styles.resultCheck, { color: colors.success }]}>✓</Text></View><View style={{ flex: 1 }}><Text style={[styles.resultEyebrow, { color: colors.success }]}>ТРЕНИРОВКА ВЫПОЛНЕНА</Text><Text style={[styles.resultName, { color: colors.foreground }]}>{completedProgram?.name ?? "Тренировка"}</Text></View></View>
           <View style={styles.resultMetrics}><View><Text style={[styles.resultMetricValue, { color: colors.foreground }]}>{selectedCompletedWorkout.durationMinutes} мин</Text><Text style={[styles.resultMetricLabel, { color: colors.muted }]}>ДЛИТЕЛЬНОСТЬ</Text></View><View><Text style={[styles.resultMetricValue, { color: colors.foreground }]}>{Math.round(selectedCompletedWorkout.totalVolume).toLocaleString("ru-RU")} кг</Text><Text style={[styles.resultMetricLabel, { color: colors.muted }]}>ОБЪЁМ</Text></View><View><Text style={[styles.resultMetricValue, { color: colors.foreground }]}>{selectedCompletedWorkout.sets?.length ?? 0}</Text><Text style={[styles.resultMetricLabel, { color: colors.muted }]}>ПОДХОДОВ</Text></View></View>
+          {workoutAchievements.length > 0 && <View style={[styles.achievementCard, { backgroundColor: colors.success + "12", borderColor: colors.success + "55" }]}><Text style={[styles.achievementEyebrow, { color: colors.success }]}>НОВЫЕ ЛИЧНЫЕ РЕКОРДЫ · {workoutAchievements.length}</Text>{workoutAchievements.map((record) => <View key={record.exerciseId} style={styles.achievementRow}><View style={{ flex: 1 }}><Text style={[styles.achievementName, { color: colors.foreground }]}>{getExercise(record.exerciseId)?.name ?? record.exerciseId}</Text><Text style={[styles.achievementMeta, { color: colors.muted }]}>{record.weight} кг × {record.reps}</Text></View><Text style={[styles.achievementOneRm, { color: colors.success }]}>1RM {record.estimatedOneRepMax.toFixed(1)} кг</Text></View>)}</View>}
           <Pressable onPress={() => setResultOpen(true)} style={[styles.resultsButton, { backgroundColor: colors.success }]}><Text style={styles.resultsButtonText}>Просмотреть результаты</Text><IconSymbol name="chevron.right" size={18} color="#101412" /></Pressable>
+          <Pressable onPress={shareCompletedWorkout} style={[styles.shareButton, { borderColor: colors.success }]}><Text style={[styles.shareButtonText, { color: colors.success }]}>Поделиться достижениями</Text></Pressable>
         </View> : <>
           <View style={[styles.selectedProgram, { backgroundColor: colors.background, borderColor: colors.border }]}><View style={{ flex: 1 }}><Text style={[styles.label, { color: colors.muted }]}>ВЫБРАННАЯ ПРОГРАММА</Text><Text style={[styles.programName, { color: colors.foreground }]}>{selectedProgram?.name ?? "Выберите программу"}</Text><Text style={[styles.programDescription, { color: colors.muted }]}>{selectedProgram ? `${selectedProgram.exercises.length} упражнений · ${selectedProgram.description}` : "Выбор доступен по кнопке ниже"}</Text></View><Pressable onPress={openPicker} style={[styles.change, { borderColor: colors.primary }]}><Text style={[styles.changeText, { color: colors.primary }]}>Выбрать</Text></Pressable></View>
           <View style={styles.details}><View style={{ flex: 1 }}><Text style={[styles.label, { color: colors.muted }]}>Начало</Text><TextInput value={time} onChangeText={setTime} placeholder="18:30" placeholderTextColor={colors.muted} style={[styles.timeInput, { color: colors.foreground, borderColor: colors.border }]} /></View><View style={{ flex: 1.7 }}><Text style={[styles.label, { color: colors.muted }]}>Напомнить за</Text><View style={styles.reminders}>{reminderOptions.map((minutes) => <Pressable key={minutes} onPress={() => setReminderMinutes(minutes)} style={[styles.reminder, { backgroundColor: reminderMinutes === minutes ? colors.primary : colors.background, borderColor: reminderMinutes === minutes ? colors.primary : colors.border }]}><Text style={{ color: reminderMinutes === minutes ? "#111217" : colors.foreground, fontWeight: "800", fontSize: 11 }}>{minutes}м</Text></Pressable>)}</View></View></View>
@@ -188,7 +218,7 @@ const styles = StyleSheet.create({
   content: { paddingTop: 16, paddingBottom: 34, gap: 13 },
   header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" }, headerTitle: { fontSize: 16, fontWeight: "900" }, today: { fontSize: 13, fontWeight: "800" }, monthHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 8 }, arrow: { width: 40, height: 40, borderRadius: 14, justifyContent: "center", alignItems: "center" }, month: { fontSize: 23, fontWeight: "900", textTransform: "capitalize", textAlign: "center" }, monthSub: { fontSize: 11, textAlign: "center", marginTop: 4 }, dragHint: { fontSize: 11, lineHeight: 16 }, weekdays: { flexDirection: "row" }, weekday: { width: "14.285%", textAlign: "center", fontSize: 11, fontWeight: "800" }, grid: { flexDirection: "row", flexWrap: "wrap" }, dayHitbox: { width: "14.285%", height: 47 }, day: { width: "100%", height: "100%", borderRadius: 13, justifyContent: "center", alignItems: "center", gap: 2 }, dragSource: { opacity: 0.42, transform: [{ scale: 0.93 }] }, dot: { width: 5, height: 5, borderRadius: 3 }, completedMark: { width: 14, height: 14, borderRadius: 7, alignItems: "center", justifyContent: "center" }, dropLabel: { fontSize: 8, fontWeight: "900" },
   editor: { borderWidth: 1, borderRadius: 20, padding: 15, gap: 12 }, editorDate: { fontSize: 18, fontWeight: "900", textTransform: "capitalize" }, label: { fontSize: 10, fontWeight: "800", letterSpacing: 0.7 }, selectedProgram: { minHeight: 82, borderWidth: 1, borderRadius: 15, padding: 11, flexDirection: "row", alignItems: "center", gap: 10 }, programName: { fontSize: 14, fontWeight: "900", marginTop: 4 }, programDescription: { fontSize: 11, lineHeight: 16, marginTop: 3 }, change: { borderWidth: 1, borderRadius: 11, paddingHorizontal: 10, minHeight: 35, justifyContent: "center" }, changeText: { fontSize: 11, fontWeight: "900" }, details: { flexDirection: "row", gap: 11 }, timeInput: { height: 42, borderWidth: 1, borderRadius: 12, marginTop: 5, paddingHorizontal: 11, fontSize: 15, fontWeight: "800" }, reminders: { flexDirection: "row", gap: 5, marginTop: 5 }, reminder: { flex: 1, height: 42, borderWidth: 1, borderRadius: 10, alignItems: "center", justifyContent: "center" }, save: { minHeight: 52, borderRadius: 15, justifyContent: "center", alignItems: "center" }, saveText: { color: "#111217", fontSize: 14, fontWeight: "900" }, deleteText: { textAlign: "center", fontSize: 12, fontWeight: "800" }, start: { borderWidth: 1, minHeight: 53, borderRadius: 16, paddingHorizontal: 16, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }, startText: { fontSize: 14, fontWeight: "900" }, futureHint: { fontSize: 11, marginTop: 7, textAlign: "center" },
-  resultCard: { borderWidth: 1, borderRadius: 16, padding: 13, gap: 13 }, resultHeader: { flexDirection: "row", alignItems: "center", gap: 10 }, resultIcon: { width: 39, height: 39, borderRadius: 13, alignItems: "center", justifyContent: "center" }, resultCheck: { fontSize: 21, fontWeight: "900" }, resultEyebrow: { fontSize: 9, fontWeight: "900", letterSpacing: 0.8 }, resultName: { fontSize: 15, fontWeight: "900", marginTop: 3 }, resultMetrics: { flexDirection: "row", justifyContent: "space-between", gap: 8 }, resultMetricValue: { fontSize: 15, fontWeight: "900" }, resultMetricLabel: { fontSize: 8, fontWeight: "900", letterSpacing: 0.45, marginTop: 3 }, resultsButton: { minHeight: 44, borderRadius: 12, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6 }, resultsButtonText: { color: "#101412", fontSize: 12, fontWeight: "900" },
+  resultCard: { borderWidth: 1, borderRadius: 16, padding: 13, gap: 13 }, resultHeader: { flexDirection: "row", alignItems: "center", gap: 10 }, resultIcon: { width: 39, height: 39, borderRadius: 13, alignItems: "center", justifyContent: "center" }, resultCheck: { fontSize: 21, fontWeight: "900" }, resultEyebrow: { fontSize: 9, fontWeight: "900", letterSpacing: 0.8 }, resultName: { fontSize: 15, fontWeight: "900", marginTop: 3 }, resultMetrics: { flexDirection: "row", justifyContent: "space-between", gap: 8 }, resultMetricValue: { fontSize: 15, fontWeight: "900" }, resultMetricLabel: { fontSize: 8, fontWeight: "900", letterSpacing: 0.45, marginTop: 3 }, achievementCard: { borderWidth: 1, borderRadius: 13, padding: 10, gap: 8 }, achievementEyebrow: { fontSize: 9, fontWeight: "900", letterSpacing: 0.55 }, achievementRow: { flexDirection: "row", alignItems: "center", gap: 8 }, achievementName: { fontSize: 12, fontWeight: "900" }, achievementMeta: { fontSize: 10, marginTop: 2 }, achievementOneRm: { fontSize: 11, fontWeight: "900" }, resultsButton: { minHeight: 44, borderRadius: 12, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6 }, resultsButtonText: { color: "#101412", fontSize: 12, fontWeight: "900" }, shareButton: { minHeight: 42, borderWidth: 1, borderRadius: 12, alignItems: "center", justifyContent: "center" }, shareButtonText: { fontSize: 12, fontWeight: "900" },
   backdrop: { flex: 1, backgroundColor: "#090611A8", justifyContent: "flex-end" }, sheet: { maxHeight: "84%", borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 20, gap: 14 }, sheetHeader: { flexDirection: "row", justifyContent: "space-between" }, sheetTitle: { fontSize: 22, fontWeight: "900" }, sheetSubtitle: { fontSize: 12, marginTop: 4 }, close: { width: 36, height: 36, borderRadius: 18, justifyContent: "center", alignItems: "center" }, closeText: { fontSize: 25, lineHeight: 28 }, programList: { gap: 9, paddingBottom: 3 }, programOption: { borderWidth: 1, borderRadius: 16, padding: 13, flexDirection: "row", alignItems: "center", gap: 12 }, optionName: { fontSize: 14, fontWeight: "900" }, optionDescription: { fontSize: 11, lineHeight: 16, marginTop: 4 }, radio: { width: 21, height: 21, borderWidth: 2, borderRadius: 11, justifyContent: "center", alignItems: "center" }, radioDot: { width: 11, height: 11, borderRadius: 6 }, confirm: { minHeight: 52, borderRadius: 15, alignItems: "center", justifyContent: "center" }, confirmText: { color: "#111217", fontSize: 13, fontWeight: "900", textAlign: "center", paddingHorizontal: 12 },
   resultSummary: { borderWidth: 1, borderRadius: 15, padding: 13, flexDirection: "row", justifyContent: "space-between" }, resultSummaryValue: { fontSize: 12, fontWeight: "900" }, completedSetList: { gap: 8, paddingBottom: 8 }, completedSet: { minHeight: 62, borderWidth: 1, borderRadius: 14, padding: 11, flexDirection: "row", alignItems: "center", gap: 8 }, completedSetName: { fontSize: 12, fontWeight: "900" }, completedSetMeta: { fontSize: 10, marginTop: 3 }, completedSetValue: { fontSize: 12, fontWeight: "900" }, emptyResults: { textAlign: "center", marginVertical: 24, fontSize: 12 },
 });

@@ -197,6 +197,7 @@ export type PersonalRecord = {
   reps: number;
   estimatedOneRepMax: number;
   achievedAt: string;
+  achievedWorkoutId?: string;
 };
 
 export type BarbellProfile = {

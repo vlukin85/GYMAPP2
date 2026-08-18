@@ -109,6 +109,7 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
     ready,
     startWorkout: (programId) => setState((current) => ({ ...current, activeWorkout: { programId, startedAt: Date.now() } })),
     finishWorkout: (programId, volume, sets) => {
+      const workoutId = `w-${Date.now()}`;
       const minutes = Math.max(1, Math.round((Date.now() - (state.activeWorkout?.startedAt ?? Date.now())) / 60000));
       const grouped = sets.reduce<Record<string, { weight: number; reps: number }[]>>((acc, set) => { (acc[set.exerciseId] ??= []).push({ weight: set.weight, reps: set.reps }); return acc; }, {});
       const records = { ...state.personalRecords };
@@ -119,12 +120,12 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
         const estimatedOneRepMax = bestOneRepMax(exerciseSets, state.oneRmFormula);
         if (!records[exerciseId] || estimatedOneRepMax > records[exerciseId].estimatedOneRepMax) {
           const delta = records[exerciseId] ? estimatedOneRepMax - records[exerciseId].estimatedOneRepMax : 0;
-          records[exerciseId] = { exerciseId, weight: bestSet.weight, reps: bestSet.reps, estimatedOneRepMax, achievedAt: new Date().toISOString() };
+          records[exerciseId] = { exerciseId, weight: bestSet.weight, reps: bestSet.reps, estimatedOneRepMax, achievedAt: new Date().toISOString(), achievedWorkoutId: workoutId };
           newRecordIds.push(exerciseId);
           maxOneRmDelta = Math.max(maxOneRmDelta, delta);
         }
       });
-      setState((current) => ({ ...current, activeWorkout: null, personalRecords: records, completed: [{ id: `w-${Date.now()}`, programId, date: new Date().toISOString().slice(0, 10), durationMinutes: minutes, totalVolume: volume, sets }, ...current.completed] }));
+      setState((current) => ({ ...current, activeWorkout: null, personalRecords: records, completed: [{ id: workoutId, programId, date: new Date().toISOString().slice(0, 10), durationMinutes: minutes, totalVolume: volume, sets }, ...current.completed] }));
       return { minutes, newRecordIds, maxOneRmDelta };
     },
     scheduleProgram: (date, schedule) => setState((current) => ({ ...current, scheduled: { ...current.scheduled, [date]: schedule } })),
