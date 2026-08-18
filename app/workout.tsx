@@ -25,6 +25,9 @@ const REST_KEEP_AWAKE_TAG = "gym-training-diary-rest-timer";
 const REST_CIRCLE_RADIUS = 108;
 const REST_CIRCLE_SIZE = 252;
 const REST_CIRCUMFERENCE = 2 * Math.PI * REST_CIRCLE_RADIUS;
+const DRAG_AUTOSCROLL_EDGE_PX = 86;
+const DRAG_AUTOSCROLL_STEP_PX = 16;
+const DRAG_AUTOSCROLL_INTERVAL_MS = 34;
 const setTypes: { id: SetType; label: string }[] = [
   { id: "warmup", label: "Разм." },
   { id: "working", label: "Раб." },
@@ -120,24 +123,24 @@ function ExerciseDragHandle({
   index,
   total,
   colors,
-  onMove,
   onDragStart,
   onDragTarget,
+  onDragMove,
   onDragEnd,
   isDragging,
 }: {
   index: number;
   total: number;
   colors: ReturnType<typeof useColors>;
-  onMove: (toIndex: number) => void;
   onDragStart: () => void;
   onDragTarget: (toIndex: number) => void;
-  onDragEnd: () => void;
+  onDragMove: (pageY: number) => void;
+  onDragEnd: (fallbackTarget: number) => void;
   isDragging: boolean;
 }) {
-  const latest = useRef({ index, total, onMove, onDragStart, onDragTarget, onDragEnd });
+  const latest = useRef({ index, total, onDragStart, onDragTarget, onDragMove, onDragEnd });
   const lastTarget = useRef(index);
-  latest.current = { index, total, onMove, onDragStart, onDragTarget, onDragEnd };
+  latest.current = { index, total, onDragStart, onDragTarget, onDragMove, onDragEnd };
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
@@ -152,6 +155,7 @@ function ExerciseDragHandle({
         const current = latest.current;
         const positionShift = Math.round(gesture.dy / 88);
         const toIndex = Math.max(0, Math.min(current.total - 1, current.index + positionShift));
+        current.onDragMove(gesture.moveY);
         if (toIndex !== lastTarget.current) {
           lastTarget.current = toIndex;
           current.onDragTarget(toIndex);
@@ -162,10 +166,9 @@ function ExerciseDragHandle({
         const current = latest.current;
         const positionShift = Math.round(gesture.dy / 88);
         const toIndex = Math.max(0, Math.min(current.total - 1, current.index + positionShift));
-        if (toIndex !== current.index) current.onMove(toIndex);
-        current.onDragEnd();
+        current.onDragEnd(toIndex);
       },
-      onPanResponderTerminate: () => latest.current.onDragEnd(),
+      onPanResponderTerminate: () => latest.current.onDragEnd(latest.current.index),
     }),
   ).current;
 
@@ -221,7 +224,13 @@ export default function WorkoutScreen() {
   const [catalogSearch, setCatalogSearch] = useState("");
   const [catalogGroup, setCatalogGroup] = useState("Все");
   const [sessionOrder, setSessionOrder] = useState<string[]>([]);
-  const [dragState, setDragState] = useState<{ sourceIndex: number; targetIndex: number | null } | null>(null);
+  const [dragState, setDragState] = useState<{ sourceId: string; sourceIndex: number; targetIndex: number | null } | null>(null);
+  const dragStateRef = useRef<{ sourceId: string; sourceIndex: number; targetIndex: number | null } | null>(null);
+  const workoutScrollRef = useRef<ScrollView>(null);
+  const scrollMetricsRef = useRef({ offsetY: 0, viewportTop: 0, viewportHeight: 0, contentHeight: 0 });
+  const autoScrollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const autoScrollDirectionRef = useRef<-1 | 0 | 1>(0);
+  const autoScrollTickRef = useRef(0);
 
   const syncRestTimer = useCallback(() => {
     if (!restEndRef.current) return;
@@ -311,6 +320,10 @@ export default function WorkoutScreen() {
     if (Platform.OS === "android") UIManager.setLayoutAnimationEnabledExperimental?.(true);
   }, []);
 
+  useEffect(() => () => {
+    if (autoScrollTimerRef.current) clearInterval(autoScrollTimerRef.current);
+  }, []);
+
   useEffect(
     () => subscribeToExerciseReplacement(({ originalId, replacementId }) => {
       setReplacements((current) => ({ ...current, [originalId]: replacementId }));
@@ -331,6 +344,10 @@ export default function WorkoutScreen() {
     const orderedIds = new Set(ordered.map((item) => item.exerciseId));
     return [...ordered, ...source.filter((item) => !orderedIds.has(item.exerciseId))];
   }, [program.exercises, addedSessionExercises, removedExerciseIds, sessionOrder]);
+  const renderedSessionExercises = useMemo(() => {
+    if (!dragState || dragState.targetIndex === null) return sessionExercises;
+    return reorderActiveWorkoutExercises(sessionExercises, dragState.sourceIndex, dragState.targetIndex);
+  }, [dragState, sessionExercises]);
   const filteredCatalog = useMemo(
     () => filterActiveWorkoutCatalog(exercises, catalogGroup, catalogSearch),
     [catalogGroup, catalogSearch],
@@ -549,6 +566,66 @@ export default function WorkoutScreen() {
     const reordered = reorderActiveWorkoutExercises(sessionExercises, fromIndex, toIndex);
     if (reordered !== sessionExercises) setSessionOrder(reordered.map((item) => item.exerciseId));
   };
+  const animateDragLayout = () => LayoutAnimation.configureNext({
+    duration: 210,
+    create: { type: LayoutAnimation.Types.easeInEaseOut, property: LayoutAnimation.Properties.opacity },
+    update: { type: LayoutAnimation.Types.easeInEaseOut },
+  });
+  const setDragPreview = (next: { sourceId: string; sourceIndex: number; targetIndex: number | null } | null) => {
+    animateDragLayout();
+    dragStateRef.current = next;
+    setDragState(next);
+  };
+  const stopDragAutoScroll = () => {
+    if (autoScrollTimerRef.current) clearInterval(autoScrollTimerRef.current);
+    autoScrollTimerRef.current = null;
+    autoScrollDirectionRef.current = 0;
+    autoScrollTickRef.current = 0;
+  };
+  const moveDragTarget = (targetIndex: number) => {
+    const current = dragStateRef.current;
+    if (!current) return;
+    const safeTarget = Math.max(0, Math.min(sessionExercises.length - 1, targetIndex));
+    if (current.targetIndex === safeTarget) return;
+    setDragPreview({ ...current, targetIndex: safeTarget === current.sourceIndex ? null : safeTarget });
+  };
+  const updateDragAutoScroll = (pageY: number) => {
+    const metrics = scrollMetricsRef.current;
+    if (!metrics.viewportHeight) return;
+    const nearTop = pageY < metrics.viewportTop + DRAG_AUTOSCROLL_EDGE_PX;
+    const nearBottom = pageY > metrics.viewportTop + metrics.viewportHeight - DRAG_AUTOSCROLL_EDGE_PX;
+    const direction: -1 | 0 | 1 = nearTop ? -1 : nearBottom ? 1 : 0;
+    if (!direction) {
+      stopDragAutoScroll();
+      return;
+    }
+    if (autoScrollDirectionRef.current === direction && autoScrollTimerRef.current) return;
+    stopDragAutoScroll();
+    autoScrollDirectionRef.current = direction;
+    autoScrollTimerRef.current = setInterval(() => {
+      const active = dragStateRef.current;
+      if (!active) return stopDragAutoScroll();
+      const currentMetrics = scrollMetricsRef.current;
+      const maxOffset = Math.max(0, currentMetrics.contentHeight - currentMetrics.viewportHeight);
+      const nextOffset = Math.max(0, Math.min(maxOffset, currentMetrics.offsetY + direction * DRAG_AUTOSCROLL_STEP_PX));
+      if (nextOffset === currentMetrics.offsetY) return stopDragAutoScroll();
+      currentMetrics.offsetY = nextOffset;
+      workoutScrollRef.current?.scrollTo({ y: nextOffset, animated: false });
+      autoScrollTickRef.current += 1;
+      if (autoScrollTickRef.current % 4 === 0) moveDragTarget((active.targetIndex ?? active.sourceIndex) + direction);
+    }, DRAG_AUTOSCROLL_INTERVAL_MS);
+  };
+  const startExerciseDrag = (sourceId: string, sourceIndex: number) => {
+    stopDragAutoScroll();
+    setDragPreview({ sourceId, sourceIndex, targetIndex: null });
+  };
+  const finishExerciseDrag = (fallbackTarget: number) => {
+    const current = dragStateRef.current;
+    stopDragAutoScroll();
+    const target = current?.targetIndex ?? fallbackTarget;
+    if (current && target !== current.sourceIndex) moveSessionExercise(current.sourceIndex, target);
+    setDragPreview(null);
+  };
   const completeWorkout = () => {
     const persisted = sessionExercises
       .filter((item) => done[item.exerciseId])
@@ -608,7 +685,20 @@ export default function WorkoutScreen() {
 
   return (
     <ScreenContainer edges={["top", "left", "right", "bottom"]} className="px-5" containerClassName="bg-background">
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        ref={workoutScrollRef}
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+        scrollEventThrottle={16}
+        onLayout={(event) => { scrollMetricsRef.current.viewportHeight = event.nativeEvent.layout.height; scrollMetricsRef.current.viewportTop = event.nativeEvent.layout.y; }}
+        onContentSizeChange={(_width, height) => { scrollMetricsRef.current.contentHeight = height; }}
+        onScroll={(event) => {
+          const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
+          scrollMetricsRef.current.offsetY = contentOffset.y;
+          scrollMetricsRef.current.contentHeight = contentSize.height;
+          scrollMetricsRef.current.viewportHeight = layoutMeasurement.height;
+        }}
+      >
         <View style={styles.nav}>
           <Pressable onPress={() => router.back()}>
             <IconSymbol name="chevron.left" size={27} color={colors.foreground} />
@@ -621,13 +711,14 @@ export default function WorkoutScreen() {
         <Text style={[styles.title, { color: colors.foreground }]}>{program.name}</Text>
         <Text style={[styles.helper, { color: colors.muted }]}>Сохраняйте только выполненные упражнения. Свайпните карточку влево для удаления, перетащите маркер ⠿ для смены порядка.</Text>
 
-        {sessionExercises.map((item, index) => {
+        {renderedSessionExercises.map((item, index) => {
           const exercise = getExercise(actualExerciseId(item.exerciseId));
           const filled = Boolean(done[item.exerciseId]);
           const previous = sessionExercises[index - 1];
           const supersetStart = item.supersetGroup && previous?.supersetGroup !== item.supersetGroup;
-          const isDragging = dragState?.sourceIndex === index;
-          const isDropTarget = dragState?.targetIndex === index;
+          const sourceIndex = sessionExercises.findIndex((candidate) => candidate.exerciseId === item.exerciseId);
+          const isDragging = dragState?.sourceId === item.exerciseId;
+          const isDropTarget = dragState?.targetIndex === sourceIndex && !isDragging;
           return (
             <Swipeable
               key={item.exerciseId}
@@ -659,14 +750,14 @@ export default function WorkoutScreen() {
                       </Text>
                     </View>
                     <ExerciseDragHandle
-                      index={index}
+                      index={sourceIndex}
                       total={sessionExercises.length}
                       colors={colors}
                       isDragging={isDragging}
-                      onDragStart={() => setDragState({ sourceIndex: index, targetIndex: null })}
-                      onDragTarget={(toIndex) => setDragState({ sourceIndex: index, targetIndex: toIndex === index ? null : toIndex })}
-                      onMove={(toIndex) => moveSessionExercise(index, toIndex)}
-                      onDragEnd={() => setDragState(null)}
+                      onDragStart={() => startExerciseDrag(item.exerciseId, sourceIndex)}
+                      onDragTarget={moveDragTarget}
+                      onDragMove={updateDragAutoScroll}
+                      onDragEnd={finishExerciseDrag}
                     />
                     <IconSymbol name="chevron.right" size={20} color={colors.muted} />
                   </View>

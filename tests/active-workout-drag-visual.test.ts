@@ -15,4 +15,11 @@ describe("active workout drag visualization", () => {
     expect(workoutScreen).toContain("ПЕРЕМЕЩЕНИЕ УПРАЖНЕНИЯ");
     expect(workoutScreen).toContain("Отпустите здесь");
   });
+
+  it("keeps a single edge auto-scroll loop and previews neighbouring-card movement", () => {
+    expect(workoutScreen).toContain("DRAG_AUTOSCROLL_EDGE_PX");
+    expect(workoutScreen).toContain("autoScrollTimerRef");
+    expect(workoutScreen).toContain("renderedSessionExercises");
+    expect(workoutScreen).toContain("LayoutAnimation.configureNext");
+  });
 });

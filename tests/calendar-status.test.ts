@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isScheduledWorkoutCompleted, shiftCalendarMonth, type CompletedWorkout } from "../lib/workout-data";
+import { getCompletedWorkoutForDate, isScheduledWorkoutCompleted, shiftCalendarMonth, type CompletedWorkout } from "../lib/workout-data";
 
 describe("calendar status", () => {
   const completed: CompletedWorkout[] = [{ id: "done-1", programId: "upper-strength", date: "2026-08-17T17:40:00.000Z", durationMinutes: 48, totalVolume: 4200 }];
@@ -15,5 +15,10 @@ describe("calendar status", () => {
     expect(shiftCalendarMonth(cursor, -1).toISOString().slice(0, 7)).toBe("2026-07");
     expect(shiftCalendarMonth(cursor, 1).toISOString().slice(0, 7)).toBe("2026-09");
     expect(cursor.getMonth()).toBe(7);
+  });
+
+  it("finds the saved result for a selected completed date regardless of its program schedule", () => {
+    expect(getCompletedWorkoutForDate(completed, "2026-08-17")?.id).toBe("done-1");
+    expect(getCompletedWorkoutForDate(completed, "2026-08-18")).toBeNull();
   });
 });

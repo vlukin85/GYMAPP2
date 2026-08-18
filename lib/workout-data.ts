@@ -144,6 +144,10 @@ export function isScheduledWorkoutCompleted(completed: CompletedWorkout[], date:
   return completed.some((workout) => workout.programId === programId && workout.date.slice(0, 10) === date);
 }
 
+export function getCompletedWorkoutForDate(completed: CompletedWorkout[], date: string) {
+  return completed.find((workout) => workout.date.slice(0, 10) === date) ?? null;
+}
+
 export function shiftCalendarMonth(cursor: Date, offset: number) {
   return new Date(cursor.getFullYear(), cursor.getMonth() + offset, 1);
 }
