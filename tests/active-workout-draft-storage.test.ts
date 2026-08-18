@@ -15,6 +15,7 @@ describe("черновик активной тренировки", () => {
     sessionOrder: ["bench-press"],
     restEndAt: null,
     restTotal: 90,
+    savedAt: 1_700_000_000_120,
     machineSetup: "Скамья 2",
     note: "Контроль паузы",
   };
@@ -22,6 +23,7 @@ describe("черновик активной тренировки", () => {
   it("восстанавливает валидный сохранённый черновик", () => {
     const restored = normalizeActiveWorkoutDraft(snapshot);
     expect(restored?.setsByExercise["bench-press"][0].weight).toBe("80");
+    expect(restored?.savedAt).toBe(1_700_000_000_120);
     expect(isDraftForProgram(restored, "upper-strength")).toBe(true);
   });
 

@@ -23,6 +23,7 @@ export type ActiveWorkoutDraftSnapshot = {
   sessionOrder: string[];
   restEndAt: number | null;
   restTotal: number;
+  savedAt: number | null;
   machineSetup: string;
   note: string;
 };
@@ -49,6 +50,7 @@ export function normalizeActiveWorkoutDraft(value: unknown): ActiveWorkoutDraftS
     sessionOrder: Array.isArray(draft.sessionOrder) ? draft.sessionOrder.filter((id): id is string => typeof id === "string") : [],
     restEndAt: isFiniteNumber(draft.restEndAt) ? draft.restEndAt : null,
     restTotal: isFiniteNumber(draft.restTotal) ? Math.max(0, draft.restTotal) : 0,
+    savedAt: isFiniteNumber(draft.savedAt) ? draft.savedAt : null,
     machineSetup: typeof draft.machineSetup === "string" ? draft.machineSetup : "",
     note: typeof draft.note === "string" ? draft.note : "",
   };

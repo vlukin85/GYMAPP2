@@ -16,7 +16,7 @@ import { MAX_DROP_SUBSETS, bestOneRepMax, exercises, getEffectiveSetWeight, getE
 import { getRemainingRestSeconds, getRestProgress } from "@/lib/rest-timer";
 import { getHistoricalQuickWeightOptions, getPreviousWorkingResult, prefillWorkingSet } from "@/lib/workout-set-entry";
 import { filterActiveWorkoutCatalog, reorderActiveWorkoutExercises } from "@/lib/active-workout-utils";
-import { getWorkoutProgress } from "@/lib/workout-progress";
+import { countWorkoutSetUnits, getWorkoutProgress } from "@/lib/workout-progress";
 import { useWorkoutStore } from "@/lib/workout-store";
 import { openReplacementPicker, subscribeToExerciseReplacement } from "@/lib/exercise-replacement-bus";
 
@@ -28,6 +28,9 @@ const REST_KEEP_AWAKE_TAG = "gym-training-diary-rest-timer";
 const REST_CIRCLE_RADIUS = 108;
 const REST_CIRCLE_SIZE = 252;
 const REST_CIRCUMFERENCE = 2 * Math.PI * REST_CIRCLE_RADIUS;
+const WORKOUT_PROGRESS_CIRCLE_SIZE = 64;
+const WORKOUT_PROGRESS_CIRCLE_RADIUS = 27;
+const WORKOUT_PROGRESS_CIRCUMFERENCE = 2 * Math.PI * WORKOUT_PROGRESS_CIRCLE_RADIUS;
 const DRAG_AUTOSCROLL_EDGE_PX = 86;
 const DRAG_AUTOSCROLL_STEP_PX = 16;
 const DRAG_AUTOSCROLL_INTERVAL_MS = 34;
@@ -182,21 +185,32 @@ function ExerciseDragHandle({
   );
 }
 
-function WorkoutProgressCard({ completedExercises, totalExercises, colors }: { completedExercises: number; totalExercises: number; colors: ReturnType<typeof useColors> }) {
-  const progress = getWorkoutProgress(completedExercises, totalExercises);
+function WorkoutProgressCard({ completedSets, totalSets, lastAutosavedAt, colors }: { completedSets: number; totalSets: number; lastAutosavedAt: number | null; colors: ReturnType<typeof useColors> }) {
+  const progress = getWorkoutProgress(completedSets, totalSets);
   const progressWidth = useSharedValue(progress.ratio * 100);
   useEffect(() => {
     progressWidth.value = withTiming(progress.ratio * 100, { duration: 280, easing: Easing.out(Easing.cubic) });
   }, [progress.ratio, progressWidth]);
   const progressStyle = useAnimatedStyle(() => ({ width: `${progressWidth.value}%` }));
+  const dashOffset = WORKOUT_PROGRESS_CIRCUMFERENCE * (1 - progress.ratio);
+  const savedLabel = lastAutosavedAt
+    ? new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }).format(new Date(lastAutosavedAt))
+    : "ожидание первого сохранения";
   return (
-    <View style={[styles.workoutProgressCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+    <View style={[styles.workoutProgressCard, { backgroundColor: colors.surface, borderColor: colors.border }]}> 
       <View style={styles.workoutProgressHeader}>
-        <View>
+        <View style={{ flex: 1 }}>
           <Text style={[styles.workoutProgressEyebrow, { color: colors.primary }]}>ПРОГРЕСС ТРЕНИРОВКИ</Text>
-          <Text style={[styles.workoutProgressCopy, { color: colors.foreground }]}>{progress.completed} из {progress.total || "—"} упражнений завершено</Text>
+          <Text style={[styles.workoutProgressCopy, { color: colors.foreground }]}>{progress.completed} из {progress.total || "—"} подходов завершено</Text>
+          <Text style={[styles.workoutProgressSaved, { color: colors.muted }]}>Автосохранено: {savedLabel}</Text>
         </View>
-        <Text style={[styles.workoutProgressPercent, { color: colors.primary }]}>{progress.percent}%</Text>
+        <View style={styles.workoutProgressRing}>
+          <Svg width={WORKOUT_PROGRESS_CIRCLE_SIZE} height={WORKOUT_PROGRESS_CIRCLE_SIZE} viewBox={`0 0 ${WORKOUT_PROGRESS_CIRCLE_SIZE} ${WORKOUT_PROGRESS_CIRCLE_SIZE}`}>
+            <Circle cx={WORKOUT_PROGRESS_CIRCLE_SIZE / 2} cy={WORKOUT_PROGRESS_CIRCLE_SIZE / 2} r={WORKOUT_PROGRESS_CIRCLE_RADIUS} stroke={colors.border} strokeWidth={5} fill="none" />
+            <Circle cx={WORKOUT_PROGRESS_CIRCLE_SIZE / 2} cy={WORKOUT_PROGRESS_CIRCLE_SIZE / 2} r={WORKOUT_PROGRESS_CIRCLE_RADIUS} stroke={colors.primary} strokeWidth={5} strokeLinecap="round" fill="none" strokeDasharray={WORKOUT_PROGRESS_CIRCUMFERENCE} strokeDashoffset={dashOffset} transform={`rotate(-90 ${WORKOUT_PROGRESS_CIRCLE_SIZE / 2} ${WORKOUT_PROGRESS_CIRCLE_SIZE / 2})`} />
+          </Svg>
+          <View pointerEvents="none" style={styles.workoutProgressRingLabel}><Text style={[styles.workoutProgressPercent, { color: colors.primary }]}>{progress.percent}%</Text></View>
+        </View>
       </View>
       <View style={[styles.workoutProgressTrack, { backgroundColor: colors.border }]}>
         <Animated.View style={[styles.workoutProgressFill, { backgroundColor: colors.primary }, progressStyle]} />
@@ -254,6 +268,7 @@ export default function WorkoutScreen() {
   const [sessionOrder, setSessionOrder] = useState<string[]>([]);
   const [dragState, setDragState] = useState<{ sourceId: string; sourceIndex: number; targetIndex: number | null } | null>(null);
   const [isRestoringDraft, setIsRestoringDraft] = useState(true);
+  const [lastAutosavedAt, setLastAutosavedAt] = useState<number | null>(null);
   const isDraftPersistenceEnabledRef = useRef(true);
   const dragStateRef = useRef<{ sourceId: string; sourceIndex: number; targetIndex: number | null } | null>(null);
   const workoutScrollRef = useRef<ScrollView>(null);
@@ -380,6 +395,7 @@ export default function WorkoutScreen() {
           restEndRef.current = snapshot.restEndAt;
           setRestTotal(snapshot.restTotal);
           setRest(snapshot.restEndAt ? getRemainingRestSeconds(snapshot.restEndAt) : 0);
+          setLastAutosavedAt(snapshot.savedAt);
           setMachineSetup(snapshot.machineSetup);
           setNote(snapshot.note);
           setAddedSessionExercises(snapshot.addedSessionExercises);
@@ -396,6 +412,7 @@ export default function WorkoutScreen() {
           restEndRef.current = null;
           setRestTotal(0);
           setRest(0);
+          setLastAutosavedAt(null);
           setMachineSetup("");
           setNote("");
           setAddedSessionExercises([]);
@@ -415,6 +432,7 @@ export default function WorkoutScreen() {
     if (isRestoringDraft) return;
     const snapshotTimer = setTimeout(() => {
       if (!isDraftPersistenceEnabledRef.current) return;
+      const savedAt = Date.now();
       void saveActiveWorkoutDraft({
         programId: programSnapshotId,
         startedAt: started,
@@ -428,9 +446,10 @@ export default function WorkoutScreen() {
         sessionOrder,
         restEndAt,
         restTotal,
+        savedAt,
         machineSetup,
         note,
-      }).catch(() => undefined);
+      }).then(() => setLastAutosavedAt(savedAt)).catch(() => undefined);
     }, 180);
     return () => clearTimeout(snapshotTimer);
   }, [activeId, addedSessionExercises, done, draft, isRestoringDraft, machineSetup, note, programSnapshotId, removedExerciseIds, replacements, restEndAt, restTotal, sessionOrder, setsByExercise, started]);
@@ -803,7 +822,14 @@ export default function WorkoutScreen() {
       backgroundColor: value.trim() ? colors.background : `${colors.muted}1A`,
     },
   ];
-  const completedExerciseCount = sessionExercises.filter((item) => done[item.exerciseId]).length;
+  const totalPlannedSetCount = sessionExercises.reduce((totalSets, item) => {
+    const actualSets = setsByExercise[item.exerciseId];
+    return totalSets + (actualSets?.length ? countWorkoutSetUnits(actualSets) : item.sets);
+  }, 0);
+  const completedSetCount = sessionExercises.reduce(
+    (totalSets, item) => totalSets + (setsByExercise[item.exerciseId] ?? []).reduce((setTotal, set) => setTotal + setParts(set).length, 0),
+    0,
+  );
 
   return (
     <ScreenContainer edges={["top", "left", "right", "bottom"]} className="px-5" containerClassName="bg-background">
@@ -833,7 +859,7 @@ export default function WorkoutScreen() {
         </View>
         <Text style={[styles.title, { color: colors.foreground }]}>{program.name}</Text>
         <Text style={[styles.helper, { color: colors.muted }]}>Сохраняйте только выполненные упражнения. Свайпните карточку влево для удаления, перетащите маркер ⠿ для смены порядка.</Text>
-        <WorkoutProgressCard completedExercises={completedExerciseCount} totalExercises={sessionExercises.length} colors={colors} />
+        <WorkoutProgressCard completedSets={completedSetCount} totalSets={totalPlannedSetCount} lastAutosavedAt={lastAutosavedAt} colors={colors} />
 
         {renderedSessionExercises.map((item, index) => {
           const exercise = getExercise(actualExerciseId(item.exerciseId));
@@ -1223,10 +1249,13 @@ const styles = StyleSheet.create({
   title: { fontSize: 23, fontWeight: "800", marginTop: 8 },
   helper: { fontSize: 12, lineHeight: 18 },
   workoutProgressCard: { borderWidth: 1, borderRadius: 17, padding: 13, gap: 10, marginTop: 2 },
-  workoutProgressHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end", gap: 12 },
+  workoutProgressHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 12 },
   workoutProgressEyebrow: { fontSize: 9, fontWeight: "900", letterSpacing: 0.9 },
   workoutProgressCopy: { fontSize: 13, fontWeight: "800", marginTop: 4 },
-  workoutProgressPercent: { fontSize: 23, fontWeight: "900" },
+  workoutProgressSaved: { fontSize: 10, lineHeight: 15, marginTop: 5 },
+  workoutProgressRing: { width: WORKOUT_PROGRESS_CIRCLE_SIZE, height: WORKOUT_PROGRESS_CIRCLE_SIZE, alignItems: "center", justifyContent: "center" },
+  workoutProgressRingLabel: { position: "absolute", alignItems: "center", justifyContent: "center" },
+  workoutProgressPercent: { fontSize: 16, fontWeight: "900" },
   workoutProgressTrack: { height: 8, borderRadius: 6, overflow: "hidden" },
   workoutProgressFill: { height: "100%", borderRadius: 6, minWidth: 0 },
   exerciseWrap: { gap: 5, position: "relative" },

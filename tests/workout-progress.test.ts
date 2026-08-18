@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getWorkoutProgress } from "../lib/workout-progress";
+import { countWorkoutSetUnits, getWorkoutProgress } from "../lib/workout-progress";
 
 describe("прогресс активной тренировки", () => {
   it("считает завершённые упражнения и процент", () => {
@@ -9,5 +9,9 @@ describe("прогресс активной тренировки", () => {
   it("ограничивает недопустимые значения", () => {
     expect(getWorkoutProgress(8, 3)).toEqual({ completed: 3, total: 3, ratio: 1, percent: 100 });
     expect(getWorkoutProgress(1, 0).percent).toBe(0);
+  });
+
+  it("считает подподходы дроп-сета отдельными единицами прогресса", () => {
+    expect(countWorkoutSetUnits([{ type: "working" }, { type: "drop", dropSubsets: [{}, {}, {}] }])).toBe(4);
   });
 });
