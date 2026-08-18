@@ -7,7 +7,7 @@ export type Exercise = {
   equipment: string;
   description: string;
   image: string;
-  photoAngles?: { id: "main" | "side" | "rear"; label: string; url: string }[];
+  photoAngles?: { id: string; label: string; url: string }[];
   videoUrl: string;
   recordKg: number;
   recordReps: number;
@@ -261,7 +261,11 @@ const aiGroupExerciseIllustrations: Record<Exclude<MuscleGroup, "Все">, strin
   "Кардио": "/manus-storage/gym-ai-functional_59960858.jpg",
 };
 
-export const generatedExerciseIllustrationLibrary = Object.entries(generatedTechniqueImages).map(([exerciseId, url]) => ({ exerciseId, url, label: "Ранее созданная иллюстрация техники" }));
+export const generatedExerciseIllustrationLibrary = [
+  ...Object.entries(individualAiExerciseIllustrations).map(([exerciseId, url]) => ({ exerciseId, url, label: "Отдельная AI-иллюстрация" })),
+  ...Object.entries(generatedTechniqueImages).map(([exerciseId, url]) => ({ exerciseId, url, label: "Ранее созданная иллюстрация техники" })),
+  ...Object.entries(aiGroupExerciseIllustrations).map(([group, url]) => ({ exerciseId: `group-${group}`, url, label: `AI-иллюстрация группы: ${group}` })),
+];
 
 function exerciseTechniqueImage(exercise: Exercise) {
   return individualAiExerciseIllustrations[exercise.id] ?? generatedTechniqueImages[exercise.id] ?? aiGroupExerciseIllustrations[exercise.group] ?? getExerciseIllustration(exercise.id, exercise.group, exercise.equipment);
@@ -272,10 +276,14 @@ export function getExerciseIllustrationCandidates(exercise: Exercise) {
   const individualAi = individualAiExerciseIllustrations[exercise.id];
   const aiGroupImage = aiGroupExerciseIllustrations[exercise.group];
   const defaultIllustration = exerciseTechniqueImage(exercise);
-  const candidates = individualAi ? [{ id: `ai-${exercise.id}`, label: "Отдельная AI-иллюстрация", url: individualAi }] : [];
-  if (generated && generated !== individualAi) candidates.push({ id: `generated-${exercise.id}`, label: "Ранее созданная иллюстрация", url: generated });
-  if (aiGroupImage && aiGroupImage !== generated && aiGroupImage !== individualAi) candidates.push({ id: `ai-${exercise.group}`, label: "AI-иллюстрация группы", url: aiGroupImage });
-  candidates.push({ id: `illustration-${exercise.id}`, label: "Иллюстрация упражнения", url: defaultIllustration });
+  const candidates: { id: string; label: string; url: string }[] = [];
+  const addCandidate = (id: string, label: string, url?: string) => {
+    if (url && !candidates.some((candidate) => candidate.url === url)) candidates.push({ id, label, url });
+  };
+  addCandidate(`ai-${exercise.id}`, "Отдельная AI-иллюстрация", individualAi);
+  addCandidate(`generated-${exercise.id}`, "Ранее созданная иллюстрация техники", generated);
+  addCandidate(`ai-${exercise.group}`, "AI-иллюстрация группы", aiGroupImage);
+  addCandidate(`illustration-${exercise.id}`, "Иллюстрация упражнения", defaultIllustration);
   return candidates;
 }
 
@@ -303,13 +311,15 @@ const catalogExercises: Exercise[] = [
   ...expandedExercises,
 ];
 
-export const exercises: Exercise[] = catalogExercises.map((exercise) => ({
-  ...exercise,
-  image: exerciseTechniqueImage(exercise),
-  photoAngles: [
-    { id: "main", label: "Техника", url: exerciseTechniqueImage(exercise) },
-  ],
-}));
+export const exercises: Exercise[] = catalogExercises.map((exercise) => {
+  const candidates = getExerciseIllustrationCandidates(exercise);
+  const photoAngles = candidates.map((candidate, index) => ({
+    id: index === 0 ? "main" : candidate.id,
+    label: index === 0 ? "Техника" : candidate.label,
+    url: candidate.url,
+  }));
+  return { ...exercise, image: photoAngles[0]?.url ?? exerciseTechniqueImage(exercise), photoAngles };
+});
 
 let customExercises: Exercise[] = [];
 

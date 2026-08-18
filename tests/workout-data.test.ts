@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { bestOneRepMax, calculateBarbellPlateLayout, calculateVolume, defaultPrograms, estimateOneRepMax, exercises, formatDuration, formatPlateLayout, formatProgramCreatedAt, getCurrentTrainingPeriodStats, getDropSetParts, getEffectiveSetWeight, getLoadZones, getMonthComparisonStats, getMonthCalendarDays, getReminderTriggerDate, getSetVolumeWithDropSubsets, isFutureScheduleDate, mergeStoredPrograms, recommendWorkingWeight, roundToWeightIncrement } from "../lib/workout-data";
+import { bestOneRepMax, calculateBarbellPlateLayout, calculateVolume, defaultPrograms, estimateOneRepMax, exercises, formatDuration, formatPlateLayout, formatProgramCreatedAt, getCurrentTrainingPeriodStats, getDropSetParts, getEffectiveSetWeight, getExerciseIllustrationCandidates, getLoadZones, getMonthComparisonStats, getMonthCalendarDays, getReminderTriggerDate, getSetVolumeWithDropSubsets, isFutureScheduleDate, mergeStoredPrograms, recommendWorkingWeight, roundToWeightIncrement } from "../lib/workout-data";
 import { openReplacementPicker, selectReplacementExercise, subscribeToExerciseReplacement, subscribeToReplacementPicker } from "../lib/exercise-replacement-bus";
 import { buildTrainingCsv } from "../lib/training-export";
 import { buildMonthlyReportData } from "../lib/monthly-report";
@@ -106,7 +106,10 @@ describe("workout calculations", () => {
     groups.forEach((group) => expect(exercises.filter((exercise) => exercise.group === group)).toHaveLength(20));
     expect(exercises.every((exercise) => !exercise.image.includes("loremflickr") && !exercise.image.includes("images.unsplash"))).toBe(true);
     expect(exercises.filter((exercise) => exercise.image.startsWith("/manus-storage/")).length).toBeGreaterThanOrEqual(10);
-    expect(exercises.every((exercise) => exercise.photoAngles?.length === 1 && exercise.photoAngles[0].url === exercise.image)).toBe(true);
+    expect(exercises.every((exercise) => exercise.photoAngles?.[0].id === "main" && exercise.photoAngles[0].url === exercise.image)).toBe(true);
+    const bench = exercises.find((exercise) => exercise.id === "bench-press")!;
+    expect(getExerciseIllustrationCandidates(bench).map((candidate) => candidate.label)).toEqual(expect.arrayContaining(["Отдельная AI-иллюстрация", "Ранее созданная иллюстрация техники", "AI-иллюстрация группы"]));
+    expect(bench.photoAngles?.length).toBeGreaterThanOrEqual(3);
   });
   it("offers at least fifteen varied ready-to-use training programs", () => {
     expect(defaultPrograms.length).toBeGreaterThanOrEqual(15);
