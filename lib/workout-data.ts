@@ -135,6 +135,7 @@ export type CompletedWorkout = {
   date: string;
   durationMinutes: number;
   totalVolume: number;
+  sets?: { exerciseId: string; weight: number; reps: number }[];
 };
 
 export function isScheduledWorkoutCompleted(completed: CompletedWorkout[], date: string, programId: string) {

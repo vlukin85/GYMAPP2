@@ -124,7 +124,7 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
           maxOneRmDelta = Math.max(maxOneRmDelta, delta);
         }
       });
-      setState((current) => ({ ...current, activeWorkout: null, personalRecords: records, completed: [{ id: `w-${Date.now()}`, programId, date: new Date().toISOString().slice(0, 10), durationMinutes: minutes, totalVolume: volume }, ...current.completed] }));
+      setState((current) => ({ ...current, activeWorkout: null, personalRecords: records, completed: [{ id: `w-${Date.now()}`, programId, date: new Date().toISOString().slice(0, 10), durationMinutes: minutes, totalVolume: volume, sets }, ...current.completed] }));
       return { minutes, newRecordIds, maxOneRmDelta };
     },
     scheduleProgram: (date, schedule) => setState((current) => ({ ...current, scheduled: { ...current.scheduled, [date]: schedule } })),
@@ -215,7 +215,7 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
         });
       });
       const existing = new Map(current.completed.map((workout) => [workout.id, workout]));
-      workouts.forEach((workout) => existing.set(workout.id, { id: workout.id, programId: workout.programId, date: workout.date, durationMinutes: workout.durationMinutes, totalVolume: workout.totalVolume }));
+      workouts.forEach((workout) => existing.set(workout.id, { id: workout.id, programId: workout.programId, date: workout.date, durationMinutes: workout.durationMinutes, totalVolume: workout.totalVolume, sets: workout.sets }));
       return { ...current, personalRecords, completed: Array.from(existing.values()).sort((a, b) => b.date.localeCompare(a.date)) };
     }),
     restoreTrainingBackup: (snapshot) => setState((current) => ({ ...current, oneRmFormula: snapshot.oneRmFormula ?? current.oneRmFormula, plateStepKg: snapshot.plateStepKg ?? current.plateStepKg, barbellProfile: snapshot.barbellProfile ?? current.barbellProfile, personalRecords: snapshot.personalRecords ?? current.personalRecords, bodyWeightKg: snapshot.bodyWeightKg ?? current.bodyWeightKg, bodyweightVolumePercent: snapshot.bodyweightVolumePercent ?? current.bodyweightVolumePercent, exercisePreferences: snapshot.exercisePreferences ?? current.exercisePreferences })),

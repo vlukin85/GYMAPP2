@@ -90,3 +90,44 @@ export function buildAiProgramPrompt(input: AiProgramParameters, catalog: Exerci
 
 allowedExercises: ${JSON.stringify(catalogSummary)}`;
 }
+
+function matchesEquipment(exercise: Exercise, equipment: AiProgramParameters["equipment"]) {
+  if (equipment === "full-gym") return true;
+  const value = exercise.equipment.toLocaleLowerCase("ru-RU");
+  if (equipment === "machines") return value.includes("тренаж") || value.includes("блок") || value.includes("кроссовер");
+  if (equipment === "free-weights") return value.includes("штанг") || value.includes("гантел") || value.includes("гир") || value.includes("вес тела");
+  return value.includes("вес тела") || value.includes("гантел") || value.includes("резин") || value.includes("коврик");
+}
+
+/** Creates an editable on-device template without network, credentials, or model calls. */
+export function generateLocalProgram(input: AiProgramParameters, catalog: Exercise[]): Omit<WorkoutProgram, "id"> {
+  const normalized = `${input.prompt} ${input.limitations ?? ""}`.toLocaleLowerCase("ru-RU");
+  const filtered = catalog.filter((exercise) => matchesEquipment(exercise, input.equipment));
+  const safeCatalog = filtered.length >= 2 ? filtered : catalog;
+  const avoidLegs = /без.*ног|колен|присед/.test(normalized);
+  const avoidBack = /без.*спин|поясниц/.test(normalized);
+  const preferredGroups = ["Грудь", "Спина", "Ноги", "Плечи", "Руки", "Корпус", "Кардио"];
+  const candidates = preferredGroups.flatMap((group) => safeCatalog.filter((exercise) => exercise.group === group));
+  const unique = candidates.filter((exercise, index, list) => list.findIndex((item) => item.id === exercise.id) === index)
+    .filter((exercise) => !(avoidLegs && exercise.group === "Ноги"))
+    .filter((exercise) => !(avoidBack && exercise.group === "Спина"));
+  const targetCount = Math.min(input.sessionMinutes <= 45 ? 4 : input.sessionMinutes >= 75 ? 7 : 6, 8);
+  const selected = (unique.length >= 2 ? unique : safeCatalog).slice(0, targetCount);
+  const strengthFocus = /сил|strength|мощн/.test(normalized);
+  const enduranceFocus = /вынослив|endurance|кардио/.test(normalized);
+  const sets = input.experience === "beginner" ? 3 : input.experience === "advanced" ? 4 : 3;
+  const reps = strengthFocus ? 6 : enduranceFocus ? 14 : 10;
+  const rest = strengthFocus ? 150 : enduranceFocus ? 60 : 90;
+  return {
+    name: `Локальный план · ${input.daysPerWeek}× в неделю`,
+    description: "Редактируемый план собран на устройстве по выбранным параметрам. Проверьте упражнения и нагрузку перед тренировкой.",
+    exercises: selected.map((exercise) => ({
+      exerciseId: exercise.id,
+      sets,
+      reps: exercise.equipment.toLocaleLowerCase("ru-RU").includes("вес тела") ? Math.max(reps, 10) : reps,
+      weight: 0,
+      rest,
+      setType: "working" as SetType,
+    })),
+  };
+}

@@ -6,15 +6,15 @@ const projectRoot = resolve(__dirname, "..");
 const readProjectFile = (relativePath: string) => readFileSync(resolve(projectRoot, relativePath), "utf8");
 
 describe("Android cold-start guard", () => {
-  it("does not statically load Sentry before the first render", () => {
+  it("does not include remote diagnostics in the client bundle", () => {
     const reporting = readProjectFile("lib/error-reporting.ts");
-    expect(reporting).not.toMatch(/^import\s+\*\s+as\s+Sentry\s+from/m);
-    expect(reporting).toContain('require("@sentry/react-native")');
+    expect(reporting).not.toContain("@sentry/react-native");
+    expect(reporting).toContain("local-diagnostics");
   });
 
-  it("delays Sentry initialization until after the root layout renders", () => {
+  it("does not initialize remote diagnostics in the root layout", () => {
     const layout = readProjectFile("app/_layout.tsx");
-    expect(layout).not.toMatch(/^initializeErrorReporting\(\);/m);
-    expect(layout).toContain("setTimeout(() => { if (!cancelled) initializeErrorReporting(); }, 800)");
+    expect(layout).not.toContain("initializeErrorReporting");
+    expect(layout).not.toContain("@sentry/react-native");
   });
 });

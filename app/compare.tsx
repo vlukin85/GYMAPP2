@@ -5,8 +5,8 @@ import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
 import { buildWorkoutComparison, groupWorkoutSessions } from "@/lib/csv-import";
+import { buildLocalWorkoutHistoryRows } from "@/lib/local-workout-history";
 import { formatDuration, getExercise } from "@/lib/workout-data";
-import { trpc } from "@/lib/trpc";
 import { useWorkoutStore } from "@/lib/workout-store";
 
 function formatDate(value: Date | string) {
@@ -20,9 +20,8 @@ function signed(value: number, suffix = "") {
 
 export default function CompareScreen() {
   const colors = useColors();
-  const { programs } = useWorkoutStore();
-  const historyQuery = trpc.workoutHistory.all.useQuery();
-  const sessions = useMemo(() => groupWorkoutSessions(historyQuery.data ?? []), [historyQuery.data]);
+  const { programs, completed, oneRmFormula } = useWorkoutStore();
+  const sessions = useMemo(() => groupWorkoutSessions(buildLocalWorkoutHistoryRows(completed, oneRmFormula)), [completed, oneRmFormula]);
   const [firstId, setFirstId] = useState<string | null>(null);
   const [secondId, setSecondId] = useState<string | null>(null);
   const [target, setTarget] = useState<"first" | "second">("first");
@@ -57,9 +56,7 @@ export default function CompareScreen() {
           <Text style={styles.heroText}>Сравни общий объём и максимальный расчётный 1RM по каждому упражнению.</Text>
         </View>
 
-        {historyQuery.isLoading && <Text style={[styles.stateText, { color: colors.muted }]}>Загружаем историю тренировок…</Text>}
-
-        {!historyQuery.isLoading && sessions.length < 2 && (
+        {sessions.length < 2 && (
           <View style={[styles.empty, { backgroundColor: colors.surface }]}>
             <Text style={[styles.emptyTitle, { color: colors.foreground }]}>Нужно ещё одно занятие</Text>
             <Text style={[styles.stateText, { color: colors.muted }]}>Заверши или импортируй минимум две тренировки, чтобы увидеть сравнение.</Text>

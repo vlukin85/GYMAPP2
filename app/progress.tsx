@@ -5,22 +5,22 @@ import { router } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
+import { buildLocalWorkoutHistoryRows } from "@/lib/local-workout-history";
 import { bestOneRepMax, exercises, getExerciseHistory } from "@/lib/workout-data";
 import { useWorkoutStore } from "@/lib/workout-store";
-import { trpc } from "@/lib/trpc";
 
 export default function ProgressScreen() {
   const colors = useColors();
-  const { oneRmFormula } = useWorkoutStore();
+  const { oneRmFormula, completed } = useWorkoutStore();
   const [exerciseId, setExerciseId] = useState("bench-press");
   const exercise = exercises.find((item) => item.id === exerciseId) ?? exercises[0];
-  const historyQuery = trpc.workoutHistory.byExercise.useQuery({ exerciseId });
+  const localRows = useMemo(() => buildLocalWorkoutHistoryRows(completed, oneRmFormula).filter((row) => row.exerciseId === exerciseId), [completed, oneRmFormula, exerciseId]);
   const points = useMemo(() => {
-    const grouped = new Map<number, { date: string; sets: { weight: number; reps: number }[] }>();
-    (historyQuery.data ?? []).forEach((row) => { const entry = grouped.get(row.sessionId) ?? { date: new Date(row.date).toLocaleDateString("ru-RU", { day: "numeric", month: "short" }).replace(".", ""), sets: [] }; entry.sets.push({ weight: row.weightCentiKg / 100, reps: row.reps }); grouped.set(row.sessionId, entry); });
-    const remote = Array.from(grouped.values()).reverse().map((entry) => ({ date: entry.date, value: bestOneRepMax(entry.sets, oneRmFormula) }));
-    return remote.length ? remote : getExerciseHistory(exercise.id).slice().reverse().map((entry) => ({ date: entry.date, value: bestOneRepMax(entry.sets, oneRmFormula) }));
-  }, [historyQuery.data, exercise.id, oneRmFormula]);
+    const grouped = new Map<string, { date: string; sets: { weight: number; reps: number }[] }>();
+    localRows.forEach((row) => { const entry = grouped.get(row.sessionId) ?? { date: new Date(row.date).toLocaleDateString("ru-RU", { day: "numeric", month: "short" }).replace(".", ""), sets: [] }; entry.sets.push({ weight: row.weightCentiKg / 100, reps: row.reps }); grouped.set(row.sessionId, entry); });
+    const stored = Array.from(grouped.values()).reverse().map((entry) => ({ date: entry.date, value: bestOneRepMax(entry.sets, oneRmFormula) }));
+    return stored.length ? stored : getExerciseHistory(exercise.id).slice().reverse().map((entry) => ({ date: entry.date, value: bestOneRepMax(entry.sets, oneRmFormula) }));
+  }, [localRows, exercise.id, oneRmFormula]);
   const values = points.map((point) => point.value);
   const min = Math.min(...values, 0); const max = Math.max(...values, 1); const width = 310; const height = 170; const padding = 24;
   const coordinates = points.map((point, index) => ({ x: padding + (points.length === 1 ? 0 : index * ((width - padding * 2) / (points.length - 1))), y: height - padding - ((point.value - min) / Math.max(1, max - min)) * (height - padding * 2), ...point }));

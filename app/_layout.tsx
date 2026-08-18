@@ -1,5 +1,4 @@
 import "@/global.css";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -8,7 +7,6 @@ import "react-native-reanimated";
 import { Platform } from "react-native";
 import "@/lib/_core/nativewind-pressable";
 import { ThemeProvider } from "@/lib/theme-provider";
-import { TrainingBackupSync } from "@/components/training-backup-sync";
 import { WorkoutReplacementOverlay } from "@/components/workout-replacement-overlay";
 import { ReleaseNotesOverlay } from "@/components/release-notes-overlay";
 import { StartupErrorBoundary } from "@/components/startup-error-boundary";
@@ -21,9 +19,7 @@ import {
 } from "react-native-safe-area-context";
 import type { EdgeInsets, Metrics, Rect } from "react-native-safe-area-context";
 
-import { trpc, createTRPCClient } from "@/lib/trpc";
-import { initManusRuntime, subscribeSafeAreaInsets } from "@/lib/_core/manus-runtime";
-import { initializeErrorReporting } from "@/lib/error-reporting";
+import { subscribeSafeAreaInsets } from "@/lib/_core/manus-runtime";
 import { beginLaunchDiagnostics, completeLaunchDiagnostics, recordStartupChecks } from "@/lib/launch-diagnostics";
 
 const DEFAULT_WEB_INSETS: EdgeInsets = { top: 0, right: 0, bottom: 0, left: 0 };
@@ -40,18 +36,15 @@ export default function RootLayout() {
   const [insets, setInsets] = useState<EdgeInsets>(initialInsets);
   const [frame, setFrame] = useState<Rect>(initialFrame);
 
-  // Initialize Manus runtime for cookie injection from parent container
   useEffect(() => {
-    initManusRuntime();
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
-    const reportingTimer = setTimeout(() => { if (!cancelled) initializeErrorReporting(); }, 800);
     void (async () => {
       const launchId = await beginLaunchDiagnostics();
       await recordStartupChecks();
       if (!cancelled) timer = setTimeout(() => void completeLaunchDiagnostics(launchId), 1200);
     })();
-    return () => { cancelled = true; clearTimeout(reportingTimer); if (timer) clearTimeout(timer); };
+    return () => { cancelled = true; if (timer) clearTimeout(timer); };
   }, []);
 
   const handleSafeAreaUpdate = useCallback((metrics: Metrics) => {
@@ -64,22 +57,6 @@ export default function RootLayout() {
     const unsubscribe = subscribeSafeAreaInsets(handleSafeAreaUpdate);
     return () => unsubscribe();
   }, [handleSafeAreaUpdate]);
-
-  // Create clients once and reuse them
-  const [queryClient] = useState(
-    () =>
-      new QueryClient({
-        defaultOptions: {
-          queries: {
-            // Disable automatic refetching on window focus for mobile
-            refetchOnWindowFocus: false,
-            // Retry failed requests once
-            retry: 1,
-          },
-        },
-      }),
-  );
-  const [trpcClient] = useState(() => createTRPCClient());
 
   // Ensure minimum 8px padding for top and bottom on mobile
   const providerInitialMetrics = useMemo(() => {
@@ -96,8 +73,6 @@ export default function RootLayout() {
 
   const content = (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <trpc.Provider client={trpcClient} queryClient={queryClient}>
-        <QueryClientProvider client={queryClient}>
           {/* Default to hiding native headers so raw route segments don't appear (e.g. "(tabs)", "products/[id]"). */}
           {/* If a screen needs the native header, explicitly enable it and set a human title via Stack.Screen options. */}
           {/* in order for ios apps tab switching to work properly, use presentation: "fullScreenModal" for login page, whenever you decide to use presentation: "modal*/}
@@ -120,12 +95,9 @@ export default function RootLayout() {
             <Stack.Screen name="dev/services" />
             <Stack.Screen name="diagnostics" />
           </Stack>
-          <TrainingBackupSync />
           <WorkoutReplacementOverlay />
           <ReleaseNotesOverlay />
           <StatusBar style="auto" />
-        </QueryClientProvider>
-      </trpc.Provider>
     </GestureHandlerRootView>
   );
 

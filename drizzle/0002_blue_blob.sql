@@ -1,1 +1,0 @@
-ALTER TABLE `workoutSets` ADD `oneRepMaxCentiKg` int NOT NULL;

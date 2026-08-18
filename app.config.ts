@@ -1,5 +1,3 @@
-// Load environment variables with proper priority (system > .env)
-import "./scripts/load-env.js";
 import type { ExpoConfig } from "expo/config";
 
 // Bundle ID format: space.manus.<project_name_dots>.<timestamp>
@@ -85,23 +83,12 @@ const config: ExpoConfig = {
     output: "static",
     favicon: "./assets/images/favicon.png",
   },
-  extra: {
-    sentryDsn: process.env.SENTRY_DSN ?? "",
-  },
   plugins: [
     "expo-router",
     "expo-document-picker",
     "expo-asset",
     "expo-font",
     "expo-web-browser",
-    [
-      "@sentry/react-native/expo",
-      {
-        url: "https://sentry.io/",
-        organization: process.env.SENTRY_ORG,
-        project: process.env.SENTRY_PROJECT,
-      },
-    ],
     "expo-notifications",
     [
       "expo-audio",
