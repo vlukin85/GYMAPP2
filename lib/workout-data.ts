@@ -1,9 +1,11 @@
 export type MuscleGroup = "Грудь" | "Спина" | "Ноги" | "Плечи" | "Руки" | "Корпус" | "Кардио";
 
+import { freeExerciseDbGroupFallbackPhotos, freeExerciseDbPhotos } from "./free-exercise-db-photos";
+
 export type Exercise = {
-  id: string;
-  name: string;
-  group: MuscleGroup;
+id: string;
+name: string;
+group: MuscleGroup;
   equipment: string;
   description: string;
   image: string;
@@ -267,21 +269,28 @@ export const generatedExerciseIllustrationLibrary = [
   ...Object.entries(aiGroupExerciseIllustrations).map(([group, url]) => ({ exerciseId: `group-${group}`, url, label: `AI-иллюстрация группы: ${group}` })),
 ];
 
+function exerciseOpenPhoto(exercise: Exercise) {
+  return freeExerciseDbPhotos[exercise.id] ?? freeExerciseDbGroupFallbackPhotos[exercise.group];
+}
+
 function exerciseTechniqueImage(exercise: Exercise) {
-  return individualAiExerciseIllustrations[exercise.id] ?? generatedTechniqueImages[exercise.id] ?? aiGroupExerciseIllustrations[exercise.group] ?? getExerciseIllustration(exercise.id, exercise.group, exercise.equipment);
+  return individualAiExerciseIllustrations[exercise.id] ?? generatedTechniqueImages[exercise.id] ?? aiGroupExerciseIllustrations[exercise.group] ?? exerciseOpenPhoto(exercise) ?? getExerciseIllustration(exercise.id, exercise.group, exercise.equipment);
 }
 
 export function getExerciseIllustrationCandidates(exercise: Exercise) {
-  const generated = generatedTechniqueImages[exercise.id];
-  const individualAi = individualAiExerciseIllustrations[exercise.id];
-  const aiGroupImage = aiGroupExerciseIllustrations[exercise.group];
-  const defaultIllustration = exerciseTechniqueImage(exercise);
-  const candidates: { id: string; label: string; url: string }[] = [];
+const generated = generatedTechniqueImages[exercise.id];
+const individualAi = individualAiExerciseIllustrations[exercise.id];
+const aiGroupImage = aiGroupExerciseIllustrations[exercise.group];
+  const openPhoto = exerciseOpenPhoto(exercise);
+  const hasDedicatedOpenPhoto = Boolean(freeExerciseDbPhotos[exercise.id]);
+const defaultIllustration = exerciseTechniqueImage(exercise);
+const candidates: { id: string; label: string; url: string }[] = [];
   const addCandidate = (id: string, label: string, url?: string) => {
     if (url && !candidates.some((candidate) => candidate.url === url)) candidates.push({ id, label, url });
   };
   addCandidate(`ai-${exercise.id}`, "Отдельная AI-иллюстрация", individualAi);
   addCandidate(`generated-${exercise.id}`, "Ранее созданная иллюстрация техники", generated);
+  addCandidate(`open-photo-${exercise.id}`, hasDedicatedOpenPhoto ? "Открытое фото упражнения · free-exercise-db" : "Открытое фото группы · free-exercise-db", openPhoto);
   addCandidate(`ai-${exercise.group}`, "AI-иллюстрация группы", aiGroupImage);
   addCandidate(`illustration-${exercise.id}`, "Иллюстрация упражнения", defaultIllustration);
   return candidates;

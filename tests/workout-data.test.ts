@@ -7,6 +7,12 @@ import { buildWorkoutComparison, createImportedWorkoutFingerprint, groupImported
 import { canDownloadPhotosOnWifi, getUniquePhotoUrls } from "../lib/offline-media";
 
 describe("workout calculations", () => {
+  it("uses the open free-exercise-db media library as a photo option for every catalog exercise", () => {
+    const benchPress = exercises.find((exercise) => exercise.id === "bench-press");
+    expect(benchPress?.photoAngles?.[0].id).toBe("main");
+    expect(benchPress?.photoAngles?.some((image) => image.url.includes("raw.githubusercontent.com/yuhonas/free-exercise-db"))).toBe(true);
+    expect(exercises.every((exercise) => getExerciseIllustrationCandidates(exercise).some((candidate) => candidate.id.startsWith("open-photo-")))).toBe(true);
+  });
   it("calculates volume from weight, reps and sets", () => {
     expect(calculateVolume(40, 8, 3)).toBe(960);
   });
