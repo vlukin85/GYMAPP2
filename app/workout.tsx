@@ -799,7 +799,6 @@ export default function WorkoutScreen() {
                     </Pressable>
                   </View>
                   <View style={styles.setEditorCenter}>
-                    <Text style={[styles.setEditorHint, { color: colors.muted }]}>Полноэкранная форма остаётся выше клавиатуры и не скрывает результат.</Text>
                     <View style={styles.setEditorFields}>
                       <View style={styles.setEditorFieldWrap}>
                         <Text style={[styles.setEditorLabel, { color: colors.muted }]}>ПОВТОРЫ</Text>
@@ -874,7 +873,6 @@ const styles = StyleSheet.create({
   setEditorClose: { width: 46, height: 46, borderRadius: 15, alignItems: "center", justifyContent: "center" },
   setEditorCloseText: { fontSize: 25, lineHeight: 28 },
   setEditorCenter: { flex: 1, width: "100%", maxWidth: 360, alignSelf: "center", justifyContent: "center", gap: 22 },
-  setEditorHint: { fontSize: 14, lineHeight: 20, textAlign: "center" },
   setEditorFields: { flexDirection: "row", gap: 14 },
   setEditorFieldWrap: { flex: 1, gap: 9 },
   setEditorLabel: { fontSize: 11, fontWeight: "900", letterSpacing: 0.75 },
