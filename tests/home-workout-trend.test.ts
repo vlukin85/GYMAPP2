@@ -8,9 +8,9 @@ describe("график завершённых тренировок главно�
       { id: "w-1", programId: "p", date: "2026-08-10", durationMinutes: 45, totalVolume: 3000, sets: [] },
       { id: "w-3", programId: "p", date: "2026-08-11", durationMinutes: 40, totalVolume: 800, sets: [] },
     ]);
-    expect(points.map((point) => [point.date, point.volume, point.workouts])).toEqual([
-      ["2026-08-10", 3000, 1],
-      ["2026-08-11", 5000, 2],
+    expect(points.map((point) => [point.date, point.volume, point.workouts, point.workoutId])).toEqual([
+      ["2026-08-10", 3000, 1, "w-1"],
+      ["2026-08-11", 5000, 2, "w-3"],
     ]);
   });
 });

@@ -91,6 +91,8 @@ export default function RootLayout() {
             <Stack.Screen name="recommendations" />
             <Stack.Screen name="report" />
             <Stack.Screen name="workout" options={{ animation: Platform.OS === "web" ? "fade_from_bottom" : "slide_from_right" }} />
+            <Stack.Screen name="workout-history/[id]" options={{ animation: Platform.OS === "web" ? "fade_from_bottom" : "slide_from_right" }} />
+            <Stack.Screen name="workout-history/exercise" options={{ animation: Platform.OS === "web" ? "fade_from_bottom" : "slide_from_right" }} />
             <Stack.Screen name="profile" />
             <Stack.Screen name="replace-exercise" />
             <Stack.Screen name="program/ai" />

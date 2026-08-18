@@ -1,13 +1,13 @@
 import type { CompletedWorkout } from "./workout-data";
 
-export type HomeWorkoutTrendPoint = { date: string; label: string; volume: number; workouts: number };
+export type HomeWorkoutTrendPoint = { date: string; label: string; volume: number; workouts: number; workoutId: string };
 
 /** Builds up to seven chronological data points from real persisted workouts only. */
 export function buildHomeWorkoutTrend(workouts: CompletedWorkout[], limit = 7): HomeWorkoutTrendPoint[] {
-  const byDate = new Map<string, { volume: number; workouts: number }>();
+  const byDate = new Map<string, { volume: number; workouts: number; workoutId: string }>();
   workouts.forEach((workout) => {
-    const current = byDate.get(workout.date) ?? { volume: 0, workouts: 0 };
-    byDate.set(workout.date, { volume: current.volume + workout.totalVolume, workouts: current.workouts + 1 });
+    const current = byDate.get(workout.date) ?? { volume: 0, workouts: 0, workoutId: workout.id };
+    byDate.set(workout.date, { volume: current.volume + workout.totalVolume, workouts: current.workouts + 1, workoutId: workout.id });
   });
   return Array.from(byDate.entries())
     .sort(([first], [second]) => first.localeCompare(second))
