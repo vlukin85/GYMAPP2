@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Alert, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { router } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
@@ -9,6 +9,7 @@ import { cacheAllExercisePhotosOnWifi } from "@/lib/exercise-image-cache";
 import { getLocalStorageUsage } from "@/lib/local-storage-usage";
 import { formatStorageBytes, getUsagePercent } from "@/lib/storage-usage-utils";
 import type { LocalStorageUsage } from "@/lib/local-storage-usage";
+import { clearGroqApiKey, getGroqApiKey, saveGroqApiKey } from "@/lib/groq-settings";
 import { type OneRepMaxFormula } from "@/lib/workout-data";
 import { useWorkoutStore } from "@/lib/workout-store";
 
@@ -27,6 +28,10 @@ export default function SettingsScreen() {
   const [storageUsage, setStorageUsage] = useState<LocalStorageUsage | null>(null);
   const [storageLoading, setStorageLoading] = useState(true);
   const [storageError, setStorageError] = useState(false);
+  const [hasGroqKey, setHasGroqKey] = useState(false);
+  const [keySheetVisible, setKeySheetVisible] = useState(false);
+  const [keyDraft, setKeyDraft] = useState("");
+  const [savingGroqKey, setSavingGroqKey] = useState(false);
   const links = [
     { title: "Профиль штанги и блинов", subtitle: "Вес грифа и доступные номиналы", route: "/barbell" as const },
     { title: "Рекомендации следующей тренировки", subtitle: "Рабочий вес с объяснением расчёта", route: "/recommendations" as const },
@@ -51,7 +56,30 @@ export default function SettingsScreen() {
 
   useEffect(() => {
     refreshStorageUsage();
+    void getGroqApiKey().then((key) => setHasGroqKey(Boolean(key))).catch(() => setHasGroqKey(false));
   }, [refreshStorageUsage]);
+
+  const openGroqKeySheet = () => {
+    setKeyDraft("");
+    setKeySheetVisible(true);
+  };
+  const saveGroqKey = async () => {
+    setSavingGroqKey(true);
+    try {
+      await saveGroqApiKey(keyDraft);
+      setHasGroqKey(true);
+      setKeyDraft("");
+      setKeySheetVisible(false);
+    } catch (error) {
+      Alert.alert("Не удалось сохранить ключ", error instanceof Error ? error.message : "Повтори попытку.");
+    } finally {
+      setSavingGroqKey(false);
+    }
+  };
+  const deleteGroqKey = () => Alert.alert("Удалить личный ключ Groq?", "ИИ-режим станет недоступен, пока ты не добавишь новый ключ.", [
+    { text: "Отмена", style: "cancel" },
+    { text: "Удалить", style: "destructive", onPress: () => { void clearGroqApiKey().then(() => setHasGroqKey(false)).catch(() => Alert.alert("Не удалось удалить ключ", "Повтори попытку.")); } },
+  ]);
 
   const downloadPhotos = async () => {
     setBulkState((state) => ({ ...state, loading: true, completed: 0, total: 0, message: "Проверяем подключение Wi‑Fi…" }));
@@ -118,6 +146,17 @@ export default function SettingsScreen() {
             <Text style={[styles.fieldLabel, { color: colors.muted }]}>Учитывать, %</Text>
             <TextInput value={bodyPercent} onChangeText={setBodyPercent} keyboardType="number-pad" onEndEditing={() => setBodyweightVolumeSettings(Number(bodyWeight) || bodyWeightKg, Number(bodyPercent) || bodyweightVolumePercent)} style={[styles.field, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.surface }]} />
           </View>
+        </View>
+
+        <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Groq AI</Text>
+        <View style={[styles.groqCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <View style={styles.groqHeader}>
+            <View style={[styles.groqIcon, { backgroundColor: `${colors.primary}17` }]}><MaterialIcons name="auto-awesome" size={20} color={colors.primary} /></View>
+            <View style={{ flex: 1 }}><Text style={[styles.groqTitle, { color: colors.foreground }]}>Личный API-ключ Groq</Text><Text style={[styles.groqSubtitle, { color: colors.muted }]}>{hasGroqKey ? "Ключ сохранён на этом устройстве. Можно заменить его в любой момент." : "Добавь ключ, чтобы создавать программы через Groq AI."}</Text></View>
+            <Text style={[styles.groqStatus, { color: hasGroqKey ? colors.success : colors.muted, backgroundColor: hasGroqKey ? `${colors.success}18` : colors.border }]}>{hasGroqKey ? "ГОТОВО" : "НЕТ КЛЮЧА"}</Text>
+          </View>
+          <View style={styles.groqActions}><Pressable onPress={openGroqKeySheet} style={[styles.groqPrimary, { backgroundColor: colors.primary }]}><Text style={styles.groqPrimaryText}>{hasGroqKey ? "Обновить ключ" : "Добавить ключ"}</Text></Pressable>{hasGroqKey && <Pressable onPress={deleteGroqKey} style={[styles.groqDelete, { borderColor: colors.error }]}><Text style={[styles.groqDeleteText, { color: colors.error }]}>Удалить</Text></Pressable>}</View>
+          <Text style={[styles.groqPrivacy, { color: colors.muted }]}>{Platform.OS === "web" ? "Не вводи рабочий ключ в веб-просмотре." : "Ключ хранится в защищённом системном хранилище Android и не добавляется в APK."}</Text>
         </View>
 
         <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Локальное хранилище</Text>
@@ -201,6 +240,7 @@ export default function SettingsScreen() {
           <Text style={[styles.noteText, { color: colors.muted }]}>Тренировки, настройки, рекорды и экспортируемые файлы сохраняются на этом устройстве. Для переноса используйте экспорт в CSV или ZIP.</Text>
         </View>
       </ScrollView>
+      <Modal visible={keySheetVisible} transparent animationType="slide" onRequestClose={() => setKeySheetVisible(false)}><View style={styles.backdrop}><KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={styles.sheetKeyboard}><View style={[styles.sheet, { backgroundColor: colors.background }]}><View style={styles.sheetHeader}><View><Text style={[styles.sheetTitle, { color: colors.foreground }]}>{hasGroqKey ? "Обновить ключ Groq" : "Добавить ключ Groq"}</Text><Text style={[styles.sheetHint, { color: colors.muted }]}>Новый ключ заменит предыдущий на этом устройстве.</Text></View><Pressable onPress={() => setKeySheetVisible(false)} style={[styles.close, { backgroundColor: colors.surface }]}><Text style={[styles.closeText, { color: colors.foreground }]}>×</Text></Pressable></View><TextInput value={keyDraft} onChangeText={setKeyDraft} secureTextEntry autoCapitalize="none" autoCorrect={false} placeholder="gsk_…" placeholderTextColor={colors.muted} style={[styles.keyInput, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.foreground }]} /><Pressable disabled={savingGroqKey} onPress={saveGroqKey} style={[styles.saveKey, { backgroundColor: colors.primary, opacity: savingGroqKey ? 0.6 : 1 }]}><Text style={styles.saveKeyText}>{savingGroqKey ? "Сохраняем…" : "Сохранить на устройстве"}</Text></Pressable></View></KeyboardAvoidingView></View></Modal>
     </ScreenContainer>
   );
 }
@@ -225,6 +265,18 @@ const styles = StyleSheet.create({
   bodyFields: { flexDirection: "row", gap: 9 },
   fieldLabel: { fontSize: 10, fontWeight: "800", marginBottom: 5 },
   field: { height: 48, borderWidth: 1, borderRadius: 13, paddingHorizontal: 12, fontSize: 15, fontWeight: "800" },
+  groqCard: { borderWidth: 1, borderRadius: 18, padding: 14, gap: 11 },
+  groqHeader: { flexDirection: "row", alignItems: "center", gap: 10 },
+  groqIcon: { width: 40, height: 40, borderRadius: 13, alignItems: "center", justifyContent: "center" },
+  groqTitle: { fontSize: 14, fontWeight: "900" },
+  groqSubtitle: { fontSize: 11, lineHeight: 16, marginTop: 3 },
+  groqStatus: { paddingHorizontal: 7, paddingVertical: 5, borderRadius: 7, overflow: "hidden", fontSize: 8, fontWeight: "900", letterSpacing: 0.5 },
+  groqActions: { flexDirection: "row", gap: 8 },
+  groqPrimary: { flex: 1, minHeight: 43, borderRadius: 12, justifyContent: "center", alignItems: "center" },
+  groqPrimaryText: { color: "#101412", fontSize: 12, fontWeight: "900" },
+  groqDelete: { minHeight: 43, borderWidth: 1, borderRadius: 12, paddingHorizontal: 14, justifyContent: "center", alignItems: "center" },
+  groqDeleteText: { fontSize: 12, fontWeight: "900" },
+  groqPrivacy: { fontSize: 10, lineHeight: 14 },
   storageCard: { borderWidth: 1, borderRadius: 18, padding: 14, gap: 11 },
   storageHeader: { flexDirection: "row", alignItems: "center", gap: 10 },
   storageIcon: { width: 42, height: 42, borderRadius: 13, alignItems: "center", justifyContent: "center" },
@@ -260,4 +312,15 @@ const styles = StyleSheet.create({
   linkSubtitle: { fontSize: 11, marginTop: 4 },
   note: { borderRadius: 16, padding: 14, flexDirection: "row", gap: 10, marginTop: 6 },
   noteText: { flex: 1, fontSize: 12, lineHeight: 18 },
+  backdrop: { flex: 1, justifyContent: "flex-end", backgroundColor: "#090611B8" },
+  sheetKeyboard: { width: "100%" },
+  sheet: { padding: 20, borderTopLeftRadius: 28, borderTopRightRadius: 28, gap: 12 },
+  sheetHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
+  sheetTitle: { fontSize: 19, fontWeight: "900" },
+  sheetHint: { fontSize: 11, marginTop: 3 },
+  close: { width: 34, height: 34, borderRadius: 17, alignItems: "center", justifyContent: "center" },
+  closeText: { fontSize: 23, lineHeight: 25 },
+  keyInput: { height: 52, borderWidth: 1, borderRadius: 14, paddingHorizontal: 13, fontSize: 14, fontWeight: "700" },
+  saveKey: { minHeight: 52, borderRadius: 15, alignItems: "center", justifyContent: "center" },
+  saveKeyText: { color: "#101412", fontSize: 13, fontWeight: "900" },
 });

@@ -121,33 +121,57 @@ function ExerciseDragHandle({
   total,
   colors,
   onMove,
+  onDragStart,
+  onDragTarget,
+  onDragEnd,
+  isDragging,
 }: {
   index: number;
   total: number;
   colors: ReturnType<typeof useColors>;
   onMove: (toIndex: number) => void;
+  onDragStart: () => void;
+  onDragTarget: (toIndex: number) => void;
+  onDragEnd: () => void;
+  isDragging: boolean;
 }) {
-  const latest = useRef({ index, total, onMove });
-  latest.current = { index, total, onMove };
+  const latest = useRef({ index, total, onMove, onDragStart, onDragTarget, onDragEnd });
+  const lastTarget = useRef(index);
+  latest.current = { index, total, onMove, onDragStart, onDragTarget, onDragEnd };
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: (_, gesture) => Math.abs(gesture.dy) > 3,
       onPanResponderGrant: () => {
+        const current = latest.current;
+        lastTarget.current = current.index;
+        current.onDragStart();
         if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      },
+      onPanResponderMove: (_, gesture) => {
+        const current = latest.current;
+        const positionShift = Math.round(gesture.dy / 88);
+        const toIndex = Math.max(0, Math.min(current.total - 1, current.index + positionShift));
+        if (toIndex !== lastTarget.current) {
+          lastTarget.current = toIndex;
+          current.onDragTarget(toIndex);
+          if (Platform.OS !== "web") Haptics.selectionAsync();
+        }
       },
       onPanResponderRelease: (_, gesture) => {
         const current = latest.current;
         const positionShift = Math.round(gesture.dy / 88);
         const toIndex = Math.max(0, Math.min(current.total - 1, current.index + positionShift));
         if (toIndex !== current.index) current.onMove(toIndex);
+        current.onDragEnd();
       },
+      onPanResponderTerminate: () => latest.current.onDragEnd(),
     }),
   ).current;
 
   return (
-    <View {...panResponder.panHandlers} style={[styles.dragHandle, { backgroundColor: colors.background, borderColor: colors.border }]} accessibilityLabel="Перетащите для изменения порядка">
-      <MaterialIcons name="drag-handle" size={21} color={colors.muted} />
+    <View {...panResponder.panHandlers} style={[styles.dragHandle, isDragging && [styles.dragHandleActive, { backgroundColor: colors.primary, borderColor: colors.primary }], !isDragging && { backgroundColor: colors.background, borderColor: colors.border }]} accessibilityLabel="Перетащите для изменения порядка">
+      <MaterialIcons name="drag-handle" size={21} color={isDragging ? "#101412" : colors.muted} />
     </View>
   );
 }
@@ -197,6 +221,7 @@ export default function WorkoutScreen() {
   const [catalogSearch, setCatalogSearch] = useState("");
   const [catalogGroup, setCatalogGroup] = useState("Все");
   const [sessionOrder, setSessionOrder] = useState<string[]>([]);
+  const [dragState, setDragState] = useState<{ sourceIndex: number; targetIndex: number | null } | null>(null);
 
   const syncRestTimer = useCallback(() => {
     if (!restEndRef.current) return;
@@ -601,6 +626,8 @@ export default function WorkoutScreen() {
           const filled = Boolean(done[item.exerciseId]);
           const previous = sessionExercises[index - 1];
           const supersetStart = item.supersetGroup && previous?.supersetGroup !== item.supersetGroup;
+          const isDragging = dragState?.sourceIndex === index;
+          const isDropTarget = dragState?.targetIndex === index;
           return (
             <Swipeable
               key={item.exerciseId}
@@ -617,9 +644,10 @@ export default function WorkoutScreen() {
                 </Pressable>
               )}
             >
-              <View style={styles.exerciseWrap}>
+              <View style={[styles.exerciseWrap, isDragging && styles.exerciseWrapDragging]}>
+                {isDropTarget && <View pointerEvents="none" style={[styles.dropIndicator, { backgroundColor: colors.primary }]}><MaterialIcons name="south" size={16} color="#101412" /><Text style={styles.dropIndicatorText}>Отпустите здесь</Text></View>}
                 {supersetStart && <Text style={[styles.supersetFlag, { color: colors.primary }]}>СУПЕРСЕТ {item.supersetGroup}</Text>}
-                <Pressable onPress={() => openExercise(item.exerciseId)} style={[styles.exercise, { backgroundColor: colors.surface, borderColor: filled ? colors.primary : colors.border }]}>
+                <Pressable onPress={() => openExercise(item.exerciseId)} style={[styles.exercise, isDragging && styles.exerciseDragging, { backgroundColor: colors.surface, borderColor: isDragging || filled ? colors.primary : colors.border }]}>
                   <View style={styles.exerciseRow}>
                     <View style={[styles.number, { backgroundColor: filled ? colors.primary : colors.background }]}>
                       <Text style={{ color: filled ? "#101412" : colors.muted, fontWeight: "800" }}>{index + 1}</Text>
@@ -630,9 +658,19 @@ export default function WorkoutScreen() {
                         {item.sets} × {item.reps} · {item.weight} кг · {setTypeLabel[item.setType ?? "working"]}
                       </Text>
                     </View>
-                    <ExerciseDragHandle index={index} total={sessionExercises.length} colors={colors} onMove={(toIndex) => moveSessionExercise(index, toIndex)} />
+                    <ExerciseDragHandle
+                      index={index}
+                      total={sessionExercises.length}
+                      colors={colors}
+                      isDragging={isDragging}
+                      onDragStart={() => setDragState({ sourceIndex: index, targetIndex: null })}
+                      onDragTarget={(toIndex) => setDragState({ sourceIndex: index, targetIndex: toIndex === index ? null : toIndex })}
+                      onMove={(toIndex) => moveSessionExercise(index, toIndex)}
+                      onDragEnd={() => setDragState(null)}
+                    />
                     <IconSymbol name="chevron.right" size={20} color={colors.muted} />
                   </View>
+                  {isDragging && <View style={[styles.draggingLabel, { backgroundColor: colors.primary + "18" }]}><MaterialIcons name="open-with" size={15} color={colors.primary} /><Text style={[styles.draggingLabelText, { color: colors.primary }]}>ПЕРЕМЕЩЕНИЕ УПРАЖНЕНИЯ</Text></View>}
                 </Pressable>
                 <Pressable onPress={() => openReplacementPicker(item.exerciseId)} style={({ pressed }) => [styles.replaceButton, { backgroundColor: colors.primary + "12", borderColor: colors.primary + "3D" }, pressed && { opacity: 0.72 }]}>
                   <Text style={[styles.replaceButtonText, { color: colors.primary }]}>⇄ Заменить упражнение</Text>
@@ -971,16 +1009,23 @@ const styles = StyleSheet.create({
   timer: { fontSize: 14, fontWeight: "800" },
   title: { fontSize: 23, fontWeight: "800", marginTop: 8 },
   helper: { fontSize: 12, lineHeight: 18 },
-  exerciseWrap: { gap: 5 },
+  exerciseWrap: { gap: 5, position: "relative" },
+  exerciseWrapDragging: { zIndex: 5 },
+  dropIndicator: { position: "absolute", left: 14, right: 14, top: -9, height: 26, borderRadius: 9, zIndex: 8, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 4, elevation: 8, shadowColor: "#000000", shadowOpacity: 0.16, shadowRadius: 6, shadowOffset: { width: 0, height: 3 } },
+  dropIndicatorText: { color: "#101412", fontSize: 10, fontWeight: "900" },
   swipeDelete: { width: 98, marginLeft: 8, borderRadius: 17, alignItems: "center", justifyContent: "center", gap: 3 },
   swipeDeleteText: { color: "#FFFFFF", fontSize: 10, fontWeight: "900" },
   supersetFlag: { fontSize: 10, fontWeight: "900", letterSpacing: 1, marginLeft: 4 },
   exercise: { borderRadius: 17, borderWidth: 1, padding: 14 },
+  exerciseDragging: { transform: [{ scale: 1.018 }], elevation: 12, shadowColor: "#160E24", shadowOpacity: 0.24, shadowRadius: 14, shadowOffset: { width: 0, height: 7 } },
   exerciseRow: { flexDirection: "row", gap: 11, alignItems: "center" },
   dragHandle: { width: 34, height: 34, borderRadius: 11, borderWidth: 1, alignItems: "center", justifyContent: "center" },
+  dragHandleActive: { transform: [{ scale: 1.08 }], elevation: 5, shadowColor: "#160E24", shadowOpacity: 0.22, shadowRadius: 7, shadowOffset: { width: 0, height: 3 } },
   number: { width: 34, height: 34, borderRadius: 11, alignItems: "center", justifyContent: "center" },
   exerciseName: { fontSize: 14, fontWeight: "800" },
   plan: { fontSize: 11, marginTop: 4 },
+  draggingLabel: { marginTop: 11, borderRadius: 9, minHeight: 28, paddingHorizontal: 9, alignSelf: "flex-start", flexDirection: "row", alignItems: "center", gap: 5 },
+  draggingLabelText: { fontSize: 9, fontWeight: "900", letterSpacing: 0.55 },
   replaceButton: { minHeight: 36, alignSelf: "flex-start", paddingHorizontal: 12, borderRadius: 11, borderWidth: 1, justifyContent: "center" },
   replaceButtonText: { fontSize: 11, fontWeight: "900" },
   addExercise: { minHeight: 52, borderRadius: 16, borderWidth: 1, borderStyle: "dashed", alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 8 },
