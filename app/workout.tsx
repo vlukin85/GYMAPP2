@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Alert, AppState, Keyboard, KeyboardAvoidingView, LayoutAnimation, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, UIManager, View } from "react-native";
+import { Alert, AppState, FlatList, Keyboard, KeyboardAvoidingView, LayoutAnimation, Modal, PanResponder, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, UIManager, View } from "react-native";
 import { setAudioModeAsync, useAudioPlayer } from "expo-audio";
 import { activateKeepAwakeAsync, deactivateKeepAwake } from "expo-keep-awake";
 import * as Haptics from "expo-haptics";
@@ -10,9 +10,10 @@ import { Swipeable } from "react-native-gesture-handler";
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
-import { MAX_DROP_SUBSETS, bestOneRepMax, getEffectiveSetWeight, getExercise, getExerciseHistory, getLoadZones, getSetVolumeWithDropSubsets, hasCompletedWorkoutSet, roundToWeightIncrement, type SetType } from "@/lib/workout-data";
+import { MAX_DROP_SUBSETS, bestOneRepMax, exercises, getEffectiveSetWeight, getExercise, getExerciseHistory, getLoadZones, getSetVolumeWithDropSubsets, hasCompletedWorkoutSet, muscleGroups, roundToWeightIncrement, type Exercise, type ProgramExercise, type SetType } from "@/lib/workout-data";
 import { getRemainingRestSeconds, getRestProgress } from "@/lib/rest-timer";
 import { getHistoricalQuickWeightOptions, getPreviousWorkingResult, prefillWorkingSet } from "@/lib/workout-set-entry";
+import { filterActiveWorkoutCatalog, reorderActiveWorkoutExercises } from "@/lib/active-workout-utils";
 import { useWorkoutStore } from "@/lib/workout-store";
 import { openReplacementPicker, subscribeToExerciseReplacement } from "@/lib/exercise-replacement-bus";
 
@@ -115,6 +116,42 @@ function RestTimerOverlay({
   );
 }
 
+function ExerciseDragHandle({
+  index,
+  total,
+  colors,
+  onMove,
+}: {
+  index: number;
+  total: number;
+  colors: ReturnType<typeof useColors>;
+  onMove: (toIndex: number) => void;
+}) {
+  const latest = useRef({ index, total, onMove });
+  latest.current = { index, total, onMove };
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: (_, gesture) => Math.abs(gesture.dy) > 3,
+      onPanResponderGrant: () => {
+        if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      },
+      onPanResponderRelease: (_, gesture) => {
+        const current = latest.current;
+        const positionShift = Math.round(gesture.dy / 88);
+        const toIndex = Math.max(0, Math.min(current.total - 1, current.index + positionShift));
+        if (toIndex !== current.index) current.onMove(toIndex);
+      },
+    }),
+  ).current;
+
+  return (
+    <View {...panResponder.panHandlers} style={[styles.dragHandle, { backgroundColor: colors.background, borderColor: colors.border }]} accessibilityLabel="Перетащите для изменения порядка">
+      <MaterialIcons name="drag-handle" size={21} color={colors.muted} />
+    </View>
+  );
+}
+
 export default function WorkoutScreen() {
   const colors = useColors();
   const { programId } = useLocalSearchParams<{ programId: string }>();
@@ -155,6 +192,11 @@ export default function WorkoutScreen() {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [machineSetup, setMachineSetup] = useState("");
   const [note, setNote] = useState("");
+  const [addedSessionExercises, setAddedSessionExercises] = useState<ProgramExercise[]>([]);
+  const [catalogVisible, setCatalogVisible] = useState(false);
+  const [catalogSearch, setCatalogSearch] = useState("");
+  const [catalogGroup, setCatalogGroup] = useState("Все");
+  const [sessionOrder, setSessionOrder] = useState<string[]>([]);
 
   const syncRestTimer = useCallback(() => {
     if (!restEndRef.current) return;
@@ -254,9 +296,19 @@ export default function WorkoutScreen() {
   if (!program) return null;
 
   const actualExerciseId = (originalId: string) => replacements[originalId] ?? originalId;
-  const sessionExercises = useMemo(
-    () => program.exercises.filter((item) => !removedExerciseIds.includes(item.exerciseId)),
-    [program.exercises, removedExerciseIds],
+  const sessionExercises = useMemo(() => {
+    const source = [...program.exercises, ...addedSessionExercises].filter((item) => !removedExerciseIds.includes(item.exerciseId));
+    const sourceById = new Map(source.map((item) => [item.exerciseId, item]));
+    const ordered = sessionOrder.flatMap((id) => {
+      const item = sourceById.get(id);
+      return item ? [item] : [];
+    });
+    const orderedIds = new Set(ordered.map((item) => item.exerciseId));
+    return [...ordered, ...source.filter((item) => !orderedIds.has(item.exerciseId))];
+  }, [program.exercises, addedSessionExercises, removedExerciseIds, sessionOrder]);
+  const filteredCatalog = useMemo(
+    () => filterActiveWorkoutCatalog(exercises, catalogGroup, catalogSearch),
+    [catalogGroup, catalogSearch],
   );
   const effectiveVolume = (set: ActualSet, equipment: string) =>
     setParts(set).reduce(
@@ -456,6 +508,22 @@ export default function WorkoutScreen() {
       },
     ]);
   };
+  const addExerciseToSession = (exercise: Exercise) => {
+    if (sessionExercises.some((item) => item.exerciseId === exercise.id)) {
+      Alert.alert("Упражнение уже в тренировке", `«${exercise.name}» уже добавлено в эту активную тренировку.`);
+      return;
+    }
+    setAddedSessionExercises((current) => [
+      ...current,
+      { exerciseId: exercise.id, sets: 3, reps: 10, weight: 0, rest: 90, setType: "working" },
+    ]);
+    setCatalogVisible(false);
+    setCatalogSearch("");
+  };
+  const moveSessionExercise = (fromIndex: number, toIndex: number) => {
+    const reordered = reorderActiveWorkoutExercises(sessionExercises, fromIndex, toIndex);
+    if (reordered !== sessionExercises) setSessionOrder(reordered.map((item) => item.exerciseId));
+  };
   const completeWorkout = () => {
     const persisted = sessionExercises
       .filter((item) => done[item.exerciseId])
@@ -526,7 +594,7 @@ export default function WorkoutScreen() {
           </Text>
         </View>
         <Text style={[styles.title, { color: colors.foreground }]}>{program.name}</Text>
-        <Text style={[styles.helper, { color: colors.muted }]}>Сохраняйте только выполненные упражнения. Свайпните карточку влево, чтобы удалить её из этой тренировки.</Text>
+        <Text style={[styles.helper, { color: colors.muted }]}>Сохраняйте только выполненные упражнения. Свайпните карточку влево для удаления, перетащите маркер ⠿ для смены порядка.</Text>
 
         {sessionExercises.map((item, index) => {
           const exercise = getExercise(actualExerciseId(item.exerciseId));
@@ -558,10 +626,11 @@ export default function WorkoutScreen() {
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text style={[styles.exerciseName, { color: colors.foreground }]}>{exercise?.name}</Text>
-                      <Text style={[styles.plan, { color: colors.muted }]}>
+                      <Text style={[styles.plan, { color: colors.muted }]}> 
                         {item.sets} × {item.reps} · {item.weight} кг · {setTypeLabel[item.setType ?? "working"]}
                       </Text>
                     </View>
+                    <ExerciseDragHandle index={index} total={sessionExercises.length} colors={colors} onMove={(toIndex) => moveSessionExercise(index, toIndex)} />
                     <IconSymbol name="chevron.right" size={20} color={colors.muted} />
                   </View>
                 </Pressable>
@@ -572,6 +641,11 @@ export default function WorkoutScreen() {
             </Swipeable>
           );
         })}
+
+        <Pressable onPress={() => setCatalogVisible(true)} style={({ pressed }) => [styles.addExercise, { borderColor: colors.primary, backgroundColor: colors.primary + "10", opacity: pressed ? 0.72 : 1 }]}>
+          <MaterialIcons name="add-circle-outline" size={20} color={colors.primary} />
+          <Text style={[styles.addExerciseText, { color: colors.primary }]}>Добавить упражнение</Text>
+        </Pressable>
 
         {!sessionExercises.length && (
           <View style={[styles.emptySession, { backgroundColor: colors.surface, borderColor: colors.border }]}>
@@ -590,6 +664,45 @@ export default function WorkoutScreen() {
       </ScrollView>
 
       {!activeId && <RestTimerOverlay colors={colors} rest={rest} totalRest={restTotal} onAddTime={extendRestTimer} onSkip={skipRest} />}
+
+      <Modal visible={catalogVisible} animationType="slide" presentationStyle="fullScreen" onRequestClose={() => setCatalogVisible(false)}>
+        <View style={[styles.catalogModal, { backgroundColor: colors.background }]}>
+          <View style={styles.catalogHeader}>
+            <Pressable onPress={() => setCatalogVisible(false)} style={({ pressed }) => [{ opacity: pressed ? 0.6 : 1 }]}>
+              <Text style={[styles.catalogCancel, { color: colors.muted }]}>Отмена</Text>
+            </Pressable>
+            <Text style={[styles.catalogTitle, { color: colors.foreground }]}>Добавить упражнение</Text>
+            <View style={styles.catalogHeaderSpacer} />
+          </View>
+          <TextInput value={catalogSearch} onChangeText={setCatalogSearch} placeholder="Поиск по названию" placeholderTextColor={colors.muted} style={[styles.catalogSearch, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.surface }]} returnKeyType="search" />
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.groupFilters} keyboardShouldPersistTaps="handled">
+            {muscleGroups.map((group) => (
+              <Pressable key={group} onPress={() => setCatalogGroup(group)} style={({ pressed }) => [styles.groupFilter, { borderColor: catalogGroup === group ? colors.primary : colors.border, backgroundColor: catalogGroup === group ? colors.primary : colors.surface, opacity: pressed ? 0.75 : 1 }]}>
+                <Text style={[styles.groupFilterText, { color: catalogGroup === group ? "#101412" : colors.foreground }]}>{group}</Text>
+              </Pressable>
+            ))}
+          </ScrollView>
+          <FlatList
+            data={filteredCatalog}
+            keyExtractor={(item) => item.id}
+            keyboardShouldPersistTaps="handled"
+            contentContainerStyle={styles.catalogList}
+            ListEmptyComponent={<Text style={[styles.catalogEmpty, { color: colors.muted }]}>Ничего не найдено. Измените поиск или группу мышц.</Text>}
+            renderItem={({ item }) => (
+              <Pressable onPress={() => addExerciseToSession(item)} style={({ pressed }) => [styles.catalogItem, { borderColor: colors.border, backgroundColor: colors.surface, opacity: pressed ? 0.72 : 1 }]}>
+                <View style={[styles.catalogItemBadge, { backgroundColor: colors.primary + "18" }]}>
+                  <Text style={[styles.catalogItemBadgeText, { color: colors.primary }]}>{item.group.slice(0, 1)}</Text>
+                </View>
+                <View style={styles.catalogItemCopy}>
+                  <Text style={[styles.catalogItemName, { color: colors.foreground }]}>{item.name}</Text>
+                  <Text style={[styles.catalogItemMeta, { color: colors.muted }]}>{item.group} · {item.equipment}</Text>
+                </View>
+                <MaterialIcons name="add-circle" size={24} color={colors.primary} />
+              </Pressable>
+            )}
+          />
+        </View>
+      </Modal>
 
       <Modal visible={Boolean(activeId)} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => { closeSetEditor(); setActiveId(null); }}>
         <KeyboardAvoidingView
@@ -793,7 +906,7 @@ export default function WorkoutScreen() {
               <Text style={[styles.addSetText, { color: colors.primary }]}>＋ Добавить подход</Text>
             </Pressable>
             <Pressable onPress={saveExercise} style={[styles.saveButton, { backgroundColor: colors.primary }]}> 
-              <Text style={styles.saveButtonText}>Завершить тренировку</Text>
+              <Text style={styles.saveButtonText}>Завершить упражнение</Text>
             </Pressable>
           </ScrollView>
           <RestTimerOverlay colors={colors} rest={rest} totalRest={restTotal} onAddTime={extendRestTimer} onSkip={skipRest} />
@@ -860,11 +973,31 @@ const styles = StyleSheet.create({
   supersetFlag: { fontSize: 10, fontWeight: "900", letterSpacing: 1, marginLeft: 4 },
   exercise: { borderRadius: 17, borderWidth: 1, padding: 14 },
   exerciseRow: { flexDirection: "row", gap: 11, alignItems: "center" },
+  dragHandle: { width: 34, height: 34, borderRadius: 11, borderWidth: 1, alignItems: "center", justifyContent: "center" },
   number: { width: 34, height: 34, borderRadius: 11, alignItems: "center", justifyContent: "center" },
   exerciseName: { fontSize: 14, fontWeight: "800" },
   plan: { fontSize: 11, marginTop: 4 },
   replaceButton: { minHeight: 36, alignSelf: "flex-start", paddingHorizontal: 12, borderRadius: 11, borderWidth: 1, justifyContent: "center" },
   replaceButtonText: { fontSize: 11, fontWeight: "900" },
+  addExercise: { minHeight: 52, borderRadius: 16, borderWidth: 1, borderStyle: "dashed", alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 8 },
+  addExerciseText: { fontSize: 14, fontWeight: "900" },
+  catalogModal: { flex: 1, paddingTop: 40 },
+  catalogHeader: { minHeight: 56, paddingHorizontal: 20, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  catalogCancel: { fontSize: 14, fontWeight: "700" },
+  catalogTitle: { fontSize: 16, fontWeight: "900" },
+  catalogHeaderSpacer: { width: 52 },
+  catalogSearch: { height: 48, marginHorizontal: 20, marginTop: 6, borderRadius: 14, borderWidth: 1, paddingHorizontal: 14, fontSize: 14 },
+  groupFilters: { gap: 8, paddingHorizontal: 20, paddingVertical: 14 },
+  groupFilter: { minHeight: 36, paddingHorizontal: 14, borderRadius: 18, borderWidth: 1, alignItems: "center", justifyContent: "center" },
+  groupFilterText: { fontSize: 12, fontWeight: "800" },
+  catalogList: { paddingHorizontal: 20, paddingBottom: 32, gap: 9 },
+  catalogItem: { minHeight: 72, borderRadius: 17, borderWidth: 1, flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 12 },
+  catalogItemBadge: { width: 40, height: 40, borderRadius: 13, alignItems: "center", justifyContent: "center" },
+  catalogItemBadgeText: { fontSize: 16, fontWeight: "900" },
+  catalogItemCopy: { flex: 1, gap: 3 },
+  catalogItemName: { fontSize: 14, fontWeight: "900" },
+  catalogItemMeta: { fontSize: 11 },
+  catalogEmpty: { textAlign: "center", marginTop: 56, fontSize: 13 },
   emptySession: { borderRadius: 17, borderWidth: 1, padding: 15, gap: 5 },
   emptySessionTitle: { fontSize: 14, fontWeight: "900" },
   emptySessionText: { fontSize: 11, lineHeight: 16 },
