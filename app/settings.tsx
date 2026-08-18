@@ -12,18 +12,24 @@ import { formatStorageBytes, getUsagePercent } from "@/lib/storage-usage-utils";
 import type { LocalStorageUsage } from "@/lib/local-storage-usage";
 import { clearGroqApiKey, getGroqApiKey, saveGroqApiKey } from "@/lib/groq-settings";
 import { type OneRepMaxFormula } from "@/lib/workout-data";
-import { useWorkoutStore } from "@/lib/workout-store";
+import { type SetHapticIntensity, useWorkoutStore } from "@/lib/workout-store";
 
 const formulas: { id: OneRepMaxFormula; title: string; formula: string; description: string }[] = [
   { id: "epley", title: "Эпли", formula: "Вес × (1 + повторы / 30)", description: "Универсальная оценка для большинства рабочих подходов." },
   { id: "brzycki", title: "Бржицки", formula: "Вес × 36 / (37 − повторы)", description: "Удобна для небольшого числа повторений." },
 ];
 
+const hapticIntensityOptions: { id: SetHapticIntensity; title: string; description: string }[] = [
+  { id: "light", title: "Лёгкая", description: "Короткое деликатное подтверждение" },
+  { id: "medium", title: "Средняя", description: "Более заметный отклик" },
+  { id: "heavy", title: "Сильная", description: "Выраженное подтверждение" },
+];
+
 export default function SettingsScreen() {
   const colors = useColors();
   const store = useWorkoutStore();
   const { theme: svgIconTheme, setThemeId } = useSvgIconTheme();
-  const { oneRmFormula, setOneRmFormula, plateStepKg, setPlateStepKg, bodyWeightKg, bodyweightVolumePercent, setBodyweightVolumeSettings } = store;
+  const { oneRmFormula, setOneRmFormula, plateStepKg, setPlateStepKg, bodyWeightKg, bodyweightVolumePercent, setBodyweightVolumeSettings, hapticIntensity, setHapticIntensity } = store;
   const [bodyWeight, setBodyWeight] = useState(String(bodyWeightKg));
   const [bodyPercent, setBodyPercent] = useState(String(bodyweightVolumePercent));
   const [bulkState, setBulkState] = useState({ loading: false, completed: 0, total: 0, message: "Скачивай все фото по Wi‑Fi для просмотра без интернета." });
@@ -141,7 +147,7 @@ export default function SettingsScreen() {
         <View style={[styles.iconThemeCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <Text style={[styles.iconThemeTitle, { color: colors.foreground }]}>Цвет интерфейсных иконок</Text>
           <Text style={[styles.iconThemeHint, { color: colors.muted }]}>Меняет акцентные SVG-иконки в web-версии без повторной загрузки шрифтов.</Text>
-          <View style={styles.iconThemeOptions}>
+        <View style={styles.iconThemeOptions}>
             {SVG_ICON_THEMES.map((theme) => {
               const selected = theme.id === svgIconTheme.id;
               return (
@@ -152,6 +158,23 @@ export default function SettingsScreen() {
                     <Text style={[styles.iconThemeOptionHint, { color: colors.muted }]}>{theme.description}</Text>
                   </View>
                   {selected && <IconSymbol name="checkmark" size={18} color={theme.color} />}
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
+
+        <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Тактильный отклик</Text>
+        <View style={[styles.vibrationCard, { backgroundColor: colors.surface, borderColor: colors.border }]}> 
+          <Text style={[styles.vibrationTitle, { color: colors.foreground }]}>Вибрация при завершении подхода</Text>
+          <Text style={[styles.vibrationHint, { color: colors.muted }]}>Интенсивность сохраняется на этом устройстве. В веб-просмотре вибрация не запускается.</Text>
+          <View style={styles.vibrationOptions}>
+            {hapticIntensityOptions.map((option) => {
+              const selected = option.id === hapticIntensity;
+              return (
+                <Pressable key={option.id} onPress={() => setHapticIntensity(option.id)} style={({ pressed }) => [styles.vibrationOption, { backgroundColor: selected ? `${colors.primary}18` : colors.background, borderColor: selected ? colors.primary : colors.border, opacity: pressed ? 0.72 : 1 }]}> 
+                  <View style={[styles.vibrationRadio, { borderColor: selected ? colors.primary : colors.muted }]}>{selected && <View style={[styles.vibrationRadioDot, { backgroundColor: colors.primary }]} />}</View>
+                  <View style={{ flex: 1 }}><Text style={[styles.vibrationOptionTitle, { color: colors.foreground }]}>{option.title}</Text><Text style={[styles.vibrationOptionHint, { color: colors.muted }]}>{option.description}</Text></View>
                 </Pressable>
               );
             })}
@@ -293,6 +316,15 @@ const styles = StyleSheet.create({
   iconThemeSwatch: { width: 18, height: 18, borderRadius: 9 },
   iconThemeOptionTitle: { fontSize: 12, fontWeight: "900" },
   iconThemeOptionHint: { fontSize: 10, marginTop: 2 },
+  vibrationCard: { borderWidth: 1, borderRadius: 18, padding: 14, gap: 10 },
+  vibrationTitle: { fontSize: 14, fontWeight: "900" },
+  vibrationHint: { fontSize: 11, lineHeight: 16 },
+  vibrationOptions: { gap: 8 },
+  vibrationOption: { minHeight: 54, borderWidth: 1, borderRadius: 13, paddingHorizontal: 11, flexDirection: "row", alignItems: "center", gap: 9 },
+  vibrationRadio: { width: 18, height: 18, borderRadius: 9, borderWidth: 2, alignItems: "center", justifyContent: "center" },
+  vibrationRadioDot: { width: 9, height: 9, borderRadius: 5 },
+  vibrationOptionTitle: { fontSize: 12, fontWeight: "900" },
+  vibrationOptionHint: { fontSize: 10, marginTop: 2 },
   bodyFields: { flexDirection: "row", gap: 9 },
   fieldLabel: { fontSize: 10, fontWeight: "800", marginBottom: 5 },
   field: { height: 48, borderWidth: 1, borderRadius: 13, paddingHorizontal: 12, fontSize: 15, fontWeight: "800" },

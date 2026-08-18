@@ -2,6 +2,10 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { bestOneRepMax, completedWorkouts as seedCompleted, createCustomExercise, defaultPrograms, mergeStoredPrograms, normalizeExerciseImagePreference, setCustomExercises, type AiExerciseArtStyle, type BarbellProfile, type CompletedWorkout, type CustomExerciseDraft, type Exercise, type ExerciseGalleryImage, type ExerciseImagePreference, type ExercisePreference, type OneRepMaxFormula, type PersonalRecord, type ScheduledWorkout, type WorkoutProgram } from "./workout-data";
 
+export const SET_HAPTIC_INTENSITIES = ["light", "medium", "heavy"] as const;
+export type SetHapticIntensity = (typeof SET_HAPTIC_INTENSITIES)[number];
+const isSetHapticIntensity = (value: unknown): value is SetHapticIntensity => typeof value === "string" && SET_HAPTIC_INTENSITIES.includes(value as SetHapticIntensity);
+
 type WorkoutState = {
   programs: WorkoutProgram[];
   completed: CompletedWorkout[];
@@ -15,6 +19,7 @@ type WorkoutState = {
   bodyweightVolumePercent: number;
   restTimerSoundEnabled: boolean;
   restTimerVibrationEnabled: boolean;
+  hapticIntensity: SetHapticIntensity;
   exercisePreferences: Record<string, ExercisePreference>;
   deletedProgramIds: string[];
   customExercises: Exercise[];
@@ -55,10 +60,11 @@ type WorkoutContextValue = WorkoutState & {
   setBodyweightVolumeSettings: (bodyWeightKg: number, bodyweightVolumePercent: number) => void;
   setRestTimerSoundEnabled: (enabled: boolean) => void;
   setRestTimerVibrationEnabled: (enabled: boolean) => void;
+  setHapticIntensity: (intensity: SetHapticIntensity) => void;
   setExercisePreference: (exerciseId: string, preference: ExercisePreference) => void;
   repeatLastWorkout: () => string | null;
   importCompletedWorkouts: (workouts: { id: string; programId: string; date: string; durationMinutes: number; totalVolume: number; sets: { exerciseId: string; weight: number; reps: number }[] }[]) => void;
-  restoreTrainingBackup: (snapshot: Partial<Pick<WorkoutState, "oneRmFormula" | "plateStepKg" | "barbellProfile" | "personalRecords" | "bodyWeightKg" | "bodyweightVolumePercent" | "exercisePreferences">>) => void;
+  restoreTrainingBackup: (snapshot: Partial<Pick<WorkoutState, "oneRmFormula" | "plateStepKg" | "barbellProfile" | "personalRecords" | "bodyWeightKg" | "bodyweightVolumePercent" | "exercisePreferences" | "hapticIntensity">>) => void;
 };
 
 const STORAGE_KEY = "gym-diary-state-v1";
@@ -95,6 +101,7 @@ const initialState: WorkoutState = {
   bodyweightVolumePercent: 65,
   restTimerSoundEnabled: true,
   restTimerVibrationEnabled: true,
+  hapticIntensity: "light",
   exercisePreferences: {},
   deletedProgramIds: [],
   customExercises: [],
@@ -118,7 +125,7 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
         const customExercises = parsed.customExercises ?? [];
         setCustomExercises(customExercises);
         const exerciseImagePreferences = Object.fromEntries(Object.entries(parsed.exerciseImagePreferences ?? {}).map(([exerciseId, preference]) => [exerciseId, normalizeExerciseImagePreference(preference)]));
-        setState({ ...initialState, ...parsed, programs: mergeStoredPrograms(parsed.programs).filter((program) => !deletedProgramIds.includes(program.id)), scheduled: migratedScheduled, deletedProgramIds, customExercises, exerciseImageOverrides: parsed.exerciseImageOverrides ?? {}, exerciseGalleries: parsed.exerciseGalleries ?? {}, exerciseImagePreferences, oneRmFormula: parsed.oneRmFormula ?? initialState.oneRmFormula, plateStepKg: parsed.plateStepKg ?? initialState.plateStepKg, barbellProfile: parsed.barbellProfile ?? initialState.barbellProfile, personalRecords: parsed.personalRecords ?? {}, bodyWeightKg: parsed.bodyWeightKg ?? initialState.bodyWeightKg, bodyweightVolumePercent: parsed.bodyweightVolumePercent ?? initialState.bodyweightVolumePercent, restTimerSoundEnabled: parsed.restTimerSoundEnabled ?? initialState.restTimerSoundEnabled, restTimerVibrationEnabled: parsed.restTimerVibrationEnabled ?? initialState.restTimerVibrationEnabled, exercisePreferences: parsed.exercisePreferences ?? {} });
+        setState({ ...initialState, ...parsed, programs: mergeStoredPrograms(parsed.programs).filter((program) => !deletedProgramIds.includes(program.id)), scheduled: migratedScheduled, deletedProgramIds, customExercises, exerciseImageOverrides: parsed.exerciseImageOverrides ?? {}, exerciseGalleries: parsed.exerciseGalleries ?? {}, exerciseImagePreferences, oneRmFormula: parsed.oneRmFormula ?? initialState.oneRmFormula, plateStepKg: parsed.plateStepKg ?? initialState.plateStepKg, barbellProfile: parsed.barbellProfile ?? initialState.barbellProfile, personalRecords: parsed.personalRecords ?? {}, bodyWeightKg: parsed.bodyWeightKg ?? initialState.bodyWeightKg, bodyweightVolumePercent: parsed.bodyweightVolumePercent ?? initialState.bodyweightVolumePercent, restTimerSoundEnabled: parsed.restTimerSoundEnabled ?? initialState.restTimerSoundEnabled, restTimerVibrationEnabled: parsed.restTimerVibrationEnabled ?? initialState.restTimerVibrationEnabled, hapticIntensity: isSetHapticIntensity(parsed.hapticIntensity) ? parsed.hapticIntensity : initialState.hapticIntensity, exercisePreferences: parsed.exercisePreferences ?? {} });
       }
       setReady(true);
     }).catch(() => setReady(true));
@@ -226,6 +233,7 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
     setBodyweightVolumeSettings: (bodyWeightKg, bodyweightVolumePercent) => setState((current) => ({ ...current, bodyWeightKg: Math.max(1, bodyWeightKg), bodyweightVolumePercent: Math.min(100, Math.max(0, bodyweightVolumePercent)) })),
     setRestTimerSoundEnabled: (restTimerSoundEnabled) => setState((current) => ({ ...current, restTimerSoundEnabled })),
     setRestTimerVibrationEnabled: (restTimerVibrationEnabled) => setState((current) => ({ ...current, restTimerVibrationEnabled })),
+    setHapticIntensity: (hapticIntensity) => setState((current) => ({ ...current, hapticIntensity })),
     setExercisePreference: (exerciseId, preference) => setState((current) => ({ ...current, exercisePreferences: { ...current.exercisePreferences, [exerciseId]: preference } })),
     repeatLastWorkout: () => {
       const programId = state.completed[0]?.programId;
@@ -246,7 +254,7 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
       workouts.forEach((workout) => existing.set(workout.id, { id: workout.id, programId: workout.programId, date: workout.date, durationMinutes: workout.durationMinutes, totalVolume: workout.totalVolume, sets: workout.sets }));
       return { ...current, personalRecords, completed: Array.from(existing.values()).sort((a, b) => b.date.localeCompare(a.date)) };
     }),
-    restoreTrainingBackup: (snapshot) => setState((current) => ({ ...current, oneRmFormula: snapshot.oneRmFormula ?? current.oneRmFormula, plateStepKg: snapshot.plateStepKg ?? current.plateStepKg, barbellProfile: snapshot.barbellProfile ?? current.barbellProfile, personalRecords: snapshot.personalRecords ?? current.personalRecords, bodyWeightKg: snapshot.bodyWeightKg ?? current.bodyWeightKg, bodyweightVolumePercent: snapshot.bodyweightVolumePercent ?? current.bodyweightVolumePercent, exercisePreferences: snapshot.exercisePreferences ?? current.exercisePreferences })),
+    restoreTrainingBackup: (snapshot) => setState((current) => ({ ...current, oneRmFormula: snapshot.oneRmFormula ?? current.oneRmFormula, plateStepKg: snapshot.plateStepKg ?? current.plateStepKg, barbellProfile: snapshot.barbellProfile ?? current.barbellProfile, personalRecords: snapshot.personalRecords ?? current.personalRecords, bodyWeightKg: snapshot.bodyWeightKg ?? current.bodyWeightKg, bodyweightVolumePercent: snapshot.bodyweightVolumePercent ?? current.bodyweightVolumePercent, hapticIntensity: snapshot.hapticIntensity ?? current.hapticIntensity, exercisePreferences: snapshot.exercisePreferences ?? current.exercisePreferences })),
   }), [state, ready]);
 
   return <WorkoutContext.Provider value={value}>{children}</WorkoutContext.Provider>;

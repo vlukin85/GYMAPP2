@@ -186,9 +186,9 @@ function ExerciseDragHandle({
   );
 }
 
-function WorkoutProgressCard({ completedSets, totalSets, elapsedSeconds, lastAutosavedAt, colors }: { completedSets: number; totalSets: number; elapsedSeconds: number; lastAutosavedAt: number | null; colors: ReturnType<typeof useColors> }) {
+function WorkoutProgressCard({ completedSets, totalSets, elapsedSeconds, averageRestSeconds, currentRestSeconds, lastAutosavedAt, colors }: { completedSets: number; totalSets: number; elapsedSeconds: number; averageRestSeconds: number; currentRestSeconds: number; lastAutosavedAt: number | null; colors: ReturnType<typeof useColors> }) {
   const progress = getWorkoutProgress(completedSets, totalSets);
-  const forecast = getWorkoutFinishForecast(elapsedSeconds, completedSets, totalSets);
+  const forecast = getWorkoutFinishForecast(elapsedSeconds, completedSets, totalSets, Date.now(), averageRestSeconds, currentRestSeconds);
   const progressWidth = useSharedValue(progress.ratio * 100);
   useEffect(() => {
     progressWidth.value = withTiming(progress.ratio * 100, { duration: 280, easing: Easing.out(Easing.cubic) });
@@ -208,7 +208,7 @@ function WorkoutProgressCard({ completedSets, totalSets, elapsedSeconds, lastAut
           <Text style={[styles.workoutProgressEyebrow, { color: colors.primary }]}>ПРОГРЕСС ТРЕНИРОВКИ</Text>
           <Text style={[styles.workoutProgressCopy, { color: colors.foreground }]}>{progress.completed} из {progress.total || "—"} подходов завершено</Text>
           <Text style={[styles.workoutProgressSaved, { color: colors.muted }]}>Автосохранено: {savedLabel}</Text>
-          <Text style={[styles.workoutForecast, { color: colors.muted }]}>{finishLabel ? `Текущий темп: ${formatForecastDuration(forecast.secondsRemaining)} · завершение к ${finishLabel}` : "Прогноз появится после первого завершённого подхода"}</Text>
+          <Text style={[styles.workoutForecast, { color: colors.muted }]}>{finishLabel ? `Текущий темп: ${formatForecastDuration(forecast.secondsRemaining)} · завершение к ${finishLabel}${forecast.restSecondsRemaining ? ` · отдых ${formatForecastDuration(forecast.restSecondsRemaining)}` : ""}` : "Прогноз появится после первого завершённого подхода"}</Text>
         </View>
         <View style={styles.workoutProgressRing}>
           <Svg width={WORKOUT_PROGRESS_CIRCLE_SIZE} height={WORKOUT_PROGRESS_CIRCLE_SIZE} viewBox={`0 0 ${WORKOUT_PROGRESS_CIRCLE_SIZE} ${WORKOUT_PROGRESS_CIRCLE_SIZE}`}>
@@ -239,6 +239,7 @@ export default function WorkoutScreen() {
     bodyweightVolumePercent,
     restTimerSoundEnabled,
     restTimerVibrationEnabled,
+    hapticIntensity,
     exercisePreferences,
     setExercisePreference,
     discardActiveWorkout,
@@ -622,7 +623,10 @@ export default function WorkoutScreen() {
   const finishFocusedSet = () => {
     if (focusedSetIndex === null) return;
     startRestAfterSetInput(focusedSetIndex);
-    if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => undefined);
+    if (Platform.OS !== "web") {
+      const style = hapticIntensity === "heavy" ? Haptics.ImpactFeedbackStyle.Heavy : hapticIntensity === "medium" ? Haptics.ImpactFeedbackStyle.Medium : Haptics.ImpactFeedbackStyle.Light;
+      Haptics.impactAsync(style).catch(() => undefined);
+    }
     closeSetEditor();
   };
   const focusedSet = focusedSetIndex === null ? undefined : draft[focusedSetIndex];
@@ -833,6 +837,13 @@ export default function WorkoutScreen() {
     const actualSets = setsByExercise[item.exerciseId];
     return totalSets + (actualSets?.length ? countWorkoutSetUnits(actualSets) : item.sets);
   }, 0);
+  const averagePlannedRestSeconds = totalPlannedSetCount
+    ? Math.round(sessionExercises.reduce((totalSeconds, item) => {
+      const actualSets = setsByExercise[item.exerciseId];
+      const setCount = actualSets?.length ? countWorkoutSetUnits(actualSets) : item.sets;
+      return totalSeconds + Math.max(0, item.rest ?? 90) * setCount;
+    }, 0) / totalPlannedSetCount)
+    : 0;
   const completedSetCount = sessionExercises.reduce(
     (totalSets, item) => totalSets + (setsByExercise[item.exerciseId] ?? []).reduce((setTotal, set) => setTotal + setParts(set).length, 0),
     0,
@@ -866,7 +877,7 @@ export default function WorkoutScreen() {
         </View>
         <Text style={[styles.title, { color: colors.foreground }]}>{program.name}</Text>
         <Text style={[styles.helper, { color: colors.muted }]}>Сохраняйте только выполненные упражнения. Свайпните карточку влево для удаления, перетащите маркер ⠿ для смены порядка.</Text>
-        <WorkoutProgressCard completedSets={completedSetCount} totalSets={totalPlannedSetCount} elapsedSeconds={elapsed} lastAutosavedAt={lastAutosavedAt} colors={colors} />
+        <WorkoutProgressCard completedSets={completedSetCount} totalSets={totalPlannedSetCount} elapsedSeconds={elapsed} averageRestSeconds={averagePlannedRestSeconds} currentRestSeconds={rest} lastAutosavedAt={lastAutosavedAt} colors={colors} />
 
         {renderedSessionExercises.map((item, index) => {
           const exercise = getExercise(actualExerciseId(item.exerciseId));

@@ -6,6 +6,7 @@ describe("прогноз окончания тренировки", () => {
     expect(getWorkoutFinishForecast(600, 4, 10, 1_700_000_000_000)).toEqual({
       remainingSets: 6,
       secondsPerSet: 150,
+      restSecondsRemaining: 0,
       secondsRemaining: 900,
       estimatedFinishAt: 1_700_000_900_000,
     });
@@ -14,5 +15,11 @@ describe("прогноз окончания тренировки", () => {
   it("ждёт первый завершённый подход, прежде чем строить прогноз", () => {
     expect(getWorkoutFinishForecast(120, 0, 8).estimatedFinishAt).toBeNull();
     expect(formatForecastDuration(90)).toBe("≈ 2 мин");
+  });
+
+  it("добавляет оставшийся и запланированный отдых к прогнозу", () => {
+    const forecast = getWorkoutFinishForecast(600, 4, 10, 1_700_000_000_000, 90, 30);
+    expect(forecast.restSecondsRemaining).toBe(480);
+    expect(forecast.secondsRemaining).toBe(1380);
   });
 });
