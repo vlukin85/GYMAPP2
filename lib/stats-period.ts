@@ -1,6 +1,21 @@
 import type { CompletedWorkout, PersonalRecord } from "./workout-data";
 
 export type StatsPeriod = "week" | "month" | "year";
+export type StatsFilterMode = StatsPeriod | "date" | "custom";
+export type StatsDateFilter = { mode: StatsFilterMode; date?: string; start?: string; end?: string };
+
+function isIsoDate(value: string | undefined) {
+  return Boolean(value && /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(new Date(`${value}T12:00:00`).getTime()));
+}
+
+export function getStatsFilterBounds(filter: StatsDateFilter, now = new Date()) {
+  if (filter.mode === "date" && isIsoDate(filter.date)) return { start: filter.date!, end: filter.date! };
+  if (filter.mode === "custom" && isIsoDate(filter.start) && isIsoDate(filter.end)) {
+    return filter.start! <= filter.end! ? { start: filter.start!, end: filter.end! } : { start: filter.end!, end: filter.start! };
+  }
+  const start = getStatsPeriodStart(filter.mode as StatsPeriod, now).toISOString().slice(0, 10);
+  return { start, end: now.toISOString().slice(0, 10) };
+}
 
 export function getStatsPeriodStart(period: StatsPeriod, now = new Date()) {
   const date = new Date(now);
@@ -23,5 +38,23 @@ export function getLatestPersonalRecords(records: Record<string, PersonalRecord>
   const start = getStatsPeriodStart(period, now).getTime();
   return Object.values(records)
     .filter((record) => new Date(record.achievedAt).getTime() >= start)
+    .sort((first, second) => new Date(second.achievedAt).getTime() - new Date(first.achievedAt).getTime());
+}
+
+export function filterWorkoutsByStatsFilter(workouts: CompletedWorkout[], filter: StatsDateFilter, now = new Date()) {
+  const { start, end } = getStatsFilterBounds(filter, now);
+  return workouts.filter((workout) => {
+    const date = workout.date.slice(0, 10);
+    return date >= start && date <= end;
+  });
+}
+
+export function getLatestPersonalRecordsByFilter(records: Record<string, PersonalRecord>, filter: StatsDateFilter, now = new Date()) {
+  const { start, end } = getStatsFilterBounds(filter, now);
+  return Object.values(records)
+    .filter((record) => {
+      const date = record.achievedAt.slice(0, 10);
+      return date >= start && date <= end;
+    })
     .sort((first, second) => new Date(second.achievedAt).getTime() - new Date(first.achievedAt).getTime());
 }

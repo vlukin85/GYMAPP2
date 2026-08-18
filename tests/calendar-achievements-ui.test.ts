@@ -14,6 +14,9 @@ describe("calendar result achievements", () => {
     expect(calendarScreen).toContain("WorkoutShareCard");
     expect(calendarScreen).toContain("formatWorkoutSocialTemplate");
     expect(calendarScreen).toContain("shareVisualCard");
+    expect(calendarScreen).toContain("shareTheme");
+    expect(calendarScreen).toContain("Тёмная");
+    expect(calendarScreen).toContain("Светлая");
     expect(calendarScreen).toContain("Sharing.shareAsync");
     expect(calendarScreen).toContain('mimeType: "image/png"');
     expect(calendarScreen).toContain("Share.share");

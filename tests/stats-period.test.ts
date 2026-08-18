@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { filterWorkoutsByStatsPeriod, getLatestPersonalRecords } from "../lib/stats-period";
+import { filterWorkoutsByStatsFilter, filterWorkoutsByStatsPeriod, getLatestPersonalRecords, getStatsFilterBounds } from "../lib/stats-period";
 
 const now = new Date("2026-08-18T12:00:00");
 
@@ -19,5 +19,15 @@ describe("statistics period filters", () => {
       latest: { exerciseId: "latest", weight: 70, reps: 5, estimatedOneRepMax: 81.7, achievedAt: "2026-08-17T12:00:00.000Z" },
     };
     expect(getLatestPersonalRecords(records, "week", now).map((record) => record.exerciseId)).toEqual(["latest", "early"]);
+  });
+
+  it("filters one selected day and normalizes a user-entered date range", () => {
+    const workouts = [
+      { id: "first", programId: "p", date: "2026-08-10", durationMinutes: 40, totalVolume: 1200, sets: [] },
+      { id: "target", programId: "p", date: "2026-08-12", durationMinutes: 40, totalVolume: 1200, sets: [] },
+      { id: "last", programId: "p", date: "2026-08-14", durationMinutes: 40, totalVolume: 1200, sets: [] },
+    ];
+    expect(filterWorkoutsByStatsFilter(workouts, { mode: "date", date: "2026-08-12" }, now).map((workout) => workout.id)).toEqual(["target"]);
+    expect(getStatsFilterBounds({ mode: "custom", start: "2026-08-14", end: "2026-08-10" }, now)).toEqual({ start: "2026-08-10", end: "2026-08-14" });
   });
 });

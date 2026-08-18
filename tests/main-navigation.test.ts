@@ -4,6 +4,7 @@ import { getAdjacentMainTab, getMainTabIdFromPathname } from "../lib/main-tab-na
 
 const tabs = readFileSync("/home/ubuntu/gym-training-diary/app/(tabs)/_layout.tsx", "utf8");
 const home = readFileSync("/home/ubuntu/gym-training-diary/app/(tabs)/index.tsx", "utf8");
+const swipe = readFileSync("/home/ubuntu/gym-training-diary/components/main-tab-swipe.tsx", "utf8");
 
 describe("main navigation", () => {
   it("places the calendar between today and exercises", () => {
@@ -22,5 +23,11 @@ describe("main navigation", () => {
     expect(getAdjacentMainTab("stats", 80)).toBe("/(tabs)/programs");
     expect(getAdjacentMainTab("today", 80)).toBeNull();
     expect(getMainTabIdFromPathname("/calendar")).toBe("calendar");
+  });
+
+  it("uses a short animated exit before replacing the adjacent tab route", () => {
+    expect(swipe).toContain("withTiming");
+    expect(swipe).toContain("Animated.View");
+    expect(swipe).toContain("transitionTo");
   });
 });
