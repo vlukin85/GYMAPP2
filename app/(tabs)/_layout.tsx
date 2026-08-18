@@ -18,5 +18,6 @@ export default function TabLayout() {
     <Tabs.Screen name="exercises" options={{ title: "Упражнения", tabBarIcon: ({ color }) => <IconSymbol name="dumbbell.fill" size={23} color={color} /> }} />
     <Tabs.Screen name="programs" options={{ title: "Программы", tabBarIcon: ({ color }) => <IconSymbol name="list.bullet" size={23} color={color} /> }} />
     <Tabs.Screen name="stats" options={{ title: "Статистика", tabBarIcon: ({ color }) => <IconSymbol name="chart.bar.fill" size={23} color={color} /> }} />
+    <Tabs.Screen name="settings" options={{ title: "Настройки", tabBarIcon: ({ color }) => <IconSymbol name="gearshape" size={23} color={color} /> }} />
   </Tabs></MainTabSwipe>;
 }

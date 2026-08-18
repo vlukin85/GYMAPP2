@@ -21,8 +21,11 @@ describe("main navigation", () => {
     expect(getAdjacentMainTab("today", -80)).toBe("/(tabs)/calendar");
     expect(getAdjacentMainTab("calendar", -80)).toBe("/(tabs)/exercises");
     expect(getAdjacentMainTab("stats", 80)).toBe("/(tabs)/programs");
+    expect(getAdjacentMainTab("stats", -80)).toBe("/(tabs)/settings");
     expect(getAdjacentMainTab("today", 80)).toBeNull();
     expect(getMainTabIdFromPathname("/calendar")).toBe("calendar");
+    expect(getMainTabIdFromPathname("/settings")).toBe("settings");
+    expect(tabs).toContain('name="settings"');
   });
 
   it("uses a short animated exit before replacing the adjacent tab route", () => {

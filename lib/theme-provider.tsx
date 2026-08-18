@@ -1,67 +1,79 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { Appearance, View, useColorScheme as useSystemColorScheme } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { colorScheme as nativewindColorScheme, vars } from "nativewind";
 
-import { SchemeColors, type ColorScheme } from "@/constants/theme";
+import type { ColorScheme } from "@/constants/theme";
+import { DEFAULT_APP_THEME_ID, getAppTheme, isAppThemeId, type AppThemeId, type AppThemePalette } from "@/lib/app-color-themes";
 
 type ThemeContextValue = {
   colorScheme: ColorScheme;
   setColorScheme: (scheme: ColorScheme) => void;
+  themeId: AppThemeId;
+  setThemeId: (id: AppThemeId) => void;
+  palette: AppThemePalette;
 };
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const systemScheme = useSystemColorScheme() ?? "light";
-  const [colorScheme, setColorSchemeState] = useState<ColorScheme>(systemScheme);
+  const [themeId, setThemeIdState] = useState<AppThemeId>(systemScheme === "dark" ? "midnight" : DEFAULT_APP_THEME_ID);
+  const theme = getAppTheme(themeId);
+  const colorScheme: ColorScheme = theme.dark ? "dark" : "light";
 
-  const applyScheme = useCallback((scheme: ColorScheme) => {
+  const applyTheme = useCallback((id: AppThemeId) => {
+    const nextTheme = getAppTheme(id);
+    const scheme: ColorScheme = nextTheme.dark ? "dark" : "light";
     nativewindColorScheme.set(scheme);
     Appearance.setColorScheme?.(scheme);
     if (typeof document !== "undefined") {
       const root = document.documentElement;
       root.dataset.theme = scheme;
       root.classList.toggle("dark", scheme === "dark");
-      const palette = SchemeColors[scheme];
-      Object.entries(palette).forEach(([token, value]) => {
+      Object.entries(nextTheme.palette).forEach(([token, value]) => {
         root.style.setProperty(`--color-${token}`, value);
       });
     }
   }, []);
 
   const setColorScheme = useCallback((scheme: ColorScheme) => {
-    setColorSchemeState(scheme);
-    applyScheme(scheme);
-  }, [applyScheme]);
+    setThemeIdState(scheme === "dark" ? "midnight" : DEFAULT_APP_THEME_ID);
+  }, []);
+  const setThemeId = useCallback((id: AppThemeId) => setThemeIdState(id), []);
 
   useEffect(() => {
-    applyScheme(colorScheme);
-  }, [applyScheme, colorScheme]);
+    applyTheme(themeId);
+    void AsyncStorage.setItem("gym-diary-app-theme-v1", themeId);
+  }, [applyTheme, themeId]);
+  useEffect(() => { void AsyncStorage.getItem("gym-diary-app-theme-v1").then((stored) => { if (isAppThemeId(stored)) setThemeIdState(stored); }); }, []);
 
   const themeVariables = useMemo(
     () =>
       vars({
-        "color-primary": SchemeColors[colorScheme].primary,
-        "color-background": SchemeColors[colorScheme].background,
-        "color-surface": SchemeColors[colorScheme].surface,
-        "color-foreground": SchemeColors[colorScheme].foreground,
-        "color-muted": SchemeColors[colorScheme].muted,
-        "color-border": SchemeColors[colorScheme].border,
-        "color-success": SchemeColors[colorScheme].success,
-        "color-warning": SchemeColors[colorScheme].warning,
-        "color-error": SchemeColors[colorScheme].error,
+        "color-primary": theme.palette.primary,
+        "color-background": theme.palette.background,
+        "color-surface": theme.palette.surface,
+        "color-foreground": theme.palette.foreground,
+        "color-muted": theme.palette.muted,
+        "color-border": theme.palette.border,
+        "color-success": theme.palette.success,
+        "color-warning": theme.palette.warning,
+        "color-error": theme.palette.error,
       }),
-    [colorScheme],
+    [theme.palette],
   );
 
   const value = useMemo(
     () => ({
       colorScheme,
       setColorScheme,
+      themeId,
+      setThemeId,
+      palette: theme.palette,
     }),
-    [colorScheme, setColorScheme],
+    [colorScheme, setColorScheme, setThemeId, theme.palette, themeId],
   );
-  console.log(value, themeVariables)
 
   return (
     <ThemeContext.Provider value={value}>

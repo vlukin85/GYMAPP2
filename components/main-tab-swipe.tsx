@@ -5,8 +5,8 @@ import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import { getAdjacentMainTab } from "@/lib/main-tab-navigation";
 
-type MainTabId = "today" | "calendar" | "exercises" | "programs" | "stats";
-type MainTabRoute = "/(tabs)" | "/(tabs)/calendar" | "/(tabs)/exercises" | "/(tabs)/programs" | "/(tabs)/stats";
+type MainTabId = "today" | "calendar" | "exercises" | "programs" | "stats" | "settings";
+type MainTabRoute = "/(tabs)" | "/(tabs)/calendar" | "/(tabs)/exercises" | "/(tabs)/programs" | "/(tabs)/stats" | "/(tabs)/settings";
 
 export function MainTabSwipe({ current, children }: { current: MainTabId; children: React.ReactNode }) {
   const swipeOffset = useSharedValue(0);
@@ -18,7 +18,7 @@ export function MainTabSwipe({ current, children }: { current: MainTabId; childr
   };
   useEffect(() => {
     if (previousTab.current === current) return;
-    const tabOrder: MainTabId[] = ["today", "calendar", "exercises", "programs", "stats"];
+    const tabOrder: MainTabId[] = ["today", "calendar", "exercises", "programs", "stats", "settings"];
     const direction = tabOrder.indexOf(current) > tabOrder.indexOf(previousTab.current) ? 1 : -1;
     swipeOffset.value = direction * 18;
     fade.value = 0.58;
