@@ -22,6 +22,11 @@ describe("nutrition journal ui", () => {
     expect(settings).toContain("Плановый калораж за сутки");
     expect(settings).toContain("setDailyCalorieGoal");
   });
+  it("shows daily protein, fat, carbohydrates and links to CSV import", () => {
+    expect(nutrition).toContain("sumEntryMacros");
+    expect(nutrition).toContain("ИМПОРТ CSV");
+    expect(nutrition).toContain("Б {dayMacros.protein}г");
+  });
   it("allows moving the snack block between lunch gaps", () => {
     expect(nutrition).toContain("PanResponder.create");
     expect(nutrition).toContain("dragGrip");
