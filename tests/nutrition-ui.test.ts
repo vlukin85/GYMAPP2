@@ -32,6 +32,17 @@ describe("nutrition journal ui", () => {
     expect(nutrition).toContain("flexGrow:0");
     expect(nutrition).toContain("flexShrink:0");
   });
+  it("keeps search and filters above the independently scrolling product list", () => {
+    expect(nutrition).toContain("<FlatList");
+    expect(nutrition).toContain("pickerControls");
+    expect(nutrition).toContain("keyboardShouldPersistTaps");
+  });
+  it("shows a favorites tab and a pie chart for daily macros", () => {
+    expect(nutrition).toContain("ИЗБРАННОЕ");
+    expect(nutrition).toContain("toggleFavoriteProduct");
+    expect(nutrition).toContain("MacroBalanceChart");
+    expect(nutrition).toContain("Круговая диаграмма белков, жиров и углеводов");
+  });
   it("allows moving the snack block between lunch gaps", () => {
     expect(nutrition).toContain("PanResponder.create");
     expect(nutrition).toContain("dragGrip");

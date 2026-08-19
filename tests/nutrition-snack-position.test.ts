@@ -9,4 +9,8 @@ describe("nutrition snack position", () => {
     expect(store).toContain("snackPosition");
     expect(store).toContain("setSnackPosition");
   });
+  it("persists favorite product ids with the local nutrition diary", () => {
+    expect(store).toContain("favoriteProductIds");
+    expect(store).toContain("toggleFavoriteProduct");
+  });
 });
