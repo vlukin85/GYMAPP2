@@ -80,7 +80,7 @@ export default function StatsScreen() {
   </ScrollView></ScreenContainer>;
 }
 
-function Metric({ icon, iconColor, value, label, colors }: { icon: any; iconColor: string; value: string; label: string; colors: any }) { return <View style={[styles.bigCard, { backgroundColor: colors.surface, borderColor: colors.border, borderLeftColor: iconColor }]}><IconSymbol name={icon} size={20} color={iconColor} /><Text style={[styles.bigValue, { color: colors.foreground }]}>{value}</Text><Text style={[styles.bigLabel, { color: colors.muted }]}>{label}</Text></View>; }
+function Metric({ icon, iconColor, value, label, colors }: { icon: any; iconColor: string; value: string; label: string; colors: any }) { return <View style={[styles.bigCard, { backgroundColor: colors.surface, borderColor: colors.border, borderLeftColor: iconColor, borderLeftWidth: 1, borderRadius: 17 }]}><IconSymbol name={icon} size={20} color={iconColor} /><Text style={[styles.bigValue, { color: colors.foreground }]}>{value}</Text><Text style={[styles.bigLabel, { color: colors.muted }]}>{label}</Text></View>; }
 
 function PeriodComparison({ comparison, period, colors }: { comparison: NonNullable<ReturnType<typeof getStatsPeriodComparison>>; period: StatsFilterMode; colors: any }) {
   const periodName = period === "week" ? "прошлой неделей" : "прошлым месяцем";

@@ -15,7 +15,7 @@ type ThemeContextValue = {
 };
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
-const APP_THEME_STORAGE_KEY = "gym-diary-app-theme-v2";
+const APP_THEME_STORAGE_KEY = "gym-diary-app-theme-v3";
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [themeId, setThemeIdState] = useState<AppThemeId>(DEFAULT_APP_THEME_ID);

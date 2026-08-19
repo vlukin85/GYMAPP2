@@ -1,4 +1,4 @@
-export type AppThemeId = "ledger" | "violet" | "rose" | "ocean" | "forest" | "sunset" | "midnight";
+export type AppThemeId = "orchid" | "violet" | "rose" | "ocean" | "forest" | "sunset" | "midnight";
 
 export type AppThemePalette = {
   primary: string; background: string; surface: string; foreground: string; muted: string; border: string; success: string; warning: string; error: string;
@@ -12,7 +12,7 @@ const palette = (tokens: Omit<AppThemePalette, "text" | "tint" | "icon" | "tabIc
 });
 
 export const APP_COLOR_THEMES: AppThemeDefinition[] = [
-  { id: "ledger", title: "Тренировочный журнал", hint: "Новый дизайн IronRise", swatch: "#2155CD", dark: false, palette: palette({ primary: "#2155CD", background: "#F3EEE5", surface: "#FFFDFC", foreground: "#25313B", muted: "#6E716E", border: "#D8D0C2", success: "#2D9D78", warning: "#D8A11D", error: "#E24A3B" }) },
+  { id: "orchid", title: "Orchid Voltage", hint: "Электрический фиолетовый", swatch: "#7C3AED", dark: false, palette: palette({ primary: "#7C3AED", background: "#FBF8FF", surface: "#FFFFFF", foreground: "#211335", muted: "#766B82", border: "#E8DFF3", success: "#16A34A", warning: "#F973D5", error: "#E11D72" }) },
   { id: "violet", title: "Фиолетовый", hint: "Фирменный IronRise", swatch: "#7C3AED", dark: false, palette: palette({ primary: "#7C3AED", background: "#FBF8FF", surface: "#FFFFFF", foreground: "#1E1230", muted: "#766B82", border: "#E8DFF3", success: "#16A34A", warning: "#F97316", error: "#E11D72" }) },
   { id: "rose", title: "Розовый импульс", hint: "Яркий и энергичный", swatch: "#E11D72", dark: false, palette: palette({ primary: "#E11D72", background: "#FFF7FA", surface: "#FFFFFF", foreground: "#35121F", muted: "#8B6874", border: "#F3DCE5", success: "#159B61", warning: "#EA7B20", error: "#C51D5B" }) },
   { id: "ocean", title: "Океан", hint: "Холодный фокус", swatch: "#0284C7", dark: false, palette: palette({ primary: "#0284C7", background: "#F3FAFF", surface: "#FFFFFF", foreground: "#102C3D", muted: "#627D8E", border: "#D8EAF5", success: "#09966A", warning: "#E89520", error: "#D6455D" }) },
@@ -21,6 +21,6 @@ export const APP_COLOR_THEMES: AppThemeDefinition[] = [
   { id: "midnight", title: "Полночь", hint: "Контрастная тёмная", swatch: "#A78BFA", dark: true, palette: palette({ primary: "#A78BFA", background: "#15111F", surface: "#211A2E", foreground: "#F5F1FB", muted: "#B4AABD", border: "#3C314D", success: "#4ADE80", warning: "#FDBA45", error: "#FB7185" }) },
 ];
 
-export const DEFAULT_APP_THEME_ID: AppThemeId = "ledger";
+export const DEFAULT_APP_THEME_ID: AppThemeId = "orchid";
 export const isAppThemeId = (value: unknown): value is AppThemeId => typeof value === "string" && APP_COLOR_THEMES.some((theme) => theme.id === value);
 export const getAppTheme = (id: AppThemeId) => APP_COLOR_THEMES.find((theme) => theme.id === id) ?? APP_COLOR_THEMES[0];

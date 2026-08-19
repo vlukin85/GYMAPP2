@@ -12,22 +12,22 @@ const progressOverview = readFileSync(resolve(process.cwd(), "components/progres
 
 describe("hybrid Training Ledger design", () => {
   it("makes Training Ledger the default selectable app palette", () => {
-    expect(theme).toContain('id: "ledger"');
-    expect(theme).toContain('DEFAULT_APP_THEME_ID: AppThemeId = "ledger"');
-    expect(themeProvider).toContain('APP_THEME_STORAGE_KEY = "gym-diary-app-theme-v2"');
+    expect(theme).toContain('id: "orchid"');
+    expect(theme).toContain('DEFAULT_APP_THEME_ID: AppThemeId = "orchid"');
+    expect(themeProvider).toContain('APP_THEME_STORAGE_KEY = "gym-diary-app-theme-v3"');
   });
 
   it("applies ledger structure and Swiss accents to home, programs and statistics", () => {
-    expect(home).toContain("heroLedgerRule");
-    expect(home).toContain("borderLeftWidth: 4");
-    expect(programs).toContain("cardAccent");
+    expect(home).toContain('shadowColor: "#7C3AED"');
+    expect(home).toContain('borderRadius: 26');
+    expect(programs).toContain("borderRadius: 22");
     expect(stats).toContain("borderLeftColor: iconColor");
-    expect(progressOverview).toContain("borderLeftColor: color");
+    expect(progressOverview).toContain("borderRadius: 16");
   });
 
-  it("uses the Liquid Glass cyan and indigo language in workout progress and rest", () => {
-    expect(workout).toContain('"#4DEEEA"');
-    expect(workout).toContain('"#B779FF"');
-    expect(workout).toContain('backgroundColor: "#181B3A"');
+  it("uses Orchid Voltage pink and violet accents in workout progress and rest", () => {
+    expect(workout).toContain('"#F5A1FF"');
+    expect(workout).toContain('"#9A5CFF"');
+    expect(workout).toContain('backgroundColor: "#351C55"');
   });
 });
