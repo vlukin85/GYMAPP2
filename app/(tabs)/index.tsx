@@ -7,6 +7,7 @@ import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
 import { entryCalories, sumEntryMacros } from "@/lib/nutrition-data";
 import { useNutritionStore } from "@/lib/nutrition-store";
+import { useHomeWidgets } from "@/lib/home-widgets";
 import { useWorkoutStore } from "@/lib/workout-store";
 import { formatDuration, getExercise, getProgram } from "@/lib/workout-data";
 import { buildHomeWorkoutTrend, type HomeWorkoutTrendPoint } from "@/lib/home-workout-trend";
@@ -20,6 +21,7 @@ export default function HomeScreen() {
   const colors = useColors();
   const { programs, completed, scheduled, startWorkout } = useWorkoutStore();
   const { entries: nutritionEntries, dailyCalorieGoal, dailyMacroGoals } = useNutritionStore();
+  const { visibility: homeWidgets } = useHomeWidgets();
   const now = new Date();
   const today = dateKey(now);
   const nutritionToday = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
@@ -55,14 +57,14 @@ export default function HomeScreen() {
             {todayProgram ? <PlanTimeline program={todayProgram} colors={colors} /> : <EmptyPlan colors={colors} />}
           </View>
         </View>
-        <WeekStrip now={now} scheduled={scheduled} completed={completed} colors={colors} />
-        <NutritionProgress calories={foodCalories} calorieGoal={dailyCalorieGoal} macros={foodMacros} macroGoals={dailyMacroGoals} colors={colors} />
-        <View style={[styles.analytics, { borderTopColor: colors.border, borderBottomColor: colors.border }]}>
+        {homeWidgets.week && <WeekStrip now={now} scheduled={scheduled} completed={completed} colors={colors} />}
+        {homeWidgets.nutrition && <NutritionProgress calories={foodCalories} calorieGoal={dailyCalorieGoal} macros={foodMacros} macroGoals={dailyMacroGoals} colors={colors} />}
+        {homeWidgets.trainingTrend && <View style={[styles.analytics, { borderTopColor: colors.border, borderBottomColor: colors.border }]}>
           <View style={[styles.analyticsLabel, { borderRightColor: colors.border }]}><Text style={[styles.analyticsTitle, { color: colors.foreground }]}>ОБЪЁМ{`\n`}КГ</Text><View style={[styles.graphMark, { backgroundColor: colors.foreground }]}><IconSymbol name="chart.bar.fill" size={34} color={colors.surface} /></View></View>
           <View style={styles.chartArea}><View style={styles.chartTopline}><Text style={[styles.chartCaption, { color: colors.foreground }]}>ЗАВЕРШЁННЫЕ ТРЕНИРОВКИ</Text><Pressable onPress={() => router.push("/(tabs)/stats")} style={({ pressed }) => [styles.chartLink, { borderColor: colors.primary, opacity: pressed ? 0.65 : 1 }]}><Text style={[styles.chartLinkText, { color: colors.primary }]}>СТАТИСТИКА</Text></Pressable></View><CompletedWorkoutChart points={workoutTrend} colors={colors} /></View>
-        </View>
-        <View style={styles.dataRow}><Metric label="ТРЕНИРОВОК" value={String(completed.length)} suffix="" colors={colors} /><Metric label="ОБЪЁМ" value={`${(weekVolume / 1000).toFixed(1)}`} suffix=" т" colors={colors} /><Metric label="ВРЕМЯ" value={formatDuration(completed.reduce((sum, item) => sum + item.durationMinutes, 0)).replace(" ч 0 мин", " ч")} suffix="" colors={colors} /></View>
-        <View style={styles.footerActions}><Pressable onPress={() => router.push("/(tabs)/calendar")} style={({ pressed }) => [styles.outlineAction, { borderColor: colors.border, opacity: pressed ? 0.65 : 1 }]}><Text style={[styles.actionText, { color: colors.foreground }]}>КАЛЕНДАРЬ</Text><IconSymbol name="calendar" size={19} color={colors.foreground} /></Pressable><Pressable onPress={() => router.push("/(tabs)/exercises")} style={({ pressed }) => [styles.outlineAction, { borderColor: colors.border, opacity: pressed ? 0.65 : 1 }]}><Text style={[styles.actionText, { color: colors.foreground }]}>УПРАЖНЕНИЯ</Text><IconSymbol name="dumbbell.fill" size={19} color={colors.foreground} /></Pressable></View>
+        </View>}
+        {homeWidgets.metrics && <View style={styles.dataRow}><Metric label="ТРЕНИРОВОК" value={String(completed.length)} suffix="" colors={colors} /><Metric label="ОБЪЁМ" value={`${(weekVolume / 1000).toFixed(1)}`} suffix=" т" colors={colors} /><Metric label="ВРЕМЯ" value={formatDuration(completed.reduce((sum, item) => sum + item.durationMinutes, 0)).replace(" ч 0 мин", " ч")} suffix="" colors={colors} /></View>}
+        {homeWidgets.shortcuts && <View style={styles.footerActions}><Pressable onPress={() => router.push("/(tabs)/calendar")} style={({ pressed }) => [styles.outlineAction, { borderColor: colors.border, opacity: pressed ? 0.65 : 1 }]}><Text style={[styles.actionText, { color: colors.foreground }]}>КАЛЕНДАРЬ</Text><IconSymbol name="calendar" size={19} color={colors.foreground} /></Pressable><Pressable onPress={() => router.push("/(tabs)/exercises")} style={({ pressed }) => [styles.outlineAction, { borderColor: colors.border, opacity: pressed ? 0.65 : 1 }]}><Text style={[styles.actionText, { color: colors.foreground }]}>УПРАЖНЕНИЯ</Text><IconSymbol name="dumbbell.fill" size={19} color={colors.foreground} /></Pressable></View>}
       </ScrollView>
     </ScreenContainer>
   );

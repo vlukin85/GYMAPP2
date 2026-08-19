@@ -18,6 +18,7 @@ import { clearGroqApiKey, getGroqApiKey, saveGroqApiKey } from "@/lib/groq-setti
 import { type OneRepMaxFormula } from "@/lib/workout-data";
 import { type SetHapticIntensity, useWorkoutStore } from "@/lib/workout-store";
 import { useNutritionStore } from "@/lib/nutrition-store";
+import { HOME_WIDGETS, useHomeWidgets } from "@/lib/home-widgets";
 
 const formulas: { id: OneRepMaxFormula; title: string; formula: string; description: string }[] = [
   { id: "epley", title: "Эпли", formula: "Вес × (1 + повторы / 30)", description: "Универсальная оценка для большинства рабочих подходов." },
@@ -38,6 +39,7 @@ export default function SettingsScreen() {
   const { themeId: appThemeId, setThemeId: setAppThemeId } = useThemeContext();
   const { density, setDensity } = useInterfaceDensity();
   const { dailyCalorieGoal, dailyMacroGoals, setDailyCalorieGoal, setDailyMacroGoals } = useNutritionStore();
+  const { visibility: homeWidgets, setWidgetVisible } = useHomeWidgets();
   const { oneRmFormula, setOneRmFormula, plateStepKg, setPlateStepKg, bodyWeightKg, bodyweightVolumePercent, setBodyweightVolumeSettings, hapticIntensity, setHapticIntensity, restTimerSoundEnabled, setRestTimerSoundEnabled, restTimerVibrationEnabled, setRestTimerVibrationEnabled, notificationsEnabled, defaultWorkoutTime, defaultReminderMinutes, setNotificationPreferences } = store;
   const [bodyWeight, setBodyWeight] = useState(String(bodyWeightKg));
   const [bodyPercent, setBodyPercent] = useState(String(bodyweightVolumePercent));
@@ -180,6 +182,13 @@ export default function SettingsScreen() {
           <Text style={[styles.fieldLabel, { color: colors.muted }]}>Цель, ккал</Text>
           <TextInput value={calorieGoalDraft} onChangeText={setCalorieGoalDraft} onEndEditing={() => { const value = Number(calorieGoalDraft); if (Number.isFinite(value) && value > 0) setDailyCalorieGoal(value); else setCalorieGoalDraft(String(dailyCalorieGoal)); }} keyboardType="number-pad" placeholder="2200" placeholderTextColor={colors.muted} style={[styles.field, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.background }]} />
           <View style={styles.macroGoalRow}>{([['protein', 'Белки, г', '150'], ['fat', 'Жиры, г', '70'], ['carbs', 'Углеводы, г', '250']] as const).map(([key, label, placeholder]) => <View key={key} style={styles.macroGoalField}><Text style={[styles.fieldLabel, { color: colors.muted }]}>{label}</Text><TextInput value={macroGoalDrafts[key]} onChangeText={(value) => setMacroGoalDrafts((current) => ({ ...current, [key]: value }))} onEndEditing={saveMacroGoals} keyboardType="number-pad" placeholder={placeholder} placeholderTextColor={colors.muted} style={[styles.field, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.background }]} /></View>)}</View>
+        </View>
+
+        <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Главный экран</Text>
+        <View style={[styles.densityCard, { backgroundColor: colors.surface, borderColor: colors.border }]}> 
+          <Text style={[styles.iconThemeTitle, { color: colors.foreground }]}>Виджеты на экране «Сегодня»</Text>
+          <Text style={[styles.iconThemeHint, { color: colors.muted }]}>Выберите, какие дополнительные блоки держать на главном экране. Основной блок с планом дня остаётся всегда.</Text>
+          <View style={styles.widgetOptions}>{HOME_WIDGETS.map((widget) => <View key={widget.id} style={[styles.widgetOption, { borderColor: colors.border, backgroundColor: colors.background }]}><View style={{ flex: 1 }}><Text style={[styles.widgetTitle, { color: colors.foreground }]}>{widget.title}</Text><Text style={[styles.widgetHint, { color: colors.muted }]}>{widget.description}</Text></View><Switch value={homeWidgets[widget.id]} onValueChange={(visible) => setWidgetVisible(widget.id, visible)} trackColor={{ false: colors.border, true: `${colors.primary}88` }} thumbColor={homeWidgets[widget.id] ? colors.primary : colors.muted} /></View>)}</View>
         </View>
 
         <Text style={[styles.sectionTitle, { color: colors.foreground }]}>SVG-иконки</Text>
@@ -399,6 +408,10 @@ const styles = StyleSheet.create({
   field: { height: 48, borderWidth: 1, borderRadius: 13, paddingHorizontal: 12, fontSize: 15, fontWeight: "800" },
   macroGoalRow: { flexDirection: "row", gap: 8 },
   macroGoalField: { flex: 1 },
+  widgetOptions: { gap: 8 },
+  widgetOption: { minHeight: 58, borderWidth: 1, paddingHorizontal: 11, flexDirection: "row", alignItems: "center", gap: 12 },
+  widgetTitle: { fontSize: 12, fontWeight: "900" },
+  widgetHint: { fontSize: 10, lineHeight: 14, marginTop: 3 },
   groqCard: { borderWidth: 1, borderRadius: 18, padding: 14, gap: 11 },
   groqHeader: { flexDirection: "row", alignItems: "center", gap: 10 },
   groqIcon: { width: 40, height: 40, borderRadius: 13, alignItems: "center", justifyContent: "center" },
