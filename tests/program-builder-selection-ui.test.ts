@@ -10,4 +10,10 @@ describe("program builder selected exercises", () => {
     expect(screen).toContain("Добавить из каталога");
     expect(screen).toContain("current.filter((id) => id !== exercise.id)");
   });
+
+  it("starts a brand-new program without selected exercises while preserving route and edit selections", () => {
+    expect(screen).toContain("params.exerciseId ? [params.exerciseId] : []");
+    expect(screen).toContain("editingProgram?.exercises.map");
+    expect(screen).not.toContain('["bench-press", "barbell-row", "squat"]');
+  });
 });

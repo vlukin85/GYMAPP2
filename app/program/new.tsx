@@ -19,7 +19,7 @@ export default function NewProgramScreen() {
   const params = useLocalSearchParams<{ exerciseId?: string; programId?: string }>();
   const { addProgram, updateProgram, programs, customExercises } = useWorkoutStore();
   const editingProgram = programs.find((program) => program.id === params.programId);
-  const initialSelected = editingProgram?.exercises.map((item) => item.exerciseId) ?? (params.exerciseId ? [params.exerciseId] : ["bench-press", "barbell-row", "squat"]);
+  const initialSelected = editingProgram?.exercises.map((item) => item.exerciseId) ?? (params.exerciseId ? [params.exerciseId] : []);
   const [name, setName] = useState(editingProgram?.name ?? "Моя тренировка");
   const [selected, setSelected] = useState<string[]>(initialSelected);
   const [search, setSearch] = useState("");
