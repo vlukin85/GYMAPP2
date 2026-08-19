@@ -3,7 +3,7 @@ import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 
 import { router, useLocalSearchParams } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
-import { exercises, type ProgramExercise, type SetType } from "@/lib/workout-data";
+import { exercises, muscleGroups, type MuscleGroup, type ProgramExercise, type SetType } from "@/lib/workout-data";
 import { useWorkoutStore } from "@/lib/workout-store";
 import { useColors } from "@/hooks/use-colors";
 
@@ -23,6 +23,7 @@ export default function NewProgramScreen() {
   const [name, setName] = useState(editingProgram?.name ?? "Моя тренировка");
   const [selected, setSelected] = useState<string[]>(initialSelected);
   const [search, setSearch] = useState("");
+  const [catalogGroup, setCatalogGroup] = useState<MuscleGroup | "Все">("Все");
   const [sets, setSets] = useState("3");
   const [reps, setReps] = useState("8");
   const [weight, setWeight] = useState("40");
@@ -41,9 +42,10 @@ export default function NewProgramScreen() {
     const query = search.trim().toLocaleLowerCase("ru");
     return catalog.filter((exercise) => {
       const matchesSearch = `${exercise.name} ${exercise.group} ${exercise.equipment}`.toLocaleLowerCase("ru").includes(query);
-      return matchesSearch && !selectedIds.has(exercise.id);
+      const matchesGroup = catalogGroup === "Все" || exercise.group === catalogGroup;
+      return matchesSearch && matchesGroup && !selectedIds.has(exercise.id);
     });
-  }, [catalog, search, selectedIds]);
+  }, [catalog, catalogGroup, search, selectedIds]);
 
   const save = () => {
     if (!name.trim() || !selected.length) {
@@ -124,6 +126,13 @@ export default function NewProgramScreen() {
           <Text style={[styles.catalogTitle, { color: colors.foreground }]}>Добавить из каталога</Text>
           <Text style={[styles.catalogHint, { color: colors.muted }]}>В списке только ещё не выбранные упражнения.</Text>
         </View>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.groupFilters} keyboardShouldPersistTaps="handled">
+          {muscleGroups.map((group) => (
+            <Pressable key={group} onPress={() => setCatalogGroup(group)} style={({ pressed }) => [styles.groupFilter, { borderColor: catalogGroup === group ? colors.primary : colors.border, backgroundColor: catalogGroup === group ? colors.primary : colors.surface, opacity: pressed ? 0.75 : 1 }]}>
+              <Text style={[styles.groupFilterText, { color: catalogGroup === group ? "#101412" : colors.foreground }]}>{group}</Text>
+            </Pressable>
+          ))}
+        </ScrollView>
         <View style={[styles.search, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <Text style={{ color: colors.muted, fontSize: 18 }}>⌕</Text>
           <TextInput value={search} onChangeText={setSearch} placeholder="Поиск упражнения" placeholderTextColor={colors.muted} style={[styles.searchInput, { color: colors.foreground }]} returnKeyType="search" />
@@ -195,6 +204,9 @@ const styles = StyleSheet.create({
   catalogHeader: { marginTop: 3, gap: 2 },
   catalogTitle: { fontSize: 15, fontWeight: "900" },
   catalogHint: { fontSize: 10, lineHeight: 14 },
+  groupFilters: { gap: 8, paddingVertical: 3, paddingRight: 8 },
+  groupFilter: { minHeight: 35, paddingHorizontal: 13, borderRadius: 18, borderWidth: 1, alignItems: "center", justifyContent: "center" },
+  groupFilterText: { fontSize: 11, fontWeight: "800" },
   search: { minHeight: 48, borderRadius: 14, borderWidth: 1, paddingHorizontal: 13, alignItems: "center", flexDirection: "row", gap: 8 },
   searchInput: { flex: 1, fontSize: 14 },
   supersetToggle: { minHeight: 64, borderRadius: 15, borderWidth: 1, padding: 12, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },

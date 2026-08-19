@@ -1,4 +1,4 @@
-export type MuscleGroup = "Грудь" | "Спина" | "Ноги" | "Плечи" | "Руки" | "Корпус" | "Кардио";
+export type MuscleGroup = "Грудь" | "Спина" | "Ноги" | "Плечи" | "Бицепс" | "Трицепс" | "Корпус" | "Кардио";
 
 import { freeExerciseDbGroupFallbackPhotos, freeExerciseDbPhotos } from "./free-exercise-db-photos";
 
@@ -207,7 +207,16 @@ export type BarbellProfile = {
 
 export type ExercisePreference = { machineSetup?: string; note?: string };
 
-export const muscleGroups: MuscleGroup[] = ["Все" as MuscleGroup, "Грудь", "Спина", "Ноги", "Плечи", "Руки", "Корпус", "Кардио"];
+export const muscleGroups: Array<MuscleGroup | "Все"> = ["Все", "Грудь", "Спина", "Ноги", "Плечи", "Бицепс", "Трицепс", "Корпус", "Кардио"];
+
+const tricepsMigrationPattern = /трицепс|разгиб|француз|отжимани.*(брус|скам|узк)|узк.*жим|pushdown|kickback/i;
+
+/** Converts the legacy «Руки» label in locally stored custom exercises to a precise arm group. */
+export function normalizeStoredMuscleGroup(group: unknown, exerciseName = ""): MuscleGroup {
+  if (group === "Руки") return tricepsMigrationPattern.test(exerciseName) ? "Трицепс" : "Бицепс";
+  if (typeof group === "string" && group !== "Все" && muscleGroups.includes(group as MuscleGroup | "Все")) return group as MuscleGroup;
+  return "Корпус";
+}
 
 const images = {
   benchPress: "/manus-storage/bench-press_66796a36.png",
@@ -258,12 +267,13 @@ const individualAiExerciseIllustrations: Record<string, string> = {
   "triceps-pushdown": "/manus-storage/ai-triceps-pushdown_905e9bc9.jpg",
 };
 
-const aiGroupExerciseIllustrations: Record<Exclude<MuscleGroup, "Все">, string> = {
+const aiGroupExerciseIllustrations: Record<MuscleGroup, string> = {
   "Грудь": "/manus-storage/gym-ai-chest_72d19524.jpg",
   "Спина": "/manus-storage/gym-ai-back_38bf7525.jpg",
   "Ноги": "/manus-storage/gym-ai-legs_e26a7490.jpg",
   "Плечи": "/manus-storage/gym-ai-shoulders_539dae84.jpg",
-  "Руки": "/manus-storage/gym-ai-arms_0b4670ba.jpg",
+  "Бицепс": "/manus-storage/ai-biceps-curl_72e5630b.jpg",
+  "Трицепс": "/manus-storage/ai-triceps-pushdown_905e9bc9.jpg",
   "Корпус": "/manus-storage/gym-ai-core_443dab3b.jpg",
   "Кардио": "/manus-storage/gym-ai-functional_59960858.jpg",
 };
@@ -310,8 +320,8 @@ const catalogExercises: Exercise[] = [
   { id: "leg-press", name: "Жим ногами", group: "Ноги", equipment: "Тренажёр", description: "Плотно прижмите таз к спинке и не блокируйте колени в верхней точке.", image: images.legPress, videoUrl: "https://www.youtube.com/results?search_query=жим+ногами+техника", recordKg: 210, recordReps: 8 },
   { id: "shoulder-press", name: "Жим гантелей сидя", group: "Плечи", equipment: "Гантели", description: "Начинайте движение от уровня ушей, держите запястья над локтями и не прогибайтесь в пояснице.", image: images.shoulderPress, videoUrl: "https://www.youtube.com/results?search_query=жим+гантелей+сидя+техника", recordKg: 26, recordReps: 8 },
   { id: "lateral-raise", name: "Разведения гантелей в стороны", group: "Плечи", equipment: "Гантели", description: "Поднимайте руки до уровня плеч с мягким локтем, не используя инерцию.", image: images.lateralRaise, videoUrl: "https://www.youtube.com/results?search_query=разведения+гантелей+в+стороны", recordKg: 12, recordReps: 12 },
-  { id: "biceps-curl", name: "Сгибания рук со штангой", group: "Руки", equipment: "Штанга", description: "Зафиксируйте локти возле корпуса и поднимайте вес без раскачивания плечами.", image: images.bicepsCurl, videoUrl: "https://www.youtube.com/results?search_query=сгибания+рук+со+штангой", recordKg: 42.5, recordReps: 8 },
-  { id: "triceps-pushdown", name: "Разгибания на блоке", group: "Руки", equipment: "Тренажёр", description: "Прижмите локти к корпусу и полностью разгибайте руки, сохраняя плечи неподвижными.", image: images.tricepsPushdown, videoUrl: "https://www.youtube.com/results?search_query=разгибания+рук+на+верхнем+блоке", recordKg: 45, recordReps: 10 },
+  { id: "biceps-curl", name: "Сгибания рук со штангой", group: "Бицепс", equipment: "Штанга", description: "Зафиксируйте локти возле корпуса и поднимайте вес без раскачивания плечами.", image: images.bicepsCurl, videoUrl: "https://www.youtube.com/results?search_query=сгибания+рук+со+штангой", recordKg: 42.5, recordReps: 8 },
+  { id: "triceps-pushdown", name: "Разгибания на блоке", group: "Трицепс", equipment: "Тренажёр", description: "Прижмите локти к корпусу и полностью разгибайте руки, сохраняя плечи неподвижными.", image: images.tricepsPushdown, videoUrl: "https://www.youtube.com/results?search_query=разгибания+рук+на+верхнем+блоке", recordKg: 45, recordReps: 10 },
   { id: "plank", name: "Планка на локтях", group: "Корпус", equipment: "Без оборудования", description: "Создайте прямую линию от плеч до пяток, напрягите пресс и спокойно дышите.", image: images.plank, videoUrl: "https://www.youtube.com/results?search_query=планка+на+локтях+техника", recordKg: 0, recordReps: 90 },
   { id: "treadmill", name: "Беговая дорожка", group: "Кардио", equipment: "Тренажёр", description: "Начните с лёгкой ходьбы, постепенно увеличьте темп и завершите заминкой.", image: images.treadmill, videoUrl: "https://www.youtube.com/results?search_query=беговая+дорожка+техника", recordKg: 0, recordReps: 25 },
   { id: "dumbbell-row", name: "Тяга гантели к поясу", group: "Спина", equipment: "Гантели", description: "Упритесь свободной рукой в скамью, тяните локоть к тазу и не разворачивайте плечо.", image: images.dumbbellRow, videoUrl: "https://www.youtube.com/results?search_query=тяга+гантели+к+поясу+техника", recordKg: 36, recordReps: 10 },

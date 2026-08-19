@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { bestOneRepMax, calculateBarbellPlateLayout, calculateVolume, defaultPrograms, estimateOneRepMax, exercises, formatDuration, formatPlateLayout, formatProgramCreatedAt, getCurrentTrainingPeriodStats, getDropSetParts, getEffectiveSetWeight, getExerciseIllustrationCandidates, getLoadZones, getMonthComparisonStats, getMonthCalendarDays, getReminderTriggerDate, getSetVolumeWithDropSubsets, isFutureScheduleDate, mergeStoredPrograms, recommendWorkingWeight, roundToWeightIncrement } from "../lib/workout-data";
+import { bestOneRepMax, calculateBarbellPlateLayout, calculateVolume, defaultPrograms, estimateOneRepMax, exercises, formatDuration, formatPlateLayout, formatProgramCreatedAt, getCurrentTrainingPeriodStats, getDropSetParts, getEffectiveSetWeight, getExerciseIllustrationCandidates, getLoadZones, getMonthComparisonStats, getMonthCalendarDays, getReminderTriggerDate, getSetVolumeWithDropSubsets, isFutureScheduleDate, mergeStoredPrograms, muscleGroups, normalizeStoredMuscleGroup, recommendWorkingWeight, roundToWeightIncrement } from "../lib/workout-data";
 import { openReplacementPicker, selectReplacementExercise, subscribeToExerciseReplacement, subscribeToReplacementPicker } from "../lib/exercise-replacement-bus";
 import { buildTrainingCsv } from "../lib/training-export";
 import { buildMonthlyReportData } from "../lib/monthly-report";
@@ -107,15 +107,24 @@ describe("workout calculations", () => {
     expect(comparison.current).toMatchObject({ workoutCount: 1, durationMinutes: 50, totalVolume: 9000 });
     expect(comparison.previous).toMatchObject({ workoutCount: 2, durationMinutes: 75, totalVolume: 11500 });
   });
-  it("keeps 20 exercises and generated or local teaching art for every muscle group", () => {
-    const groups = ["Грудь", "Спина", "Ноги", "Плечи", "Руки", "Корпус", "Кардио"] as const;
-    groups.forEach((group) => expect(exercises.filter((exercise) => exercise.group === group)).toHaveLength(20));
+  it("keeps the main catalogue groups plus separate biceps and triceps", () => {
+    const coreGroups = ["Грудь", "Спина", "Ноги", "Плечи", "Корпус", "Кардио"] as const;
+    coreGroups.forEach((group) => expect(exercises.filter((exercise) => exercise.group === group)).toHaveLength(20));
+    expect(exercises.filter((exercise) => exercise.group === "Бицепс")).toHaveLength(10);
+    expect(exercises.filter((exercise) => exercise.group === "Трицепс")).toHaveLength(10);
+    expect(muscleGroups).toEqual(expect.arrayContaining(["Бицепс", "Трицепс"]));
+    expect(muscleGroups).not.toContain("Руки");
     expect(exercises.every((exercise) => !exercise.image.includes("loremflickr") && !exercise.image.includes("images.unsplash"))).toBe(true);
     expect(exercises.filter((exercise) => exercise.image.startsWith("/manus-storage/")).length).toBeGreaterThanOrEqual(10);
     expect(exercises.every((exercise) => exercise.photoAngles?.[0].id === "main" && exercise.photoAngles[0].url === exercise.image)).toBe(true);
     const bench = exercises.find((exercise) => exercise.id === "bench-press")!;
     expect(getExerciseIllustrationCandidates(bench).map((candidate) => candidate.label)).toEqual(expect.arrayContaining(["Отдельная AI-иллюстрация", "Ранее созданная иллюстрация техники", "AI-иллюстрация группы"]));
     expect(bench.photoAngles?.length).toBeGreaterThanOrEqual(3);
+  });
+  it("migrates the legacy arm group in local custom exercises using the exercise name", () => {
+    expect(normalizeStoredMuscleGroup("Руки", "Сгибания с гантелями")).toBe("Бицепс");
+    expect(normalizeStoredMuscleGroup("Руки", "Разгибания с канатом")).toBe("Трицепс");
+    expect(normalizeStoredMuscleGroup("Плечи", "Жим вверх")).toBe("Плечи");
   });
   it("offers at least fifteen varied ready-to-use training programs", () => {
     expect(defaultPrograms.length).toBeGreaterThanOrEqual(15);

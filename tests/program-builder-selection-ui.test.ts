@@ -16,4 +16,11 @@ describe("program builder selected exercises", () => {
     expect(screen).toContain("editingProgram?.exercises.map");
     expect(screen).not.toContain('["bench-press", "barbell-row", "squat"]');
   });
+
+  it("filters the available catalogue by muscle group without restoring the obsolete arm filter", () => {
+    expect(screen).toContain("const [catalogGroup, setCatalogGroup]");
+    expect(screen).toContain("muscleGroups.map((group)");
+    expect(screen).toContain("matchesGroup && !selectedIds.has(exercise.id)");
+    expect(screen).not.toContain('"Руки"');
+  });
 });

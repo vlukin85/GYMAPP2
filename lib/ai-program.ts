@@ -106,7 +106,7 @@ export function generateLocalProgram(input: AiProgramParameters, catalog: Exerci
   const safeCatalog = filtered.length >= 2 ? filtered : catalog;
   const avoidLegs = /без.*ног|колен|присед/.test(normalized);
   const avoidBack = /без.*спин|поясниц/.test(normalized);
-  const preferredGroups = ["Грудь", "Спина", "Ноги", "Плечи", "Руки", "Корпус", "Кардио"];
+  const preferredGroups = ["Грудь", "Спина", "Ноги", "Плечи", "Бицепс", "Трицепс", "Корпус", "Кардио"];
   const candidates = preferredGroups.flatMap((group) => safeCatalog.filter((exercise) => exercise.group === group));
   const unique = candidates.filter((exercise, index, list) => list.findIndex((item) => item.id === exercise.id) === index)
     .filter((exercise) => !(avoidLegs && exercise.group === "Ноги"))

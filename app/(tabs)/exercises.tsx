@@ -7,7 +7,7 @@ import { useColors } from "@/hooks/use-colors";
 import { exercises, muscleGroups, sortProgramsByCreatedAt, type Exercise, type MuscleGroup } from "@/lib/workout-data";
 import { useWorkoutStore } from "@/lib/workout-store";
 
-const selectableGroups: MuscleGroup[] = ["Грудь", "Спина", "Ноги", "Плечи", "Руки", "Корпус", "Кардио"];
+const selectableGroups = muscleGroups.filter((group): group is MuscleGroup => group !== "Все");
 
 export default function ExercisesScreen() {
   const colors = useColors();
