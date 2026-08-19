@@ -24,7 +24,8 @@ describe("nutrition journal ui", () => {
   });
   it("allows moving the snack block between lunch gaps", () => {
     expect(nutrition).toContain("PanResponder.create");
-    expect(nutrition).toContain("ПЕРЕТАЩИТЕ МЕЖДУ ПРИЁМАМИ");
+    expect(nutrition).toContain("dragGrip");
+    expect(nutrition).not.toContain("ПЕРЕТАЩИТЕ МЕЖДУ ПРИЁМАМИ");
     expect(nutrition).toContain("orderedMealTypes");
   });
 });
