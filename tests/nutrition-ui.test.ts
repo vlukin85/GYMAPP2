@@ -22,4 +22,9 @@ describe("nutrition journal ui", () => {
     expect(settings).toContain("Плановый калораж за сутки");
     expect(settings).toContain("setDailyCalorieGoal");
   });
+  it("allows moving the snack block between lunch gaps", () => {
+    expect(nutrition).toContain("PanResponder.create");
+    expect(nutrition).toContain("ПЕРЕТАЩИТЕ МЕЖДУ ПРИЁМАМИ");
+    expect(nutrition).toContain("orderedMealTypes");
+  });
 });
