@@ -5,6 +5,7 @@ import { buildTrainingCsv } from "../lib/training-export";
 import { buildMonthlyReportData } from "../lib/monthly-report";
 import { buildWorkoutComparison, createImportedWorkoutFingerprint, groupImportedSessions, groupWorkoutSessions, parseTrainingCsv } from "../lib/csv-import";
 import { canDownloadPhotosOnWifi, getUniquePhotoUrls } from "../lib/offline-media";
+import { bundledAiExerciseAssetCoverage } from "../lib/bundled-ai-exercise-images";
 
 describe("workout calculations", () => {
   it("uses the open free-exercise-db media library as a photo option for every catalog exercise", () => {
@@ -115,7 +116,7 @@ describe("workout calculations", () => {
     expect(muscleGroups).toEqual(expect.arrayContaining(["Бицепс", "Трицепс"]));
     expect(muscleGroups).not.toContain("Руки");
     expect(exercises.every((exercise) => !exercise.image.includes("loremflickr") && !exercise.image.includes("images.unsplash"))).toBe(true);
-    expect(exercises.filter((exercise) => exercise.image.startsWith("/manus-storage/")).length).toBeGreaterThanOrEqual(10);
+    expect(bundledAiExerciseAssetCoverage).toEqual({ individual: 10, technique: 10, groupFallbacks: 8, auxiliary: 1 });
     expect(exercises.every((exercise) => exercise.photoAngles?.[0].id === "main" && exercise.photoAngles[0].url === exercise.image)).toBe(true);
     const bench = exercises.find((exercise) => exercise.id === "bench-press")!;
     expect(getExerciseIllustrationCandidates(bench).map((candidate) => candidate.label)).toEqual(expect.arrayContaining(["Отдельная AI-иллюстрация", "Ранее созданная иллюстрация техники", "AI-иллюстрация группы"]));

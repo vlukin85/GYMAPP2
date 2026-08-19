@@ -1,6 +1,7 @@
 export type MuscleGroup = "Грудь" | "Спина" | "Ноги" | "Плечи" | "Бицепс" | "Трицепс" | "Корпус" | "Кардио";
 
 import { freeExerciseDbGroupFallbackPhotos, freeExerciseDbPhotos } from "./free-exercise-db-photos";
+import { aiArmsExerciseIllustration, aiGroupExerciseIllustrations, generatedTechniqueImages, individualAiExerciseIllustrations } from "./bundled-ai-exercise-images";
 
 export type Exercise = {
 id: string;
@@ -241,43 +242,6 @@ const images = {
   rower: "https://images.unsplash.com/photo-1517344884509-a0c97ec11bcc?auto=format&fit=crop&w=900&q=80",
 };
 
-const generatedTechniqueImages: Record<string, string> = {
-  "bench-press": "/manus-storage/bench-press-generated_cf86ab4c.jpg",
-  "incline-db-press": "/manus-storage/incline-db-press-generated_b616826b.jpg",
-  "lat-pulldown": "/manus-storage/lat-pulldown-generated_0d30afee.jpg",
-  "barbell-row": "/manus-storage/barbell-row-generated_42731093.jpg",
-  "squat": "/manus-storage/squat-generated_641bb3fc.jpg",
-  "leg-press": "/manus-storage/leg-press-generated_dfcf2f0c.jpg",
-  "shoulder-press": "/manus-storage/shoulder-press-generated_e9bc1122.jpg",
-  "lateral-raise": "/manus-storage/lateral-raise-generated_58a12e78.jpg",
-  "biceps-curl": "/manus-storage/biceps-curl-generated_fd515260.jpg",
-  "triceps-pushdown": "/manus-storage/triceps-pushdown-generated_1c2829f4.jpg",
-};
-
-const individualAiExerciseIllustrations: Record<string, string> = {
-  "bench-press": "/manus-storage/ai-bench-press_756cc228.jpg",
-  "incline-db-press": "/manus-storage/ai-incline-db-press_7a539224.jpg",
-  "lat-pulldown": "/manus-storage/ai-lat-pulldown_cc21da0f.jpg",
-  "barbell-row": "/manus-storage/ai-barbell-row_a89f2a77.jpg",
-  squat: "/manus-storage/ai-squat_0c5c6809.jpg",
-  "leg-press": "/manus-storage/ai-leg-press_934bf838.jpg",
-  "shoulder-press": "/manus-storage/ai-shoulder-press_29292814.jpg",
-  "lateral-raise": "/manus-storage/ai-lateral-raise_e8e3b233.jpg",
-  "biceps-curl": "/manus-storage/ai-biceps-curl_72e5630b.jpg",
-  "triceps-pushdown": "/manus-storage/ai-triceps-pushdown_905e9bc9.jpg",
-};
-
-const aiGroupExerciseIllustrations: Record<MuscleGroup, string> = {
-  "Грудь": "/manus-storage/gym-ai-chest_72d19524.jpg",
-  "Спина": "/manus-storage/gym-ai-back_38bf7525.jpg",
-  "Ноги": "/manus-storage/gym-ai-legs_e26a7490.jpg",
-  "Плечи": "/manus-storage/gym-ai-shoulders_539dae84.jpg",
-  "Бицепс": "/manus-storage/ai-biceps-curl_72e5630b.jpg",
-  "Трицепс": "/manus-storage/ai-triceps-pushdown_905e9bc9.jpg",
-  "Корпус": "/manus-storage/gym-ai-core_443dab3b.jpg",
-  "Кардио": "/manus-storage/gym-ai-functional_59960858.jpg",
-};
-
 export const generatedExerciseIllustrationLibrary = [
   ...Object.entries(individualAiExerciseIllustrations).map(([exerciseId, url]) => ({ exerciseId, url, label: "Отдельная AI-иллюстрация" })),
   ...Object.entries(generatedTechniqueImages).map(([exerciseId, url]) => ({ exerciseId, url, label: "Ранее созданная иллюстрация техники" })),
@@ -295,7 +259,8 @@ function exerciseTechniqueImage(exercise: Exercise) {
 export function getExerciseIllustrationCandidates(exercise: Exercise) {
 const generated = generatedTechniqueImages[exercise.id];
 const individualAi = individualAiExerciseIllustrations[exercise.id];
-const aiGroupImage = aiGroupExerciseIllustrations[exercise.group];
+  const aiGroupImage = aiGroupExerciseIllustrations[exercise.group];
+  const aiArmsImage = exercise.group === "Бицепс" || exercise.group === "Трицепс" ? aiArmsExerciseIllustration : undefined;
   const openPhoto = exerciseOpenPhoto(exercise);
   const hasDedicatedOpenPhoto = Boolean(freeExerciseDbPhotos[exercise.id]);
 const defaultIllustration = exerciseTechniqueImage(exercise);
@@ -307,6 +272,7 @@ const candidates: { id: string; label: string; url: string }[] = [];
   addCandidate(`generated-${exercise.id}`, "Ранее созданная иллюстрация техники", generated);
   addCandidate(`open-photo-${exercise.id}`, hasDedicatedOpenPhoto ? "Открытое фото упражнения · free-exercise-db" : "Открытое фото группы · free-exercise-db", openPhoto);
   addCandidate(`ai-${exercise.group}`, "AI-иллюстрация группы", aiGroupImage);
+  addCandidate("ai-arms", "AI-иллюстрация рук", aiArmsImage);
   addCandidate(`illustration-${exercise.id}`, "Иллюстрация упражнения", defaultIllustration);
   return candidates;
 }

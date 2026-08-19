@@ -5,29 +5,26 @@ import { describe, expect, it } from "vitest";
 const theme = readFileSync(resolve(process.cwd(), "lib/app-color-themes.ts"), "utf8");
 const themeProvider = readFileSync(resolve(process.cwd(), "lib/theme-provider.tsx"), "utf8");
 const home = readFileSync(resolve(process.cwd(), "app/(tabs)/index.tsx"), "utf8");
-const programs = readFileSync(resolve(process.cwd(), "app/(tabs)/programs.tsx"), "utf8");
-const stats = readFileSync(resolve(process.cwd(), "app/(tabs)/stats.tsx"), "utf8");
-const workout = readFileSync(resolve(process.cwd(), "app/workout.tsx"), "utf8");
-const progressOverview = readFileSync(resolve(process.cwd(), "components/progress-overview.tsx"), "utf8");
+const tabLayout = readFileSync(resolve(process.cwd(), "app/(tabs)/_layout.tsx"), "utf8");
 
-describe("hybrid Training Ledger design", () => {
-  it("makes Training Ledger the default selectable app palette", () => {
-    expect(theme).toContain('id: "orchid"');
-    expect(theme).toContain('DEFAULT_APP_THEME_ID: AppThemeId = "orchid"');
-    expect(themeProvider).toContain('APP_THEME_STORAGE_KEY = "gym-diary-app-theme-v3"');
+describe("IronRise editorial reference design", () => {
+  it("makes the poster-style editorial palette the default selectable theme", () => {
+    expect(theme).toContain('id: "editorial"');
+    expect(theme).toContain('DEFAULT_APP_THEME_ID: AppThemeId = "editorial"');
+    expect(themeProvider).toContain('APP_THEME_STORAGE_KEY = "gym-diary-app-theme-v4"');
   });
 
-  it("applies ledger structure and Swiss accents to home, programs and statistics", () => {
-    expect(home).toContain('shadowColor: "#7C3AED"');
-    expect(home).toContain('borderRadius: 26');
-    expect(programs).toContain("borderRadius: 22");
-    expect(stats).toContain("borderLeftColor: iconColor");
-    expect(progressOverview).toContain("borderRadius: 16");
+  it("uses an editorial day, plan, weekly strip and volume layout on the home screen", () => {
+    expect(home).toContain('const REFERENCE_BLUE = "#1746D2"');
+    expect(home).toContain("heroGrid");
+    expect(home).toContain("planPanel");
+    expect(home).toContain("weekStrip");
+    expect(home).toContain("analytics");
   });
 
-  it("uses Orchid Voltage pink and violet accents in workout progress and rest", () => {
-    expect(workout).toContain('"#F5A1FF"');
-    expect(workout).toContain('"#9A5CFF"');
-    expect(workout).toContain('backgroundColor: "#351C55"');
+  it("uses compact text-led section names in the redesigned bottom navigation", () => {
+    expect(tabLayout).toContain('title: "СЕГОДНЯ"');
+    expect(tabLayout).toContain('title: "ПЛАН"');
+    expect(tabLayout).toContain('title: "ПРОГРЕСС"');
   });
 });
