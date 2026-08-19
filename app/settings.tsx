@@ -17,6 +17,7 @@ import type { LocalStorageUsage } from "@/lib/local-storage-usage";
 import { clearGroqApiKey, getGroqApiKey, saveGroqApiKey } from "@/lib/groq-settings";
 import { type OneRepMaxFormula } from "@/lib/workout-data";
 import { type SetHapticIntensity, useWorkoutStore } from "@/lib/workout-store";
+import { useNutritionStore } from "@/lib/nutrition-store";
 
 const formulas: { id: OneRepMaxFormula; title: string; formula: string; description: string }[] = [
   { id: "epley", title: "Эпли", formula: "Вес × (1 + повторы / 30)", description: "Универсальная оценка для большинства рабочих подходов." },
@@ -36,10 +37,12 @@ export default function SettingsScreen() {
   const { theme: svgIconTheme, setThemeId } = useSvgIconTheme();
   const { themeId: appThemeId, setThemeId: setAppThemeId } = useThemeContext();
   const { density, setDensity } = useInterfaceDensity();
+  const { dailyCalorieGoal, setDailyCalorieGoal } = useNutritionStore();
   const { oneRmFormula, setOneRmFormula, plateStepKg, setPlateStepKg, bodyWeightKg, bodyweightVolumePercent, setBodyweightVolumeSettings, hapticIntensity, setHapticIntensity, restTimerSoundEnabled, setRestTimerSoundEnabled, restTimerVibrationEnabled, setRestTimerVibrationEnabled, notificationsEnabled, defaultWorkoutTime, defaultReminderMinutes, setNotificationPreferences } = store;
   const [bodyWeight, setBodyWeight] = useState(String(bodyWeightKg));
   const [bodyPercent, setBodyPercent] = useState(String(bodyweightVolumePercent));
   const [notificationTime, setNotificationTime] = useState(defaultWorkoutTime);
+  const [calorieGoalDraft, setCalorieGoalDraft] = useState(String(dailyCalorieGoal));
   const [bulkState, setBulkState] = useState({ loading: false, completed: 0, total: 0, message: "Скачивай все фото по Wi‑Fi для просмотра без интернета." });
   const [storageUsage, setStorageUsage] = useState<LocalStorageUsage | null>(null);
   const [storageLoading, setStorageLoading] = useState(true);
@@ -75,6 +78,7 @@ export default function SettingsScreen() {
     void getGroqApiKey().then((key) => setHasGroqKey(Boolean(key))).catch(() => setHasGroqKey(false));
   }, [refreshStorageUsage]);
   useEffect(() => { setNotificationTime(defaultWorkoutTime); }, [defaultWorkoutTime]);
+  useEffect(() => { setCalorieGoalDraft(String(dailyCalorieGoal)); }, [dailyCalorieGoal]);
 
   const openGroqKeySheet = () => {
     setKeyDraft("");
@@ -164,6 +168,14 @@ export default function SettingsScreen() {
           <Text style={[styles.iconThemeTitle, { color: colors.foreground }]}>Размер текста и расстояние между блоками</Text>
           <Text style={[styles.iconThemeHint, { color: colors.muted }]}>Выберите представление, которое комфортнее для тренировок и чтения статистики.</Text>
           <View style={styles.densityOptions}>{INTERFACE_DENSITY_PRESETS.map((option) => { const selected = density === option.id; return <Pressable key={option.id} onPress={() => setDensity(option.id)} style={({ pressed }) => [styles.densityOption, { backgroundColor: selected ? colors.primary : colors.background, borderColor: selected ? colors.primary : colors.border, opacity: pressed ? 0.72 : 1 }]}><Text style={[styles.densitySample, { color: selected ? colors.surface : colors.foreground, fontSize: option.id === "large" ? 24 : 18 }]}>Aa</Text><View style={{ flex: 1 }}><Text style={[styles.appThemeName, { color: selected ? colors.surface : colors.foreground }]}>{option.title}</Text><Text style={[styles.appThemeHint, { color: selected ? `${colors.surface}CC` : colors.muted }]}>{option.hint}</Text></View>{selected && <IconSymbol name="checkmark" size={17} color={colors.surface} />}</Pressable>; })}</View>
+        </View>
+
+        <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Питание</Text>
+        <View style={[styles.densityCard, { backgroundColor: colors.surface, borderColor: colors.border }]}> 
+          <Text style={[styles.iconThemeTitle, { color: colors.foreground }]}>Плановый калораж за сутки</Text>
+          <Text style={[styles.iconThemeHint, { color: colors.muted }]}>Цель сохраняется на устройстве. В дневнике питания зелёным будет показан недобор, красным — перебор калорий.</Text>
+          <Text style={[styles.fieldLabel, { color: colors.muted }]}>Цель, ккал</Text>
+          <TextInput value={calorieGoalDraft} onChangeText={setCalorieGoalDraft} onEndEditing={() => { const value = Number(calorieGoalDraft); if (Number.isFinite(value) && value > 0) setDailyCalorieGoal(value); else setCalorieGoalDraft(String(dailyCalorieGoal)); }} keyboardType="number-pad" placeholder="2200" placeholderTextColor={colors.muted} style={[styles.field, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.background }]} />
         </View>
 
         <Text style={[styles.sectionTitle, { color: colors.foreground }]}>SVG-иконки</Text>
