@@ -35,7 +35,7 @@ type WorkoutContextValue = WorkoutState & {
   ready: boolean;
   startWorkout: (programId: string) => void;
   discardActiveWorkout: () => void;
-  finishWorkout: (programId: string, volume: number, sets: { exerciseId: string; weight: number; reps: number }[]) => { minutes: number; newRecordIds: string[]; maxOneRmDelta: number };
+  finishWorkout: (programId: string, volume: number, sets: { exerciseId: string; weight: number; reps: number }[]) => { workoutId: string; minutes: number; newRecordIds: string[]; maxOneRmDelta: number };
   deleteCompletedWorkout: (workoutId: string) => void;
   scheduleProgram: (date: string, schedule: ScheduledWorkout) => void;
   removeSchedule: (date: string) => void;
@@ -163,7 +163,7 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
         }
       });
       setState((current) => ({ ...current, activeWorkout: null, personalRecords: records, completed: [{ id: workoutId, programId, date: new Date().toISOString().slice(0, 10), durationMinutes: minutes, totalVolume: volume, sets }, ...current.completed] }));
-      return { minutes, newRecordIds, maxOneRmDelta };
+      return { workoutId, minutes, newRecordIds, maxOneRmDelta };
     },
     deleteCompletedWorkout: (workoutId) => setState((current) => {
       const completed = current.completed.filter((workout) => workout.id !== workoutId);

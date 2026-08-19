@@ -787,7 +787,7 @@ export default function WorkoutScreen() {
     const result = finishWorkout(program.id, total, recordSets);
     isDraftPersistenceEnabledRef.current = false;
     void clearActiveWorkoutDraft().catch(() => undefined);
-    router.replace({ pathname: "/workout-summary" as never, params: { programId: program.id, volume: String(Math.round(total)), minutes: String(result.minutes), records: result.newRecordIds.join(",") } });
+    router.replace({ pathname: "/workout-summary" as never, params: { workoutId: result.workoutId, programId: program.id, volume: String(Math.round(total)), minutes: String(result.minutes), records: result.newRecordIds.join(",") } });
   };
 
   const resetActiveWorkout = () => {
