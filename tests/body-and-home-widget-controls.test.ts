@@ -27,7 +27,7 @@ describe("body tracking and home widget controls", () => {
   it("persists the selected body profile and renders distinct silhouette variants", () => {
     expect(bodyStore).toContain('type BodyProfile = "male" | "female"');
     expect(bodyStore).toContain("ironrise.body-profile.v1");
-    expect(settings).toContain("Силуэт на экране «Тело»");
+    expect(settings).toContain("Силуэт и расчёты");
     expect(bodyVisuals).toContain('profile === "female"');
     expect(bodyVisuals).toContain("ЖЕНСКИЙ ПРОФИЛЬ");
     expect(bodyVisuals).toContain("МУЖСКОЙ ПРОФИЛЬ");

@@ -19,7 +19,8 @@ import { type OneRepMaxFormula } from "@/lib/workout-data";
 import { type SetHapticIntensity, useWorkoutStore } from "@/lib/workout-store";
 import { useNutritionStore } from "@/lib/nutrition-store";
 import { HOME_WIDGETS, type HomeWidgetId, useHomeWidgets } from "@/lib/home-widgets";
-import { useBodyStore } from "@/lib/body-store";
+import { BODY_METRICS, useBodyStore } from "@/lib/body-store";
+import { calculateDailyCalorieGuide } from "@/lib/body-calculations";
 
 const formulas: { id: OneRepMaxFormula; title: string; formula: string; description: string }[] = [
   { id: "epley", title: "Эпли", formula: "Вес × (1 + повторы / 30)", description: "Универсальная оценка для большинства рабочих подходов." },
@@ -41,13 +42,16 @@ export default function SettingsScreen() {
   const { density, setDensity } = useInterfaceDensity();
   const { dailyCalorieGoal, dailyMacroGoals, setDailyCalorieGoal, setDailyMacroGoals } = useNutritionStore();
   const { visibility: homeWidgets, order: homeWidgetOrder, compact: compactWidgets, setWidgetVisible, setWidgetCompact, moveWidget, resetWidgets } = useHomeWidgets();
-  const { profile: bodyProfile, setProfile: setBodyProfile } = useBodyStore();
+  const { profile: bodyProfile, heightCm, ageYears, goals: bodyGoals, measurements: bodyMeasurements, setProfile: setBodyProfile, setProfileDetails, setGoals: setBodyGoals } = useBodyStore();
   const { oneRmFormula, setOneRmFormula, plateStepKg, setPlateStepKg, bodyWeightKg, bodyweightVolumePercent, setBodyweightVolumeSettings, hapticIntensity, setHapticIntensity, restTimerSoundEnabled, setRestTimerSoundEnabled, restTimerVibrationEnabled, setRestTimerVibrationEnabled, notificationsEnabled, defaultWorkoutTime, defaultReminderMinutes, setNotificationPreferences } = store;
   const [bodyWeight, setBodyWeight] = useState(String(bodyWeightKg));
   const [bodyPercent, setBodyPercent] = useState(String(bodyweightVolumePercent));
   const [notificationTime, setNotificationTime] = useState(defaultWorkoutTime);
   const [calorieGoalDraft, setCalorieGoalDraft] = useState(String(dailyCalorieGoal));
   const [macroGoalDrafts, setMacroGoalDrafts] = useState({ protein: String(dailyMacroGoals.protein), fat: String(dailyMacroGoals.fat), carbs: String(dailyMacroGoals.carbs) });
+  const [heightDraft, setHeightDraft] = useState(heightCm ? String(heightCm) : "");
+  const [ageDraft, setAgeDraft] = useState(ageYears ? String(ageYears) : "");
+  const [bodyGoalDrafts, setBodyGoalDrafts] = useState<Record<string, string>>(() => Object.fromEntries(BODY_METRICS.map((metric) => [metric.id, bodyGoals[metric.id] ? String(bodyGoals[metric.id]) : ""])));
   const [bulkState, setBulkState] = useState({ loading: false, completed: 0, total: 0, message: "Скачивай все фото по Wi‑Fi для просмотра без интернета." });
   const [storageUsage, setStorageUsage] = useState<LocalStorageUsage | null>(null);
   const [storageLoading, setStorageLoading] = useState(true);
@@ -85,6 +89,8 @@ export default function SettingsScreen() {
   useEffect(() => { setNotificationTime(defaultWorkoutTime); }, [defaultWorkoutTime]);
   useEffect(() => { setCalorieGoalDraft(String(dailyCalorieGoal)); }, [dailyCalorieGoal]);
   useEffect(() => { setMacroGoalDrafts({ protein: String(dailyMacroGoals.protein), fat: String(dailyMacroGoals.fat), carbs: String(dailyMacroGoals.carbs) }); }, [dailyMacroGoals]);
+  useEffect(() => { setHeightDraft(heightCm ? String(heightCm) : ""); setAgeDraft(ageYears ? String(ageYears) : ""); }, [heightCm, ageYears]);
+  useEffect(() => { setBodyGoalDrafts(Object.fromEntries(BODY_METRICS.map((metric) => [metric.id, bodyGoals[metric.id] ? String(bodyGoals[metric.id]) : ""]))); }, [bodyGoals]);
 
   const openGroqKeySheet = () => {
     setKeyDraft("");
@@ -123,6 +129,11 @@ export default function SettingsScreen() {
   const deviceUsedPercent = storageUsage ? getUsagePercent(deviceUsedBytes ?? 0, storageUsage.totalBytes) : 0;
   const appBarWidth = storageUsage?.appDataBytes ? Math.max(2, appSharePercent) : 0;
   const saveMacroGoals = () => { const goals = { protein: Number(macroGoalDrafts.protein), fat: Number(macroGoalDrafts.fat), carbs: Number(macroGoalDrafts.carbs) }; if ([goals.protein, goals.fat, goals.carbs].every((value) => Number.isFinite(value) && value >= 0)) setDailyMacroGoals(goals); else setMacroGoalDrafts({ protein: String(dailyMacroGoals.protein), fat: String(dailyMacroGoals.fat), carbs: String(dailyMacroGoals.carbs) }); };
+  const saveBodyDetails = () => setProfileDetails({ heightCm: Number(heightDraft.replace(",", ".")), ageYears: Number(ageDraft) });
+  const saveBodyGoals = () => { const pairs = BODY_METRICS.map((metric): [string, number] => [metric.id, Number(bodyGoalDrafts[metric.id]?.replace(",", "."))]).filter(([, value]) => Number.isFinite(value) && value > 0); setBodyGoals(Object.fromEntries(pairs)); };
+  const latestMeasuredWeight = bodyMeasurements[0]?.weightKg;
+  const calorieGuide = calculateDailyCalorieGuide(bodyProfile, latestMeasuredWeight, heightCm, ageYears);
+  const applyCalorieGuide = () => { if (calorieGuide === undefined) return; setDailyCalorieGoal(calorieGuide); setCalorieGoalDraft(String(calorieGuide)); };
 
   return (
     <ScreenContainer edges={["top", "left", "right", "bottom"]} className="px-5" containerClassName="bg-background">
@@ -181,6 +192,7 @@ export default function SettingsScreen() {
         <View style={[styles.densityCard, { backgroundColor: colors.surface, borderColor: colors.border }]}> 
           <Text style={[styles.iconThemeTitle, { color: colors.foreground }]}>Дневные цели калорий и БЖУ</Text>
           <Text style={[styles.iconThemeHint, { color: colors.muted }]}>Плановый калораж за сутки и цели БЖУ сохраняются на устройстве и используются в визуальном прогрессе дневника питания.</Text>
+          <View style={[styles.calorieGuide, { borderColor: colors.border, backgroundColor: colors.background }]}><View style={{ flex: 1 }}><Text style={[styles.fieldLabel, { color: colors.primary }]}>АВТОМАТИЧЕСКИЙ ОРИЕНТИР</Text><Text style={[styles.calorieGuideValue, { color: colors.foreground }]}>{calorieGuide === undefined ? "Нужны профиль, возраст, рост и вес" : `${calorieGuide} ккал / день`}</Text><Text style={[styles.calorieGuideHint, { color: colors.muted }]}>{calorieGuide === undefined ? "Вес берётся из последнего замера на вкладке «Тело»." : "Mifflin–St Jeor × 1,4 · ориентир поддержки, не медицинское назначение."}</Text></View>{calorieGuide !== undefined && <Pressable onPress={applyCalorieGuide} style={({ pressed }) => [styles.applyGuide, { backgroundColor: colors.primary, opacity: pressed ? 0.7 : 1 }]}><Text style={styles.applyGuideText}>ПРИМЕНИТЬ</Text></Pressable>}</View>
           <Text style={[styles.fieldLabel, { color: colors.muted }]}>Цель, ккал</Text>
           <TextInput value={calorieGoalDraft} onChangeText={setCalorieGoalDraft} onEndEditing={() => { const value = Number(calorieGoalDraft); if (Number.isFinite(value) && value > 0) setDailyCalorieGoal(value); else setCalorieGoalDraft(String(dailyCalorieGoal)); }} keyboardType="number-pad" placeholder="2200" placeholderTextColor={colors.muted} style={[styles.field, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.background }]} />
           <View style={styles.macroGoalRow}>{([['protein', 'Белки, г', '150'], ['fat', 'Жиры, г', '70'], ['carbs', 'Углеводы, г', '250']] as const).map(([key, label, placeholder]) => <View key={key} style={styles.macroGoalField}><Text style={[styles.fieldLabel, { color: colors.muted }]}>{label}</Text><TextInput value={macroGoalDrafts[key]} onChangeText={(value) => setMacroGoalDrafts((current) => ({ ...current, [key]: value }))} onEndEditing={saveMacroGoals} keyboardType="number-pad" placeholder={placeholder} placeholderTextColor={colors.muted} style={[styles.field, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.background }]} /></View>)}</View>
@@ -260,7 +272,10 @@ export default function SettingsScreen() {
         </View>
 
         <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Профиль тела</Text>
-        <View style={[styles.densityCard, { backgroundColor: colors.surface, borderColor: colors.border }]}><Text style={[styles.iconThemeTitle, { color: colors.foreground }]}>Силуэт на экране «Тело»</Text><Text style={[styles.iconThemeHint, { color: colors.muted }]}>Выберите профиль, чтобы отображать соответствующий силуэт в карте замеров. Этот выбор хранится только на устройстве.</Text><View style={styles.bodyProfileChoices}>{([{ id: "male", title: "Мужчина", hint: "Широкие плечи · узкая талия" }, { id: "female", title: "Женщина", hint: "Мягкая линия плеч · акцент на бёдра" }] as const).map((option) => { const active = bodyProfile === option.id; return <Pressable key={option.id} onPress={() => setBodyProfile(option.id)} style={({ pressed }) => [styles.bodyProfileChoice, { borderColor: active ? colors.primary : colors.border, backgroundColor: active ? `${colors.primary}13` : colors.background, opacity: pressed ? 0.7 : 1 }]}><View style={[styles.bodyProfileMark, { backgroundColor: active ? colors.primary : colors.border }]}>{active && <Text style={styles.bodyProfileCheck}>✓</Text>}</View><View style={{ flex: 1 }}><Text style={[styles.bodyProfileTitle, { color: colors.foreground }]}>{option.title}</Text><Text style={[styles.bodyProfileHint, { color: colors.muted }]}>{option.hint}</Text></View></Pressable>; })}</View></View>
+        <View style={[styles.densityCard, { backgroundColor: colors.surface, borderColor: colors.border }]}><Text style={[styles.iconThemeTitle, { color: colors.foreground }]}>Силуэт и расчёты</Text><Text style={[styles.iconThemeHint, { color: colors.muted }]}>Профиль, рост и возраст используются только в локальных расчётах ИМТ и калорийного ориентира.</Text><View style={styles.bodyProfileChoices}>{([{ id: "male", title: "Мужчина", hint: "Широкие плечи · узкая талия" }, { id: "female", title: "Женщина", hint: "Мягкая линия плеч · акцент на бёдра" }] as const).map((option) => { const active = bodyProfile === option.id; return <Pressable key={option.id} onPress={() => setBodyProfile(option.id)} style={({ pressed }) => [styles.bodyProfileChoice, { borderColor: active ? colors.primary : colors.border, backgroundColor: active ? `${colors.primary}13` : colors.background, opacity: pressed ? 0.7 : 1 }]}><View style={[styles.bodyProfileMark, { backgroundColor: active ? colors.primary : colors.border }]}>{active && <Text style={styles.bodyProfileCheck}>✓</Text>}</View><View style={{ flex: 1 }}><Text style={[styles.bodyProfileTitle, { color: colors.foreground }]}>{option.title}</Text><Text style={[styles.bodyProfileHint, { color: colors.muted }]}>{option.hint}</Text></View></Pressable>; })}</View><View style={styles.bodyFields}><View style={{ flex: 1 }}><Text style={[styles.fieldLabel, { color: colors.muted }]}>Рост, см</Text><TextInput value={heightDraft} onChangeText={setHeightDraft} onEndEditing={saveBodyDetails} keyboardType="number-pad" placeholder="175" placeholderTextColor={colors.muted} style={[styles.field, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.background }]} /></View><View style={{ flex: 1 }}><Text style={[styles.fieldLabel, { color: colors.muted }]}>Возраст, лет</Text><TextInput value={ageDraft} onChangeText={setAgeDraft} onEndEditing={saveBodyDetails} keyboardType="number-pad" placeholder="30" placeholderTextColor={colors.muted} style={[styles.field, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.background }]} /></View></View></View>
+
+        <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Цели параметров тела</Text>
+        <View style={[styles.densityCard, { backgroundColor: colors.surface, borderColor: colors.border }]}><Text style={[styles.iconThemeTitle, { color: colors.foreground }]}>Вес и обхваты</Text><Text style={[styles.iconThemeHint, { color: colors.muted }]}>Целевые линии появятся в графиках на вкладке «Тело». Оставьте поле пустым, чтобы скрыть ориентир.</Text><View style={styles.goalFields}>{BODY_METRICS.filter((metric) => metric.id !== "bodyFatPct").map((metric) => <View key={metric.id} style={styles.goalField}><Text style={[styles.fieldLabel, { color: colors.muted }]}>{metric.label}, {metric.unit}</Text><TextInput value={bodyGoalDrafts[metric.id] ?? ""} onChangeText={(value) => setBodyGoalDrafts((current) => ({ ...current, [metric.id]: value }))} onEndEditing={saveBodyGoals} keyboardType="decimal-pad" placeholder="—" placeholderTextColor={colors.muted} style={[styles.field, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.background }]} /></View>)}</View></View>
 
         <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Groq AI</Text>
         <View style={[styles.groqCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
@@ -416,6 +431,8 @@ const styles = StyleSheet.create({
   notificationMinutes: { flexDirection: "row", gap: 4 },
   notificationMinute: { flex: 1, height: 48, borderWidth: 1, borderRadius: 10, justifyContent: "center", alignItems: "center" },
   bodyFields: { flexDirection: "row", gap: 9 },
+  goalFields: { flexDirection: "row", flexWrap: "wrap", gap: 9 },
+  goalField: { width: "47.7%" },
   bodyProfileChoices: { flexDirection: "row", gap: 8 },
   bodyProfileChoice: { flex: 1, minHeight: 74, borderWidth: 1, padding: 10, flexDirection: "row", alignItems: "center", gap: 8 },
   bodyProfileMark: { width: 19, height: 19, alignItems: "center", justifyContent: "center" },
@@ -426,6 +443,11 @@ const styles = StyleSheet.create({
   field: { height: 48, borderWidth: 1, borderRadius: 13, paddingHorizontal: 12, fontSize: 15, fontWeight: "800" },
   macroGoalRow: { flexDirection: "row", gap: 8 },
   macroGoalField: { flex: 1 },
+  calorieGuide: { borderWidth: 1, padding: 11, flexDirection: "row", alignItems: "center", gap: 9 },
+  calorieGuideValue: { fontSize: 17, fontWeight: "900", letterSpacing: -.4 },
+  calorieGuideHint: { fontSize: 9, lineHeight: 13, marginTop: 3 },
+  applyGuide: { minHeight: 36, paddingHorizontal: 9, alignItems: "center", justifyContent: "center" },
+  applyGuideText: { color: "#FFFDF8", fontSize: 8, fontWeight: "900", letterSpacing: .45 },
   widgetOptions: { gap: 8 },
   widgetOption: { minHeight: 58, borderWidth: 1, paddingHorizontal: 11, flexDirection: "row", alignItems: "center", gap: 12 },
   widgetTitle: { fontSize: 12, fontWeight: "900" },
