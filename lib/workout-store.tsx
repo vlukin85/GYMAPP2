@@ -1,6 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
-import { bestOneRepMax, completedWorkouts as seedCompleted, createCustomExercise, defaultPrograms, mergeStoredPrograms, normalizeExerciseImagePreference, normalizeStoredMuscleGroup, setCustomExercises, type AiExerciseArtStyle, type BarbellProfile, type CompletedWorkout, type CustomExerciseDraft, type Exercise, type ExerciseGalleryImage, type ExerciseImagePreference, type ExercisePreference, type OneRepMaxFormula, type PersonalRecord, type ScheduledWorkout, type WorkoutProgram } from "./workout-data";
+import { bestOneRepMax, completedWorkouts as seedCompleted, createCustomExercise, defaultPrograms, getExercise, isTimeBasedExercise, mergeStoredPrograms, normalizeExerciseImagePreference, normalizeStoredMuscleGroup, setCustomExercises, type AiExerciseArtStyle, type BarbellProfile, type CompletedWorkout, type CustomExerciseDraft, type Exercise, type ExerciseGalleryImage, type ExerciseImagePreference, type ExercisePreference, type OneRepMaxFormula, type PersonalRecord, type ScheduledWorkout, type WorkoutProgram } from "./workout-data";
 
 export const SET_HAPTIC_INTENSITIES = ["light", "medium", "heavy"] as const;
 export type SetHapticIntensity = (typeof SET_HAPTIC_INTENSITIES)[number];
@@ -82,6 +82,7 @@ export function rebuildPersonalRecords(completed: CompletedWorkout[], formula: O
         return current;
       }, {});
       Object.entries(grouped).forEach(([exerciseId, sets]) => {
+        if (isTimeBasedExercise(getExercise(exerciseId))) return;
         const bestSet = sets.reduce((best, set) => bestOneRepMax([set], formula) > bestOneRepMax([best], formula) ? set : best, sets[0]);
         const estimatedOneRepMax = bestOneRepMax(sets, formula);
         if (!records[exerciseId] || estimatedOneRepMax > records[exerciseId].estimatedOneRepMax) {
@@ -153,6 +154,7 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
       const newRecordIds: string[] = [];
       let maxOneRmDelta = 0;
       Object.entries(grouped).forEach(([exerciseId, exerciseSets]) => {
+        if (isTimeBasedExercise(getExercise(exerciseId))) return;
         const bestSet = exerciseSets.reduce((best, set) => bestOneRepMax([set], state.oneRmFormula) > bestOneRepMax([best], state.oneRmFormula) ? set : best, exerciseSets[0]);
         const estimatedOneRepMax = bestOneRepMax(exerciseSets, state.oneRmFormula);
         if (!records[exerciseId] || estimatedOneRepMax > records[exerciseId].estimatedOneRepMax) {

@@ -3,6 +3,8 @@ export type MuscleGroup = "Грудь" | "Спина" | "Ноги" | "Плечи
 import { freeExerciseDbGroupFallbackPhotos, freeExerciseDbPhotos } from "./free-exercise-db-photos";
 import { aiArmsExerciseIllustration, aiGroupExerciseIllustrations, generatedTechniqueImages, individualAiExerciseIllustrations } from "./bundled-ai-exercise-images";
 
+export type ExerciseMeasure = "reps" | "minutes";
+
 export type Exercise = {
 id: string;
 name: string;
@@ -14,7 +16,16 @@ group: MuscleGroup;
   videoUrl: string;
   recordKg: number;
   recordReps: number;
+  measurement?: ExerciseMeasure;
 };
+
+export function getExerciseMeasure(exercise?: Pick<Exercise, "group" | "measurement">) {
+  return exercise?.measurement ?? (exercise?.group === "Кардио" ? "minutes" : "reps");
+}
+
+export function isTimeBasedExercise(exercise?: Pick<Exercise, "group" | "measurement">) {
+  return getExerciseMeasure(exercise) === "minutes";
+}
 
 export type ExerciseGalleryImage = { id: string; label: string; url: string };
 
@@ -288,8 +299,8 @@ const catalogExercises: Exercise[] = [
   { id: "lateral-raise", name: "Разведения гантелей в стороны", group: "Плечи", equipment: "Гантели", description: "Поднимайте руки до уровня плеч с мягким локтем, не используя инерцию.", image: images.lateralRaise, videoUrl: "https://www.youtube.com/results?search_query=разведения+гантелей+в+стороны", recordKg: 12, recordReps: 12 },
   { id: "biceps-curl", name: "Сгибания рук со штангой", group: "Бицепс", equipment: "Штанга", description: "Зафиксируйте локти возле корпуса и поднимайте вес без раскачивания плечами.", image: images.bicepsCurl, videoUrl: "https://www.youtube.com/results?search_query=сгибания+рук+со+штангой", recordKg: 42.5, recordReps: 8 },
   { id: "triceps-pushdown", name: "Разгибания на блоке", group: "Трицепс", equipment: "Тренажёр", description: "Прижмите локти к корпусу и полностью разгибайте руки, сохраняя плечи неподвижными.", image: images.tricepsPushdown, videoUrl: "https://www.youtube.com/results?search_query=разгибания+рук+на+верхнем+блоке", recordKg: 45, recordReps: 10 },
-  { id: "plank", name: "Планка на локтях", group: "Корпус", equipment: "Без оборудования", description: "Создайте прямую линию от плеч до пяток, напрягите пресс и спокойно дышите.", image: images.plank, videoUrl: "https://www.youtube.com/results?search_query=планка+на+локтях+техника", recordKg: 0, recordReps: 90 },
-  { id: "treadmill", name: "Беговая дорожка", group: "Кардио", equipment: "Тренажёр", description: "Начните с лёгкой ходьбы, постепенно увеличьте темп и завершите заминкой.", image: images.treadmill, videoUrl: "https://www.youtube.com/results?search_query=беговая+дорожка+техника", recordKg: 0, recordReps: 25 },
+  { id: "plank", name: "Планка на локтях", group: "Корпус", equipment: "Без оборудования", description: "Создайте прямую линию от плеч до пяток, напрягите пресс и спокойно дышите.", image: images.plank, videoUrl: "https://www.youtube.com/results?search_query=планка+на+локтях+техника", recordKg: 0, recordReps: 90, measurement: "minutes" },
+  { id: "treadmill", name: "Беговая дорожка", group: "Кардио", equipment: "Тренажёр", description: "Начните с лёгкой ходьбы, постепенно увеличьте темп и завершите заминкой.", image: images.treadmill, videoUrl: "https://www.youtube.com/results?search_query=беговая+дорожка+техника", recordKg: 0, recordReps: 25, measurement: "minutes" },
   { id: "dumbbell-row", name: "Тяга гантели к поясу", group: "Спина", equipment: "Гантели", description: "Упритесь свободной рукой в скамью, тяните локоть к тазу и не разворачивайте плечо.", image: images.dumbbellRow, videoUrl: "https://www.youtube.com/results?search_query=тяга+гантели+к+поясу+техника", recordKg: 36, recordReps: 10 },
   { id: "romanian-deadlift", name: "Румынская тяга", group: "Ноги", equipment: "Штанга", description: "Отводите таз назад, держите гриф близко к ногам и сохраняйте нейтральную спину.", image: images.romanianDeadlift, videoUrl: "https://www.youtube.com/results?search_query=румынская+тяга+техника", recordKg: 100, recordReps: 8 },
   { id: "walking-lunge", name: "Выпады с гантелями", group: "Ноги", equipment: "Гантели", description: "Делайте контролируемый шаг, опускайте заднее колено к полу и сохраняйте корпус устойчивым.", image: images.walkingLunge, videoUrl: "https://www.youtube.com/results?search_query=выпады+с+гантелями+техника", recordKg: 22, recordReps: 12 },
@@ -297,7 +308,7 @@ const catalogExercises: Exercise[] = [
   { id: "leg-curl", name: "Сгибания ног в тренажёре", group: "Ноги", equipment: "Тренажёр", description: "Фиксируйте таз, сгибайте ноги плавно и задерживайтесь в точке сокращения.", image: images.legCurl, videoUrl: "https://www.youtube.com/results?search_query=сгибание+ног+в+тренажере+техника", recordKg: 55, recordReps: 12 },
   { id: "calf-raise", name: "Подъёмы на носки стоя", group: "Ноги", equipment: "Тренажёр", description: "Опускайте пятки до растяжения и поднимайтесь на носки с полной амплитудой.", image: images.calfRaise, videoUrl: "https://www.youtube.com/results?search_query=подъем+на+носки+стоя+техника", recordKg: 80, recordReps: 15 },
   { id: "cable-crunch", name: "Скручивания на верхнем блоке", group: "Корпус", equipment: "Тренажёр", description: "Скручивайте корпус за счёт пресса, не тяните рукоять руками и не округляйте поясницу чрезмерно.", image: images.cableCrunch, videoUrl: "https://www.youtube.com/results?search_query=скручивания+на+верхнем+блоке+техника", recordKg: 42, recordReps: 12 },
-  { id: "rower", name: "Гребной тренажёр", group: "Кардио", equipment: "Тренажёр", description: "Отталкивайтесь ногами, затем подключайте корпус и руки; возвращайтесь в обратном порядке.", image: images.rower, videoUrl: "https://www.youtube.com/results?search_query=гребной+тренажер+техника", recordKg: 0, recordReps: 20 },
+  { id: "rower", name: "Гребной тренажёр", group: "Кардио", equipment: "Тренажёр", description: "Отталкивайтесь ногами, затем подключайте корпус и руки; возвращайтесь в обратном порядке.", image: images.rower, videoUrl: "https://www.youtube.com/results?search_query=гребной+тренажер+техника", recordKg: 0, recordReps: 20, measurement: "minutes" },
   ...expandedExercises,
 ];
 

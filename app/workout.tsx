@@ -12,7 +12,7 @@ import { IconSymbol } from "@/components/ui/icon-symbol";
 import { SafeMaterialIcon } from "@/components/ui/safe-material-icon";
 import { useColors } from "@/hooks/use-colors";
 import { clearActiveWorkoutDraft, isDraftForProgram, loadActiveWorkoutDraft, saveActiveWorkoutDraft } from "@/lib/active-workout-draft-storage";
-import { MAX_DROP_SUBSETS, bestOneRepMax, exercises, getEffectiveSetWeight, getExercise, getExerciseHistory, getLoadZones, getSetVolumeWithDropSubsets, hasCompletedWorkoutSet, muscleGroups, roundToWeightIncrement, type Exercise, type ProgramExercise, type SetType } from "@/lib/workout-data";
+import { MAX_DROP_SUBSETS, bestOneRepMax, exercises, getEffectiveSetWeight, getExercise, getExerciseHistory, getLoadZones, getSetVolumeWithDropSubsets, isTimeBasedExercise, muscleGroups, roundToWeightIncrement, type Exercise, type ProgramExercise, type SetType } from "@/lib/workout-data";
 import { getRemainingRestSeconds, getRestProgress } from "@/lib/rest-timer";
 import { getHistoricalQuickWeightOptions, getPreviousWorkingResult, prefillWorkingSet } from "@/lib/workout-set-entry";
 import { filterActiveWorkoutCatalog, reorderActiveWorkoutExercises } from "@/lib/active-workout-utils";
@@ -49,12 +49,16 @@ const setTypeLabel: Record<SetType, string> = {
   failure: "Отказной",
 };
 
-function setParts(set: ActualSet) {
+function setParts(set: ActualSet, isTimed = false) {
+  if (isTimed) {
+    const minutes = Number(set.reps);
+    return set.reps.trim() !== "" && Number.isFinite(minutes) && minutes > 0 ? [{ reps: minutes, weightKg: 0 }] : [];
+  }
   const subsets = set.type === "drop" && set.dropSubsets?.length ? set.dropSubsets : [{ reps: set.reps, weight: set.weight }];
-  if (!hasCompletedWorkoutSet(set)) return [];
   return subsets
-    .map((part) => ({ reps: Number(part.reps), weightKg: Number(part.weight) }))
-    .filter((part) => part.reps > 0 && Number.isFinite(part.weightKg) && part.weightKg >= 0);
+    .map((part) => ({ reps: Number(part.reps), weightKg: Number(part.weight), hasWeight: part.weight.trim() !== "" }))
+    .filter((part) => part.reps > 0 && Number.isFinite(part.weightKg) && part.weightKg >= 0 && part.hasWeight)
+    .map(({ reps, weightKg }) => ({ reps, weightKg }));
 }
 
 function RestTimerOverlay({
@@ -484,7 +488,8 @@ export default function WorkoutScreen() {
     () => filterActiveWorkoutCatalog(exercises, catalogGroup, catalogSearch),
     [catalogGroup, catalogSearch],
   );
-  const effectiveVolume = (set: ActualSet, equipment: string) =>
+  const effectiveVolume = (set: ActualSet, equipment: string, isTimed: boolean) =>
+    isTimed ? 0 :
     setParts(set).reduce(
       (sum, part) => sum + getEffectiveSetWeight({ weightKg: part.weightKg, equipment, bodyWeightKg, bodyweightVolumePercent }) * part.reps,
       0,
@@ -493,17 +498,18 @@ export default function WorkoutScreen() {
     (sum, item) =>
       sum +
       (setsByExercise[item.exerciseId] ?? []).reduce(
-        (subtotal, set) => subtotal + effectiveVolume(set, getExercise(actualExerciseId(item.exerciseId))?.equipment ?? ""),
+            (subtotal, set) => subtotal + effectiveVolume(set, getExercise(actualExerciseId(item.exerciseId))?.equipment ?? "", isTimeBasedExercise(getExercise(actualExerciseId(item.exerciseId)))),
         0,
       ),
     0,
   );
   const activePlan = sessionExercises.find((item) => item.exerciseId === activeId);
   const activeExercise = activeId ? getExercise(actualExerciseId(activeId)) : undefined;
-  const currentOneRm = bestOneRepMax(
+  const activeIsTimed = isTimeBasedExercise(activeExercise);
+  const currentOneRm = activeIsTimed ? 0 : bestOneRepMax(
     draft
       .filter((set) => set.type !== "warmup")
-      .flatMap(setParts)
+      .flatMap((set) => setParts(set))
       .map((part) => ({ weight: part.weightKg, reps: part.reps })),
     oneRmFormula,
   );
@@ -528,7 +534,7 @@ export default function WorkoutScreen() {
                 id: `local-${workout.id}`,
                 date: new Date(workout.date).toLocaleDateString("ru-RU", { day: "numeric", month: "short" }).replace(".", ""),
                 sets,
-                volume: sets.reduce((sum, set) => sum + set.weight * set.reps, 0),
+                volume: activeIsTimed ? 0 : sets.reduce((sum, set) => sum + set.weight * set.reps, 0),
               };
             })
         : [],
@@ -536,7 +542,7 @@ export default function WorkoutScreen() {
   );
   const history = (recordedHistory.length ? recordedHistory : localHistory).map((entry) => ({
     ...entry,
-    oneRm: bestOneRepMax(
+    oneRm: activeIsTimed ? 0 : bestOneRepMax(
       entry.sets.flatMap((set) =>
         set.drop?.length
           ? set.drop.map((part) => ({ weight: Number(part.weight) || 0, reps: Number(part.reps) || 0 }))
@@ -615,7 +621,7 @@ export default function WorkoutScreen() {
   const startRestAfterSetInput = (setIndex: number) => {
     if (!activeId || !activePlan) return;
     const set = draft[setIndex];
-    if (!set || !setParts(set).length) return;
+    if (!set || !setParts(set, activeIsTimed).length) return;
     const key = `${activeId}:${setIndex}`;
     const signature = JSON.stringify(set);
     if (restedSetSignatures.current[key] === signature) return;
@@ -635,7 +641,7 @@ export default function WorkoutScreen() {
   const focusedPart = focusedSet && focusedSubsetIndex !== null ? focusedSet.dropSubsets?.[focusedSubsetIndex] : focusedSet;
   const previousWorkingResult = focusedSetIndex === null ? null : getPreviousWorkingResult(draft, focusedSetIndex);
   const quickWeightOptions = focusedPart
-    ? getHistoricalQuickWeightOptions(history.flatMap((entry) => entry.sets), previousWorkingResult?.weight ?? String(activePlan?.weight ?? ""), plateStepKg)
+    && !activeIsTimed ? getHistoricalQuickWeightOptions(history.flatMap((entry) => entry.sets), previousWorkingResult?.weight ?? String(activePlan?.weight ?? ""), plateStepKg)
     : [];
   const hasHistoricalWeights = history.some((entry) => entry.sets.some((set) => set.weight > 0 || set.drop?.some((part) => Number(part.weight) > 0)));
   const updateFocusedPart = (field: keyof DropDraft, value: string) => {
@@ -760,7 +766,7 @@ export default function WorkoutScreen() {
       .filter((item) => done[item.exerciseId])
       .flatMap((item) =>
         (setsByExercise[item.exerciseId] ?? []).flatMap((set, index) => {
-          const parts = setParts(set);
+          const parts = setParts(set, isTimeBasedExercise(getExercise(actualExerciseId(item.exerciseId))));
           if (!parts.length) return [];
           const primary = parts[0];
           return [
@@ -840,7 +846,7 @@ export default function WorkoutScreen() {
     }, 0) / totalPlannedSetCount)
     : 0;
   const completedSetCount = sessionExercises.reduce(
-    (totalSets, item) => totalSets + (setsByExercise[item.exerciseId] ?? []).reduce((setTotal, set) => setTotal + setParts(set).length, 0),
+    (totalSets, item) => totalSets + (setsByExercise[item.exerciseId] ?? []).reduce((setTotal, set) => setTotal + setParts(set, isTimeBasedExercise(getExercise(actualExerciseId(item.exerciseId)))).length, 0),
     0,
   );
 
@@ -1021,15 +1027,15 @@ export default function WorkoutScreen() {
             keyboardShouldPersistTaps="handled"
             keyboardDismissMode="on-drag"
           >
-            <View style={[styles.oneRm, { backgroundColor: colors.primary }]}>
+            {!activeIsTimed && <View style={[styles.oneRm, { backgroundColor: colors.primary }]}> 
               <View>
                 <Text style={styles.oneRmLabel}>ПРЕДПОЛАГАЕМЫЙ 1RM</Text>
                 <Text style={styles.oneRmHint}>{oneRmFormula === "epley" ? "Формула Эпли" : "Формула Бржицки"}</Text>
               </View>
               <Text style={styles.oneRmValue}>{currentOneRm.toFixed(1)} кг</Text>
-            </View>
+            </View>}
 
-            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Целевые зоны нагрузки</Text>
+            {!activeIsTimed && <><Text style={[styles.sectionTitle, { color: colors.foreground }]}>Целевые зоны нагрузки</Text>
             <View style={styles.zones}>
               {getLoadZones(currentOneRm).map((zone) => (
                 <View key={zone.percent} style={[styles.zone, { backgroundColor: colors.surface, borderColor: colors.border }]}>
@@ -1037,7 +1043,7 @@ export default function WorkoutScreen() {
                   <Text style={[styles.zoneWeight, { color: colors.foreground }]}>{roundToWeightIncrement(zone.weight, plateStepKg).toFixed(1)} кг</Text>
                 </View>
               ))}
-            </View>
+            </View></>}
 
             <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Настройки и заметки</Text>
             <TextInput
@@ -1064,7 +1070,7 @@ export default function WorkoutScreen() {
                     <Pressable onPress={() => setExpanded(expanded === entry.id ? null : entry.id)} style={styles.historyTop}>
                       <View>
                         <Text style={[styles.historyDate, { color: colors.foreground }]}>{entry.date}</Text>
-                        <Text style={[styles.historyMeta, { color: colors.muted }]}> {entry.volume.toFixed(0)} кг · 1RM {entry.oneRm.toFixed(1)} кг</Text>
+                        <Text style={[styles.historyMeta, { color: colors.muted }]}>{activeIsTimed ? ` ${entry.sets.reduce((sum, set) => sum + set.reps, 0)} мин` : ` ${entry.volume.toFixed(0)} кг · 1RM ${entry.oneRm.toFixed(1)} кг`}</Text>
                       </View>
                       <IconSymbol name={expanded === entry.id ? "chevron.down" : "chevron.right"} size={18} color={colors.muted} />
                     </Pressable>
@@ -1072,8 +1078,8 @@ export default function WorkoutScreen() {
                       entry.sets.map((set, index) => (
                         <View key={`${entry.id}-${index}`} style={styles.historySet}>
                           <Text style={[styles.setDetail, { color: colors.muted }]}>{index + 1}</Text>
-                          <Text style={[styles.setDetail, { color: colors.foreground }]}>{set.drop?.length ? `дроп: ${set.drop.map((part) => `${part.weight}×${part.reps}`).join(" → ")}` : `${set.reps} повт.`}</Text>
-                          <Text style={[styles.setDetail, { color: colors.foreground }]}>{set.drop?.length ? "" : `${set.weight} кг`}</Text>
+                          <Text style={[styles.setDetail, { color: colors.foreground }]}>{activeIsTimed ? `${set.reps} мин.` : set.drop?.length ? `дроп: ${set.drop.map((part) => `${part.weight}×${part.reps}`).join(" → ")}` : `${set.reps} повт.`}</Text>
+                          {!activeIsTimed && <Text style={[styles.setDetail, { color: colors.foreground }]}>{set.drop?.length ? "" : `${set.weight} кг`}</Text>}
                         </View>
                       ))}
                   </View>
@@ -1084,12 +1090,12 @@ export default function WorkoutScreen() {
             )}
 
             <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Фактические подходы</Text>
-            <Text style={[styles.fieldHint, { color: colors.muted }]}>Пустые поля выделены серым. После ввода повтора и веса таймер отдыха запускается автоматически.</Text>
+            <Text style={[styles.fieldHint, { color: colors.muted }]}>{activeIsTimed ? "Укажите длительность в минутах. После завершения подхода таймер отдыха запускается автоматически." : "Пустые поля выделены серым. После ввода повтора и веса таймер отдыха запускается автоматически."}</Text>
             {draft.map((set, index) => (
               <View key={`draft-${index}`} style={[styles.setBox, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                 <View style={styles.setRow}>
                   <Text style={[styles.setIndex, { color: colors.primary }]}>{index + 1}</Text>
-                  {set.type !== "drop" && (
+                  {activeIsTimed ? <TextInput value={set.reps} onChangeText={(value) => updateSet(index, (item) => ({ ...item, reps: value }))} onFocus={() => openSetEditor(index)} keyboardType="decimal-pad" returnKeyType="done" placeholder={`план ${activePlan?.reps ?? "—"} мин`} placeholderTextColor={colors.muted} style={fieldStyle(set.reps)} /> : set.type !== "drop" && (
                     <>
                       <TextInput
                         value={set.reps}
@@ -1114,7 +1120,7 @@ export default function WorkoutScreen() {
                     </>
                   )}
                 </View>
-                <View style={styles.typeChips}>
+                {!activeIsTimed && <View style={styles.typeChips}>
                   {setTypes.map((type) => (
                     <Pressable
                       key={type.id}
@@ -1130,8 +1136,8 @@ export default function WorkoutScreen() {
                       <Text style={[styles.typeChipText, { color: set.type === type.id ? colors.primary : colors.muted }]}>{type.label}</Text>
                     </Pressable>
                   ))}
-                </View>
-                {set.type === "drop" && (
+                </View>}
+                {!activeIsTimed && set.type === "drop" && (
                   <View style={[styles.dropPanel, { borderColor: colors.primary + "45", backgroundColor: colors.primary + "0D" }]}>
                     <View style={styles.dropHeader}>
                       <View>
@@ -1218,15 +1224,15 @@ export default function WorkoutScreen() {
                   <View style={styles.setEditorCenter}>
                     <View style={styles.setEditorFields}>
                       <View style={styles.setEditorFieldWrap}>
-                        <Text style={[styles.setEditorLabel, { color: colors.muted }]}>ПОВТОРЫ</Text>
-                        <TextInput autoFocus value={focusedPart.reps} onChangeText={(value) => updateFocusedPart("reps", value)} keyboardType="number-pad" returnKeyType="done" placeholder={`план ${activePlan?.reps ?? "—"}`} placeholderTextColor={colors.muted} style={[styles.setEditorInput, { color: focusedPart.reps.trim() ? colors.foreground : colors.muted, backgroundColor: focusedPart.reps.trim() ? colors.surface : `${colors.muted}1A`, borderColor: focusedPart.reps.trim() ? colors.primary : colors.border }]} />
+                        <Text style={[styles.setEditorLabel, { color: colors.muted }]}>{activeIsTimed ? "МИНУТЫ" : "ПОВТОРЫ"}</Text>
+                        <TextInput autoFocus value={focusedPart.reps} onChangeText={(value) => updateFocusedPart("reps", value)} keyboardType={activeIsTimed ? "decimal-pad" : "number-pad"} returnKeyType="done" placeholder={`план ${activePlan?.reps ?? "—"}${activeIsTimed ? " мин" : ""}`} placeholderTextColor={colors.muted} style={[styles.setEditorInput, { color: focusedPart.reps.trim() ? colors.foreground : colors.muted, backgroundColor: focusedPart.reps.trim() ? colors.surface : `${colors.muted}1A`, borderColor: focusedPart.reps.trim() ? colors.primary : colors.border }]} />
                       </View>
-                      <View style={styles.setEditorFieldWrap}>
+                      {!activeIsTimed && <View style={styles.setEditorFieldWrap}>
                         <Text style={[styles.setEditorLabel, { color: colors.muted }]}>ВЕС, КГ</Text>
                         <TextInput value={focusedPart.weight} onChangeText={(value) => updateFocusedPart("weight", value)} keyboardType="decimal-pad" returnKeyType="done" placeholder={`план ${activePlan?.weight ?? "—"}`} placeholderTextColor={colors.muted} style={[styles.setEditorInput, { color: focusedPart.weight.trim() ? colors.foreground : colors.muted, backgroundColor: focusedPart.weight.trim() ? colors.surface : `${colors.muted}1A`, borderColor: focusedPart.weight.trim() ? colors.primary : colors.border }]} />
-                      </View>
+                      </View>}
                     </View>
-                    {quickWeightOptions.length > 0 && (
+                    {!activeIsTimed && quickWeightOptions.length > 0 && (
                       <View style={styles.quickWeightGroup}>
                         <Text style={[styles.quickWeightLabel, { color: colors.muted }]}>{hasHistoricalWeights ? "ВЕС ИЗ ПРОШЛЫХ ТРЕНИРОВОК" : "БЫСТРЫЙ ВЫБОР ВЕСА"}</Text>
                         <View style={styles.quickWeightRow}>
@@ -1238,7 +1244,7 @@ export default function WorkoutScreen() {
                         </View>
                       </View>
                     )}
-                    <Pressable disabled={!setParts(focusedSet).length} onPress={finishFocusedSet} style={({ pressed }) => [styles.setEditorFinish, { backgroundColor: colors.primary, opacity: !setParts(focusedSet).length ? 0.45 : pressed ? 0.78 : 1 }]}>
+                    <Pressable disabled={!setParts(focusedSet, activeIsTimed).length} onPress={finishFocusedSet} style={({ pressed }) => [styles.setEditorFinish, { backgroundColor: colors.primary, opacity: !setParts(focusedSet, activeIsTimed).length ? 0.45 : pressed ? 0.78 : 1 }]}>
                       <Text style={styles.setEditorFinishText}>Завершить подход</Text>
                     </Pressable>
                   </View>
