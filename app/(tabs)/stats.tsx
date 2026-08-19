@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { router } from "expo-router";
-import Svg, { Circle, Line, Polyline, Text as SvgText } from "react-native-svg";
+import Svg, { Circle, Line, Polyline, Rect, Text as SvgText } from "react-native-svg";
 
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
@@ -13,6 +13,7 @@ import { useWorkoutStore } from "@/lib/workout-store";
 import { ProgressOverview } from "@/components/progress-overview";
 import { getExercisePersonalRecordHistory, type PersonalRecordHistoryPoint } from "@/lib/record-history";
 import { getPercentageChange, getStatsMetrics, getStatsPeriodComparison } from "@/lib/stats-comparison";
+import { getWeeklyCardioMinutes } from "@/lib/cardio-metrics";
 
 const periodOptions: { id: StatsFilterMode; label: string }[] = [
   { id: "week", label: "Неделя" },
@@ -52,6 +53,7 @@ export default function StatsScreen() {
   const metrics = useMemo(() => getStatsMetrics(completed, filter, selectedExerciseId), [completed, filter, selectedExerciseId]);
   const periodComparison = useMemo(() => getStatsPeriodComparison(completed, filter, selectedExerciseId), [completed, filter, selectedExerciseId]);
   const oneRmHistory = useMemo(() => selectedExerciseId ? getExercisePersonalRecordHistory(completed, selectedExerciseId, oneRmFormula) : [], [completed, oneRmFormula, selectedExerciseId]);
+  const weeklyCardio = useMemo(() => getWeeklyCardioMinutes(completed), [completed]);
   const periodLabel = period === "date" ? selectedDate : period === "custom" ? `${rangeStart} — ${rangeEnd}` : periodOptions.find((option) => option.id === period)?.label.toLocaleLowerCase("ru") ?? "месяц";
   const calendarDays = useMemo(() => getMonthCalendarDays(calendarCursor.getFullYear(), calendarCursor.getMonth()), [calendarCursor]);
   useEffect(() => { let mounted = true; loadStatsPreferences({ filter, exerciseId: null }).then((saved) => { if (!mounted) return; setPeriod(saved.filter.mode); setSelectedDate(saved.filter.date ?? today); setRangeStart(saved.filter.start ?? today); setRangeEnd(saved.filter.end ?? today); setSelectedExerciseId(saved.exerciseId); setFilterLoaded(true); }); return () => { mounted = false; }; }, []);
@@ -68,6 +70,7 @@ export default function StatsScreen() {
     <View style={styles.bigStats}><Metric icon="dumbbell.fill" iconColor={colors.primary} value={String(metrics.workoutCount)} label={selectedExerciseId ? "сессий" : "тренировок"} colors={colors} /><Metric icon="chart.bar.fill" iconColor="#FF9F43" value={`${(metrics.volume / 1000).toFixed(1)}т`} label={selectedExerciseId ? "объём упражнения" : "общий объём"} colors={colors} /><Metric icon="timer" iconColor="#7BE495" value={String(metrics.minutes)} label="минут" colors={colors} /></View>
     {periodComparison && <PeriodComparison comparison={periodComparison} period={period} colors={colors} />}
     {selectedExerciseId && selectedExercise && <OneRmHistoryChart exerciseName={selectedExercise.name} points={oneRmHistory} colors={colors} />}
+    <WeeklyCardioChart points={weeklyCardio} colors={colors} />
     <ProgressOverview completed={completed} />
     <View style={styles.sectionRow}><View><Text style={[styles.section, { color: colors.foreground }]}>Личные рекорды</Text><Text style={[styles.hint, { color: colors.muted }]}>Последние зафиксированные или обновлённые за {periodLabel}.</Text></View><Text style={[styles.count, { color: colors.muted }]}>{recentRecords.length}</Text></View>
     {recentRecords.length ? recentRecords.map((record) => {
@@ -81,6 +84,12 @@ export default function StatsScreen() {
 }
 
 function Metric({ icon, iconColor, value, label, colors }: { icon: any; iconColor: string; value: string; label: string; colors: any }) { return <View style={[styles.bigCard, { backgroundColor: colors.surface, borderColor: colors.border, borderLeftColor: iconColor, borderLeftWidth: 4, borderRadius: 0 }]}><IconSymbol name={icon} size={20} color={iconColor} /><Text style={[styles.bigValue, { color: colors.foreground }]}>{value}</Text><Text style={[styles.bigLabel, { color: colors.muted }]}>{label}</Text></View>; }
+
+function WeeklyCardioChart({ points, colors }: { points: ReturnType<typeof getWeeklyCardioMinutes>; colors: any }) {
+  const max = Math.max(1, ...points.map((point) => point.minutes));
+  const total = points.reduce((sum, point) => sum + point.minutes, 0);
+  return <View style={[styles.cardioChart, { backgroundColor: colors.surface, borderColor: colors.border }]}><View style={styles.cardioChartHeader}><View><Text style={[styles.cardioChartTitle, { color: colors.foreground }]}>КАРДИО · 7 ДНЕЙ</Text><Text style={[styles.cardioChartHint, { color: colors.muted }]}>Время кардио по дням недели</Text></View><Text style={[styles.cardioChartTotal, { color: colors.primary }]}>{total} МИН</Text></View><Svg width="100%" height={132} viewBox="0 0 328 132"><Line x1="18" x2="316" y1="103" y2="103" stroke={colors.border} strokeWidth="1" />{points.map((point, index) => { const height = point.minutes ? Math.max(5, (point.minutes / max) * 76) : 2; const x = 25 + index * 43; return <Fragment key={point.date}><Rect x={x} y={103 - height} width="25" height={height} fill={point.minutes ? colors.primary : colors.border} /><SvgText x={x + 12} y="121" textAnchor="middle" fill={colors.muted} fontSize="9" fontWeight="800">{point.label}</SvgText>{point.minutes > 0 && <SvgText x={x + 12} y={96 - height} textAnchor="middle" fill={colors.foreground} fontSize="9" fontWeight="900">{point.minutes}</SvgText>}</Fragment>; })}</Svg></View>;
+}
 
 function PeriodComparison({ comparison, period, colors }: { comparison: NonNullable<ReturnType<typeof getStatsPeriodComparison>>; period: StatsFilterMode; colors: any }) {
   const periodName = period === "week" ? "прошлой неделей" : "прошлым месяцем";
@@ -147,5 +156,5 @@ const styles = StyleSheet.create({
   oneRmAxisLabel: { fontSize: 9, fontWeight: "700", maxWidth: 95, textAlign: "center" },
   oneRmEmpty: { minHeight: 112, alignItems: "center", justifyContent: "center", paddingHorizontal: 20, gap: 6 },
   oneRmEmptyTitle: { fontSize: 13, fontWeight: "900", marginTop: 2 },
-  oneRmEmptyText: { fontSize: 11, lineHeight: 16, textAlign: "center" },
+  oneRmEmptyText: { fontSize: 11, lineHeight: 16, textAlign: "center" }, cardioChart: { borderWidth: 1, borderTopWidth: 5, padding: 14, gap: 7 }, cardioChartHeader: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }, cardioChartTitle: { fontSize: 15, fontWeight: "900" }, cardioChartHint: { fontSize: 10, marginTop: 4 }, cardioChartTotal: { fontSize: 13, fontWeight: "900", letterSpacing: 0.5 },
 });

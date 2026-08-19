@@ -27,6 +27,10 @@ export function isTimeBasedExercise(exercise?: Pick<Exercise, "group" | "measure
   return getExerciseMeasure(exercise) === "minutes";
 }
 
+export function supportsDistanceTracking(exercise?: Pick<Exercise, "id">) {
+  return exercise?.id === "treadmill" || exercise?.id === "rower";
+}
+
 export type ExerciseGalleryImage = { id: string; label: string; url: string };
 
 export type AiExerciseArtStyle = "editorial" | "neon" | "minimal";
@@ -149,7 +153,7 @@ export type CompletedWorkout = {
   date: string;
   durationMinutes: number;
   totalVolume: number;
-  sets?: { exerciseId: string; weight: number; reps: number }[];
+  sets?: { exerciseId: string; weight: number; reps: number; distanceKm?: number }[];
 };
 
 export function isScheduledWorkoutCompleted(completed: CompletedWorkout[], date: string, programId: string) {

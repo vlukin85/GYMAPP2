@@ -35,7 +35,7 @@ type WorkoutContextValue = WorkoutState & {
   ready: boolean;
   startWorkout: (programId: string) => void;
   discardActiveWorkout: () => void;
-  finishWorkout: (programId: string, volume: number, sets: { exerciseId: string; weight: number; reps: number }[]) => { workoutId: string; minutes: number; newRecordIds: string[]; maxOneRmDelta: number };
+  finishWorkout: (programId: string, volume: number, sets: { exerciseId: string; weight: number; reps: number; distanceKm?: number }[]) => { workoutId: string; minutes: number; newRecordIds: string[]; maxOneRmDelta: number };
   deleteCompletedWorkout: (workoutId: string) => void;
   scheduleProgram: (date: string, schedule: ScheduledWorkout) => void;
   removeSchedule: (date: string) => void;
@@ -67,7 +67,7 @@ type WorkoutContextValue = WorkoutState & {
   setNotificationPreferences: (preferences: Pick<WorkoutState, "notificationsEnabled" | "defaultWorkoutTime" | "defaultReminderMinutes">) => void;
   setExercisePreference: (exerciseId: string, preference: ExercisePreference) => void;
   repeatLastWorkout: () => string | null;
-  importCompletedWorkouts: (workouts: { id: string; programId: string; date: string; durationMinutes: number; totalVolume: number; sets: { exerciseId: string; weight: number; reps: number }[] }[]) => void;
+  importCompletedWorkouts: (workouts: { id: string; programId: string; date: string; durationMinutes: number; totalVolume: number; sets: { exerciseId: string; weight: number; reps: number; distanceKm?: number }[] }[]) => void;
   restoreTrainingBackup: (snapshot: Partial<Pick<WorkoutState, "oneRmFormula" | "plateStepKg" | "barbellProfile" | "personalRecords" | "bodyWeightKg" | "bodyweightVolumePercent" | "exercisePreferences" | "hapticIntensity">>) => void;
 };
 

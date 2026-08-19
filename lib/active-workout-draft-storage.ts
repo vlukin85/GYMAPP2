@@ -6,6 +6,7 @@ const ACTIVE_WORKOUT_DRAFT_KEY = "ironrise.active-workout-draft.v1";
 export type WorkoutDraftSet = {
   reps: string;
   weight: string;
+  distance?: string;
   type: SetType;
   dropSubsets?: { reps: string; weight: string }[];
 };

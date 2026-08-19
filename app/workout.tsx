@@ -12,7 +12,7 @@ import { IconSymbol } from "@/components/ui/icon-symbol";
 import { SafeMaterialIcon } from "@/components/ui/safe-material-icon";
 import { useColors } from "@/hooks/use-colors";
 import { clearActiveWorkoutDraft, isDraftForProgram, loadActiveWorkoutDraft, saveActiveWorkoutDraft } from "@/lib/active-workout-draft-storage";
-import { MAX_DROP_SUBSETS, bestOneRepMax, exercises, getEffectiveSetWeight, getExercise, getExerciseHistory, getLoadZones, getSetVolumeWithDropSubsets, isTimeBasedExercise, muscleGroups, roundToWeightIncrement, type Exercise, type ProgramExercise, type SetType } from "@/lib/workout-data";
+import { MAX_DROP_SUBSETS, bestOneRepMax, exercises, getEffectiveSetWeight, getExercise, getExerciseHistory, getLoadZones, getSetVolumeWithDropSubsets, isTimeBasedExercise, muscleGroups, roundToWeightIncrement, supportsDistanceTracking, type Exercise, type ProgramExercise, type SetType } from "@/lib/workout-data";
 import { getRemainingRestSeconds, getRestProgress } from "@/lib/rest-timer";
 import { getHistoricalQuickWeightOptions, getPreviousWorkingResult, prefillWorkingSet } from "@/lib/workout-set-entry";
 import { filterActiveWorkoutCatalog, reorderActiveWorkoutExercises } from "@/lib/active-workout-utils";
@@ -22,7 +22,7 @@ import { useWorkoutStore } from "@/lib/workout-store";
 import { openReplacementPicker, subscribeToExerciseReplacement } from "@/lib/exercise-replacement-bus";
 
 type DropDraft = { reps: string; weight: string };
-type ActualSet = { reps: string; weight: string; type: SetType; dropSubsets?: DropDraft[] };
+type ActualSet = { reps: string; weight: string; distance?: string; type: SetType; dropSubsets?: DropDraft[] };
 type HistorySet = { weight: number; reps: number; type?: string; drop?: DropDraft[] };
 
 const REST_KEEP_AWAKE_TAG = "gym-training-diary-rest-timer";
@@ -49,10 +49,11 @@ const setTypeLabel: Record<SetType, string> = {
   failure: "Отказной",
 };
 
-function setParts(set: ActualSet, isTimed = false) {
+function setParts(set: ActualSet, isTimed = false): { reps: number; weightKg: number; distanceKm?: number }[] {
   if (isTimed) {
     const minutes = Number(set.reps);
-    return set.reps.trim() !== "" && Number.isFinite(minutes) && minutes > 0 ? [{ reps: minutes, weightKg: 0 }] : [];
+    const distanceKm = Number(set.distance);
+    return set.reps.trim() !== "" && Number.isFinite(minutes) && minutes > 0 ? [{ reps: minutes, weightKg: 0, distanceKm: Number.isFinite(distanceKm) && distanceKm > 0 ? distanceKm : undefined }] : [];
   }
   const subsets = set.type === "drop" && set.dropSubsets?.length ? set.dropSubsets : [{ reps: set.reps, weight: set.weight }];
   return subsets
@@ -506,6 +507,7 @@ export default function WorkoutScreen() {
   const activePlan = sessionExercises.find((item) => item.exerciseId === activeId);
   const activeExercise = activeId ? getExercise(actualExerciseId(activeId)) : undefined;
   const activeIsTimed = isTimeBasedExercise(activeExercise);
+  const activeTracksDistance = supportsDistanceTracking(activeExercise);
   const currentOneRm = activeIsTimed ? 0 : bestOneRepMax(
     draft
       .filter((set) => set.type !== "warmup")
@@ -560,6 +562,7 @@ export default function WorkoutScreen() {
         Array.from({ length: plan.sets }, () => ({
           reps: "",
           weight: "",
+          distance: "",
           type: plan.setType ?? "working",
         })),
     );
@@ -648,6 +651,10 @@ export default function WorkoutScreen() {
     if (focusedSetIndex === null) return;
     if (focusedSubsetIndex === null) updateSet(focusedSetIndex, (item) => ({ ...item, [field]: value }));
     else updateDropSubset(focusedSetIndex, focusedSubsetIndex, field, value);
+  };
+  const updateFocusedDistance = (value: string) => {
+    if (focusedSetIndex === null || focusedSubsetIndex !== null) return;
+    updateSet(focusedSetIndex, (item) => ({ ...item, distance: value }));
   };
   const saveExercise = () => {
     if (!activeId) return;
@@ -775,6 +782,7 @@ export default function WorkoutScreen() {
               setNumber: index + 1,
               reps: primary.reps,
               weightKg: primary.weightKg,
+              distanceKm: primary.distanceKm,
               setType: set.type,
               supersetGroup: item.supersetGroup,
               dropSubsets: set.type === "drop" ? parts : undefined,
@@ -788,7 +796,7 @@ export default function WorkoutScreen() {
     const recordSets = persisted.flatMap((set) =>
       set.dropSubsets?.length
         ? set.dropSubsets.map((part) => ({ exerciseId: set.exerciseId, reps: part.reps, weight: part.weightKg }))
-        : [{ exerciseId: set.exerciseId, reps: set.reps, weight: set.weightKg }],
+        : [{ exerciseId: set.exerciseId, reps: set.reps, weight: set.weightKg, distanceKm: set.distanceKm }],
     );
     const result = finishWorkout(program.id, total, recordSets);
     isDraftPersistenceEnabledRef.current = false;
@@ -1090,12 +1098,12 @@ export default function WorkoutScreen() {
             )}
 
             <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Фактические подходы</Text>
-            <Text style={[styles.fieldHint, { color: colors.muted }]}>{activeIsTimed ? "Укажите длительность в минутах. После завершения подхода таймер отдыха запускается автоматически." : "Пустые поля выделены серым. После ввода повтора и веса таймер отдыха запускается автоматически."}</Text>
+            <Text style={[styles.fieldHint, { color: colors.muted }]}>{activeIsTimed ? activeTracksDistance ? "Укажите длительность в минутах и дистанцию в километрах. После завершения подхода таймер отдыха запускается автоматически." : "Укажите длительность в минутах. После завершения подхода таймер отдыха запускается автоматически." : "Пустые поля выделены серым. После ввода повтора и веса таймер отдыха запускается автоматически."}</Text>
             {draft.map((set, index) => (
               <View key={`draft-${index}`} style={[styles.setBox, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                 <View style={styles.setRow}>
                   <Text style={[styles.setIndex, { color: colors.primary }]}>{index + 1}</Text>
-                  {activeIsTimed ? <TextInput value={set.reps} onChangeText={(value) => updateSet(index, (item) => ({ ...item, reps: value }))} onFocus={() => openSetEditor(index)} keyboardType="decimal-pad" returnKeyType="done" placeholder={`план ${activePlan?.reps ?? "—"} мин`} placeholderTextColor={colors.muted} style={fieldStyle(set.reps)} /> : set.type !== "drop" && (
+                  {activeIsTimed ? <><TextInput value={set.reps} onChangeText={(value) => updateSet(index, (item) => ({ ...item, reps: value }))} onFocus={() => openSetEditor(index)} keyboardType="decimal-pad" returnKeyType="done" placeholder={`план ${activePlan?.reps ?? "—"} мин`} placeholderTextColor={colors.muted} style={fieldStyle(set.reps)} />{activeTracksDistance && <TextInput value={set.distance ?? ""} onChangeText={(value) => updateSet(index, (item) => ({ ...item, distance: value }))} onFocus={() => openSetEditor(index)} keyboardType="decimal-pad" returnKeyType="done" placeholder="дистанция, км" placeholderTextColor={colors.muted} style={fieldStyle(set.distance ?? "")} />}</> : set.type !== "drop" && (
                     <>
                       <TextInput
                         value={set.reps}
@@ -1195,6 +1203,7 @@ export default function WorkoutScreen() {
                   {
                     reps: "",
                     weight: "",
+                    distance: "",
                     type: activePlan?.setType ?? "working",
                   },
                 ])
@@ -1227,6 +1236,10 @@ export default function WorkoutScreen() {
                         <Text style={[styles.setEditorLabel, { color: colors.muted }]}>{activeIsTimed ? "МИНУТЫ" : "ПОВТОРЫ"}</Text>
                         <TextInput autoFocus value={focusedPart.reps} onChangeText={(value) => updateFocusedPart("reps", value)} keyboardType={activeIsTimed ? "decimal-pad" : "number-pad"} returnKeyType="done" placeholder={`план ${activePlan?.reps ?? "—"}${activeIsTimed ? " мин" : ""}`} placeholderTextColor={colors.muted} style={[styles.setEditorInput, { color: focusedPart.reps.trim() ? colors.foreground : colors.muted, backgroundColor: focusedPart.reps.trim() ? colors.surface : `${colors.muted}1A`, borderColor: focusedPart.reps.trim() ? colors.primary : colors.border }]} />
                       </View>
+                      {activeTracksDistance && focusedSubsetIndex === null && <View style={styles.setEditorFieldWrap}>
+                        <Text style={[styles.setEditorLabel, { color: colors.muted }]}>ДИСТАНЦИЯ, КМ</Text>
+                        <TextInput value={focusedSet.distance ?? ""} onChangeText={updateFocusedDistance} keyboardType="decimal-pad" returnKeyType="done" placeholder="например, 5" placeholderTextColor={colors.muted} style={[styles.setEditorInput, { color: (focusedSet.distance ?? "").trim() ? colors.foreground : colors.muted, backgroundColor: (focusedSet.distance ?? "").trim() ? colors.surface : `${colors.muted}1A`, borderColor: (focusedSet.distance ?? "").trim() ? colors.primary : colors.border }]} />
+                      </View>}
                       {!activeIsTimed && <View style={styles.setEditorFieldWrap}>
                         <Text style={[styles.setEditorLabel, { color: colors.muted }]}>ВЕС, КГ</Text>
                         <TextInput value={focusedPart.weight} onChangeText={(value) => updateFocusedPart("weight", value)} keyboardType="decimal-pad" returnKeyType="done" placeholder={`план ${activePlan?.weight ?? "—"}`} placeholderTextColor={colors.muted} style={[styles.setEditorInput, { color: focusedPart.weight.trim() ? colors.foreground : colors.muted, backgroundColor: focusedPart.weight.trim() ? colors.surface : `${colors.muted}1A`, borderColor: focusedPart.weight.trim() ? colors.primary : colors.border }]} />
