@@ -37,12 +37,13 @@ export default function SettingsScreen() {
   const { theme: svgIconTheme, setThemeId } = useSvgIconTheme();
   const { themeId: appThemeId, setThemeId: setAppThemeId } = useThemeContext();
   const { density, setDensity } = useInterfaceDensity();
-  const { dailyCalorieGoal, setDailyCalorieGoal } = useNutritionStore();
+  const { dailyCalorieGoal, dailyMacroGoals, setDailyCalorieGoal, setDailyMacroGoals } = useNutritionStore();
   const { oneRmFormula, setOneRmFormula, plateStepKg, setPlateStepKg, bodyWeightKg, bodyweightVolumePercent, setBodyweightVolumeSettings, hapticIntensity, setHapticIntensity, restTimerSoundEnabled, setRestTimerSoundEnabled, restTimerVibrationEnabled, setRestTimerVibrationEnabled, notificationsEnabled, defaultWorkoutTime, defaultReminderMinutes, setNotificationPreferences } = store;
   const [bodyWeight, setBodyWeight] = useState(String(bodyWeightKg));
   const [bodyPercent, setBodyPercent] = useState(String(bodyweightVolumePercent));
   const [notificationTime, setNotificationTime] = useState(defaultWorkoutTime);
   const [calorieGoalDraft, setCalorieGoalDraft] = useState(String(dailyCalorieGoal));
+  const [macroGoalDrafts, setMacroGoalDrafts] = useState({ protein: String(dailyMacroGoals.protein), fat: String(dailyMacroGoals.fat), carbs: String(dailyMacroGoals.carbs) });
   const [bulkState, setBulkState] = useState({ loading: false, completed: 0, total: 0, message: "Скачивай все фото по Wi‑Fi для просмотра без интернета." });
   const [storageUsage, setStorageUsage] = useState<LocalStorageUsage | null>(null);
   const [storageLoading, setStorageLoading] = useState(true);
@@ -79,6 +80,7 @@ export default function SettingsScreen() {
   }, [refreshStorageUsage]);
   useEffect(() => { setNotificationTime(defaultWorkoutTime); }, [defaultWorkoutTime]);
   useEffect(() => { setCalorieGoalDraft(String(dailyCalorieGoal)); }, [dailyCalorieGoal]);
+  useEffect(() => { setMacroGoalDrafts({ protein: String(dailyMacroGoals.protein), fat: String(dailyMacroGoals.fat), carbs: String(dailyMacroGoals.carbs) }); }, [dailyMacroGoals]);
 
   const openGroqKeySheet = () => {
     setKeyDraft("");
@@ -116,6 +118,7 @@ export default function SettingsScreen() {
   const deviceUsedBytes = storageUsage?.totalBytes && storageUsage.freeBytes !== null ? Math.max(0, storageUsage.totalBytes - storageUsage.freeBytes) : null;
   const deviceUsedPercent = storageUsage ? getUsagePercent(deviceUsedBytes ?? 0, storageUsage.totalBytes) : 0;
   const appBarWidth = storageUsage?.appDataBytes ? Math.max(2, appSharePercent) : 0;
+  const saveMacroGoals = () => { const goals = { protein: Number(macroGoalDrafts.protein), fat: Number(macroGoalDrafts.fat), carbs: Number(macroGoalDrafts.carbs) }; if ([goals.protein, goals.fat, goals.carbs].every((value) => Number.isFinite(value) && value >= 0)) setDailyMacroGoals(goals); else setMacroGoalDrafts({ protein: String(dailyMacroGoals.protein), fat: String(dailyMacroGoals.fat), carbs: String(dailyMacroGoals.carbs) }); };
 
   return (
     <ScreenContainer edges={["top", "left", "right", "bottom"]} className="px-5" containerClassName="bg-background">
@@ -172,10 +175,11 @@ export default function SettingsScreen() {
 
         <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Питание</Text>
         <View style={[styles.densityCard, { backgroundColor: colors.surface, borderColor: colors.border }]}> 
-          <Text style={[styles.iconThemeTitle, { color: colors.foreground }]}>Плановый калораж за сутки</Text>
-          <Text style={[styles.iconThemeHint, { color: colors.muted }]}>Цель сохраняется на устройстве. В дневнике питания зелёным будет показан недобор, красным — перебор калорий.</Text>
+          <Text style={[styles.iconThemeTitle, { color: colors.foreground }]}>Дневные цели калорий и БЖУ</Text>
+          <Text style={[styles.iconThemeHint, { color: colors.muted }]}>Плановый калораж за сутки и цели БЖУ сохраняются на устройстве и используются в визуальном прогрессе дневника питания.</Text>
           <Text style={[styles.fieldLabel, { color: colors.muted }]}>Цель, ккал</Text>
           <TextInput value={calorieGoalDraft} onChangeText={setCalorieGoalDraft} onEndEditing={() => { const value = Number(calorieGoalDraft); if (Number.isFinite(value) && value > 0) setDailyCalorieGoal(value); else setCalorieGoalDraft(String(dailyCalorieGoal)); }} keyboardType="number-pad" placeholder="2200" placeholderTextColor={colors.muted} style={[styles.field, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.background }]} />
+          <View style={styles.macroGoalRow}>{([['protein', 'Белки, г', '150'], ['fat', 'Жиры, г', '70'], ['carbs', 'Углеводы, г', '250']] as const).map(([key, label, placeholder]) => <View key={key} style={styles.macroGoalField}><Text style={[styles.fieldLabel, { color: colors.muted }]}>{label}</Text><TextInput value={macroGoalDrafts[key]} onChangeText={(value) => setMacroGoalDrafts((current) => ({ ...current, [key]: value }))} onEndEditing={saveMacroGoals} keyboardType="number-pad" placeholder={placeholder} placeholderTextColor={colors.muted} style={[styles.field, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.background }]} /></View>)}</View>
         </View>
 
         <Text style={[styles.sectionTitle, { color: colors.foreground }]}>SVG-иконки</Text>
@@ -393,6 +397,8 @@ const styles = StyleSheet.create({
   bodyFields: { flexDirection: "row", gap: 9 },
   fieldLabel: { fontSize: 10, fontWeight: "800", marginBottom: 5 },
   field: { height: 48, borderWidth: 1, borderRadius: 13, paddingHorizontal: 12, fontSize: 15, fontWeight: "800" },
+  macroGoalRow: { flexDirection: "row", gap: 8 },
+  macroGoalField: { flex: 1 },
   groqCard: { borderWidth: 1, borderRadius: 18, padding: 14, gap: 11 },
   groqHeader: { flexDirection: "row", alignItems: "center", gap: 10 },
   groqIcon: { width: 40, height: 40, borderRadius: 13, alignItems: "center", justifyContent: "center" },
