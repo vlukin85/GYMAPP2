@@ -10,6 +10,7 @@ const bodyScreen = readFileSync(resolve(process.cwd(), "app/(tabs)/body.tsx"), "
 const bodyVisuals = readFileSync(resolve(process.cwd(), "components/body-visuals.tsx"), "utf8");
 const settings = readFileSync(resolve(process.cwd(), "app/settings.tsx"), "utf8");
 const home = readFileSync(resolve(process.cwd(), "app/(tabs)/index.tsx"), "utf8");
+const bodyStore = readFileSync(resolve(process.cwd(), "lib/body-store.tsx"), "utf8");
 
 describe("body tracking and home widget controls", () => {
   it("tracks weight and the core circumference measurements locally", () => {
@@ -22,6 +23,14 @@ describe("body tracking and home widget controls", () => {
     expect(bodyVisuals).toContain("BodySilhouette");
     expect(bodyVisuals).toContain("Polyline");
     expect(bodyVisuals).toContain("КАРТА ЗАМЕРОВ");
+  });
+  it("persists the selected body profile and renders distinct silhouette variants", () => {
+    expect(bodyStore).toContain('type BodyProfile = "male" | "female"');
+    expect(bodyStore).toContain("ironrise.body-profile.v1");
+    expect(settings).toContain("Силуэт на экране «Тело»");
+    expect(bodyVisuals).toContain('profile === "female"');
+    expect(bodyVisuals).toContain("ЖЕНСКИЙ ПРОФИЛЬ");
+    expect(bodyVisuals).toContain("МУЖСКОЙ ПРОФИЛЬ");
   });
   it("adds the body tab to swipe navigation", () => {
     expect(getMainTabIdFromPathname("/body")).toBe("body");

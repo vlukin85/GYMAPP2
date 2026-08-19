@@ -19,6 +19,7 @@ import { type OneRepMaxFormula } from "@/lib/workout-data";
 import { type SetHapticIntensity, useWorkoutStore } from "@/lib/workout-store";
 import { useNutritionStore } from "@/lib/nutrition-store";
 import { HOME_WIDGETS, type HomeWidgetId, useHomeWidgets } from "@/lib/home-widgets";
+import { useBodyStore } from "@/lib/body-store";
 
 const formulas: { id: OneRepMaxFormula; title: string; formula: string; description: string }[] = [
   { id: "epley", title: "Эпли", formula: "Вес × (1 + повторы / 30)", description: "Универсальная оценка для большинства рабочих подходов." },
@@ -40,6 +41,7 @@ export default function SettingsScreen() {
   const { density, setDensity } = useInterfaceDensity();
   const { dailyCalorieGoal, dailyMacroGoals, setDailyCalorieGoal, setDailyMacroGoals } = useNutritionStore();
   const { visibility: homeWidgets, order: homeWidgetOrder, compact: compactWidgets, setWidgetVisible, setWidgetCompact, moveWidget, resetWidgets } = useHomeWidgets();
+  const { profile: bodyProfile, setProfile: setBodyProfile } = useBodyStore();
   const { oneRmFormula, setOneRmFormula, plateStepKg, setPlateStepKg, bodyWeightKg, bodyweightVolumePercent, setBodyweightVolumeSettings, hapticIntensity, setHapticIntensity, restTimerSoundEnabled, setRestTimerSoundEnabled, restTimerVibrationEnabled, setRestTimerVibrationEnabled, notificationsEnabled, defaultWorkoutTime, defaultReminderMinutes, setNotificationPreferences } = store;
   const [bodyWeight, setBodyWeight] = useState(String(bodyWeightKg));
   const [bodyPercent, setBodyPercent] = useState(String(bodyweightVolumePercent));
@@ -257,6 +259,9 @@ export default function SettingsScreen() {
           </View>
         </View>
 
+        <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Профиль тела</Text>
+        <View style={[styles.densityCard, { backgroundColor: colors.surface, borderColor: colors.border }]}><Text style={[styles.iconThemeTitle, { color: colors.foreground }]}>Силуэт на экране «Тело»</Text><Text style={[styles.iconThemeHint, { color: colors.muted }]}>Выберите профиль, чтобы отображать соответствующий силуэт в карте замеров. Этот выбор хранится только на устройстве.</Text><View style={styles.bodyProfileChoices}>{([{ id: "male", title: "Мужчина", hint: "Широкие плечи · узкая талия" }, { id: "female", title: "Женщина", hint: "Мягкая линия плеч · акцент на бёдра" }] as const).map((option) => { const active = bodyProfile === option.id; return <Pressable key={option.id} onPress={() => setBodyProfile(option.id)} style={({ pressed }) => [styles.bodyProfileChoice, { borderColor: active ? colors.primary : colors.border, backgroundColor: active ? `${colors.primary}13` : colors.background, opacity: pressed ? 0.7 : 1 }]}><View style={[styles.bodyProfileMark, { backgroundColor: active ? colors.primary : colors.border }]}>{active && <Text style={styles.bodyProfileCheck}>✓</Text>}</View><View style={{ flex: 1 }}><Text style={[styles.bodyProfileTitle, { color: colors.foreground }]}>{option.title}</Text><Text style={[styles.bodyProfileHint, { color: colors.muted }]}>{option.hint}</Text></View></Pressable>; })}</View></View>
+
         <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Groq AI</Text>
         <View style={[styles.groqCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <View style={styles.groqHeader}>
@@ -411,6 +416,12 @@ const styles = StyleSheet.create({
   notificationMinutes: { flexDirection: "row", gap: 4 },
   notificationMinute: { flex: 1, height: 48, borderWidth: 1, borderRadius: 10, justifyContent: "center", alignItems: "center" },
   bodyFields: { flexDirection: "row", gap: 9 },
+  bodyProfileChoices: { flexDirection: "row", gap: 8 },
+  bodyProfileChoice: { flex: 1, minHeight: 74, borderWidth: 1, padding: 10, flexDirection: "row", alignItems: "center", gap: 8 },
+  bodyProfileMark: { width: 19, height: 19, alignItems: "center", justifyContent: "center" },
+  bodyProfileCheck: { color: "#FFFDF8", fontSize: 13, fontWeight: "900" },
+  bodyProfileTitle: { fontSize: 12, fontWeight: "900" },
+  bodyProfileHint: { fontSize: 9, lineHeight: 13, marginTop: 3 },
   fieldLabel: { fontSize: 10, fontWeight: "800", marginBottom: 5 },
   field: { height: 48, borderWidth: 1, borderRadius: 13, paddingHorizontal: 12, fontSize: 15, fontWeight: "800" },
   macroGoalRow: { flexDirection: "row", gap: 8 },
