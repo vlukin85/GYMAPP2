@@ -63,7 +63,7 @@ const config: ExpoConfig = {
     edgeToEdgeEnabled: true,
     predictiveBackGestureEnabled: false,
     package: env.androidPackage,
-    permissions: ["POST_NOTIFICATIONS"],
+    permissions: ["POST_NOTIFICATIONS", "CAMERA"],
     intentFilters: [
       {
         action: "VIEW",
@@ -91,6 +91,12 @@ const config: ExpoConfig = {
     "expo-secure-store",
     "expo-web-browser",
     "expo-notifications",
+    [
+      "expo-camera",
+      {
+        cameraPermission: "Разрешите IronRise использовать камеру для сканирования штрихкодов продуктов.",
+      },
+    ],
     [
       "expo-audio",
       {

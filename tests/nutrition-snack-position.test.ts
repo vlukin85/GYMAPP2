@@ -17,4 +17,10 @@ describe("nutrition snack position", () => {
     expect(store).toContain("customProducts");
     expect(store).toContain("addCustomProduct");
   });
+  it("persists meal templates and exposes local product maintenance actions", () => {
+    expect(store).toContain("mealTemplates");
+    expect(store).toContain("addMealTemplate");
+    expect(store).toContain("updateCustomProduct");
+    expect(store).toContain("deleteCustomProduct");
+  });
 });

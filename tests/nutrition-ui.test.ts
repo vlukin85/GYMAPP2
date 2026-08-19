@@ -50,6 +50,24 @@ describe("nutrition journal ui", () => {
     expect(nutrition).toContain("Мои продукты");
     expect(nutrition).toContain("addCustomProduct");
   });
+  it("supports editing, deleting and barcode lookup for custom products", () => {
+    expect(nutrition).toContain("ИЗМЕНИТЬ ПРОДУКТ");
+    expect(nutrition).toContain("confirmDeleteCustomProduct");
+    expect(nutrition).toContain("СКАНИРОВАТЬ ШТРИХКОД");
+    expect(nutrition).toContain("CameraView");
+    expect(nutrition).toContain("barcodeScannerSettings");
+  });
+  it("creates and applies reusable meal templates", () => {
+    expect(nutrition).toContain("ШАБЛОНЫ БЛЮД");
+    expect(nutrition).toContain("СОХРАНИТЬ КАК ШАБЛОН");
+    expect(nutrition).toContain("addMealTemplate");
+    expect(nutrition).toContain("applyMealTemplate");
+  });
+  it("uses an SVG circular center instead of a square overlay for macro totals", () => {
+    expect(nutrition).toContain('<Circle cx="71" cy="71" r="33"');
+    expect(nutrition).toContain("SvgText");
+    expect(nutrition).not.toContain("macroDonutCenter,");
+  });
   it("allows moving the snack block between lunch gaps", () => {
     expect(nutrition).toContain("PanResponder.create");
     expect(nutrition).toContain("dragGrip");
