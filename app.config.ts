@@ -92,6 +92,12 @@ const config: ExpoConfig = {
     "expo-web-browser",
     "expo-notifications",
     [
+      "expo-image-picker",
+      {
+        photosPermission: "Разрешите IronRise доступ к фотографиям для сохранения визуального прогресса тела.",
+      },
+    ],
+    [
       "expo-camera",
       {
         cameraPermission: "Разрешите IronRise использовать камеру для сканирования штрихкодов продуктов.",

@@ -24,7 +24,7 @@ export async function pickUserImage(): Promise<PickedUserImage | null> {
 }
 
 /** Crops/compresses a picked image and stores only the finalized rendition. */
-export async function cropAndPersistUserImage(source: PickedUserImage, scope: "exercise" | "program", ownerId: string, preset: CropPreset, adjustment?: CropAdjustment) {
+export async function cropAndPersistUserImage(source: PickedUserImage, scope: "exercise" | "program" | "body", ownerId: string, preset: CropPreset, adjustment?: CropAdjustment) {
   const actions: ImageManipulator.Action[] = [];
   if (preset !== "original") { const size = await getImageSize(source.uri); actions.push({ crop: getCropRect(size.width, size.height, preset, adjustment ?? { focusX: 0.5, focusY: 0.5, zoom: 1 }) }); }
   actions.push({ resize: { width: preset === "square" ? 960 : 1400 } });
