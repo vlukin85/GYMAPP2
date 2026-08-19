@@ -26,6 +26,7 @@ const hapticIntensityOptions: { id: SetHapticIntensity; title: string; descripti
   { id: "medium", title: "Средняя", description: "Более заметный отклик" },
   { id: "heavy", title: "Сильная", description: "Выраженное подтверждение" },
 ];
+const primaryThemeChoices = APP_COLOR_THEMES.filter((theme) => theme.id === "editorial" || theme.id === "orchid");
 
 export default function SettingsScreen() {
   const colors = useColors();
@@ -148,11 +149,11 @@ export default function SettingsScreen() {
           ))}
         </View>
 
-        <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Цветовая схема</Text>
-        <View style={[styles.appThemeCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <Text style={[styles.iconThemeTitle, { color: colors.foreground }]}>Оформление приложения</Text>
-          <Text style={[styles.iconThemeHint, { color: colors.muted }]}>Выберите одну из шести палитр. Экран, карточки и навигация изменятся сразу и сохранятся на устройстве.</Text>
-          <View style={styles.appThemeGrid}>{APP_COLOR_THEMES.map((theme) => { const selected = theme.id === appThemeId; return <Pressable key={theme.id} onPress={() => setAppThemeId(theme.id)} style={({ pressed }) => [styles.appThemeOption, { backgroundColor: selected ? `${theme.swatch}20` : colors.background, borderColor: selected ? theme.swatch : colors.border, opacity: pressed ? 0.72 : 1 }]}><View style={[styles.appThemeSwatch, { backgroundColor: theme.swatch }]} /><View style={{ flex: 1 }}><Text style={[styles.appThemeName, { color: colors.foreground }]}>{theme.title}</Text><Text style={[styles.appThemeHint, { color: colors.muted }]}>{theme.hint}</Text></View>{selected && <IconSymbol name="checkmark" size={17} color={theme.swatch} />}</Pressable>; })}</View>
+        <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Стиль интерфейса</Text>
+        <View style={[styles.appThemeCard, { backgroundColor: colors.surface, borderColor: colors.border }]}> 
+          <Text style={[styles.iconThemeTitle, { color: colors.foreground }]}>Editorial или Orchid Voltage</Text>
+          <Text style={[styles.iconThemeHint, { color: colors.muted }]}>Переключайте основной визуальный характер приложения одним нажатием. Выбор сохранится на устройстве.</Text>
+          <View style={styles.appThemeGrid}>{primaryThemeChoices.map((theme) => { const selected = theme.id === appThemeId; return <Pressable key={theme.id} onPress={() => setAppThemeId(theme.id)} style={({ pressed }) => [styles.appThemeOption, { backgroundColor: selected ? theme.swatch : colors.background, borderColor: selected ? theme.swatch : colors.border, opacity: pressed ? 0.72 : 1 }]}><View style={[styles.appThemeSwatch, { backgroundColor: selected ? colors.surface : theme.swatch }]} /><View style={{ flex: 1 }}><Text style={[styles.appThemeName, { color: selected ? colors.surface : colors.foreground }]}>{theme.id === "editorial" ? "EDITORIAL" : "ORCHID VOLTAGE"}</Text><Text style={[styles.appThemeHint, { color: selected ? `${colors.surface}CC` : colors.muted }]}>{theme.id === "editorial" ? "Строгая редакционная сетка" : "Мягкие фиолетовые поверхности"}</Text></View>{selected && <IconSymbol name="checkmark" size={17} color={colors.surface} />}</Pressable>; })}</View>
         </View>
 
         <Text style={[styles.sectionTitle, { color: colors.foreground }]}>SVG-иконки</Text>
@@ -342,10 +343,10 @@ const styles = StyleSheet.create({
   iconThemeSwatch: { width: 18, height: 18, borderRadius: 9 },
   iconThemeOptionTitle: { fontSize: 12, fontWeight: "900" },
   iconThemeOptionHint: { fontSize: 10, marginTop: 2 },
-  appThemeCard: { borderWidth: 1, borderRadius: 18, padding: 14, gap: 10 },
+  appThemeCard: { borderWidth: 1, borderRadius: 0, borderLeftWidth: 5, padding: 14, gap: 10 },
   appThemeGrid: { gap: 8 },
-  appThemeOption: { minHeight: 49, borderWidth: 1, borderRadius: 13, paddingHorizontal: 11, flexDirection: "row", alignItems: "center", gap: 9 },
-  appThemeSwatch: { width: 20, height: 20, borderRadius: 10 },
+  appThemeOption: { minHeight: 58, borderWidth: 1, borderRadius: 0, paddingHorizontal: 11, flexDirection: "row", alignItems: "center", gap: 9 },
+  appThemeSwatch: { width: 20, height: 20, borderRadius: 0 },
   appThemeName: { fontSize: 12, fontWeight: "900" },
   appThemeHint: { fontSize: 10, marginTop: 2 },
   vibrationCard: { borderWidth: 1, borderRadius: 18, padding: 14, gap: 10 },

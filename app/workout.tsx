@@ -29,6 +29,7 @@ const REST_KEEP_AWAKE_TAG = "gym-training-diary-rest-timer";
 const REST_CIRCLE_RADIUS = 108;
 const REST_CIRCLE_SIZE = 252;
 const REST_CIRCUMFERENCE = 2 * Math.PI * REST_CIRCLE_RADIUS;
+const EDITORIAL_BLUE = "#1746D2";
 const WORKOUT_PROGRESS_CIRCLE_SIZE = 64;
 const WORKOUT_PROGRESS_CIRCLE_RADIUS = 27;
 const WORKOUT_PROGRESS_CIRCUMFERENCE = 2 * Math.PI * WORKOUT_PROGRESS_CIRCLE_RADIUS;
@@ -75,16 +76,17 @@ function RestTimerOverlay({
 
   return (
     <Modal visible transparent animationType="fade" presentationStyle="fullScreen" statusBarTranslucent onRequestClose={onSkip}>
-      <View style={[styles.restOverlay, { backgroundColor: "#24113B" }]}> 
-        <Text style={[styles.restOverlayEyebrow, { color: "#F5A1FF" }]}>ТАЙМЕР ОТДЫХА</Text>
-        <View style={[styles.restOverlayCard, { backgroundColor: "#FFFFFF16", borderColor: "#F5A1FF66" }]}> 
+      <View style={[styles.restOverlay, { backgroundColor: colors.background }]}> 
+        <View style={[styles.restTopBar, { backgroundColor: colors.primary }]} />
+        <View style={styles.restPosterHeader}><Text style={[styles.restPosterIndex, { color: colors.foreground }]}>01</Text><Text style={[styles.restOverlayEyebrow, { color: colors.primary }]}>ТАЙМЕР{`\n`}ОТДЫХА</Text></View>
+        <View style={[styles.restOverlayCard, { backgroundColor: colors.surface, borderColor: colors.border }]}> 
         <View style={styles.restCircleWrap}>
           <Svg width={REST_CIRCLE_SIZE} height={REST_CIRCLE_SIZE} viewBox={`0 0 ${REST_CIRCLE_SIZE} ${REST_CIRCLE_SIZE}`}>
             <Circle
               cx={REST_CIRCLE_SIZE / 2}
               cy={REST_CIRCLE_SIZE / 2}
               r={REST_CIRCLE_RADIUS}
-              stroke="#FFFFFF2C"
+              stroke={colors.border}
               strokeWidth={9}
               fill="none"
             />
@@ -92,7 +94,7 @@ function RestTimerOverlay({
               cx={REST_CIRCLE_SIZE / 2}
               cy={REST_CIRCLE_SIZE / 2}
               r={REST_CIRCLE_RADIUS}
-              stroke="#F5A1FF"
+              stroke={colors.primary}
               strokeWidth={9}
               strokeLinecap="round"
               fill="none"
@@ -102,22 +104,22 @@ function RestTimerOverlay({
             />
           </Svg>
           <View style={styles.restCircleText} pointerEvents="none">
-            <Text style={[styles.restCircleLabel, { color: "#F5A1FF" }]}>ОТДЫХ</Text>
-            <Text style={[styles.restCircleValue, { color: "#F5F5F0" }]}> 
+            <Text style={[styles.restCircleLabel, { color: colors.primary }]}>ОТДЫХ</Text>
+            <Text style={[styles.restCircleValue, { color: colors.foreground }]}> 
               {String(Math.floor(rest / 60)).padStart(2, "0")}:{String(rest % 60).padStart(2, "0")}
             </Text>
           </View>
         </View>
         <View style={styles.restCopy}>
-          <Text style={[styles.restTitle, { color: "#F5F5F0" }]}>Следующий подход — после сигнала</Text>
-          <Text style={[styles.restHint, { color: "#FFFFFFA8" }]}>Отсчёт привязан ко времени и корректно продолжится после блокировки экрана.</Text>
+          <Text style={[styles.restTitle, { color: colors.foreground }]}>Следующий подход — после сигнала</Text>
+          <Text style={[styles.restHint, { color: colors.muted }]}>Отсчёт продолжится после блокировки экрана.</Text>
         </View>
         </View>
         <View style={styles.restActions}>
-          <Pressable onPress={onAddTime} style={({ pressed }) => [styles.restSecondaryAction, { borderColor: "#FFFFFF44", opacity: pressed ? 0.65 : 1 }]}> 
-            <Text style={[styles.restSecondaryText, { color: "#F5F5F0" }]}>+30 сек</Text>
+          <Pressable onPress={onAddTime} style={({ pressed }) => [styles.restSecondaryAction, { borderColor: colors.border, opacity: pressed ? 0.65 : 1 }]}> 
+            <Text style={[styles.restSecondaryText, { color: colors.foreground }]}>+30 сек</Text>
           </Pressable>
-          <Pressable onPress={onSkip} style={({ pressed }) => [styles.restSkipAction, { backgroundColor: "#9A5CFF", opacity: pressed ? 0.8 : 1 }]}> 
+          <Pressable onPress={onSkip} style={({ pressed }) => [styles.restSkipAction, { backgroundColor: colors.primary, opacity: pressed ? 0.8 : 1 }]}> 
             <Text style={styles.restSkipText}>Пропустить отдых</Text>
           </Pressable>
         </View>
@@ -202,24 +204,24 @@ function WorkoutProgressCard({ completedSets, totalSets, elapsedSeconds, average
     ? new Intl.DateTimeFormat("ru-RU", { hour: "2-digit", minute: "2-digit" }).format(new Date(forecast.estimatedFinishAt))
     : null;
   return (
-    <View style={[styles.workoutProgressCard, { backgroundColor: "#351C55", borderColor: "#F5A1FF66" }]}> 
+    <View style={[styles.workoutProgressCard, { backgroundColor: colors.surface, borderColor: colors.border }]}> 
       <View style={styles.workoutProgressHeader}>
         <View style={{ flex: 1 }}>
-          <Text style={[styles.workoutProgressEyebrow, { color: "#F5A1FF" }]}>ПРОГРЕСС ТРЕНИРОВКИ</Text>
-          <Text style={[styles.workoutProgressCopy, { color: "#F5F5F0" }]}>{progress.completed} из {progress.total || "—"} подходов завершено</Text>
-          <Text style={[styles.workoutProgressSaved, { color: "#FFFFFFA8" }]}>Автосохранено: {savedLabel}</Text>
-          <Text style={[styles.workoutForecast, { color: "#FFFFFFA8" }]}>{finishLabel ? `Текущий темп: ${formatForecastDuration(forecast.secondsRemaining)} · завершение к ${finishLabel}${forecast.restSecondsRemaining ? ` · отдых ${formatForecastDuration(forecast.restSecondsRemaining)}` : ""}` : "Прогноз появится после первого завершённого подхода"}</Text>
+          <Text style={[styles.workoutProgressEyebrow, { color: colors.primary }]}>ПРОГРЕСС ТРЕНИРОВКИ</Text>
+          <Text style={[styles.workoutProgressCopy, { color: colors.foreground }]}>{progress.completed} из {progress.total || "—"} подходов завершено</Text>
+          <Text style={[styles.workoutProgressSaved, { color: colors.muted }]}>Автосохранено: {savedLabel}</Text>
+          <Text style={[styles.workoutForecast, { color: colors.muted }]}>{finishLabel ? `Текущий темп: ${formatForecastDuration(forecast.secondsRemaining)} · завершение к ${finishLabel}${forecast.restSecondsRemaining ? ` · отдых ${formatForecastDuration(forecast.restSecondsRemaining)}` : ""}` : "Прогноз появится после первого завершённого подхода"}</Text>
         </View>
         <View style={styles.workoutProgressRing}>
           <Svg width={WORKOUT_PROGRESS_CIRCLE_SIZE} height={WORKOUT_PROGRESS_CIRCLE_SIZE} viewBox={`0 0 ${WORKOUT_PROGRESS_CIRCLE_SIZE} ${WORKOUT_PROGRESS_CIRCLE_SIZE}`}>
-            <Circle cx={WORKOUT_PROGRESS_CIRCLE_SIZE / 2} cy={WORKOUT_PROGRESS_CIRCLE_SIZE / 2} r={WORKOUT_PROGRESS_CIRCLE_RADIUS} stroke="#FFFFFF2C" strokeWidth={5} fill="none" />
-            <Circle cx={WORKOUT_PROGRESS_CIRCLE_SIZE / 2} cy={WORKOUT_PROGRESS_CIRCLE_SIZE / 2} r={WORKOUT_PROGRESS_CIRCLE_RADIUS} stroke="#F5A1FF" strokeWidth={5} strokeLinecap="round" fill="none" strokeDasharray={WORKOUT_PROGRESS_CIRCUMFERENCE} strokeDashoffset={dashOffset} transform={`rotate(-90 ${WORKOUT_PROGRESS_CIRCLE_SIZE / 2} ${WORKOUT_PROGRESS_CIRCLE_SIZE / 2})`} />
+            <Circle cx={WORKOUT_PROGRESS_CIRCLE_SIZE / 2} cy={WORKOUT_PROGRESS_CIRCLE_SIZE / 2} r={WORKOUT_PROGRESS_CIRCLE_RADIUS} stroke={colors.border} strokeWidth={5} fill="none" />
+            <Circle cx={WORKOUT_PROGRESS_CIRCLE_SIZE / 2} cy={WORKOUT_PROGRESS_CIRCLE_SIZE / 2} r={WORKOUT_PROGRESS_CIRCLE_RADIUS} stroke={colors.primary} strokeWidth={5} strokeLinecap="butt" fill="none" strokeDasharray={WORKOUT_PROGRESS_CIRCUMFERENCE} strokeDashoffset={dashOffset} transform={`rotate(-90 ${WORKOUT_PROGRESS_CIRCLE_SIZE / 2} ${WORKOUT_PROGRESS_CIRCLE_SIZE / 2})`} />
           </Svg>
-          <View pointerEvents="none" style={styles.workoutProgressRingLabel}><Text style={[styles.workoutProgressPercent, { color: "#F5A1FF" }]}>{progress.percent}%</Text></View>
+          <View pointerEvents="none" style={styles.workoutProgressRingLabel}><Text style={[styles.workoutProgressPercent, { color: colors.primary }]}>{progress.percent}%</Text></View>
         </View>
       </View>
-      <View style={[styles.workoutProgressTrack, { backgroundColor: "#FFFFFF25" }]}>
-        <Animated.View style={[styles.workoutProgressFill, { backgroundColor: "#C084FC" }, progressStyle]} />
+      <View style={[styles.workoutProgressTrack, { backgroundColor: colors.border }]}>
+        <Animated.View style={[styles.workoutProgressFill, { backgroundColor: EDITORIAL_BLUE }, progressStyle]} />
       </View>
     </View>
   );
@@ -1259,14 +1261,14 @@ export default function WorkoutScreen() {
 
 const styles = StyleSheet.create({
   content: { paddingTop: 16, paddingBottom: 32, gap: 13 },
-  nav: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  nav: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: "#272624", paddingBottom: 11 },
   navActions: { flexDirection: "row", alignItems: "center", gap: 10 },
-  navTitle: { fontSize: 16, fontWeight: "800" },
-  timer: { fontSize: 14, fontWeight: "800" },
+  navTitle: { fontSize: 16, fontWeight: "900", textTransform: "uppercase", letterSpacing: 0.4 },
+  timer: { fontSize: 14, fontWeight: "900" },
   resetNavText: { fontSize: 11, fontWeight: "900" },
-  title: { fontSize: 23, fontWeight: "800", marginTop: 8 },
+  title: { fontSize: 27, fontWeight: "900", marginTop: 8, letterSpacing: -0.8 },
   helper: { fontSize: 12, lineHeight: 18 },
-  workoutProgressCard: { borderWidth: 1, borderRadius: 17, padding: 13, gap: 10, marginTop: 2 },
+  workoutProgressCard: { borderWidth: 1, borderRadius: 0, borderLeftWidth: 6, padding: 13, gap: 10, marginTop: 2 },
   workoutProgressHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 12 },
   workoutProgressEyebrow: { fontSize: 9, fontWeight: "900", letterSpacing: 0.9 },
   workoutProgressCopy: { fontSize: 13, fontWeight: "800", marginTop: 4 },
@@ -1275,28 +1277,28 @@ const styles = StyleSheet.create({
   workoutProgressRing: { width: WORKOUT_PROGRESS_CIRCLE_SIZE, height: WORKOUT_PROGRESS_CIRCLE_SIZE, alignItems: "center", justifyContent: "center" },
   workoutProgressRingLabel: { position: "absolute", alignItems: "center", justifyContent: "center" },
   workoutProgressPercent: { fontSize: 16, fontWeight: "900" },
-  workoutProgressTrack: { height: 8, borderRadius: 6, overflow: "hidden" },
-  workoutProgressFill: { height: "100%", borderRadius: 6, minWidth: 0 },
+  workoutProgressTrack: { height: 8, borderRadius: 0, overflow: "hidden" },
+  workoutProgressFill: { height: "100%", borderRadius: 0, minWidth: 0 },
   exerciseWrap: { gap: 5, position: "relative" },
   exerciseWrapDragging: { zIndex: 5 },
-  dropIndicator: { position: "absolute", left: 14, right: 14, top: -9, height: 26, borderRadius: 9, zIndex: 8, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 4, elevation: 8, shadowColor: "#000000", shadowOpacity: 0.16, shadowRadius: 6, shadowOffset: { width: 0, height: 3 } },
+  dropIndicator: { position: "absolute", left: 14, right: 14, top: -9, height: 26, borderRadius: 0, zIndex: 8, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 4, elevation: 0 },
   dropIndicatorText: { color: "#101412", fontSize: 10, fontWeight: "900" },
-  swipeDelete: { width: 98, marginLeft: 8, borderRadius: 17, alignItems: "center", justifyContent: "center", gap: 3 },
+  swipeDelete: { width: 98, marginLeft: 8, borderRadius: 0, alignItems: "center", justifyContent: "center", gap: 3 },
   swipeDeleteText: { color: "#FFFFFF", fontSize: 10, fontWeight: "900" },
   supersetFlag: { fontSize: 10, fontWeight: "900", letterSpacing: 1, marginLeft: 4 },
-  exercise: { borderRadius: 17, borderWidth: 1, padding: 14 },
-  exerciseDragging: { transform: [{ scale: 1.018 }], elevation: 12, shadowColor: "#160E24", shadowOpacity: 0.24, shadowRadius: 14, shadowOffset: { width: 0, height: 7 } },
+  exercise: { borderRadius: 0, borderWidth: 1, borderLeftWidth: 5, padding: 14 },
+  exerciseDragging: { transform: [{ scale: 1.008 }], elevation: 4 },
   exerciseRow: { flexDirection: "row", gap: 11, alignItems: "center" },
-  dragHandle: { width: 34, height: 34, borderRadius: 11, borderWidth: 1, alignItems: "center", justifyContent: "center" },
-  dragHandleActive: { transform: [{ scale: 1.08 }], elevation: 5, shadowColor: "#160E24", shadowOpacity: 0.22, shadowRadius: 7, shadowOffset: { width: 0, height: 3 } },
-  number: { width: 34, height: 34, borderRadius: 11, alignItems: "center", justifyContent: "center" },
-  exerciseName: { fontSize: 14, fontWeight: "800" },
+  dragHandle: { width: 34, height: 34, borderRadius: 0, borderWidth: 1, alignItems: "center", justifyContent: "center" },
+  dragHandleActive: { transform: [{ scale: 1.04 }], elevation: 2 },
+  number: { width: 34, height: 34, borderRadius: 0, alignItems: "center", justifyContent: "center" },
+  exerciseName: { fontSize: 14, fontWeight: "900", textTransform: "uppercase" },
   plan: { fontSize: 11, marginTop: 4 },
-  draggingLabel: { marginTop: 11, borderRadius: 9, minHeight: 28, paddingHorizontal: 9, alignSelf: "flex-start", flexDirection: "row", alignItems: "center", gap: 5 },
+  draggingLabel: { marginTop: 11, borderRadius: 0, minHeight: 28, paddingHorizontal: 9, alignSelf: "flex-start", flexDirection: "row", alignItems: "center", gap: 5 },
   draggingLabelText: { fontSize: 9, fontWeight: "900", letterSpacing: 0.55 },
-  replaceButton: { minHeight: 36, alignSelf: "flex-start", paddingHorizontal: 12, borderRadius: 11, borderWidth: 1, justifyContent: "center" },
+  replaceButton: { minHeight: 36, alignSelf: "flex-start", paddingHorizontal: 12, borderRadius: 0, borderWidth: 1, justifyContent: "center" },
   replaceButtonText: { fontSize: 11, fontWeight: "900" },
-  addExercise: { minHeight: 52, borderRadius: 16, borderWidth: 1, borderStyle: "dashed", alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 8 },
+  addExercise: { minHeight: 52, borderRadius: 0, borderWidth: 1, borderStyle: "dashed", alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 8 },
   addExerciseText: { fontSize: 14, fontWeight: "900" },
   catalogModal: { flex: 1, paddingTop: 40 },
   catalogHeader: { minHeight: 56, paddingHorizontal: 20, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
@@ -1321,15 +1323,18 @@ const styles = StyleSheet.create({
   emptySession: { borderRadius: 17, borderWidth: 1, padding: 15, gap: 5 },
   emptySessionTitle: { fontSize: 14, fontWeight: "900" },
   emptySessionText: { fontSize: 11, lineHeight: 16 },
-  total: { borderRadius: 17, padding: 15 },
+  total: { borderRadius: 0, padding: 15, borderWidth: 1, borderColor: "#272624" },
   totalLabel: { fontSize: 10, fontWeight: "800", letterSpacing: 1 },
   totalValue: { fontSize: 25, fontWeight: "800", marginTop: 5 },
   totalHint: { fontSize: 10, marginTop: 4 },
-  complete: { minHeight: 55, borderRadius: 16, alignItems: "center", justifyContent: "center" },
+  complete: { minHeight: 55, borderRadius: 0, alignItems: "center", justifyContent: "center" },
   completeText: { color: "#101412", fontSize: 15, fontWeight: "800" },
-  restOverlay: { flex: 1, paddingHorizontal: 24, paddingTop: 48, paddingBottom: 32, justifyContent: "space-between", alignItems: "stretch" },
-  restOverlayEyebrow: { textAlign: "center", fontSize: 12, fontWeight: "900", letterSpacing: 1.4 },
-  restOverlayCard: { flex: 1, borderWidth: 1, borderRadius: 30, padding: 24, justifyContent: "center", alignItems: "center", gap: 28, elevation: 12, shadowColor: "#000000", shadowOpacity: 0.2, shadowRadius: 14, shadowOffset: { width: 0, height: 7 }, marginVertical: 22 },
+  restOverlay: { flex: 1, paddingHorizontal: 24, paddingTop: 38, paddingBottom: 32, justifyContent: "space-between", alignItems: "stretch" },
+  restTopBar: { position: "absolute", top: 0, left: 0, right: 0, height: 9 },
+  restPosterHeader: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", borderBottomWidth: StyleSheet.hairlineWidth, borderColor: "#272624", paddingBottom: 14 },
+  restPosterIndex: { fontSize: 56, lineHeight: 49, fontWeight: "900", letterSpacing: -3 },
+  restOverlayEyebrow: { textAlign: "right", fontSize: 13, lineHeight: 18, fontWeight: "900", letterSpacing: 1.4 },
+  restOverlayCard: { flex: 1, borderWidth: 1, borderRadius: 0, padding: 24, justifyContent: "center", alignItems: "center", gap: 28, marginVertical: 22 },
   restCircleWrap: { width: REST_CIRCLE_SIZE, height: REST_CIRCLE_SIZE, alignItems: "center", justifyContent: "center" },
   restCircleText: { position: "absolute", alignItems: "center" },
   restCircleLabel: { fontSize: 13, fontWeight: "900", letterSpacing: 1.2 },
@@ -1338,29 +1343,29 @@ const styles = StyleSheet.create({
   restTitle: { textAlign: "center", fontSize: 20, fontWeight: "900", lineHeight: 27 },
   restHint: { textAlign: "center", fontSize: 13, lineHeight: 19 },
   restActions: { flexDirection: "row", gap: 10 },
-  restSecondaryAction: { flex: 1, minHeight: 54, paddingHorizontal: 12, borderRadius: 16, borderWidth: 1, alignItems: "center", justifyContent: "center" },
+  restSecondaryAction: { flex: 1, minHeight: 54, paddingHorizontal: 12, borderRadius: 0, borderWidth: 1, alignItems: "center", justifyContent: "center" },
   restSecondaryText: { fontSize: 14, fontWeight: "900" },
-  restSkipAction: { flex: 1.55, minHeight: 54, paddingHorizontal: 12, borderRadius: 16, alignItems: "center", justifyContent: "center" },
-  restSkipText: { color: "#101412", fontSize: 14, fontWeight: "900" },
+  restSkipAction: { flex: 1.55, minHeight: 54, paddingHorizontal: 12, borderRadius: 0, alignItems: "center", justifyContent: "center" },
+  restSkipText: { color: "#FFFDF8", fontSize: 14, fontWeight: "900" },
   setEditorBackdrop: { flex: 1 },
-  setEditorSheet: { flex: 1, padding: 24, paddingTop: 42 },
+  setEditorSheet: { flex: 1, padding: 24, paddingTop: 42, borderTopWidth: 9 },
   setEditorHeader: { position: "absolute", top: 42, left: 24, right: 24, flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", gap: 12 },
   setEditorEyebrow: { fontSize: 10, fontWeight: "900", letterSpacing: 0.9 },
   setEditorTitle: { fontSize: 28, fontWeight: "900", marginTop: 5 },
-  setEditorClose: { width: 46, height: 46, borderRadius: 15, alignItems: "center", justifyContent: "center" },
+  setEditorClose: { width: 46, height: 46, borderRadius: 0, alignItems: "center", justifyContent: "center" },
   setEditorCloseText: { fontSize: 25, lineHeight: 28 },
   setEditorCenter: { flex: 1, width: "100%", maxWidth: 360, alignSelf: "center", justifyContent: "center", gap: 22 },
   setEditorFields: { flexDirection: "row", gap: 14 },
   setEditorFieldWrap: { flex: 1, gap: 9 },
   setEditorLabel: { fontSize: 11, fontWeight: "900", letterSpacing: 0.75 },
-  setEditorInput: { height: 86, borderRadius: 20, borderWidth: 1, textAlign: "center", fontSize: 30, fontWeight: "900" },
+  setEditorInput: { height: 86, borderRadius: 0, borderWidth: 1, textAlign: "center", fontSize: 30, fontWeight: "900" },
   quickWeightGroup: { gap: 8 },
   quickWeightLabel: { fontSize: 10, fontWeight: "900", letterSpacing: 0.65, textAlign: "center" },
   quickWeightRow: { flexDirection: "row", gap: 8, justifyContent: "center" },
-  quickWeightButton: { flex: 1, minHeight: 42, borderRadius: 13, borderWidth: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 4 },
+  quickWeightButton: { flex: 1, minHeight: 42, borderRadius: 0, borderWidth: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 4 },
   quickWeightText: { fontSize: 12, fontWeight: "900" },
-  setEditorFinish: { minHeight: 62, borderRadius: 18, alignItems: "center", justifyContent: "center", marginTop: 2 },
-  setEditorFinishText: { color: "#101412", fontSize: 17, fontWeight: "900" },
+  setEditorFinish: { minHeight: 62, borderRadius: 0, alignItems: "center", justifyContent: "center", marginTop: 2 },
+  setEditorFinishText: { color: "#FFFDF8", fontSize: 17, fontWeight: "900" },
   modalRoot: { flex: 1, paddingTop: 10 },
   modalHeader: { minHeight: 56, paddingHorizontal: 18, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   cancel: { fontSize: 14 },
