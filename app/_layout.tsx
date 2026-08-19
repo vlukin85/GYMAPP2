@@ -13,6 +13,7 @@ import { WorkoutReplacementOverlay } from "@/components/workout-replacement-over
 import { ReleaseNotesOverlay } from "@/components/release-notes-overlay";
 import { StartupErrorBoundary } from "@/components/startup-error-boundary";
 import { WorkoutProvider } from "@/lib/workout-store";
+import { InterfaceDensityProvider } from "@/lib/interface-density-provider";
 import {
   SafeAreaFrameContext,
   SafeAreaInsetsContext,
@@ -91,6 +92,7 @@ export default function RootLayout() {
             <Stack.Screen name="recommendations" />
             <Stack.Screen name="report" />
             <Stack.Screen name="workout" options={{ animation: Platform.OS === "web" ? "fade_from_bottom" : "slide_from_right" }} />
+            <Stack.Screen name="workout-summary" options={{ animation: Platform.OS === "web" ? "fade_from_bottom" : "slide_from_right" }} />
             <Stack.Screen name="workout-history/[id]" options={{ animation: Platform.OS === "web" ? "fade_from_bottom" : "slide_from_right" }} />
             <Stack.Screen name="workout-history/exercise" options={{ animation: Platform.OS === "web" ? "fade_from_bottom" : "slide_from_right" }} />
             <Stack.Screen name="profile" />
@@ -109,7 +111,7 @@ export default function RootLayout() {
 
   if (shouldOverrideSafeArea) {
     return (
-      <StartupErrorBoundary><ThemeProvider><SvgIconThemeProvider>
+      <StartupErrorBoundary><ThemeProvider><InterfaceDensityProvider><SvgIconThemeProvider>
         <WorkoutProvider>
         <SafeAreaProvider initialMetrics={providerInitialMetrics}>
           <SafeAreaFrameContext.Provider value={frame}>
@@ -119,15 +121,15 @@ export default function RootLayout() {
           </SafeAreaFrameContext.Provider>
         </SafeAreaProvider>
         </WorkoutProvider>
-      </SvgIconThemeProvider></ThemeProvider></StartupErrorBoundary>
+      </SvgIconThemeProvider></InterfaceDensityProvider></ThemeProvider></StartupErrorBoundary>
     );
   }
 
   return (
-    <StartupErrorBoundary><ThemeProvider><SvgIconThemeProvider>
+    <StartupErrorBoundary><ThemeProvider><InterfaceDensityProvider><SvgIconThemeProvider>
       <WorkoutProvider>
         <SafeAreaProvider initialMetrics={providerInitialMetrics}>{content}</SafeAreaProvider>
       </WorkoutProvider>
-    </SvgIconThemeProvider></ThemeProvider></StartupErrorBoundary>
+    </SvgIconThemeProvider></InterfaceDensityProvider></ThemeProvider></StartupErrorBoundary>
   );
 }

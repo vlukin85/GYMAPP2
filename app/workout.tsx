@@ -787,14 +787,7 @@ export default function WorkoutScreen() {
     const result = finishWorkout(program.id, total, recordSets);
     isDraftPersistenceEnabledRef.current = false;
     void clearActiveWorkoutDraft().catch(() => undefined);
-    if (result.newRecordIds.length) {
-      const progress = result.maxOneRmDelta > 0 ? ` · лучший прирост 1RM +${result.maxOneRmDelta.toFixed(1)} кг` : "";
-      Alert.alert("Новый личный рекорд", `Обновлено рекордов: ${result.newRecordIds.length}${progress}`, [
-        { text: "К статистике", onPress: () => router.replace("/(tabs)/stats") },
-      ]);
-    } else {
-      router.replace("/(tabs)");
-    }
+    router.replace({ pathname: "/workout-summary" as never, params: { programId: program.id, volume: String(Math.round(total)), minutes: String(result.minutes), records: result.newRecordIds.join(",") } });
   };
 
   const resetActiveWorkout = () => {

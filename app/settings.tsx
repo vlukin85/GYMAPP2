@@ -6,6 +6,8 @@ import { IconSymbol } from "@/components/ui/icon-symbol";
 import { SafeMaterialIcon } from "@/components/ui/safe-material-icon";
 import { useColors } from "@/hooks/use-colors";
 import { APP_COLOR_THEMES } from "@/lib/app-color-themes";
+import { INTERFACE_DENSITY_PRESETS } from "@/lib/interface-density";
+import { useInterfaceDensity } from "@/lib/interface-density-provider";
 import { useThemeContext } from "@/lib/theme-provider";
 import { SVG_ICON_THEMES, useSvgIconTheme } from "@/lib/svg-icon-theme";
 import { cacheAllExercisePhotosOnWifi } from "@/lib/exercise-image-cache";
@@ -33,6 +35,7 @@ export default function SettingsScreen() {
   const store = useWorkoutStore();
   const { theme: svgIconTheme, setThemeId } = useSvgIconTheme();
   const { themeId: appThemeId, setThemeId: setAppThemeId } = useThemeContext();
+  const { density, setDensity } = useInterfaceDensity();
   const { oneRmFormula, setOneRmFormula, plateStepKg, setPlateStepKg, bodyWeightKg, bodyweightVolumePercent, setBodyweightVolumeSettings, hapticIntensity, setHapticIntensity, restTimerSoundEnabled, setRestTimerSoundEnabled, restTimerVibrationEnabled, setRestTimerVibrationEnabled, notificationsEnabled, defaultWorkoutTime, defaultReminderMinutes, setNotificationPreferences } = store;
   const [bodyWeight, setBodyWeight] = useState(String(bodyWeightKg));
   const [bodyPercent, setBodyPercent] = useState(String(bodyweightVolumePercent));
@@ -154,6 +157,13 @@ export default function SettingsScreen() {
           <Text style={[styles.iconThemeTitle, { color: colors.foreground }]}>Editorial или Orchid Voltage</Text>
           <Text style={[styles.iconThemeHint, { color: colors.muted }]}>Переключайте основной визуальный характер приложения одним нажатием. Выбор сохранится на устройстве.</Text>
           <View style={styles.appThemeGrid}>{primaryThemeChoices.map((theme) => { const selected = theme.id === appThemeId; return <Pressable key={theme.id} onPress={() => setAppThemeId(theme.id)} style={({ pressed }) => [styles.appThemeOption, { backgroundColor: selected ? theme.swatch : colors.background, borderColor: selected ? theme.swatch : colors.border, opacity: pressed ? 0.72 : 1 }]}><View style={[styles.appThemeSwatch, { backgroundColor: selected ? colors.surface : theme.swatch }]} /><View style={{ flex: 1 }}><Text style={[styles.appThemeName, { color: selected ? colors.surface : colors.foreground }]}>{theme.id === "editorial" ? "EDITORIAL" : "ORCHID VOLTAGE"}</Text><Text style={[styles.appThemeHint, { color: selected ? `${colors.surface}CC` : colors.muted }]}>{theme.id === "editorial" ? "Строгая редакционная сетка" : "Мягкие фиолетовые поверхности"}</Text></View>{selected && <IconSymbol name="checkmark" size={17} color={colors.surface} />}</Pressable>; })}</View>
+        </View>
+
+        <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Плотность интерфейса</Text>
+        <View style={[styles.densityCard, { backgroundColor: colors.surface, borderColor: colors.border }]}> 
+          <Text style={[styles.iconThemeTitle, { color: colors.foreground }]}>Размер текста и расстояние между блоками</Text>
+          <Text style={[styles.iconThemeHint, { color: colors.muted }]}>Выберите представление, которое комфортнее для тренировок и чтения статистики.</Text>
+          <View style={styles.densityOptions}>{INTERFACE_DENSITY_PRESETS.map((option) => { const selected = density === option.id; return <Pressable key={option.id} onPress={() => setDensity(option.id)} style={({ pressed }) => [styles.densityOption, { backgroundColor: selected ? colors.primary : colors.background, borderColor: selected ? colors.primary : colors.border, opacity: pressed ? 0.72 : 1 }]}><Text style={[styles.densitySample, { color: selected ? colors.surface : colors.foreground, fontSize: option.id === "large" ? 24 : 18 }]}>Aa</Text><View style={{ flex: 1 }}><Text style={[styles.appThemeName, { color: selected ? colors.surface : colors.foreground }]}>{option.title}</Text><Text style={[styles.appThemeHint, { color: selected ? `${colors.surface}CC` : colors.muted }]}>{option.hint}</Text></View>{selected && <IconSymbol name="checkmark" size={17} color={colors.surface} />}</Pressable>; })}</View>
         </View>
 
         <Text style={[styles.sectionTitle, { color: colors.foreground }]}>SVG-иконки</Text>
@@ -349,6 +359,10 @@ const styles = StyleSheet.create({
   appThemeSwatch: { width: 20, height: 20, borderRadius: 0 },
   appThemeName: { fontSize: 12, fontWeight: "900" },
   appThemeHint: { fontSize: 10, marginTop: 2 },
+  densityCard: { borderWidth: 1, borderRadius: 0, borderLeftWidth: 5, padding: 14, gap: 10 },
+  densityOptions: { flexDirection: "row", gap: 8 },
+  densityOption: { flex: 1, minHeight: 72, borderWidth: 1, borderRadius: 0, paddingHorizontal: 10, flexDirection: "row", alignItems: "center", gap: 8 },
+  densitySample: { fontWeight: "900", letterSpacing: -1 },
   vibrationCard: { borderWidth: 1, borderRadius: 18, padding: 14, gap: 10 },
   restSoundCard: { borderWidth: 1, borderRadius: 18, padding: 14, flexDirection: "row", alignItems: "center", gap: 12 },
   vibrationTitle: { fontSize: 14, fontWeight: "900" },
