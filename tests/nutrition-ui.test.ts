@@ -27,6 +27,11 @@ describe("nutrition journal ui", () => {
     expect(nutrition).toContain("ИМПОРТ CSV");
     expect(nutrition).toContain("Б {dayMacros.protein}г");
   });
+  it("keeps product category filters compact", () => {
+    expect(nutrition).toContain('alignSelf:"flex-start"');
+    expect(nutrition).toContain("flexGrow:0");
+    expect(nutrition).toContain("flexShrink:0");
+  });
   it("allows moving the snack block between lunch gaps", () => {
     expect(nutrition).toContain("PanResponder.create");
     expect(nutrition).toContain("dragGrip");
