@@ -18,6 +18,7 @@ export default function TabLayout() {
     <Tabs.Screen name="calendar" options={{ title: "ПЛАН", tabBarIcon: ({ color }) => <IconSymbol name="calendar" size={18} color={color} /> }} />
     <Tabs.Screen name="exercises" options={{ title: "ЖИМ", tabBarIcon: ({ color }) => <IconSymbol name="dumbbell.fill" size={18} color={color} /> }} />
     <Tabs.Screen name="programs" options={{ title: "ПРОГРАММЫ", tabBarIcon: ({ color }) => <IconSymbol name="list.bullet" size={18} color={color} /> }} />
+    <Tabs.Screen name="nutrition" options={{ title: "ПИТАНИЕ", tabBarIcon: ({ color }) => <IconSymbol name="fork.knife" size={18} color={color} /> }} />
     <Tabs.Screen name="stats" options={{ title: "ПРОГРЕСС", tabBarIcon: ({ color }) => <IconSymbol name="chart.bar.fill" size={18} color={color} /> }} />
     <Tabs.Screen name="settings" options={{ title: "ЕЩЁ", tabBarIcon: ({ color }) => <IconSymbol name="gearshape" size={18} color={color} /> }} />
   </Tabs></MainTabSwipe>;

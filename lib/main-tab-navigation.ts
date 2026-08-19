@@ -1,12 +1,13 @@
-export type MainTabId = "today" | "calendar" | "exercises" | "programs" | "stats" | "settings";
+export type MainTabId = "today" | "calendar" | "exercises" | "programs" | "nutrition" | "stats" | "settings";
 
-const tabRoutes = ["/(tabs)", "/(tabs)/calendar", "/(tabs)/exercises", "/(tabs)/programs", "/(tabs)/stats", "/(tabs)/settings"] as const;
-const tabIndex: Record<MainTabId, number> = { today: 0, calendar: 1, exercises: 2, programs: 3, stats: 4, settings: 5 };
+const tabRoutes = ["/(tabs)", "/(tabs)/calendar", "/(tabs)/exercises", "/(tabs)/programs", "/(tabs)/nutrition", "/(tabs)/stats", "/(tabs)/settings"] as const;
+const tabIndex: Record<MainTabId, number> = { today: 0, calendar: 1, exercises: 2, programs: 3, nutrition: 4, stats: 5, settings: 6 };
 
 export function getMainTabIdFromPathname(pathname: string): MainTabId {
   if (pathname.startsWith("/calendar")) return "calendar";
   if (pathname.startsWith("/exercises")) return "exercises";
   if (pathname.startsWith("/programs")) return "programs";
+  if (pathname.startsWith("/nutrition")) return "nutrition";
   if (pathname.startsWith("/stats")) return "stats";
   if (pathname.startsWith("/settings")) return "settings";
   return "today";

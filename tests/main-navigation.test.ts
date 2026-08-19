@@ -20,7 +20,8 @@ describe("main navigation", () => {
   it("moves through tabs in the requested order with horizontal swipes", () => {
     expect(getAdjacentMainTab("today", -80)).toBe("/(tabs)/calendar");
     expect(getAdjacentMainTab("calendar", -80)).toBe("/(tabs)/exercises");
-    expect(getAdjacentMainTab("stats", 80)).toBe("/(tabs)/programs");
+    expect(getAdjacentMainTab("stats", 80)).toBe("/(tabs)/nutrition");
+    expect(getAdjacentMainTab("nutrition", 80)).toBe("/(tabs)/programs");
     expect(getAdjacentMainTab("stats", -80)).toBe("/(tabs)/settings");
     expect(getAdjacentMainTab("today", 80)).toBeNull();
     expect(getMainTabIdFromPathname("/calendar")).toBe("calendar");

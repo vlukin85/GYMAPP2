@@ -32,6 +32,7 @@ const MAPPING = {
   "chevron.left": "chevron-left",
   "chevron.down": "expand-more",
   "gearshape": "settings",
+  "fork.knife": "restaurant",
 } as IconMapping;
 
 /**
