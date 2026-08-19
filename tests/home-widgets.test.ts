@@ -12,7 +12,7 @@ describe("home widgets", () => {
   it("provides a complete, configurable catalog of optional home widgets", () => {
     expect(HOME_WIDGETS.map((widget) => widget.id)).toEqual(["week", "nutrition", "trainingTrend", "metrics", "shortcuts"]);
     expect(home).toContain("useHomeWidgets");
-    expect(home).toContain("homeWidgets.trainingTrend");
+    expect(home).toContain("homeWidgets.order");
   });
   it("exposes each widget toggle in settings and uses the correct exercises tab title", () => {
     expect(settings).toContain("Виджеты на экране «Сегодня»");

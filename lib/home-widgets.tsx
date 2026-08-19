@@ -11,18 +11,50 @@ export const HOME_WIDGETS = [
 
 export type HomeWidgetId = typeof HOME_WIDGETS[number]["id"];
 export type HomeWidgetVisibility = Record<HomeWidgetId, boolean>;
+export type HomeWidgetCompact = Record<HomeWidgetId, boolean>;
+export type HomeWidgetPreferences = { visibility: HomeWidgetVisibility; order: HomeWidgetId[]; compact: HomeWidgetCompact };
 
-const DEFAULT_VISIBILITY: HomeWidgetVisibility = { week: true, nutrition: true, trainingTrend: true, metrics: true, shortcuts: true };
+export const DEFAULT_HOME_WIDGETS: HomeWidgetPreferences = {
+  visibility: { week: true, nutrition: true, trainingTrend: true, metrics: true, shortcuts: true },
+  order: HOME_WIDGETS.map((item) => item.id),
+  compact: { week: false, nutrition: false, trainingTrend: false, metrics: false, shortcuts: false },
+};
+
 const STORAGE_KEY = "ironrise.home-widgets.v1";
-type HomeWidgetsContextValue = { visibility: HomeWidgetVisibility; ready: boolean; setWidgetVisible: (id: HomeWidgetId, visible: boolean) => void };
+type HomeWidgetsContextValue = HomeWidgetPreferences & {
+  ready: boolean;
+  setWidgetVisible: (id: HomeWidgetId, visible: boolean) => void;
+  setWidgetCompact: (id: HomeWidgetId, compact: boolean) => void;
+  moveWidget: (id: HomeWidgetId, destination: number) => void;
+  resetWidgets: () => void;
+};
 const Context = createContext<HomeWidgetsContextValue | null>(null);
 
+function validFlags(source: Record<string, unknown>, fallback: Record<HomeWidgetId, boolean>) {
+  return HOME_WIDGETS.reduce<Record<HomeWidgetId, boolean>>((result, item) => ({ ...result, [item.id]: typeof source[item.id] === "boolean" ? source[item.id] as boolean : fallback[item.id] }), { ...fallback });
+}
+
+function normalize(raw: unknown): HomeWidgetPreferences {
+  const saved = raw && typeof raw === "object" ? raw as Record<string, unknown> : {};
+  const legacyVisibility = saved.visibility && typeof saved.visibility === "object" ? saved.visibility as Record<string, unknown> : saved;
+  const compact = saved.compact && typeof saved.compact === "object" ? saved.compact as Record<string, unknown> : {};
+  const candidateOrder = Array.isArray(saved.order) ? saved.order.filter((id): id is HomeWidgetId => HOME_WIDGETS.some((item) => item.id === id)) : [];
+  return { visibility: validFlags(legacyVisibility, DEFAULT_HOME_WIDGETS.visibility), compact: validFlags(compact, DEFAULT_HOME_WIDGETS.compact), order: [...candidateOrder, ...DEFAULT_HOME_WIDGETS.order.filter((id) => !candidateOrder.includes(id))] };
+}
+
 export function HomeWidgetsProvider({ children }: { children: React.ReactNode }) {
-  const [visibility, setVisibility] = useState<HomeWidgetVisibility>(DEFAULT_VISIBILITY);
+  const [preferences, setPreferences] = useState<HomeWidgetPreferences>(DEFAULT_HOME_WIDGETS);
   const [ready, setReady] = useState(false);
-  useEffect(() => { AsyncStorage.getItem(STORAGE_KEY).then((raw) => { if (!raw) return; const saved = JSON.parse(raw) as Partial<HomeWidgetVisibility>; setVisibility((current) => ({ ...current, ...HOME_WIDGETS.reduce<Partial<HomeWidgetVisibility>>((valid, item) => typeof saved[item.id] === "boolean" ? { ...valid, [item.id]: saved[item.id] } : valid, {}) })); }).catch(() => undefined).finally(() => setReady(true)); }, []);
-  useEffect(() => { if (ready) void AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(visibility)); }, [visibility, ready]);
-  const value = useMemo(() => ({ visibility, ready, setWidgetVisible: (id: HomeWidgetId, visible: boolean) => setVisibility((current) => ({ ...current, [id]: visible })) }), [visibility, ready]);
+  useEffect(() => { AsyncStorage.getItem(STORAGE_KEY).then((raw) => { if (raw) setPreferences(normalize(JSON.parse(raw))); }).catch(() => undefined).finally(() => setReady(true)); }, []);
+  useEffect(() => { if (ready) void AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(preferences)); }, [preferences, ready]);
+  const value = useMemo(() => ({
+    ...preferences,
+    ready,
+    setWidgetVisible: (id: HomeWidgetId, visible: boolean) => setPreferences((current) => ({ ...current, visibility: { ...current.visibility, [id]: visible } })),
+    setWidgetCompact: (id: HomeWidgetId, compact: boolean) => setPreferences((current) => ({ ...current, compact: { ...current.compact, [id]: compact } })),
+    moveWidget: (id: HomeWidgetId, destination: number) => setPreferences((current) => { const from = current.order.indexOf(id); if (from === -1) return current; const order = current.order.filter((item) => item !== id); order.splice(Math.max(0, Math.min(order.length, destination)), 0, id); return { ...current, order }; }),
+    resetWidgets: () => setPreferences(DEFAULT_HOME_WIDGETS),
+  }), [preferences, ready]);
   return <Context.Provider value={value}>{children}</Context.Provider>;
 }
 

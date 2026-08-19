@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Alert, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
+import { Alert, KeyboardAvoidingView, Modal, PanResponder, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
 import { router } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
@@ -18,7 +18,7 @@ import { clearGroqApiKey, getGroqApiKey, saveGroqApiKey } from "@/lib/groq-setti
 import { type OneRepMaxFormula } from "@/lib/workout-data";
 import { type SetHapticIntensity, useWorkoutStore } from "@/lib/workout-store";
 import { useNutritionStore } from "@/lib/nutrition-store";
-import { HOME_WIDGETS, useHomeWidgets } from "@/lib/home-widgets";
+import { HOME_WIDGETS, type HomeWidgetId, useHomeWidgets } from "@/lib/home-widgets";
 
 const formulas: { id: OneRepMaxFormula; title: string; formula: string; description: string }[] = [
   { id: "epley", title: "Эпли", formula: "Вес × (1 + повторы / 30)", description: "Универсальная оценка для большинства рабочих подходов." },
@@ -39,7 +39,7 @@ export default function SettingsScreen() {
   const { themeId: appThemeId, setThemeId: setAppThemeId } = useThemeContext();
   const { density, setDensity } = useInterfaceDensity();
   const { dailyCalorieGoal, dailyMacroGoals, setDailyCalorieGoal, setDailyMacroGoals } = useNutritionStore();
-  const { visibility: homeWidgets, setWidgetVisible } = useHomeWidgets();
+  const { visibility: homeWidgets, order: homeWidgetOrder, compact: compactWidgets, setWidgetVisible, setWidgetCompact, moveWidget, resetWidgets } = useHomeWidgets();
   const { oneRmFormula, setOneRmFormula, plateStepKg, setPlateStepKg, bodyWeightKg, bodyweightVolumePercent, setBodyweightVolumeSettings, hapticIntensity, setHapticIntensity, restTimerSoundEnabled, setRestTimerSoundEnabled, restTimerVibrationEnabled, setRestTimerVibrationEnabled, notificationsEnabled, defaultWorkoutTime, defaultReminderMinutes, setNotificationPreferences } = store;
   const [bodyWeight, setBodyWeight] = useState(String(bodyWeightKg));
   const [bodyPercent, setBodyPercent] = useState(String(bodyweightVolumePercent));
@@ -187,8 +187,9 @@ export default function SettingsScreen() {
         <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Главный экран</Text>
         <View style={[styles.densityCard, { backgroundColor: colors.surface, borderColor: colors.border }]}> 
           <Text style={[styles.iconThemeTitle, { color: colors.foreground }]}>Виджеты на экране «Сегодня»</Text>
-          <Text style={[styles.iconThemeHint, { color: colors.muted }]}>Выберите, какие дополнительные блоки держать на главном экране. Основной блок с планом дня остаётся всегда.</Text>
-          <View style={styles.widgetOptions}>{HOME_WIDGETS.map((widget) => <View key={widget.id} style={[styles.widgetOption, { borderColor: colors.border, backgroundColor: colors.background }]}><View style={{ flex: 1 }}><Text style={[styles.widgetTitle, { color: colors.foreground }]}>{widget.title}</Text><Text style={[styles.widgetHint, { color: colors.muted }]}>{widget.description}</Text></View><Switch value={homeWidgets[widget.id]} onValueChange={(visible) => setWidgetVisible(widget.id, visible)} trackColor={{ false: colors.border, true: `${colors.primary}88` }} thumbColor={homeWidgets[widget.id] ? colors.primary : colors.muted} /></View>)}</View>
+          <Text style={[styles.iconThemeHint, { color: colors.muted }]}>Тяните маркер ⠿, чтобы изменить порядок. Основной блок с планом дня остаётся всегда.</Text>
+          <View style={styles.widgetOptions}>{homeWidgetOrder.map((id, index) => <WidgetSettingsRow key={id} widget={HOME_WIDGETS.find((item) => item.id === id)!} index={index} total={homeWidgetOrder.length} visible={homeWidgets[id]} compact={compactWidgets[id]} colors={colors} onVisible={setWidgetVisible} onCompact={setWidgetCompact} onMove={moveWidget} />)}</View>
+          <Pressable onPress={() => Alert.alert("Сбросить виджеты?", "Вернутся исходный порядок, обычный размер и видимость всех блоков.", [{ text: "Отмена", style: "cancel" }, { text: "Сбросить", style: "destructive", onPress: resetWidgets }])} style={({ pressed }) => [widgetControlStyles.resetButton, { borderColor: colors.border, opacity: pressed ? 0.65 : 1 }]}><Text style={[widgetControlStyles.resetText, { color: colors.foreground }]}>СБРОСИТЬ НАСТРОЙКИ ВИДЖЕТОВ</Text></Pressable>
         </View>
 
         <Text style={[styles.sectionTitle, { color: colors.foreground }]}>SVG-иконки</Text>
@@ -353,6 +354,12 @@ export default function SettingsScreen() {
   );
 }
 
+function WidgetSettingsRow({ widget, index, total, visible, compact, colors, onVisible, onCompact, onMove }: { widget: typeof HOME_WIDGETS[number]; index: number; total: number; visible: boolean; compact: boolean; colors: any; onVisible: (id: HomeWidgetId, value: boolean) => void; onCompact: (id: HomeWidgetId, value: boolean) => void; onMove: (id: HomeWidgetId, position: number) => void }) {
+  const [dragging, setDragging] = useState(false);
+  const pan = PanResponder.create({ onStartShouldSetPanResponder: () => true, onMoveShouldSetPanResponder: (_, gesture) => Math.abs(gesture.dy) > 4, onPanResponderGrant: () => setDragging(true), onPanResponderRelease: (_, gesture) => { setDragging(false); onMove(widget.id, Math.max(0, Math.min(total - 1, index + Math.round(gesture.dy / 68)))); }, onPanResponderTerminate: () => setDragging(false) });
+  return <View style={[styles.widgetOption, widgetControlStyles.widgetRow, { borderColor: dragging ? colors.primary : colors.border, backgroundColor: colors.background }]}><View {...pan.panHandlers} style={[widgetControlStyles.dragHandle, { borderColor: colors.border, backgroundColor: dragging ? `${colors.primary}14` : colors.surface }]}><Text style={[widgetControlStyles.dragMark, { color: colors.primary }]}>⠿</Text></View><View style={{ flex: 1 }}><Text style={[styles.widgetTitle, { color: colors.foreground }]}>{widget.title}</Text><Text style={[styles.widgetHint, { color: colors.muted }]}>{widget.description}</Text><Text style={[widgetControlStyles.modeHint, { color: colors.muted }]}>{compact ? "Компактный режим" : "Обычный размер"}</Text></View><View style={widgetControlStyles.switches}><Switch value={compact} onValueChange={(value) => onCompact(widget.id, value)} trackColor={{ false: colors.border, true: `${colors.primary}88` }} thumbColor={compact ? colors.primary : colors.muted} /><Switch value={visible} onValueChange={(value) => onVisible(widget.id, value)} trackColor={{ false: colors.border, true: `${colors.primary}88` }} thumbColor={visible ? colors.primary : colors.muted} /></View></View>;
+}
+
 const styles = StyleSheet.create({
   content: { paddingTop: 16, paddingBottom: 34, gap: 12 },
   header: { minHeight: 42, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
@@ -470,4 +477,14 @@ const styles = StyleSheet.create({
   keyInput: { height: 52, borderWidth: 1, borderRadius: 14, paddingHorizontal: 13, fontSize: 14, fontWeight: "700" },
   saveKey: { minHeight: 52, borderRadius: 15, alignItems: "center", justifyContent: "center" },
   saveKeyText: { color: "#101412", fontSize: 13, fontWeight: "900" },
+});
+
+const widgetControlStyles = StyleSheet.create({
+  widgetRow: { minHeight: 72, paddingHorizontal: 8, gap: 8 },
+  dragHandle: { width: 34, height: 42, borderWidth: 1, alignItems: "center", justifyContent: "center" },
+  dragMark: { fontSize: 19, lineHeight: 20, fontWeight: "900" },
+  modeHint: { fontSize: 8, fontWeight: "900", letterSpacing: .45, marginTop: 4 },
+  switches: { gap: 4, alignItems: "center" },
+  resetButton: { minHeight: 42, borderWidth: 1, alignItems: "center", justifyContent: "center", marginTop: 4 },
+  resetText: { fontSize: 10, fontWeight: "900", letterSpacing: .6 },
 });

@@ -16,6 +16,7 @@ import { WorkoutProvider } from "@/lib/workout-store";
 import { InterfaceDensityProvider } from "@/lib/interface-density-provider";
 import { NutritionProvider } from "@/lib/nutrition-store";
 import { HomeWidgetsProvider } from "@/lib/home-widgets";
+import { BodyProvider } from "@/lib/body-store";
 import {
   SafeAreaFrameContext,
   SafeAreaInsetsContext,
@@ -114,7 +115,7 @@ export default function RootLayout() {
   if (shouldOverrideSafeArea) {
     return (
       <StartupErrorBoundary><ThemeProvider><InterfaceDensityProvider><SvgIconThemeProvider>
-        <WorkoutProvider><NutritionProvider><HomeWidgetsProvider>
+        <WorkoutProvider><NutritionProvider><BodyProvider><HomeWidgetsProvider>
         <SafeAreaProvider initialMetrics={providerInitialMetrics}>
           <SafeAreaFrameContext.Provider value={frame}>
             <SafeAreaInsetsContext.Provider value={insets}>
@@ -122,16 +123,16 @@ export default function RootLayout() {
             </SafeAreaInsetsContext.Provider>
           </SafeAreaFrameContext.Provider>
         </SafeAreaProvider>
-        </HomeWidgetsProvider></NutritionProvider></WorkoutProvider>
+        </HomeWidgetsProvider></BodyProvider></NutritionProvider></WorkoutProvider>
       </SvgIconThemeProvider></InterfaceDensityProvider></ThemeProvider></StartupErrorBoundary>
     );
   }
 
   return (
     <StartupErrorBoundary><ThemeProvider><InterfaceDensityProvider><SvgIconThemeProvider>
-      <WorkoutProvider><NutritionProvider><HomeWidgetsProvider>
+      <WorkoutProvider><NutritionProvider><BodyProvider><HomeWidgetsProvider>
         <SafeAreaProvider initialMetrics={providerInitialMetrics}>{content}</SafeAreaProvider>
-      </HomeWidgetsProvider></NutritionProvider></WorkoutProvider>
+      </HomeWidgetsProvider></BodyProvider></NutritionProvider></WorkoutProvider>
     </SvgIconThemeProvider></InterfaceDensityProvider></ThemeProvider></StartupErrorBoundary>
   );
 }
