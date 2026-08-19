@@ -13,4 +13,8 @@ describe("nutrition snack position", () => {
     expect(store).toContain("favoriteProductIds");
     expect(store).toContain("toggleFavoriteProduct");
   });
+  it("persists custom products with their nutrition values", () => {
+    expect(store).toContain("customProducts");
+    expect(store).toContain("addCustomProduct");
+  });
 });

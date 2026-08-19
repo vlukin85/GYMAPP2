@@ -43,6 +43,13 @@ describe("nutrition journal ui", () => {
     expect(nutrition).toContain("MacroBalanceChart");
     expect(nutrition).toContain("Круговая диаграмма белков, жиров и углеводов");
   });
+  it("lets a user create a local product with calories and macros per 100 grams", () => {
+    expect(nutrition).toContain("СОЗДАТЬ СВОЙ ПРОДУКТ");
+    expect(nutrition).toContain("ЗНАЧЕНИЯ НА 100 Г");
+    expect(nutrition).toContain("СОХРАНИТЬ И ВЫБРАТЬ");
+    expect(nutrition).toContain("Мои продукты");
+    expect(nutrition).toContain("addCustomProduct");
+  });
   it("allows moving the snack block between lunch gaps", () => {
     expect(nutrition).toContain("PanResponder.create");
     expect(nutrition).toContain("dragGrip");
