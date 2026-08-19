@@ -1,0 +1,15 @@
+<design>
+  <size width="1280" height="720"></size>
+  <color name="paper" value="#1C1C1E"/>
+  <color name="ink" value="#F5F5F0"/>
+  <color name="muted" value="#8E8E93"/>
+  <color name="primary" value="#0055FF"/>
+  <color name="coral" value="#FF4D30"/>
+  <color name="cyan" value="#00E5FF"/>
+  <color name="surface" value="#2C2C2E"/>
+  <color name="hairline" value="#3A3A3C"/>
+  <font name="display" family="Unbounded" size="56"/>
+  <font name="heading" family="Unbounded" size="36"/>
+  <font name="body" family="Manrope" size="20"/>
+  <font name="caption" family="Manrope" size="14"/>
+</design>

@@ -1,0 +1,24 @@
+<slide id="recommendation">
+  <background color="paper"/>
+  <shape id="recommendation-cyan-block" type="rect" x="988" y="82" width="212" height="158" fill="cyan"/>
+  <shape id="recommendation-coral-block" type="rect" x="1060" y="240" width="140" height="112" fill="coral"/>
+  <shape id="recommendation-primary-block" type="rect" x="890" y="272" width="170" height="172" fill="primary"/>
+  <text id="recommendation-eyebrow" x="60" y="82" width="360" height="24" font="caption" size="14" color="cyan" wrap="false">РЕКОМЕНДОВАННЫЙ ПУТЬ</text>
+  <text id="recommendation-title" x="56" y="128" width="850" height="138" font="heading" size="45" color="ink" line-height="1.06" autofit="shrink"><p>СОБРАТЬ ФУНКЦИОНАЛЬНОСТЬ</p><p>В ВЫРАЗИТЕЛЬНЫЙ ГИБРИД</p></text>
+  <text id="recommendation-copy" x="60" y="292" width="700" height="40" font="body" size="21" color="muted">Не выбирать стиль целиком: взять точность журнала за основу, а характер — из двух визуальных направлений.</text>
+  <shape id="recommendation-card" type="rect" x="60" y="370" width="1140" height="188" fill="surface" stroke="hairline" stroke-width="1"/>
+  <text id="recommendation-card-title" x="88" y="398" width="365" height="30" font="body" size="22" color="ink">ОСНОВА: TRAINING LEDGER</text>
+  <text id="recommendation-card-copy" x="88" y="438" width="330" height="74" font="body" size="18" color="muted" line-height="1.3">Активная тренировка, история, статистика и 1RM получают табличную ясность и доверие к данным.</text>
+  <shape id="recommendation-module-one" type="rect" x="490" y="402" width="205" height="112" fill="#181B3A" stroke="#4DEEEA" stroke-width="2"/>
+  <text id="recommendation-module-one-title" x="508" y="420" width="170" height="18" font="caption" size="13" color="cyan">LIQUID GLASS</text>
+  <text id="recommendation-module-one-copy" x="508" y="450" width="170" height="42" font="body" size="16" color="ink" line-height="1.2"><p>ОРБ ПРОГРЕССА</p><p>И ТАЙМЕР ОТДЫХА</p></text>
+  <shape id="recommendation-module-two" type="rect" x="725" y="402" width="205" height="112" fill="#F8F1E5" stroke="primary" stroke-width="2"/>
+  <text id="recommendation-module-two-title" x="743" y="420" width="170" height="18" font="caption" size="13" color="primary">SWISS SIGNAL</text>
+  <text id="recommendation-module-two-copy" x="743" y="450" width="170" height="42" font="body" size="16" color="#161616" line-height="1.2"><p>АКЦЕНТЫ ДЛЯ</p><p>ПРОГРАММ И КАРТОЧЕК</p></text>
+  <shape id="recommendation-module-three" type="rect" x="960" y="402" width="205" height="112" fill="coral"/>
+  <text id="recommendation-module-three-title" x="978" y="420" width="170" height="18" font="caption" size="13" color="#1C1C1E">СЛЕДУЮЩИЙ ШАГ</text>
+  <text id="recommendation-module-three-copy" x="978" y="450" width="170" height="42" font="body" size="16" color="#1C1C1E" line-height="1.2"><p>УТВЕРДИТЬ ОСНОВУ</p><p>И ВНЕДРИТЬ ЭКРАНЫ</p></text>
+  <shape id="recommendation-footer-rule" type="line" x="60" y="668" width="1140" height="0" stroke="hairline" stroke-width="1"/>
+  <text id="recommendation-footer-project" x="60" y="682" width="440" height="20" font="caption" size="14" color="muted" wrap="false">IRONRISE / DESIGN DIRECTIONS</text>
+  <text id="recommendation-footer-number" x="1160" y="682" width="40" height="20" font="caption" size="14" color="muted" align="right" wrap="false">09</text>
+</slide>

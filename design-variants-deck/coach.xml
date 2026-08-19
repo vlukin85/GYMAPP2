@@ -1,0 +1,43 @@
+<slide id="coach">
+  <background color="paper"/>
+  <shape id="coach-left-rule" type="rect" x="60" y="82" width="6" height="444" fill="coral"/>
+  <text id="coach-eyebrow" x="88" y="82" width="340" height="24" font="caption" size="14" color="coral" wrap="false">04 / POCKET COACH</text>
+  <text id="coach-title" x="88" y="126" width="375" height="92" font="heading" size="42" color="ink" line-height="1.06"><p>ТРЕНИРОВКА</p><p>КАК МАРШРУТ</p></text>
+  <text id="coach-copy" x="88" y="274" width="340" height="116" font="body" size="20" color="muted" line-height="1.32">Вместо большой таблицы пользователь получает следующий понятный шаг, историю серии и дружелюбную поддержку.</text>
+  <text id="coach-fit-label" x="88" y="432" width="250" height="20" font="caption" size="14" color="cyan">ЛУЧШЕ ДЛЯ</text>
+  <text id="coach-fit" x="88" y="462" width="300" height="52" font="body" size="20" color="ink" line-height="1.18"><p>НОВИЧКОВ</p><p>И FULL-BODY ПЛАНОВ</p></text>
+  <shape id="coach-screen" type="rect" x="500" y="112" width="700" height="448" fill="#FFF8E7"/>
+  <text id="coach-screen-label" x="526" y="140" width="180" height="16" font="caption" size="12" color="#8B6FE8">ТВОЙ ТРЕНЕР</text>
+  <text id="coach-screen-title" x="526" y="166" width="270" height="36" font="heading" size="29" color="#26314D">ПРИВЕТ, МАКС!</text>
+  <shape id="coach-avatar" type="ellipse" x="1110" y="136" width="42" height="42" fill="#FF83B5"/>
+  <text id="coach-avatar-icon" x="1110" y="143" width="42" height="27" font="body" size="22" color="#26314D" align="center">↑</text>
+  <shape id="coach-day-one" type="ellipse" x="526" y="222" width="36" height="36" fill="#FF83B5"/>
+  <shape id="coach-day-two" type="ellipse" x="576" y="222" width="36" height="36" fill="#82C7FF"/>
+  <shape id="coach-day-three" type="ellipse" x="626" y="222" width="36" height="36" fill="#7EE0B5"/>
+  <shape id="coach-day-four" type="ellipse" x="676" y="222" width="36" height="36" fill="#FF9D3D"/>
+  <shape id="coach-day-five" type="ellipse" x="726" y="222" width="36" height="36" fill="#8B6FE8"/>
+  <shape id="coach-day-six" type="ellipse" x="776" y="222" width="36" height="36" fill="#F7EFA7"/>
+  <shape id="coach-day-seven" type="ellipse" x="826" y="222" width="36" height="36" fill="#D9E4F8"/>
+  <text id="coach-days-label" x="528" y="232" width="330" height="16" font="caption" size="11" color="#26314D" wrap="false">П      В      С      Ч      П      С      В</text>
+  <shape id="coach-note" type="rect" x="526" y="288" width="626" height="128" fill="#FFFFFF" stroke="#26314D" stroke-width="2" corner-radius="6"/>
+  <shape id="coach-tape" type="rect" x="790" y="280" width="92" height="15" fill="#82C7FF" rotation="-3"/>
+  <text id="coach-note-title" x="550" y="310" width="270" height="27" font="body" size="21" color="#26314D">СИЛОВОЙ ДЕНЬ</text>
+  <text id="coach-note-copy" x="550" y="346" width="330" height="38" font="caption" size="14" color="#5D6680">4 упражнения для верха тела.</text>
+  <shape id="coach-note-button" type="rect" x="906" y="322" width="214" height="50" fill="#FF9D3D" stroke="#26314D" stroke-width="2" corner-radius="22"/>
+  <text id="coach-note-button-text" x="916" y="338" width="194" height="20" font="caption" size="13" color="#26314D" align="center">▶ НАЧАТЬ · 42 МИН</text>
+  <shape id="coach-route-line-one" type="line" x="570" y="463" width="105" height="0" stroke="#26314D" stroke-width="4"/>
+  <shape id="coach-route-line-two" type="line" x="725" y="463" width="105" height="0" stroke="#26314D" stroke-width="4"/>
+  <shape id="coach-route-line-three" type="line" x="880" y="463" width="105" height="0" stroke="#26314D" stroke-width="4"/>
+  <shape id="coach-route-one" type="ellipse" x="538" y="437" width="52" height="52" fill="#FF9D3D" stroke="#26314D" stroke-width="2"/>
+  <shape id="coach-route-two" type="ellipse" x="693" y="437" width="52" height="52" fill="#82C7FF" stroke="#26314D" stroke-width="2"/>
+  <shape id="coach-route-three" type="ellipse" x="848" y="437" width="52" height="52" fill="#7EE0B5" stroke="#26314D" stroke-width="2"/>
+  <shape id="coach-route-four" type="ellipse" x="1003" y="437" width="52" height="52" fill="#8B6FE8" stroke="#26314D" stroke-width="2"/>
+  <text id="coach-route-numbers" x="540" y="451" width="512" height="22" font="body" size="16" color="#26314D" align="center" wrap="false">1                    2                    3                    4</text>
+  <shape id="coach-streak" type="rect" x="526" y="514" width="285" height="28" fill="#FFDEF0" stroke="#26314D" stroke-width="1" rotation="-2"/>
+  <shape id="coach-record" type="rect" x="864" y="514" width="288" height="28" fill="#D9F9EA" stroke="#26314D" stroke-width="1" rotation="2"/>
+  <text id="coach-streak-text" x="540" y="520" width="258" height="16" font="caption" size="12" color="#26314D">СЕРИЯ · 4 ДНЯ</text>
+  <text id="coach-record-text" x="878" y="520" width="260" height="16" font="caption" size="12" color="#26314D">РЕКОРД · +5 КГ</text>
+  <shape id="coach-footer-rule" type="line" x="60" y="668" width="1140" height="0" stroke="hairline" stroke-width="1"/>
+  <text id="coach-footer-project" x="60" y="682" width="440" height="20" font="caption" size="14" color="muted" wrap="false">IRONRISE / DESIGN DIRECTIONS</text>
+  <text id="coach-footer-number" x="1160" y="682" width="40" height="20" font="caption" size="14" color="muted" align="right" wrap="false">06</text>
+</slide>

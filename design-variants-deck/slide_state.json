@@ -1,0 +1,111 @@
+{
+  "project_info": {
+    "title": "IronRise: пять направлений дизайна",
+    "created": 1787133444.083,
+    "last_updated": 1787133694.178,
+    "total_slides": 9
+  },
+  "slides": [
+    {
+      "id": "cover",
+      "state": "edited",
+      "pageNum": 1
+    },
+    {
+      "id": "principle",
+      "state": "edited",
+      "pageNum": 2
+    },
+    {
+      "id": "swiss",
+      "state": "edited",
+      "pageNum": 3
+    },
+    {
+      "id": "brutal",
+      "state": "edited",
+      "pageNum": 4
+    },
+    {
+      "id": "liquid",
+      "state": "edited",
+      "pageNum": 5
+    },
+    {
+      "id": "coach",
+      "state": "edited",
+      "pageNum": 6
+    },
+    {
+      "id": "ledger",
+      "state": "edited",
+      "pageNum": 7
+    },
+    {
+      "id": "selection",
+      "state": "edited",
+      "pageNum": 8
+    },
+    {
+      "id": "recommendation",
+      "state": "edited",
+      "pageNum": 9
+    }
+  ],
+  "outline": [
+    {
+      "id": "cover",
+      "title": "IronRise: пять направлений дизайна",
+      "summary": "Титульный слайд обзора пяти детерминированных направлений дизайна интерфейса IronRise.",
+      "image_plan": "Use a suitable image if needed"
+    },
+    {
+      "id": "principle",
+      "title": "Не просто пять палитр",
+      "summary": "Объяснение принципа сравнения: каждый вариант меняет иерархию, плотность и тон интерфейса.",
+      "image_plan": "Use a suitable image if needed"
+    },
+    {
+      "id": "swiss",
+      "title": "Swiss Signal",
+      "summary": "Редакционная сетка и спортивная афиша: крупный номер, план и недельная динамика.",
+      "image_plan": "Use a suitable image if needed"
+    },
+    {
+      "id": "brutal",
+      "title": "Brutal Grid",
+      "summary": "Промышленная рабочая панель: таймер, сетка подходов, нагрузка и heatmap.",
+      "image_plan": "Use a suitable image if needed"
+    },
+    {
+      "id": "liquid",
+      "title": "Liquid Glass",
+      "summary": "Технологичный интерфейс с центральным орбом прогресса и стеклянными метриками.",
+      "image_plan": "Use a suitable image if needed"
+    },
+    {
+      "id": "coach",
+      "title": "Pocket Coach",
+      "summary": "Игровой планировщик с маршрутом упражнений и мотивационными карточками.",
+      "image_plan": "Use a suitable image if needed"
+    },
+    {
+      "id": "ledger",
+      "title": "Training Ledger",
+      "summary": "Редакционный журнал: таблица подходов, календарь и линия 1RM.",
+      "image_plan": "Use a suitable image if needed"
+    },
+    {
+      "id": "selection",
+      "title": "Выбор зависит от сценария",
+      "summary": "Табличное сравнение вариантов по ключевому пользовательскому сценарию.",
+      "image_plan": "Use a suitable image if needed"
+    },
+    {
+      "id": "recommendation",
+      "title": "Рекомендованный путь",
+      "summary": "Вывод: Training Ledger как функциональная основа с акцентами Liquid Glass и Swiss Signal.",
+      "image_plan": "Use a suitable image if needed"
+    }
+  ]
+}

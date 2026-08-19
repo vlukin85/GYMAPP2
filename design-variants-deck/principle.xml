@@ -1,0 +1,25 @@
+<slide id="principle">
+  <background color="paper"/>
+  <shape id="principle-left-rule" type="rect" x="60" y="82" width="6" height="442" fill="primary"/>
+  <text id="principle-eyebrow" x="88" y="82" width="390" height="24" font="caption" size="14" color="cyan" wrap="false">ПРИНЦИП СРАВНЕНИЯ</text>
+  <text id="principle-title" x="88" y="126" width="465" height="122" font="heading" size="42" color="ink" line-height="1.08" autofit="shrink"><p>НЕ ПРОСТО</p><p>ПЯТЬ ПАЛИТР</p></text>
+  <text id="principle-copy" x="88" y="286" width="420" height="150" font="body" size="22" color="muted" line-height="1.35">Каждый вариант меняет способ работы с тренировкой: что становится главным, сколько данных видно сразу и каким тоном интерфейс поддерживает пользователя.</text>
+  <shape id="principle-panel-one" type="rect" x="620" y="170" width="174" height="338" fill="surface" stroke="hairline" stroke-width="1"/>
+  <shape id="principle-panel-one-accent" type="rect" x="638" y="194" width="48" height="112" fill="primary"/>
+  <shape id="principle-panel-one-line" type="rect" x="638" y="324" width="138" height="8" fill="ink"/>
+  <shape id="principle-panel-one-line-two" type="rect" x="638" y="346" width="101" height="8" fill="muted"/>
+  <text id="principle-panel-one-label" x="638" y="434" width="136" height="38" font="body" size="18" color="ink" line-height="1.15"><p>ИЕРАРХИЯ</p><p color="muted" size="14">главный объект</p></text>
+  <shape id="principle-panel-two" type="rect" x="813" y="170" width="174" height="338" fill="surface" stroke="hairline" stroke-width="1"/>
+  <shape id="principle-panel-two-dot-one" type="rect" x="833" y="194" width="134" height="34" fill="coral"/>
+  <shape id="principle-panel-two-dot-two" type="rect" x="833" y="242" width="134" height="34" fill="coral"/>
+  <shape id="principle-panel-two-dot-three" type="rect" x="833" y="290" width="134" height="34" fill="coral"/>
+  <shape id="principle-panel-two-dot-four" type="rect" x="833" y="338" width="134" height="34" fill="coral" opacity="0.45"/>
+  <text id="principle-panel-two-label" x="833" y="434" width="136" height="38" font="body" size="18" color="ink" line-height="1.15"><p>ПЛОТНОСТЬ</p><p color="muted" size="14">данные на экране</p></text>
+  <shape id="principle-panel-three" type="rect" x="1006" y="170" width="174" height="338" fill="surface" stroke="hairline" stroke-width="1"/>
+  <shape id="principle-panel-three-orb" type="ellipse" x="1034" y="192" width="118" height="118" fill="none" stroke="cyan" stroke-width="12"/>
+  <shape id="principle-panel-three-core" type="ellipse" x="1070" y="228" width="46" height="46" fill="cyan"/>
+  <text id="principle-panel-three-label" x="1026" y="434" width="136" height="38" font="body" size="18" color="ink" line-height="1.15"><p>ТОН</p><p color="muted" size="14">ощущение бренда</p></text>
+  <shape id="principle-footer-rule" type="line" x="60" y="668" width="1140" height="0" stroke="hairline" stroke-width="1"/>
+  <text id="principle-footer-project" x="60" y="682" width="440" height="20" font="caption" size="14" color="muted" wrap="false">IRONRISE / DESIGN DIRECTIONS</text>
+  <text id="principle-footer-number" x="1160" y="682" width="40" height="20" font="caption" size="14" color="muted" align="right" wrap="false">02</text>
+</slide>

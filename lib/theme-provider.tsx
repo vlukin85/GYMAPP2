@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { Appearance, View, useColorScheme as useSystemColorScheme } from "react-native";
+import { Appearance, View } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { colorScheme as nativewindColorScheme, vars } from "nativewind";
 
@@ -15,10 +15,10 @@ type ThemeContextValue = {
 };
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
+const APP_THEME_STORAGE_KEY = "gym-diary-app-theme-v2";
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const systemScheme = useSystemColorScheme() ?? "light";
-  const [themeId, setThemeIdState] = useState<AppThemeId>(systemScheme === "dark" ? "midnight" : DEFAULT_APP_THEME_ID);
+  const [themeId, setThemeIdState] = useState<AppThemeId>(DEFAULT_APP_THEME_ID);
   const theme = getAppTheme(themeId);
   const colorScheme: ColorScheme = theme.dark ? "dark" : "light";
 
@@ -44,9 +44,9 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     applyTheme(themeId);
-    void AsyncStorage.setItem("gym-diary-app-theme-v1", themeId);
+    void AsyncStorage.setItem(APP_THEME_STORAGE_KEY, themeId);
   }, [applyTheme, themeId]);
-  useEffect(() => { void AsyncStorage.getItem("gym-diary-app-theme-v1").then((stored) => { if (isAppThemeId(stored)) setThemeIdState(stored); }); }, []);
+  useEffect(() => { void AsyncStorage.getItem(APP_THEME_STORAGE_KEY).then((stored) => { if (isAppThemeId(stored)) setThemeIdState(stored); }); }, []);
 
   const themeVariables = useMemo(
     () =>

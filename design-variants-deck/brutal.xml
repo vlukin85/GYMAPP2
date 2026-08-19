@@ -1,0 +1,28 @@
+<slide id="brutal">
+  <background color="paper"/>
+  <shape id="brutal-left-rule" type="rect" x="60" y="82" width="6" height="444" fill="coral"/>
+  <text id="brutal-eyebrow" x="88" y="82" width="330" height="24" font="caption" size="14" color="coral" wrap="false">02 / BRUTAL GRID</text>
+  <text id="brutal-title" x="88" y="126" width="370" height="92" font="heading" size="42" color="ink" line-height="1.06"><p>РАБОЧИЙ</p><p>РЕЖИМ</p></text>
+  <text id="brutal-copy" x="88" y="260" width="340" height="116" font="body" size="20" color="muted" line-height="1.32">Экран ставит выполнение выше обзора: таймер, сеты, нагрузка и следующее действие доступны без лишних переходов.</text>
+  <text id="brutal-fit-label" x="88" y="432" width="250" height="20" font="caption" size="14" color="cyan">ЛУЧШЕ ДЛЯ</text>
+  <text id="brutal-fit" x="88" y="462" width="300" height="52" font="body" size="20" color="ink" line-height="1.18"><p>СИЛОВЫХ ПЛАНОВ</p><p>И ТЁМНОГО РЕЖИМА</p></text>
+  <shape id="brutal-screen" type="rect" x="500" y="112" width="700" height="448" fill="#101010" stroke="hairline" stroke-width="1"/>
+  <text id="brutal-live" x="524" y="140" width="100" height="22" font="caption" size="14" color="coral" wrap="false">● LIVE</text>
+  <text id="brutal-timer" x="524" y="174" width="340" height="76" font="display" size="62" color="ink" wrap="false">42:00</text>
+  <shape id="brutal-program-box" type="rect" x="1050" y="142" width="118" height="78" fill="none" stroke="#E9FF35" stroke-width="2"/>
+  <text id="brutal-program-label" x="1062" y="158" width="94" height="42" font="body" size="18" color="#E9FF35" align="center" line-height="1.1"><p>UPPER</p><p>01</p></text>
+  <text id="brutal-list-label" x="524" y="270" width="300" height="18" font="caption" size="12" color="muted">РАБОЧИЙ СПИСОК / ВТОРНИК</text>
+  <shape id="brutal-row-one" type="rect" x="524" y="300" width="644" height="48" fill="surface" stroke="hairline" stroke-width="1"/>
+  <shape id="brutal-row-two" type="rect" x="524" y="350" width="644" height="48" fill="surface" stroke="hairline" stroke-width="1"/>
+  <shape id="brutal-row-three" type="rect" x="524" y="400" width="644" height="48" fill="surface" stroke="hairline" stroke-width="1"/>
+  <shape id="brutal-row-four" type="rect" x="524" y="450" width="644" height="48" fill="surface" stroke="hairline" stroke-width="1"/>
+  <text id="brutal-row-labels" x="542" y="309" width="360" height="178" font="body" size="17" color="ink" line-height="2.45"><p>01  ЖИМ ШТАНГИ</p><p>02  ТЯГА БЛОКА</p><p>03  ЖИМ СИДЯ</p><p>04  БИЦЕПС</p></text>
+  <text id="brutal-row-sets" x="915" y="309" width="115" height="178" font="body" size="16" color="#E9FF35" align="center" line-height="2.62"><p>03×08</p><p>03×10</p><p>04×12</p><p>03×10</p></text>
+  <text id="brutal-row-weights" x="1050" y="309" width="96" height="178" font="body" size="16" color="ink" align="right" line-height="2.62"><p>85 КГ</p><p>65 КГ</p><p>24 КГ</p><p>30 КГ</p></text>
+  <shape id="brutal-action" type="rect" x="524" y="514" width="644" height="30" fill="#E9FF35"/>
+  <text id="brutal-action-text" x="540" y="518" width="450" height="20" font="caption" size="14" color="#101010">НАЧАТЬ / 04 УПРАЖНЕНИЯ</text>
+  <text id="brutal-action-arrow" x="1120" y="514" width="28" height="24" font="body" size="22" color="#101010" align="right">→</text>
+  <shape id="brutal-footer-rule" type="line" x="60" y="668" width="1140" height="0" stroke="hairline" stroke-width="1"/>
+  <text id="brutal-footer-project" x="60" y="682" width="440" height="20" font="caption" size="14" color="muted" wrap="false">IRONRISE / DESIGN DIRECTIONS</text>
+  <text id="brutal-footer-number" x="1160" y="682" width="40" height="20" font="caption" size="14" color="muted" align="right" wrap="false">04</text>
+</slide>

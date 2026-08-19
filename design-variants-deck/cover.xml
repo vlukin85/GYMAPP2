@@ -1,0 +1,14 @@
+<slide id="cover">
+  <background color="paper"/>
+  <shape id="cover-blue-block" type="rect" x="890" y="96" width="250" height="260" fill="primary"/>
+  <shape id="cover-coral-block" type="rect" x="770" y="360" width="360" height="205" fill="coral"/>
+  <shape id="cover-cyan-circle" type="ellipse" x="1025" y="440" width="175" height="175" fill="cyan"/>
+  <shape id="cover-dark-cut" type="rect" x="955" y="240" width="245" height="150" fill="paper"/>
+  <shape id="cover-rule" type="rect" x="60" y="104" width="92" height="8" fill="cyan"/>
+  <text id="cover-eyebrow" x="60" y="132" width="540" height="28" font="caption" size="16" color="muted" wrap="false">IRONRISE / ОБЗОР ДИЗАЙНА</text>
+  <text id="cover-title" x="56" y="176" width="810" height="190" font="display" size="64" color="ink" line-height="1.03" autofit="shrink"><p>ПЯТЬ</p><p>НАПРАВЛЕНИЙ</p><p>ДИЗАЙНА</p></text>
+  <text id="cover-subtitle" x="60" y="402" width="590" height="72" font="body" size="24" color="muted" line-height="1.28">Детерминированные варианты интерфейса для Android-приложения: от рабочего пульта до тренировочного журнала.</text>
+  <shape id="cover-footer-rule" type="line" x="60" y="668" width="1140" height="0" stroke="hairline" stroke-width="1"/>
+  <text id="cover-footer-project" x="60" y="682" width="440" height="20" font="caption" size="14" color="muted" wrap="false">IRONRISE / DESIGN DIRECTIONS</text>
+  <text id="cover-footer-number" x="1160" y="682" width="40" height="20" font="caption" size="14" color="muted" align="right" wrap="false">01</text>
+</slide>

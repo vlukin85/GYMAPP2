@@ -1,0 +1,26 @@
+<slide id="liquid">
+  <background color="paper"/>
+  <shape id="liquid-left-rule" type="rect" x="60" y="82" width="6" height="444" fill="cyan"/>
+  <text id="liquid-eyebrow" x="88" y="82" width="340" height="24" font="caption" size="14" color="cyan" wrap="false">03 / LIQUID GLASS</text>
+  <text id="liquid-title" x="88" y="126" width="370" height="92" font="heading" size="42" color="ink" line-height="1.06"><p>ПРОГРЕСС —</p><p>ГЛАВНЫЙ ОБЪЕКТ</p></text>
+  <text id="liquid-copy" x="88" y="274" width="340" height="116" font="body" size="20" color="muted" line-height="1.32">Круговой орб делает темп занятия наглядным. Метрики не конкурируют с ним, а поддерживают ощущение движения.</text>
+  <text id="liquid-fit-label" x="88" y="432" width="250" height="20" font="caption" size="14" color="coral">ЛУЧШЕ ДЛЯ</text>
+  <text id="liquid-fit" x="88" y="462" width="300" height="52" font="body" size="20" color="ink" line-height="1.18"><p>ТАЙМЕРА ОТДЫХА</p><p>И SHARE-КАРТОЧЕК</p></text>
+  <shape id="liquid-screen" type="rect" x="500" y="112" width="700" height="448" fill="#181B3A" stroke="#3B3F76" stroke-width="1"/>
+  <shape id="liquid-blob-indigo" type="ellipse" x="618" y="128" width="330" height="220" fill="#4F46E5" opacity="0.34"/>
+  <shape id="liquid-blob-coral" type="ellipse" x="936" y="280" width="224" height="184" fill="#FF7A90" opacity="0.30"/>
+  <shape id="liquid-orb-outer" type="ellipse" x="730" y="151" width="250" height="250" fill="#4DEEEA20" stroke="cyan" stroke-width="15"/>
+  <shape id="liquid-orb-inner" type="ellipse" x="773" y="194" width="164" height="164" fill="#171B46" stroke="#FFFFFF44" stroke-width="1"/>
+  <text id="liquid-orb-percent" x="785" y="232" width="140" height="58" font="display" size="48" color="ink" align="center" wrap="false">68%</text>
+  <text id="liquid-orb-label" x="785" y="298" width="140" height="20" font="caption" size="12" color="#B779FF" align="center">ТРЕНИРОВКА</text>
+  <text id="liquid-orb-time" x="785" y="324" width="140" height="20" font="caption" size="14" color="#FFFFFFB0" align="center">42 МИН</text>
+  <shape id="liquid-chip-one" type="rect" x="550" y="424" width="130" height="74" fill="#FFFFFF22" stroke="#FFFFFF44" stroke-width="1" corner-radius="18"/>
+  <shape id="liquid-chip-two" type="rect" x="708" y="424" width="130" height="74" fill="#FFFFFF22" stroke="#FFFFFF44" stroke-width="1" corner-radius="18"/>
+  <shape id="liquid-chip-three" type="rect" x="866" y="424" width="130" height="74" fill="#FFFFFF22" stroke="#FFFFFF44" stroke-width="1" corner-radius="18"/>
+  <text id="liquid-chip-content" x="566" y="438" width="414" height="42" font="body" size="18" color="ink" line-height="1.55"><p>3.4 Т        12        01:30</p><p color="#FFFFFFA0" size="11">ОБЪЁМ       СЕТОВ       ОТДЫХ</p></text>
+  <shape id="liquid-next-panel" type="rect" x="550" y="514" width="600" height="28" fill="#FFFFFF22" corner-radius="12"/>
+  <text id="liquid-next-copy" x="566" y="518" width="560" height="18" font="caption" size="13" color="ink">СЛЕДУЮЩЕЕ: ЖИМ ШТАНГИ ЛЁЖА · 3 ПОДХОДА · 85 КГ</text>
+  <shape id="liquid-footer-rule" type="line" x="60" y="668" width="1140" height="0" stroke="hairline" stroke-width="1"/>
+  <text id="liquid-footer-project" x="60" y="682" width="440" height="20" font="caption" size="14" color="muted" wrap="false">IRONRISE / DESIGN DIRECTIONS</text>
+  <text id="liquid-footer-number" x="1160" y="682" width="40" height="20" font="caption" size="14" color="muted" align="right" wrap="false">05</text>
+</slide>

@@ -1,0 +1,18 @@
+<slide id="selection">
+  <background color="paper"/>
+  <shape id="selection-left-rule" type="rect" x="60" y="82" width="6" height="496" fill="primary"/>
+  <text id="selection-eyebrow" x="88" y="82" width="300" height="24" font="caption" size="14" color="cyan" wrap="false">КАРТА ВЫБОРА</text>
+  <text id="selection-title" x="88" y="126" width="750" height="54" font="heading" size="42" color="ink" wrap="false">ВЫБОР ЗАВИСИТ ОТ СЦЕНАРИЯ</text>
+  <text id="selection-copy" x="88" y="204" width="640" height="30" font="body" size="20" color="muted">Нет универсального варианта: у каждого есть свой главный пользовательский момент.</text>
+  <table id="selection-table" x="88" y="282" width="1092" height="292" columns="3,3,6" rows="48,49,49,49,49,49" font="body" size="17" color="ink" padding="12 16" header-fill="surface" border-h="1 hairline" border-v="0 hairline" border-outer="1 hairline" header-border="2 primary">
+    <tr><td><strong>ЕСЛИ ВАЖНЕЕ</strong></td><td><strong>ВЫБИРАТЬ</strong></td><td><strong>ПОЧЕМУ</strong></td></tr>
+    <tr><td>Выразительный бренд</td><td color="primary"><strong>Swiss Signal</strong></td><td color="muted">Сильная редакционная иерархия для программ, календаря и карточек.</td></tr>
+    <tr><td>Подходы прямо в зале</td><td color="coral"><strong>Brutal Grid</strong></td><td color="muted">Таймер, нагрузка и следующее действие всегда на первом плане.</td></tr>
+    <tr><td>Премиальный эффект</td><td color="cyan"><strong>Liquid Glass</strong></td><td color="muted">Прогресс и темп считываются через одну сильную центральную метафору.</td></tr>
+    <tr><td>Мотивация и простой старт</td><td color="#FF9D3D"><strong>Pocket Coach</strong></td><td color="muted">Маршрут тренировки уменьшает тревогу новичка и поддерживает серию.</td></tr>
+    <tr><td>Данные и история</td><td color="#F5F0E7"><strong>Training Ledger</strong></td><td color="muted">Подходы, вес и 1RM показаны как единый проверяемый журнал.</td></tr>
+  </table>
+  <shape id="selection-footer-rule" type="line" x="60" y="668" width="1140" height="0" stroke="hairline" stroke-width="1"/>
+  <text id="selection-footer-project" x="60" y="682" width="440" height="20" font="caption" size="14" color="muted" wrap="false">IRONRISE / DESIGN DIRECTIONS</text>
+  <text id="selection-footer-number" x="1160" y="682" width="40" height="20" font="caption" size="14" color="muted" align="right" wrap="false">08</text>
+</slide>

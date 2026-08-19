@@ -1,0 +1,34 @@
+<slide id="ledger">
+  <background color="paper"/>
+  <shape id="ledger-left-rule" type="rect" x="60" y="82" width="6" height="444" fill="primary"/>
+  <text id="ledger-eyebrow" x="88" y="82" width="350" height="24" font="caption" size="14" color="primary" wrap="false">05 / TRAINING LEDGER</text>
+  <text id="ledger-title" x="88" y="126" width="370" height="92" font="heading" size="42" color="ink" line-height="1.06"><p>ДНЕВНИК,</p><p>КОТОРОМУ ДОВЕРЯЮТ</p></text>
+  <text id="ledger-copy" x="88" y="274" width="340" height="116" font="body" size="20" color="muted" line-height="1.32">Подходы, вес, календарь и динамика 1RM собраны в одном языке. Данные быстро читаются и остаются проверяемыми.</text>
+  <text id="ledger-fit-label" x="88" y="432" width="250" height="20" font="caption" size="14" color="coral">ЛУЧШЕ ДЛЯ</text>
+  <text id="ledger-fit" x="88" y="462" width="300" height="52" font="body" size="20" color="ink" line-height="1.18"><p>ИСТОРИИ · 1RM</p><p>И СТАТИСТИКИ</p></text>
+  <shape id="ledger-page" type="rect" x="500" y="112" width="700" height="448" fill="#F5F0E7"/>
+  <text id="ledger-page-brand" x="526" y="140" width="260" height="18" font="caption" size="12" color="#25313B">IRONRISE / LOG 08</text>
+  <text id="ledger-page-date" x="526" y="168" width="270" height="24" font="body" size="17" color="#6E716E">Вторник, 19 августа</text>
+  <shape id="ledger-stamp" type="rect" x="1082" y="134" width="66" height="60" fill="none" stroke="#E24A3B" stroke-width="2" rotation="-8"/>
+  <text id="ledger-stamp-text" x="1087" y="148" width="56" height="30" font="caption" size="12" color="#E24A3B" align="center" line-height="1.05"><p>UPPER</p><p>DAY</p></text>
+  <shape id="ledger-calendar-line" type="line" x="526" y="220" width="622" height="0" stroke="#C9C0B1" stroke-width="1"/>
+  <text id="ledger-calendar" x="536" y="231" width="600" height="20" font="caption" size="13" color="#5F615E" align="center" wrap="false">12     13     14     15     16     17     18</text>
+  <shape id="ledger-mark-one" type="rect" x="628" y="257" width="16" height="7" fill="primary"/>
+  <shape id="ledger-mark-two" type="rect" x="792" y="257" width="16" height="7" fill="primary"/>
+  <shape id="ledger-mark-three" type="rect" x="955" y="257" width="16" height="7" fill="coral"/>
+  <shape id="ledger-table-head" type="rect" x="526" y="286" width="622" height="34" fill="#DDD4C6"/>
+  <text id="ledger-table-head-text" x="542" y="296" width="586" height="16" font="caption" size="11" color="#4F504D" wrap="false">УПРАЖНЕНИЕ                                      СЕТЫ             ВЕС</text>
+  <shape id="ledger-row-one" type="line" x="526" y="358" width="622" height="0" stroke="#DDD4C6" stroke-width="1"/>
+  <shape id="ledger-row-two" type="line" x="526" y="396" width="622" height="0" stroke="#DDD4C6" stroke-width="1"/>
+  <shape id="ledger-row-three" type="line" x="526" y="434" width="622" height="0" stroke="#DDD4C6" stroke-width="1"/>
+  <shape id="ledger-row-four" type="line" x="526" y="472" width="622" height="0" stroke="#DDD4C6" stroke-width="1"/>
+  <text id="ledger-table-values" x="542" y="330" width="586" height="140" font="body" size="15" color="#25313B" line-height="2.37"><p>Жим лёжа                                      3×8              85</p><p>Тяга блока                                    3×10             65</p><p>Жим сидя                                      4×12             24</p><p>Бицепс                                        3×10             30</p></text>
+  <text id="ledger-chart-title" x="526" y="494" width="180" height="18" font="caption" size="12" color="#25313B">1RM / ЖИМ</text>
+  <text id="ledger-chart-value" x="1064" y="494" width="84" height="18" font="caption" size="14" color="#E24A3B" align="right">104 КГ</text>
+  <shape id="ledger-chart-axis" type="line" x="526" y="540" width="622" height="0" stroke="#B6AE9E" stroke-width="1"/>
+  <shape id="ledger-trend" type="line" x="554" y="534" width="500" height="-30" stroke="primary" stroke-width="3"/>
+  <shape id="ledger-trend-final" type="ellipse" x="1048" y="496" width="13" height="13" fill="#D8A11D"/>
+  <shape id="ledger-footer-rule" type="line" x="60" y="668" width="1140" height="0" stroke="hairline" stroke-width="1"/>
+  <text id="ledger-footer-project" x="60" y="682" width="440" height="20" font="caption" size="14" color="muted" wrap="false">IRONRISE / DESIGN DIRECTIONS</text>
+  <text id="ledger-footer-number" x="1160" y="682" width="40" height="20" font="caption" size="14" color="muted" align="right" wrap="false">07</text>
+</slide>

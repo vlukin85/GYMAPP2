@@ -75,16 +75,16 @@ function RestTimerOverlay({
 
   return (
     <Modal visible transparent animationType="fade" presentationStyle="fullScreen" statusBarTranslucent onRequestClose={onSkip}>
-      <View style={[styles.restOverlay, { backgroundColor: colors.background }]}> 
-        <Text style={[styles.restOverlayEyebrow, { color: colors.primary }]}>ТАЙМЕР ОТДЫХА</Text>
-        <View style={[styles.restOverlayCard, { backgroundColor: colors.surface, borderColor: colors.primary }]}> 
+      <View style={[styles.restOverlay, { backgroundColor: "#10162B" }]}> 
+        <Text style={[styles.restOverlayEyebrow, { color: "#4DEEEA" }]}>ТАЙМЕР ОТДЫХА</Text>
+        <View style={[styles.restOverlayCard, { backgroundColor: "#FFFFFF14", borderColor: "#4DEEEA66" }]}> 
         <View style={styles.restCircleWrap}>
           <Svg width={REST_CIRCLE_SIZE} height={REST_CIRCLE_SIZE} viewBox={`0 0 ${REST_CIRCLE_SIZE} ${REST_CIRCLE_SIZE}`}>
             <Circle
               cx={REST_CIRCLE_SIZE / 2}
               cy={REST_CIRCLE_SIZE / 2}
               r={REST_CIRCLE_RADIUS}
-              stroke={colors.border}
+              stroke="#FFFFFF2C"
               strokeWidth={9}
               fill="none"
             />
@@ -92,7 +92,7 @@ function RestTimerOverlay({
               cx={REST_CIRCLE_SIZE / 2}
               cy={REST_CIRCLE_SIZE / 2}
               r={REST_CIRCLE_RADIUS}
-              stroke={colors.primary}
+              stroke="#4DEEEA"
               strokeWidth={9}
               strokeLinecap="round"
               fill="none"
@@ -102,22 +102,22 @@ function RestTimerOverlay({
             />
           </Svg>
           <View style={styles.restCircleText} pointerEvents="none">
-            <Text style={[styles.restCircleLabel, { color: colors.primary }]}>ОТДЫХ</Text>
-            <Text style={[styles.restCircleValue, { color: colors.foreground }]}>
+            <Text style={[styles.restCircleLabel, { color: "#4DEEEA" }]}>ОТДЫХ</Text>
+            <Text style={[styles.restCircleValue, { color: "#F5F5F0" }]}> 
               {String(Math.floor(rest / 60)).padStart(2, "0")}:{String(rest % 60).padStart(2, "0")}
             </Text>
           </View>
         </View>
         <View style={styles.restCopy}>
-          <Text style={[styles.restTitle, { color: colors.foreground }]}>Следующий подход — после сигнала</Text>
-          <Text style={[styles.restHint, { color: colors.muted }]}>Отсчёт привязан ко времени и корректно продолжится после блокировки экрана.</Text>
+          <Text style={[styles.restTitle, { color: "#F5F5F0" }]}>Следующий подход — после сигнала</Text>
+          <Text style={[styles.restHint, { color: "#FFFFFFA8" }]}>Отсчёт привязан ко времени и корректно продолжится после блокировки экрана.</Text>
         </View>
         </View>
         <View style={styles.restActions}>
-          <Pressable onPress={onAddTime} style={({ pressed }) => [styles.restSecondaryAction, { borderColor: colors.border, opacity: pressed ? 0.65 : 1 }]}> 
-            <Text style={[styles.restSecondaryText, { color: colors.foreground }]}>+30 сек</Text>
+          <Pressable onPress={onAddTime} style={({ pressed }) => [styles.restSecondaryAction, { borderColor: "#FFFFFF44", opacity: pressed ? 0.65 : 1 }]}> 
+            <Text style={[styles.restSecondaryText, { color: "#F5F5F0" }]}>+30 сек</Text>
           </Pressable>
-          <Pressable onPress={onSkip} style={({ pressed }) => [styles.restSkipAction, { backgroundColor: colors.primary, opacity: pressed ? 0.8 : 1 }]}> 
+          <Pressable onPress={onSkip} style={({ pressed }) => [styles.restSkipAction, { backgroundColor: "#B779FF", opacity: pressed ? 0.8 : 1 }]}> 
             <Text style={styles.restSkipText}>Пропустить отдых</Text>
           </Pressable>
         </View>
@@ -202,24 +202,24 @@ function WorkoutProgressCard({ completedSets, totalSets, elapsedSeconds, average
     ? new Intl.DateTimeFormat("ru-RU", { hour: "2-digit", minute: "2-digit" }).format(new Date(forecast.estimatedFinishAt))
     : null;
   return (
-    <View style={[styles.workoutProgressCard, { backgroundColor: colors.surface, borderColor: colors.border }]}> 
+    <View style={[styles.workoutProgressCard, { backgroundColor: "#181B3A", borderColor: "#4DEEEA66" }]}> 
       <View style={styles.workoutProgressHeader}>
         <View style={{ flex: 1 }}>
-          <Text style={[styles.workoutProgressEyebrow, { color: colors.primary }]}>ПРОГРЕСС ТРЕНИРОВКИ</Text>
-          <Text style={[styles.workoutProgressCopy, { color: colors.foreground }]}>{progress.completed} из {progress.total || "—"} подходов завершено</Text>
-          <Text style={[styles.workoutProgressSaved, { color: colors.muted }]}>Автосохранено: {savedLabel}</Text>
-          <Text style={[styles.workoutForecast, { color: colors.muted }]}>{finishLabel ? `Текущий темп: ${formatForecastDuration(forecast.secondsRemaining)} · завершение к ${finishLabel}${forecast.restSecondsRemaining ? ` · отдых ${formatForecastDuration(forecast.restSecondsRemaining)}` : ""}` : "Прогноз появится после первого завершённого подхода"}</Text>
+          <Text style={[styles.workoutProgressEyebrow, { color: "#4DEEEA" }]}>ПРОГРЕСС ТРЕНИРОВКИ</Text>
+          <Text style={[styles.workoutProgressCopy, { color: "#F5F5F0" }]}>{progress.completed} из {progress.total || "—"} подходов завершено</Text>
+          <Text style={[styles.workoutProgressSaved, { color: "#FFFFFFA8" }]}>Автосохранено: {savedLabel}</Text>
+          <Text style={[styles.workoutForecast, { color: "#FFFFFFA8" }]}>{finishLabel ? `Текущий темп: ${formatForecastDuration(forecast.secondsRemaining)} · завершение к ${finishLabel}${forecast.restSecondsRemaining ? ` · отдых ${formatForecastDuration(forecast.restSecondsRemaining)}` : ""}` : "Прогноз появится после первого завершённого подхода"}</Text>
         </View>
         <View style={styles.workoutProgressRing}>
           <Svg width={WORKOUT_PROGRESS_CIRCLE_SIZE} height={WORKOUT_PROGRESS_CIRCLE_SIZE} viewBox={`0 0 ${WORKOUT_PROGRESS_CIRCLE_SIZE} ${WORKOUT_PROGRESS_CIRCLE_SIZE}`}>
-            <Circle cx={WORKOUT_PROGRESS_CIRCLE_SIZE / 2} cy={WORKOUT_PROGRESS_CIRCLE_SIZE / 2} r={WORKOUT_PROGRESS_CIRCLE_RADIUS} stroke={colors.border} strokeWidth={5} fill="none" />
-            <Circle cx={WORKOUT_PROGRESS_CIRCLE_SIZE / 2} cy={WORKOUT_PROGRESS_CIRCLE_SIZE / 2} r={WORKOUT_PROGRESS_CIRCLE_RADIUS} stroke={colors.primary} strokeWidth={5} strokeLinecap="round" fill="none" strokeDasharray={WORKOUT_PROGRESS_CIRCUMFERENCE} strokeDashoffset={dashOffset} transform={`rotate(-90 ${WORKOUT_PROGRESS_CIRCLE_SIZE / 2} ${WORKOUT_PROGRESS_CIRCLE_SIZE / 2})`} />
+            <Circle cx={WORKOUT_PROGRESS_CIRCLE_SIZE / 2} cy={WORKOUT_PROGRESS_CIRCLE_SIZE / 2} r={WORKOUT_PROGRESS_CIRCLE_RADIUS} stroke="#FFFFFF2C" strokeWidth={5} fill="none" />
+            <Circle cx={WORKOUT_PROGRESS_CIRCLE_SIZE / 2} cy={WORKOUT_PROGRESS_CIRCLE_SIZE / 2} r={WORKOUT_PROGRESS_CIRCLE_RADIUS} stroke="#4DEEEA" strokeWidth={5} strokeLinecap="round" fill="none" strokeDasharray={WORKOUT_PROGRESS_CIRCUMFERENCE} strokeDashoffset={dashOffset} transform={`rotate(-90 ${WORKOUT_PROGRESS_CIRCLE_SIZE / 2} ${WORKOUT_PROGRESS_CIRCLE_SIZE / 2})`} />
           </Svg>
-          <View pointerEvents="none" style={styles.workoutProgressRingLabel}><Text style={[styles.workoutProgressPercent, { color: colors.primary }]}>{progress.percent}%</Text></View>
+          <View pointerEvents="none" style={styles.workoutProgressRingLabel}><Text style={[styles.workoutProgressPercent, { color: "#4DEEEA" }]}>{progress.percent}%</Text></View>
         </View>
       </View>
-      <View style={[styles.workoutProgressTrack, { backgroundColor: colors.border }]}>
-        <Animated.View style={[styles.workoutProgressFill, { backgroundColor: colors.primary }, progressStyle]} />
+      <View style={[styles.workoutProgressTrack, { backgroundColor: "#FFFFFF25" }]}>
+        <Animated.View style={[styles.workoutProgressFill, { backgroundColor: "#B779FF" }, progressStyle]} />
       </View>
     </View>
   );
