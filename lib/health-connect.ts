@@ -1,10 +1,11 @@
 import { Platform } from "react-native";
 import { getGrantedPermissions, getSdkStatus, initialize, readRecords, requestPermission, SdkAvailabilityStatus } from "react-native-health-connect";
 
-import { summarizeHeartRate, type HeartRateSummary } from "./health-connect-heart-rate";
+import { normalizeHeartRateSamples, summarizeHeartRate, type HeartRateSampleInput, type HeartRateSummary } from "./health-connect-heart-rate";
 
 export type HealthConnectState = "unsupported" | "unavailable" | "update-required" | "ready" | "permission-required" | "error";
 export type HealthConnectStatus = { state: HealthConnectState; heartRateGranted: boolean; message: string };
+export type HealthConnectHeartRateReading = HeartRateSummary & { samples: HeartRateSampleInput[] };
 
 const HEART_RATE_PERMISSION = { accessType: "read", recordType: "HeartRate" } as const;
 
@@ -44,13 +45,14 @@ export async function connectHealthConnectHeartRate(): Promise<HealthConnectStat
   }
 }
 
-export async function readHealthConnectHeartRate(startTime: string, endTime: string): Promise<HeartRateSummary> {
+export async function readHealthConnectHeartRate(startTime: string, endTime: string): Promise<HealthConnectHeartRateReading> {
   const status = await getHealthConnectStatus();
-  if (!status.heartRateGranted) return { sampleCount: 0 };
+  if (!status.heartRateGranted) return { sampleCount: 0, samples: [] };
   try {
     const result = await readRecords("HeartRate", { timeRangeFilter: { operator: "between", startTime, endTime } });
-    return summarizeHeartRate(result.records);
+    const samples = normalizeHeartRateSamples(result.records);
+    return { ...summarizeHeartRate(result.records), samples };
   } catch {
-    return { sampleCount: 0 };
+    return { sampleCount: 0, samples: [] };
   }
 }

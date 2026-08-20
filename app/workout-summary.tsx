@@ -2,6 +2,7 @@ import { useMemo, useRef, useState } from "react";
 import { Alert, Modal, Platform, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View } from "react-native";
 import * as Sharing from "expo-sharing";
 import { router, useLocalSearchParams } from "expo-router";
+import Svg, { Line, Path } from "react-native-svg";
 
 import { WorkoutShareCard } from "@/components/workout-share-card";
 import { ScreenContainer } from "@/components/screen-container";
@@ -15,6 +16,24 @@ import { useWorkoutStore } from "@/lib/workout-store";
 function formatInterval(seconds: number) {
   const safeSeconds = Math.max(0, Math.round(seconds));
   return `${String(Math.floor(safeSeconds / 60)).padStart(2, "0")}:${String(safeSeconds % 60).padStart(2, "0")}`;
+}
+
+function HeartRateInsights({ samples, zones, maximumBpm, colors }: { samples: { time: string; beatsPerMinute: number }[]; zones: { id: string; seconds: number; fromBpm: number; toBpm: number }[]; maximumBpm?: number; colors: ReturnType<typeof useColors> }) {
+  const activeZones = zones.filter((zone) => zone.seconds > 0);
+  const width = 320;
+  const height = 128;
+  const padX = 12;
+  const padY = 14;
+  const minTimestamp = samples.length ? Date.parse(samples[0].time) : 0;
+  const maxTimestamp = samples.length > 1 ? Date.parse(samples[samples.length - 1].time) : minTimestamp + 1;
+  const ceiling = Math.max(maximumBpm ?? 0, ...samples.map((sample) => sample.beatsPerMinute), 100);
+  const floor = Math.max(40, Math.min(...samples.map((sample) => sample.beatsPerMinute), ceiling - 80));
+  const path = samples.map((sample, index) => {
+    const x = padX + ((Date.parse(sample.time) - minTimestamp) / Math.max(1, maxTimestamp - minTimestamp)) * (width - padX * 2);
+    const y = height - padY - ((sample.beatsPerMinute - floor) / Math.max(1, ceiling - floor)) * (height - padY * 2);
+    return `${index ? "L" : "M"}${x.toFixed(1)} ${y.toFixed(1)}`;
+  }).join(" ");
+  return <View style={[styles.heartInsights, { backgroundColor: colors.surface, borderColor: colors.border }]}><View style={styles.heartInsightsHeader}><View><Text style={[styles.timingEyebrow, { color: colors.primary }]}>ПУЛЬС · ИНТЕНСИВНОСТЬ</Text><Text style={[styles.heartInsightsHint, { color: colors.muted }]}>{maximumBpm ? `Зоны от расчётной ЧССмакс ${maximumBpm} уд/мин` : "Добавьте возраст в профиле, чтобы увидеть зоны."}</Text></View><Text style={[styles.heartSamplesCount, { color: colors.primary }]}>{samples.length || "—"}<Text style={[styles.heartSamplesLabel, { color: colors.muted }]}> ТОЧЕК</Text></Text></View>{samples.length >= 2 ? <><Svg width="100%" height={height} viewBox={`0 0 ${width} ${height}`}><Line x1={padX} x2={width - padX} y1={height - padY} y2={height - padY} stroke={colors.border} strokeWidth="1" /><Line x1={padX} x2={width - padX} y1={padY} y2={padY} stroke={colors.border} strokeWidth="1" strokeDasharray="3 4" /><Path d={path} stroke={colors.primary} strokeWidth="3" fill="none" strokeLinecap="square" strokeLinejoin="round" /></Svg><View style={styles.heartChartAxis}><Text style={[styles.heartAxisText, { color: colors.muted }]}>{floor} уд/мин</Text><Text style={[styles.heartAxisText, { color: colors.muted }]}>{ceiling} уд/мин</Text></View></> : <Text style={[styles.heartEmpty, { color: colors.muted }]}>Недостаточно точек пульса для графика. Продолжайте синхронизацию часов с Health Connect.</Text>}{activeZones.length > 0 && <View style={[styles.zoneList, { borderTopColor: colors.border }]}>{activeZones.map((zone) => <View key={zone.id} style={styles.zoneRow}><View style={[styles.zoneMark, { backgroundColor: zone.id === "maximum" ? colors.error : zone.id === "threshold" ? colors.warning : zone.id === "aerobic" ? colors.success : colors.primary }]} /><Text style={[styles.zoneName, { color: colors.foreground }]}>{zone.id === "recovery" ? "Восстановление" : zone.id === "easy" ? "Лёгкая" : zone.id === "aerobic" ? "Аэробная" : zone.id === "threshold" ? "Пороговая" : "Максимальная"} · {zone.fromBpm}–{zone.toBpm}</Text><Text style={[styles.zoneDuration, { color: colors.primary }]}>{formatInterval(zone.seconds)}</Text></View>)}</View>}</View>;
 }
 
 export default function WorkoutSummaryScreen() {
@@ -109,10 +128,11 @@ export default function WorkoutSummaryScreen() {
         <View style={[styles.timingPanel, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <Text style={[styles.timingEyebrow, { color: colors.primary }]}>ИНТЕРВАЛЫ ПО ФАКТУ</Text>
           <Text style={[styles.timingValue, { color: colors.foreground }]}>Работа {formatInterval(energy.activeSeconds)} · отдых {formatInterval(energy.restSeconds)}</Text>
-          <Text style={[styles.timingHint, { color: colors.muted }]}>Расход энергии рассчитан по измеренному времени подходов и пауз.</Text>
+          <Text style={[styles.timingHint, { color: colors.muted }]}>{completedWorkout?.caloriesMethod === "heart-rate" ? `Расход уточнён по пульсу часов; базовая оценка по интервалам — ${completedWorkout.metCalories ?? "—"} ккал.` : "Расход энергии рассчитан по измеренному времени подходов и пауз."}</Text>
         </View>
 
         {(heartRate.averageBpm || heartRate.peakBpm) && <View style={[styles.heartRatePanel, { backgroundColor: colors.surface, borderColor: colors.border }]}><View><Text style={[styles.timingEyebrow, { color: colors.primary }]}>ПУЛЬС · HEALTH CONNECT</Text><Text style={[styles.heartRateHint, { color: colors.muted }]}>Данные часов за время тренировки</Text></View><View style={styles.heartRateMetrics}><Text style={[styles.heartRateValue, { color: colors.foreground }]}>{heartRate.averageBpm ?? "—"}<Text style={[styles.heartRateUnit, { color: colors.muted }]}> СР.</Text></Text><Text style={[styles.heartRateValue, { color: colors.primary }]}>{heartRate.peakBpm ?? "—"}<Text style={[styles.heartRateUnit, { color: colors.muted }]}> ПИК</Text></Text></View></View>}
+        {completedWorkout && <HeartRateInsights samples={completedWorkout.heartRateSamples ?? []} zones={completedWorkout.heartRateZones ?? []} maximumBpm={completedWorkout.estimatedMaxHeartRateBpm} colors={colors} />}
 
         {cardio.minutes > 0 && <View style={[styles.cardioPanel, { backgroundColor: colors.surface, borderColor: colors.border }]}><View><Text style={[styles.cardioEyebrow, { color: colors.primary }]}>КАРДИО · РЕЗУЛЬТАТ</Text><Text style={[styles.cardioTitle, { color: colors.foreground }]}>{cardio.minutes} мин{cardio.distanceKm > 0 ? ` · ${cardio.distanceKm.toFixed(2)} км` : ""}</Text></View><View style={styles.cardioPace}><Text style={[styles.cardioPaceValue, { color: "#1746D2" }]}>{formatCardioPace(cardio.paceSecondsPerKm)}</Text><Text style={[styles.cardioPaceLabel, { color: colors.muted }]}>СРЕДНИЙ ТЕМП</Text></View></View>}
         <View style={[styles.recordPanel, { backgroundColor: colors.surface, borderColor: colors.border }]}><View style={styles.recordPanelHeader}><IconSymbol name="trophy" size={23} color={colors.primary} /><Text style={[styles.recordPanelTitle, { color: colors.foreground }]}>ЛИЧНЫЕ РЕКОРДЫ</Text><Text style={[styles.recordCount, { color: colors.primary }]}>{recordIds.length}</Text></View>{recordIds.length ? recordIds.map((id, index) => <View key={id} style={[styles.recordRow, index > 0 && { borderTopColor: colors.border, borderTopWidth: StyleSheet.hairlineWidth }]}><Text style={[styles.recordNumber, { color: colors.primary }]}>{String(index + 1).padStart(2, "0")}</Text><Text style={[styles.recordName, { color: colors.foreground }]}>{getExercise(id)?.name ?? id}</Text><IconSymbol name="arrow.up.right" size={18} color="#1746D2" /></View>) : <Text style={[styles.noRecords, { color: colors.muted }]}>Сегодня без нового рекорда. Последовательность — уже прогресс.</Text>}</View>
@@ -147,6 +167,19 @@ const styles = StyleSheet.create({
   heartRateMetrics: { flexDirection: "row", gap: 10, alignItems: "baseline" },
   heartRateValue: { fontSize: 21, fontWeight: "900", letterSpacing: -0.8 },
   heartRateUnit: { fontSize: 8, fontWeight: "900", letterSpacing: 0.35 },
+  heartInsights: { borderWidth: 1, borderLeftWidth: 6, padding: 14, gap: 9 },
+  heartInsightsHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", gap: 10 },
+  heartInsightsHint: { fontSize: 10, lineHeight: 15, marginTop: 4, maxWidth: 230 },
+  heartSamplesCount: { fontSize: 19, fontWeight: "900", letterSpacing: -0.7 },
+  heartSamplesLabel: { fontSize: 8, fontWeight: "900", letterSpacing: 0.35 },
+  heartChartAxis: { flexDirection: "row", justifyContent: "space-between", marginTop: -5 },
+  heartAxisText: { fontSize: 8, fontWeight: "800" },
+  heartEmpty: { fontSize: 11, lineHeight: 16, paddingVertical: 14 },
+  zoneList: { borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 8, gap: 6 },
+  zoneRow: { minHeight: 20, flexDirection: "row", alignItems: "center", gap: 7 },
+  zoneMark: { width: 6, height: 16 },
+  zoneName: { flex: 1, fontSize: 10, fontWeight: "800" },
+  zoneDuration: { fontSize: 11, fontWeight: "900" },
   cardioPanel: { borderWidth: 1, borderLeftWidth: 6, borderLeftColor: "#1746D2", padding: 14, flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", gap: 10 },
   cardioEyebrow: { fontSize: 9, fontWeight: "900", letterSpacing: 0.7 },
   cardioTitle: { fontSize: 20, fontWeight: "900", marginTop: 5, letterSpacing: -0.8 },

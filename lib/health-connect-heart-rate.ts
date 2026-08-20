@@ -18,3 +18,10 @@ export function summarizeHeartRate(records: HeartRateRecordInput[]): HeartRateSu
     latestSampleAt: latest.time,
   };
 }
+
+export function normalizeHeartRateSamples(records: HeartRateRecordInput[]): HeartRateSampleInput[] {
+  return records
+    .flatMap((record) => record.samples)
+    .filter((sample) => Number.isFinite(sample.beatsPerMinute) && sample.beatsPerMinute >= 1 && sample.beatsPerMinute <= 300 && !Number.isNaN(Date.parse(sample.time)))
+    .sort((first, second) => Date.parse(first.time) - Date.parse(second.time));
+}

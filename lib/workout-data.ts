@@ -160,6 +160,12 @@ export type CompletedWorkout = {
   caloriesBurned?: number;
   averageHeartRateBpm?: number;
   peakHeartRateBpm?: number;
+  heartRateSamples?: { time: string; beatsPerMinute: number }[];
+  heartRateZones?: { id: string; seconds: number; fromBpm: number; toBpm: number }[];
+  estimatedMaxHeartRateBpm?: number;
+  metCalories?: number;
+  heartRateCalories?: number;
+  caloriesMethod?: "met" | "heart-rate";
 };
 
 export function isScheduledWorkoutCompleted(completed: CompletedWorkout[], date: string, programId: string) {

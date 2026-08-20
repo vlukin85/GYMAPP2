@@ -16,6 +16,30 @@ export type WorkoutEnergyEstimate = {
   totalCalories: number;
 };
 
+export type HeartRateEnergyInput = {
+  profile: BodyProfile;
+  ageYears?: number;
+  weightKg: number;
+  averageHeartRateBpm?: number;
+  sampleCount?: number;
+  durationSeconds: number;
+};
+
+/**
+ * Keytel et al. (2005) estimate. It is used only when a real average HR, age, body mass,
+ * and at least three observed samples are available; otherwise the caller retains the MET result.
+ */
+export function calculateHeartRateWorkoutEnergy(input: HeartRateEnergyInput) {
+  const ageYears = input.ageYears;
+  const averageHeartRateBpm = input.averageHeartRateBpm;
+  const durationMinutes = Math.max(0, input.durationSeconds) / 60;
+  if (!Number.isFinite(ageYears) || !Number.isFinite(averageHeartRateBpm) || !Number.isFinite(input.weightKg) || ageYears! < 18 || ageYears! > 80 || averageHeartRateBpm! < 45 || averageHeartRateBpm! > 220 || input.weightKg <= 0 || durationMinutes < 1 || (input.sampleCount ?? 0) < 3) return undefined;
+  const kilojoulesPerMinute = input.profile === "male"
+    ? -55.0969 + 0.6309 * averageHeartRateBpm! + 0.1988 * input.weightKg + 0.2017 * ageYears!
+    : -20.4022 + 0.4472 * averageHeartRateBpm! - 0.1263 * input.weightKg + 0.074 * ageYears!;
+  return Math.max(0, Math.round((kilojoulesPerMinute / 4.184) * durationMinutes));
+}
+
 function caloriesFromMet(met: number, weightKg: number, seconds: number) {
   return met * 3.5 * Math.max(1, weightKg) / 200 * (Math.max(0, seconds) / 60);
 }

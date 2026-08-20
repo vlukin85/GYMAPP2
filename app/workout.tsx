@@ -18,9 +18,11 @@ import { filterActiveWorkoutCatalog, reorderActiveWorkoutExercises } from "@/lib
 import { countWorkoutSetUnits, getWorkoutProgress } from "@/lib/workout-progress";
 import { formatForecastDuration, getWorkoutFinishForecast } from "@/lib/workout-finish-forecast";
 import { useWorkoutStore } from "@/lib/workout-store";
-import { calculateWorkoutEnergy } from "@/lib/workout-energy";
+import { calculateHeartRateWorkoutEnergy, calculateWorkoutEnergy } from "@/lib/workout-energy";
 import { connectHealthConnectHeartRate, getHealthConnectStatus, readHealthConnectHeartRate, type HealthConnectStatus } from "@/lib/health-connect";
 import type { HeartRateSummary } from "@/lib/health-connect-heart-rate";
+import { analyzeHeartRate } from "@/lib/heart-rate-analysis";
+import { useBodyStore } from "@/lib/body-store";
 import { openReplacementPicker, subscribeToExerciseReplacement } from "@/lib/exercise-replacement-bus";
 import { clearRestTimerLockScreenNotification, scheduleRestTimerLockScreenNotification, type RestTimerNotificationIds } from "@/lib/workout-notifications";
 
@@ -251,6 +253,7 @@ function WorkoutProgressCard({ completedSets, totalSets, elapsedSeconds, average
 
 export default function WorkoutScreen() {
   const colors = useColors();
+  const { profile: bodyProfile, ageYears } = useBodyStore();
   const { programId } = useLocalSearchParams<{ programId: string }>();
   const store = useWorkoutStore();
   const {
@@ -941,18 +944,36 @@ export default function WorkoutScreen() {
         if (!setParts(set, isTimed).length) return setSeconds;
         return setSeconds + (setTimings[setTimingKey(item.exerciseId, index)]?.activeSeconds ?? 0);
       }, 0), 0);
-    const energy = calculateWorkoutEnergy({
+    const metEnergy = calculateWorkoutEnergy({
       weightKg: bodyWeightKg,
       activeSeconds: totalActiveSeconds,
       restSeconds: completedRestSeconds,
     });
     const heartRateSummary = await readHealthConnectHeartRate(new Date(started).toISOString(), new Date().toISOString());
+    const heartRateAnalysis = analyzeHeartRate(heartRateSummary.samples, ageYears, new Date().toISOString());
+    const workoutDurationSeconds = Math.max(0, Math.round((Date.now() - started) / 1000));
+    const hasSufficientHeartRateCoverage = heartRateAnalysis.coveredSeconds >= Math.min(300, workoutDurationSeconds * 0.5);
+    const heartRateCalories = calculateHeartRateWorkoutEnergy({
+      profile: bodyProfile,
+      ageYears,
+      weightKg: bodyWeightKg,
+      averageHeartRateBpm: heartRateSummary.averageBpm,
+      sampleCount: heartRateSummary.sampleCount,
+      durationSeconds: hasSufficientHeartRateCoverage ? workoutDurationSeconds : 0,
+    });
+    const caloriesBurned = heartRateCalories ?? metEnergy.totalCalories;
     const result = finishWorkout(program.id, total, recordSets, {
       activeSeconds: totalActiveSeconds,
       restSeconds: completedRestSeconds,
-      caloriesBurned: energy.totalCalories,
+      caloriesBurned,
       averageHeartRateBpm: heartRateSummary.averageBpm,
       peakHeartRateBpm: heartRateSummary.peakBpm,
+      heartRateSamples: heartRateAnalysis.samples,
+      heartRateZones: heartRateAnalysis.zones,
+      estimatedMaxHeartRateBpm: heartRateAnalysis.estimatedMaxBpm,
+      metCalories: metEnergy.totalCalories,
+      heartRateCalories,
+      caloriesMethod: heartRateCalories === undefined ? "met" : "heart-rate",
     });
     isDraftPersistenceEnabledRef.current = false;
     void clearActiveWorkoutDraft().catch(() => undefined);

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calculateDailyEnergy, calculateWorkoutEnergy } from "../lib/workout-energy";
+import { calculateDailyEnergy, calculateHeartRateWorkoutEnergy, calculateWorkoutEnergy } from "../lib/workout-energy";
 
 describe("расход энергии тренировок", () => {
   it("разделяет калории активных подходов и фактического отдыха", () => {
@@ -22,5 +22,10 @@ describe("расход энергии тренировок", () => {
     expect(daily.workoutCalories).toBe(95);
     expect(daily.totalCalories).toBe(2231);
     expect(daily.isPersonalizedRestingEstimate).toBe(true);
+  });
+
+  it("использует реальный средний пульс только при достаточных данных профиля и часов", () => {
+    expect(calculateHeartRateWorkoutEnergy({ profile: "male", ageYears: 30, weightKg: 80, averageHeartRateBpm: 140, sampleCount: 8, durationSeconds: 1800 })).toBe(396);
+    expect(calculateHeartRateWorkoutEnergy({ profile: "male", ageYears: 30, weightKg: 80, averageHeartRateBpm: 140, sampleCount: 1, durationSeconds: 1800 })).toBeUndefined();
   });
 });
