@@ -26,4 +26,12 @@ describe("home widgets", () => {
     expect(home).toContain("Перетащить виджет");
     expect(home).toContain('top: 166');
   });
+
+  it("animates adjacent widgets and elevates the active widget while reordering", () => {
+    expect(home).toContain("LayoutAnimation.configureNext");
+    expect(home).toContain("previewWidgetMove");
+    expect(home).toContain("Animated.timing(lift");
+    expect(home).toContain("translateY");
+    expect(home).toContain("scale");
+  });
 });
