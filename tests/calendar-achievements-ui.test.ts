@@ -24,4 +24,10 @@ describe("calendar result achievements", () => {
     expect(calendarScreen).toContain("Share.share");
     expect(calendarScreen).toContain('Platform.OS === "web"');
   });
+
+  it("opens the full result editor from the completed-workout modal", () => {
+    expect(calendarScreen).toContain("Редактировать результат");
+    expect(calendarScreen).toContain('pathname: "/workout-history/[id]"');
+    expect(calendarScreen).toContain("setResultOpen(false)");
+  });
 });
