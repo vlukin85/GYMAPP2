@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Animated, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
+
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
@@ -10,7 +11,9 @@ import { useWorkoutStore } from "@/lib/workout-store";
 
 type HistorySetDraft = { exerciseId: string; reps: string; weight: string; distanceKm: string };
 
-function toDecimal(value: string) { return Number(value.trim().replace(",", ".")); }
+function toDecimal(value: string) {
+  return Number(value.trim().replace(",", "."));
+}
 
 export default function WorkoutHistoryScreen() {
   const colors = useColors();
@@ -19,56 +22,141 @@ export default function WorkoutHistoryScreen() {
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [durationDraft, setDurationDraft] = useState("");
+  const [noteDraft, setNoteDraft] = useState("");
   const [setsDraft, setSetsDraft] = useState<HistorySetDraft[]>([]);
   const fade = useRef(new Animated.Value(0)).current;
   const pulse = useRef(new Animated.Value(0.45)).current;
 
   useEffect(() => {
-    setLoading(true); fade.setValue(0);
-    const pulseLoop = Animated.loop(Animated.sequence([Animated.timing(pulse, { toValue: 0.95, duration: 480, useNativeDriver: true }), Animated.timing(pulse, { toValue: 0.45, duration: 480, useNativeDriver: true })]));
+    setLoading(true);
+    fade.setValue(0);
+    const pulseLoop = Animated.loop(Animated.sequence([
+      Animated.timing(pulse, { toValue: 0.95, duration: 480, useNativeDriver: true }),
+      Animated.timing(pulse, { toValue: 0.45, duration: 480, useNativeDriver: true }),
+    ]));
     pulseLoop.start();
-    const timer = setTimeout(() => { setLoading(false); Animated.timing(fade, { toValue: 1, duration: 220, useNativeDriver: true }).start(); }, 260);
+    const timer = setTimeout(() => {
+      setLoading(false);
+      Animated.timing(fade, { toValue: 1, duration: 220, useNativeDriver: true }).start();
+    }, 260);
     return () => { clearTimeout(timer); pulseLoop.stop(); };
   }, [fade, id, pulse]);
 
   const workout = completed.find((item) => item.id === id);
   const exercises = useMemo(() => workout ? groupWorkoutHistoryExercises(workout) : [], [workout]);
+
   const openEditor = () => {
     if (!workout) return;
     setDurationDraft(String(workout.durationMinutes));
-    setSetsDraft((workout.sets ?? []).map((set) => ({ exerciseId: set.exerciseId, reps: String(set.reps), weight: String(set.weight), distanceKm: set.distanceKm ? String(set.distanceKm) : "" })));
+    setNoteDraft(workout.notes ?? "");
+    setSetsDraft((workout.sets ?? []).map((set) => ({
+      exerciseId: set.exerciseId,
+      reps: String(set.reps),
+      weight: String(set.weight),
+      distanceKm: set.distanceKm ? String(set.distanceKm) : "",
+    })));
     setIsEditing(true);
   };
+
   const updateDraftSet = (index: number, key: keyof Pick<HistorySetDraft, "reps" | "weight" | "distanceKm">, value: string) => {
     setSetsDraft((current) => current.map((set, setIndex) => setIndex === index ? { ...set, [key]: value } : set));
   };
+
+  const removeDraftSet = (index: number) => {
+    Alert.alert("Удалить подход?", "Этот фактический подход будет исключён из результата тренировки. Объём и рекорды пересчитаются после сохранения.", [
+      { text: "Отмена", style: "cancel" },
+      { text: "Удалить подход", style: "destructive", onPress: () => setSetsDraft((current) => current.filter((_set, setIndex) => setIndex !== index)) },
+    ]);
+  };
+
   const saveChanges = () => {
     if (!workout) return;
     const durationMinutes = toDecimal(durationDraft);
-    if (!Number.isFinite(durationMinutes) || durationMinutes <= 0) return Alert.alert("Проверьте длительность", "Укажите длительность тренировки в минутах.");
+    if (!Number.isFinite(durationMinutes) || durationMinutes <= 0) {
+      Alert.alert("Проверьте длительность", "Укажите длительность тренировки в минутах.");
+      return;
+    }
     const sets = setsDraft.map((set) => {
       const isTimed = isTimeBasedExercise(getExercise(set.exerciseId));
-      const reps = toDecimal(set.reps); const weight = isTimed ? 0 : toDecimal(set.weight); const distanceKm = set.distanceKm.trim() ? toDecimal(set.distanceKm) : undefined;
+      const reps = toDecimal(set.reps);
+      const weight = isTimed ? 0 : toDecimal(set.weight);
+      const distanceKm = set.distanceKm.trim() ? toDecimal(set.distanceKm) : undefined;
       if (!Number.isFinite(reps) || reps <= 0 || !Number.isFinite(weight) || weight < 0 || (distanceKm !== undefined && (!Number.isFinite(distanceKm) || distanceKm <= 0))) return null;
       return { exerciseId: set.exerciseId, reps: Math.round(reps), weight, distanceKm };
     });
-    if (sets.some((set) => !set)) return Alert.alert("Проверьте подходы", "Для каждого подхода укажите корректные значения. У кардио длительность вводится в минутах.");
-    updateCompletedWorkout(workout.id, { durationMinutes, sets: sets as NonNullable<typeof workout.sets> });
+    if (sets.some((set) => !set)) {
+      Alert.alert("Проверьте подходы", "Для каждого оставшегося подхода укажите корректные значения. У кардио длительность вводится в минутах.");
+      return;
+    }
+    updateCompletedWorkout(workout.id, { durationMinutes, sets: sets as NonNullable<typeof workout.sets>, notes: noteDraft });
     setIsEditing(false);
   };
+
   const deleteWorkout = () => {
     if (!workout) return;
-    Alert.alert("Удалить выполненную тренировку?", "Запись исчезнет из истории и календаря. Статистика и личные рекорды будут пересчитаны по оставшимся тренировкам.", [{ text: "Отмена", style: "cancel" }, { text: "Удалить тренировку", style: "destructive", onPress: () => { deleteCompletedWorkout(workout.id); router.back(); } }]);
+    Alert.alert("Удалить выполненную тренировку?", "Запись исчезнет из истории и календаря. Статистика и личные рекорды будут пересчитаны по оставшимся тренировкам.", [
+      { text: "Отмена", style: "cancel" },
+      { text: "Удалить тренировку", style: "destructive", onPress: () => { deleteCompletedWorkout(workout.id); router.back(); } },
+    ]);
   };
 
   if (loading) return <HistorySkeleton colors={colors} pulse={pulse} />;
   if (!workout) return <ScreenContainer className="px-5"><View style={styles.empty}><Text style={[styles.emptyTitle, { color: colors.foreground }]}>Тренировка не найдена</Text><Pressable onPress={() => router.back()}><Text style={[styles.link, { color: colors.primary }]}>Вернуться назад</Text></Pressable></View></ScreenContainer>;
+
   const program = programs.find((item) => item.id === workout.programId);
   const date = new Date(`${workout.date}T12:00:00`).toLocaleDateString("ru-RU", { day: "numeric", month: "long", year: "numeric" });
 
-  return <ScreenContainer edges={["top", "left", "right", "bottom"]} className="px-5"><Animated.View style={{ flex: 1, opacity: fade, transform: [{ translateY: fade.interpolate({ inputRange: [0, 1], outputRange: [10, 0] }) }] }}><ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled"><View style={styles.header}><Pressable onPress={() => router.back()}><IconSymbol name="chevron.left" size={27} color={colors.foreground} /></Pressable><Text style={[styles.headerTitle, { color: colors.foreground }]}>Завершённая тренировка</Text><View style={{ width: 27 }} /></View><View style={[styles.summary, { backgroundColor: colors.surface, borderColor: colors.border }]}><Text style={[styles.eyebrow, { color: colors.success }]}>ИСТОРИЯ РЕЗУЛЬТАТА</Text><Text style={[styles.title, { color: colors.foreground }]}>{program?.name ?? "Тренировка"}</Text><Text style={[styles.date, { color: colors.muted }]}>{date}</Text><View style={styles.metrics}><Metric value={`${workout.durationMinutes} мин`} label="длительность" colors={colors} /><Metric value={`${Math.round(workout.totalVolume).toLocaleString("ru-RU")} кг`} label="объём" colors={colors} /><Metric value={String(workout.sets?.length ?? 0)} label="подходов" colors={colors} /></View></View><View style={styles.actions}><Pressable onPress={openEditor} style={({ pressed }) => [styles.editButton, { backgroundColor: colors.primary, opacity: pressed ? 0.78 : 1 }]}><Text style={styles.editButtonText}>Редактировать</Text></Pressable><Pressable onPress={deleteWorkout} style={({ pressed }) => [styles.deleteButton, { backgroundColor: `${colors.error}12`, borderColor: `${colors.error}66`, opacity: pressed ? 0.72 : 1 }]}><Text style={[styles.deleteButtonText, { color: colors.error }]}>Удалить</Text></Pressable></View><Text style={[styles.actionHint, { color: colors.muted }]}>После сохранения объём, статистика и личные рекорды пересчитаются автоматически.</Text><Text style={[styles.sectionTitle, { color: colors.foreground }]}>Упражнения</Text><Text style={[styles.hint, { color: colors.muted }]}>Нажмите упражнение, чтобы посмотреть все фактические подходы.</Text>{exercises.length ? exercises.map((exercise) => { const item = getExercise(exercise.exerciseId); return <Pressable key={exercise.exerciseId} onPress={() => router.push({ pathname: "/workout-history/exercise" as never, params: { workoutId: workout.id, exerciseId: exercise.exerciseId } })} style={({ pressed }) => [styles.exercise, { backgroundColor: colors.surface, borderColor: colors.border, opacity: pressed ? 0.72 : 1 }]}><View style={[styles.exerciseIcon, { backgroundColor: `${colors.primary}18` }]}><IconSymbol name="dumbbell.fill" size={19} color={colors.primary} /></View><View style={{ flex: 1 }}><Text style={[styles.exerciseName, { color: colors.foreground }]}>{item?.name ?? exercise.exerciseId}</Text><Text style={[styles.exerciseMeta, { color: colors.muted }]}>{exercise.sets.length} подходов · {Math.round(exercise.volume).toLocaleString("ru-RU")} кг</Text></View><IconSymbol name="chevron.right" size={18} color={colors.muted} /></Pressable>; }) : <View style={[styles.noSets, { borderColor: colors.border }]}><Text style={{ color: colors.muted }}>В этой тренировке не сохранены подробные подходы. Длительность всё равно можно изменить.</Text></View>}</ScrollView></Animated.View><Modal visible={isEditing} animationType="slide" presentationStyle="fullScreen" onRequestClose={() => setIsEditing(false)}><ScreenContainer edges={["top", "left", "right", "bottom"]} className="px-5"><KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}><View style={styles.editorHeader}><Pressable onPress={() => setIsEditing(false)}><Text style={[styles.cancelText, { color: colors.muted }]}>Отмена</Text></Pressable><Text style={[styles.headerTitle, { color: colors.foreground }]}>Корректировка</Text><Pressable onPress={saveChanges}><Text style={[styles.saveText, { color: colors.primary }]}>Сохранить</Text></Pressable></View><ScrollView contentContainerStyle={styles.editorContent} keyboardShouldPersistTaps="handled"><View style={[styles.editorLead, { backgroundColor: colors.surface, borderColor: colors.border }]}><Text style={[styles.eyebrow, { color: colors.primary }]}>ФАКТИЧЕСКИЙ РЕЗУЛЬТАТ</Text><Text style={[styles.editorTitle, { color: colors.foreground }]}>Исправьте длительность и выполненные подходы</Text><Text style={[styles.editorDescription, { color: colors.muted }]}>Для кардио указывается длительность в минутах; вес скрыт. Изменения сохраняются только на этом устройстве.</Text></View><View style={[styles.durationCard, { borderColor: colors.border }]}><Text style={[styles.fieldLabel, { color: colors.muted }]}>ДЛИТЕЛЬНОСТЬ, МИНУТЫ</Text><TextInput value={durationDraft} onChangeText={setDurationDraft} keyboardType="numeric" returnKeyType="done" style={[styles.durationInput, { color: colors.foreground, borderColor: colors.primary, backgroundColor: colors.background }]} /></View>{setsDraft.length ? <><Text style={[styles.editorSection, { color: colors.foreground }]}>Подходы</Text>{setsDraft.map((set, index) => { const exercise = getExercise(set.exerciseId); const isTimed = isTimeBasedExercise(exercise); return <View key={`${set.exerciseId}-${index}`} style={[styles.setCard, { backgroundColor: colors.surface, borderColor: colors.border }]}><View style={styles.setTop}><Text style={[styles.setNumber, { color: colors.primary }]}>{String(index + 1).padStart(2, "0")}</Text><Text style={[styles.setExercise, { color: colors.foreground }]} numberOfLines={1}>{exercise?.name ?? set.exerciseId}</Text></View><View style={styles.setFields}><View style={[styles.fieldWrap, { flex: isTimed ? 1.4 : 1 }]}><Text style={[styles.fieldLabel, { color: colors.muted }]}>{isTimed ? "МИНУТЫ" : "ПОВТОРЫ"}</Text><TextInput value={set.reps} onChangeText={(value) => updateDraftSet(index, "reps", value)} keyboardType="decimal-pad" returnKeyType="done" style={[styles.setInput, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.background }]} /></View>{!isTimed && <View style={styles.fieldWrap}><Text style={[styles.fieldLabel, { color: colors.muted }]}>ВЕС, КГ</Text><TextInput value={set.weight} onChangeText={(value) => updateDraftSet(index, "weight", value)} keyboardType="decimal-pad" returnKeyType="done" style={[styles.setInput, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.background }]} /></View>}{isTimed && <View style={styles.fieldWrap}><Text style={[styles.fieldLabel, { color: colors.muted }]}>КМ</Text><TextInput value={set.distanceKm} onChangeText={(value) => updateDraftSet(index, "distanceKm", value)} placeholder="—" placeholderTextColor={colors.muted} keyboardType="decimal-pad" returnKeyType="done" style={[styles.setInput, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.background }]} /></View>}</View></View>; })}</> : <View style={[styles.noSets, { borderColor: colors.border }]}><Text style={{ color: colors.muted }}>Подробные подходы не были сохранены для этой записи.</Text></View>}<Pressable onPress={saveChanges} style={({ pressed }) => [styles.saveButton, { backgroundColor: colors.primary, opacity: pressed ? 0.8 : 1 }]}><Text style={styles.saveButtonText}>Сохранить изменения</Text></Pressable></ScrollView></KeyboardAvoidingView></ScreenContainer></Modal></ScreenContainer>;
+  return <ScreenContainer edges={["top", "left", "right", "bottom"]} className="px-5">
+    <Animated.View style={{ flex: 1, opacity: fade, transform: [{ translateY: fade.interpolate({ inputRange: [0, 1], outputRange: [10, 0] }) }] }}>
+      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+        <View style={styles.header}><Pressable onPress={() => router.back()}><IconSymbol name="chevron.left" size={27} color={colors.foreground} /></Pressable><Text style={[styles.headerTitle, { color: colors.foreground }]}>Завершённая тренировка</Text><View style={{ width: 27 }} /></View>
+        <View style={[styles.summary, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <Text style={[styles.eyebrow, { color: colors.success }]}>ИСТОРИЯ РЕЗУЛЬТАТА</Text>
+          <Text style={[styles.title, { color: colors.foreground }]}>{program?.name ?? "Тренировка"}</Text>
+          <Text style={[styles.date, { color: colors.muted }]}>{date}</Text>
+          <View style={styles.metrics}><Metric value={`${workout.durationMinutes} мин`} label="длительность" colors={colors} /><Metric value={`${Math.round(workout.totalVolume).toLocaleString("ru-RU")} кг`} label="объём" colors={colors} /><Metric value={String(workout.sets?.length ?? 0)} label="подходов" colors={colors} /></View>
+        </View>
+        {workout.notes ? <View style={[styles.noteCard, { backgroundColor: `${colors.primary}0D`, borderColor: `${colors.primary}55` }]}><Text style={[styles.noteLabel, { color: colors.primary }]}>ЗАМЕТКА</Text><Text style={[styles.noteText, { color: colors.foreground }]}>{workout.notes}</Text></View> : null}
+        <View style={styles.actions}><Pressable onPress={openEditor} style={({ pressed }) => [styles.editButton, { backgroundColor: colors.primary, opacity: pressed ? 0.78 : 1 }]}><Text style={styles.editButtonText}>Редактировать</Text></Pressable><Pressable onPress={deleteWorkout} style={({ pressed }) => [styles.deleteButton, { backgroundColor: `${colors.error}12`, borderColor: `${colors.error}66`, opacity: pressed ? 0.72 : 1 }]}><Text style={[styles.deleteButtonText, { color: colors.error }]}>Удалить</Text></Pressable></View>
+        <Text style={[styles.actionHint, { color: colors.muted }]}>После сохранения объём, статистика и личные рекорды пересчитаются автоматически.</Text>
+        <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Упражнения</Text>
+        <Text style={[styles.hint, { color: colors.muted }]}>Нажмите упражнение, чтобы посмотреть все фактические подходы.</Text>
+        {exercises.length ? exercises.map((exercise) => {
+          const item = getExercise(exercise.exerciseId);
+          return <Pressable key={exercise.exerciseId} onPress={() => router.push({ pathname: "/workout-history/exercise" as never, params: { workoutId: workout.id, exerciseId: exercise.exerciseId } })} style={({ pressed }) => [styles.exercise, { backgroundColor: colors.surface, borderColor: colors.border, opacity: pressed ? 0.72 : 1 }]}><View style={[styles.exerciseIcon, { backgroundColor: `${colors.primary}18` }]}><IconSymbol name="dumbbell.fill" size={19} color={colors.primary} /></View><View style={{ flex: 1 }}><Text style={[styles.exerciseName, { color: colors.foreground }]}>{item?.name ?? exercise.exerciseId}</Text><Text style={[styles.exerciseMeta, { color: colors.muted }]}>{exercise.sets.length} подходов · {Math.round(exercise.volume).toLocaleString("ru-RU")} кг</Text></View><IconSymbol name="chevron.right" size={18} color={colors.muted} /></Pressable>;
+        }) : <View style={[styles.noSets, { borderColor: colors.border }]}><Text style={{ color: colors.muted }}>В этой тренировке не сохранены подробные подходы. Длительность и заметку всё равно можно изменить.</Text></View>}
+      </ScrollView>
+    </Animated.View>
+    <Modal visible={isEditing} animationType="slide" presentationStyle="fullScreen" onRequestClose={() => setIsEditing(false)}>
+      <ScreenContainer edges={["top", "left", "right", "bottom"]} className="px-5">
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+          <View style={styles.editorHeader}><Pressable onPress={() => setIsEditing(false)}><Text style={[styles.cancelText, { color: colors.muted }]}>Отмена</Text></Pressable><Text style={[styles.headerTitle, { color: colors.foreground }]}>Корректировка</Text><Pressable onPress={saveChanges}><Text style={[styles.saveText, { color: colors.primary }]}>Сохранить</Text></Pressable></View>
+          <ScrollView contentContainerStyle={styles.editorContent} keyboardShouldPersistTaps="handled">
+            <View style={[styles.editorLead, { backgroundColor: colors.surface, borderColor: colors.border }]}><Text style={[styles.eyebrow, { color: colors.primary }]}>ФАКТИЧЕСКИЙ РЕЗУЛЬТАТ</Text><Text style={[styles.editorTitle, { color: colors.foreground }]}>Исправьте длительность, подходы и заметку</Text><Text style={[styles.editorDescription, { color: colors.muted }]}>Удалите ошибочный подход до сохранения — итоговый объём, статистика и рекорды обновятся автоматически.</Text></View>
+            <View style={[styles.durationCard, { borderColor: colors.border }]}><Text style={[styles.fieldLabel, { color: colors.muted }]}>ДЛИТЕЛЬНОСТЬ, МИНУТЫ</Text><TextInput value={durationDraft} onChangeText={setDurationDraft} keyboardType="numeric" returnKeyType="done" style={[styles.durationInput, { color: colors.foreground, borderColor: colors.primary, backgroundColor: colors.background }]} /></View>
+            <View style={[styles.noteEditorCard, { borderColor: colors.border }]}><Text style={[styles.fieldLabel, { color: colors.muted }]}>ЗАМЕТКА К ТРЕНИРОВКЕ</Text><TextInput value={noteDraft} onChangeText={setNoteDraft} placeholder="Самочувствие, техника, особенности выполнения…" placeholderTextColor={colors.muted} multiline textAlignVertical="top" style={[styles.noteInput, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.background }]} /></View>
+            {setsDraft.length ? <><Text style={[styles.editorSection, { color: colors.foreground }]}>Подходы</Text>{setsDraft.map((set, index) => {
+              const exercise = getExercise(set.exerciseId);
+              const isTimed = isTimeBasedExercise(exercise);
+              return <View key={`${set.exerciseId}-${index}`} style={[styles.setCard, { backgroundColor: colors.surface, borderColor: colors.border }]}><View style={styles.setTop}><Text style={[styles.setNumber, { color: colors.primary }]}>{String(index + 1).padStart(2, "0")}</Text><Text style={[styles.setExercise, { color: colors.foreground }]} numberOfLines={1}>{exercise?.name ?? set.exerciseId}</Text><Pressable onPress={() => removeDraftSet(index)} hitSlop={8} style={({ pressed }) => [styles.removeSetButton, { borderColor: `${colors.error}88`, opacity: pressed ? 0.65 : 1 }]}><Text style={[styles.removeSetText, { color: colors.error }]}>УДАЛИТЬ</Text></Pressable></View><View style={styles.setFields}><View style={[styles.fieldWrap, { flex: isTimed ? 1.4 : 1 }]}><Text style={[styles.fieldLabel, { color: colors.muted }]}>{isTimed ? "МИНУТЫ" : "ПОВТОРЫ"}</Text><TextInput value={set.reps} onChangeText={(value) => updateDraftSet(index, "reps", value)} keyboardType="decimal-pad" returnKeyType="done" style={[styles.setInput, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.background }]} /></View>{!isTimed && <View style={styles.fieldWrap}><Text style={[styles.fieldLabel, { color: colors.muted }]}>ВЕС, КГ</Text><TextInput value={set.weight} onChangeText={(value) => updateDraftSet(index, "weight", value)} keyboardType="decimal-pad" returnKeyType="done" style={[styles.setInput, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.background }]} /></View>}{isTimed && <View style={styles.fieldWrap}><Text style={[styles.fieldLabel, { color: colors.muted }]}>КМ</Text><TextInput value={set.distanceKm} onChangeText={(value) => updateDraftSet(index, "distanceKm", value)} placeholder="—" placeholderTextColor={colors.muted} keyboardType="decimal-pad" returnKeyType="done" style={[styles.setInput, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.background }]} /></View>}</View></View>;
+            })}</> : <View style={[styles.noSets, { borderColor: colors.border }]}><Text style={{ color: colors.muted }}>Подходов не осталось. При сохранении объём этой тренировки станет равен нулю.</Text></View>}
+            <Pressable onPress={saveChanges} style={({ pressed }) => [styles.saveButton, { backgroundColor: colors.primary, opacity: pressed ? 0.8 : 1 }]}><Text style={styles.saveButtonText}>Сохранить изменения</Text></Pressable>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </ScreenContainer>
+    </Modal>
+  </ScreenContainer>;
 }
 
-function HistorySkeleton({ colors, pulse }: { colors: any; pulse: Animated.Value }) { const tone = `${colors.primary}18`; return <ScreenContainer edges={["top", "left", "right", "bottom"]} className="px-5"><View style={styles.skeletonContent}><View style={styles.skeletonHeader}><Animated.View style={[styles.skeletonCircle, { backgroundColor: tone, opacity: pulse }]} /><Animated.View style={[styles.skeletonTitle, { backgroundColor: tone, opacity: pulse }]} /></View><Animated.View style={[styles.skeletonSummary, { backgroundColor: tone, opacity: pulse }]} />{[0, 1, 2].map((item) => <Animated.View key={item} style={[styles.skeletonExercise, { backgroundColor: tone, opacity: pulse }]} />)}</View></ScreenContainer>; }
-function Metric({ value, label, colors }: { value: string; label: string; colors: any }) { return <View><Text style={[styles.metricValue, { color: colors.foreground }]}>{value}</Text><Text style={[styles.metricLabel, { color: colors.muted }]}>{label}</Text></View>; }
-const styles = StyleSheet.create({ content: { paddingTop: 16, paddingBottom: 32, gap: 12 }, header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" }, headerTitle: { fontSize: 16, fontWeight: "900" }, summary: { borderWidth: 1, borderRadius: 20, padding: 16, gap: 7 }, eyebrow: { fontSize: 10, fontWeight: "900", letterSpacing: 0.8 }, title: { fontSize: 24, fontWeight: "900" }, date: { fontSize: 12 }, metrics: { flexDirection: "row", justifyContent: "space-between", marginTop: 7 }, metricValue: { fontSize: 14, fontWeight: "900" }, metricLabel: { fontSize: 9, marginTop: 3 }, actions: { flexDirection: "row", gap: 9 }, editButton: { minHeight: 46, borderRadius: 14, alignItems: "center", justifyContent: "center", flex: 1 }, editButtonText: { color: "#FFFFFF", fontSize: 12, fontWeight: "900" }, deleteButton: { minHeight: 46, borderWidth: 1, borderRadius: 14, alignItems: "center", justifyContent: "center", paddingHorizontal: 18 }, deleteButtonText: { fontSize: 12, fontWeight: "900" }, actionHint: { fontSize: 10, lineHeight: 14, textAlign: "center", marginTop: -5 }, sectionTitle: { fontSize: 19, fontWeight: "900", marginTop: 4 }, hint: { fontSize: 11, lineHeight: 16, marginTop: -6 }, exercise: { minHeight: 72, borderWidth: 1, borderRadius: 16, padding: 12, flexDirection: "row", alignItems: "center", gap: 11 }, exerciseIcon: { width: 39, height: 39, borderRadius: 13, justifyContent: "center", alignItems: "center" }, exerciseName: { fontSize: 14, fontWeight: "900" }, exerciseMeta: { fontSize: 11, marginTop: 4 }, noSets: { borderWidth: 1, borderRadius: 16, padding: 16, alignItems: "center" }, empty: { flex: 1, justifyContent: "center", alignItems: "center", gap: 10 }, emptyTitle: { fontSize: 18, fontWeight: "900" }, link: { fontSize: 14, fontWeight: "800" }, skeletonContent: { flex: 1, paddingTop: 18, gap: 13 }, skeletonHeader: { height: 40, flexDirection: "row", alignItems: "center", gap: 14 }, skeletonCircle: { width: 30, height: 30, borderRadius: 15 }, skeletonTitle: { width: 162, height: 17, borderRadius: 8 }, skeletonSummary: { height: 162, borderRadius: 20, marginTop: 5 }, skeletonExercise: { height: 72, borderRadius: 16 }, editorHeader: { height: 58, flexDirection: "row", justifyContent: "space-between", alignItems: "center" }, cancelText: { fontSize: 13, fontWeight: "800", minWidth: 65 }, saveText: { fontSize: 13, fontWeight: "900", minWidth: 65, textAlign: "right" }, editorContent: { gap: 13, paddingTop: 8, paddingBottom: 34 }, editorLead: { borderWidth: 1, borderRadius: 20, padding: 16, gap: 7 }, editorTitle: { fontSize: 21, fontWeight: "900", lineHeight: 25 }, editorDescription: { fontSize: 12, lineHeight: 17 }, durationCard: { borderWidth: 1, borderRadius: 16, padding: 14, gap: 7 }, fieldLabel: { fontSize: 9, fontWeight: "900", letterSpacing: 0.6 }, durationInput: { height: 49, borderWidth: 1, borderRadius: 12, paddingHorizontal: 13, fontSize: 20, fontWeight: "900" }, editorSection: { fontSize: 19, fontWeight: "900", marginTop: 4 }, setCard: { borderWidth: 1, borderRadius: 16, padding: 13, gap: 12 }, setTop: { flexDirection: "row", alignItems: "center", gap: 10 }, setNumber: { fontSize: 13, fontWeight: "900", minWidth: 23 }, setExercise: { fontSize: 13, fontWeight: "900", flex: 1 }, setFields: { flexDirection: "row", gap: 10 }, fieldWrap: { flex: 1, gap: 6 }, setInput: { height: 43, borderWidth: 1, borderRadius: 11, paddingHorizontal: 11, fontSize: 16, fontWeight: "800" }, saveButton: { minHeight: 52, borderRadius: 15, justifyContent: "center", alignItems: "center", marginTop: 5 }, saveButtonText: { color: "#FFFFFF", fontSize: 13, fontWeight: "900" } });
+function HistorySkeleton({ colors, pulse }: { colors: any; pulse: Animated.Value }) {
+  const tone = `${colors.primary}18`;
+  return <ScreenContainer edges={["top", "left", "right", "bottom"]} className="px-5"><View style={styles.skeletonContent}><View style={styles.skeletonHeader}><Animated.View style={[styles.skeletonCircle, { backgroundColor: tone, opacity: pulse }]} /><Animated.View style={[styles.skeletonTitle, { backgroundColor: tone, opacity: pulse }]} /></View><Animated.View style={[styles.skeletonSummary, { backgroundColor: tone, opacity: pulse }]} />{[0, 1, 2].map((item) => <Animated.View key={item} style={[styles.skeletonExercise, { backgroundColor: tone, opacity: pulse }]} />)}</View></ScreenContainer>;
+}
+
+function Metric({ value, label, colors }: { value: string; label: string; colors: any }) {
+  return <View><Text style={[styles.metricValue, { color: colors.foreground }]}>{value}</Text><Text style={[styles.metricLabel, { color: colors.muted }]}>{label}</Text></View>;
+}
+
+const styles = StyleSheet.create({
+  content: { paddingTop: 16, paddingBottom: 32, gap: 12 }, header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" }, headerTitle: { fontSize: 16, fontWeight: "900" }, summary: { borderWidth: 1, borderRadius: 20, padding: 16, gap: 7 }, eyebrow: { fontSize: 10, fontWeight: "900", letterSpacing: 0.8 }, title: { fontSize: 24, fontWeight: "900" }, date: { fontSize: 12 }, metrics: { flexDirection: "row", justifyContent: "space-between", marginTop: 7 }, metricValue: { fontSize: 14, fontWeight: "900" }, metricLabel: { fontSize: 9, marginTop: 3 }, noteCard: { borderWidth: 1, borderRadius: 15, padding: 13, gap: 6 }, noteLabel: { fontSize: 9, fontWeight: "900", letterSpacing: 0.8 }, noteText: { fontSize: 13, fontWeight: "700", lineHeight: 19 }, actions: { flexDirection: "row", gap: 9 }, editButton: { minHeight: 46, borderRadius: 14, alignItems: "center", justifyContent: "center", flex: 1 }, editButtonText: { color: "#FFFFFF", fontSize: 12, fontWeight: "900" }, deleteButton: { minHeight: 46, borderWidth: 1, borderRadius: 14, alignItems: "center", justifyContent: "center", paddingHorizontal: 18 }, deleteButtonText: { fontSize: 12, fontWeight: "900" }, actionHint: { fontSize: 10, lineHeight: 14, textAlign: "center", marginTop: -5 }, sectionTitle: { fontSize: 19, fontWeight: "900", marginTop: 4 }, hint: { fontSize: 11, lineHeight: 16, marginTop: -6 }, exercise: { minHeight: 72, borderWidth: 1, borderRadius: 16, padding: 12, flexDirection: "row", alignItems: "center", gap: 11 }, exerciseIcon: { width: 39, height: 39, borderRadius: 13, justifyContent: "center", alignItems: "center" }, exerciseName: { fontSize: 14, fontWeight: "900" }, exerciseMeta: { fontSize: 11, marginTop: 4 }, noSets: { borderWidth: 1, borderRadius: 16, padding: 16, alignItems: "center" }, empty: { flex: 1, justifyContent: "center", alignItems: "center", gap: 10 }, emptyTitle: { fontSize: 18, fontWeight: "900" }, link: { fontSize: 14, fontWeight: "800" }, skeletonContent: { flex: 1, paddingTop: 18, gap: 13 }, skeletonHeader: { height: 40, flexDirection: "row", alignItems: "center", gap: 14 }, skeletonCircle: { width: 30, height: 30, borderRadius: 15 }, skeletonTitle: { width: 162, height: 17, borderRadius: 8 }, skeletonSummary: { height: 162, borderRadius: 20, marginTop: 5 }, skeletonExercise: { height: 72, borderRadius: 16 }, editorHeader: { height: 58, flexDirection: "row", justifyContent: "space-between", alignItems: "center" }, cancelText: { fontSize: 13, fontWeight: "800", minWidth: 65 }, saveText: { fontSize: 13, fontWeight: "900", minWidth: 65, textAlign: "right" }, editorContent: { gap: 13, paddingTop: 8, paddingBottom: 34 }, editorLead: { borderWidth: 1, borderRadius: 20, padding: 16, gap: 7 }, editorTitle: { fontSize: 21, fontWeight: "900", lineHeight: 25 }, editorDescription: { fontSize: 12, lineHeight: 17 }, durationCard: { borderWidth: 1, borderRadius: 16, padding: 14, gap: 7 }, noteEditorCard: { borderWidth: 1, borderRadius: 16, padding: 14, gap: 7 }, fieldLabel: { fontSize: 9, fontWeight: "900", letterSpacing: 0.6 }, durationInput: { height: 49, borderWidth: 1, borderRadius: 12, paddingHorizontal: 13, fontSize: 20, fontWeight: "900" }, noteInput: { minHeight: 94, borderWidth: 1, borderRadius: 12, paddingHorizontal: 13, paddingVertical: 11, fontSize: 14, lineHeight: 19, fontWeight: "700" }, editorSection: { fontSize: 19, fontWeight: "900", marginTop: 4 }, setCard: { borderWidth: 1, borderRadius: 16, padding: 13, gap: 12 }, setTop: { flexDirection: "row", alignItems: "center", gap: 10 }, setNumber: { fontSize: 13, fontWeight: "900", minWidth: 23 }, setExercise: { fontSize: 13, fontWeight: "900", flex: 1 }, removeSetButton: { borderWidth: 1, paddingHorizontal: 7, paddingVertical: 5 }, removeSetText: { fontSize: 7.5, letterSpacing: 0.4, fontWeight: "900" }, setFields: { flexDirection: "row", gap: 10 }, fieldWrap: { flex: 1, gap: 6 }, setInput: { height: 43, borderWidth: 1, borderRadius: 11, paddingHorizontal: 11, fontSize: 16, fontWeight: "800" }, saveButton: { minHeight: 52, borderRadius: 15, justifyContent: "center", alignItems: "center", marginTop: 5 }, saveButtonText: { color: "#FFFFFF", fontSize: 13, fontWeight: "900" },
+});

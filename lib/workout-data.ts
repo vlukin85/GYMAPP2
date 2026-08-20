@@ -154,6 +154,7 @@ export type CompletedWorkout = {
   durationMinutes: number;
   totalVolume: number;
   sets?: { exerciseId: string; weight: number; reps: number; distanceKm?: number }[];
+  notes?: string;
 };
 
 export function isScheduledWorkoutCompleted(completed: CompletedWorkout[], date: string, programId: string) {

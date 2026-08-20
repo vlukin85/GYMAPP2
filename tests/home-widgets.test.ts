@@ -20,4 +20,10 @@ describe("home widgets", () => {
     expect(tabs).toContain('title: "УПРАЖНЕНИЯ"');
     expect(tabs).not.toContain('title: "ЖИМ"');
   });
+  it("supports reordering directly on the home screen and positions the vertical motto safely", () => {
+    expect(home).toContain("PanResponder.create");
+    expect(home).toContain("homeWidgets.moveWidget");
+    expect(home).toContain("Перетащить виджет");
+    expect(home).toContain('top: 166');
+  });
 });

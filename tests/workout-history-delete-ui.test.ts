@@ -17,4 +17,11 @@ describe("completed workout deletion from history", () => {
     expect(screen).toContain("Сохранить изменения");
     expect(screen).toContain("ФАКТИЧЕСКИЙ РЕЗУЛЬТАТ");
   });
+
+  it("supports removing an individual factual set and adding a workout note", () => {
+    expect(screen).toContain("removeDraftSet");
+    expect(screen).toContain("Удалить подход?");
+    expect(screen).toContain("ЗАМЕТКА К ТРЕНИРОВКЕ");
+    expect(screen).toContain("notes: noteDraft");
+  });
 });

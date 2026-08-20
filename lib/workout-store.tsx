@@ -37,7 +37,7 @@ type WorkoutContextValue = WorkoutState & {
   discardActiveWorkout: () => void;
   finishWorkout: (programId: string, volume: number, sets: { exerciseId: string; weight: number; reps: number; distanceKm?: number }[]) => { workoutId: string; minutes: number; newRecordIds: string[]; maxOneRmDelta: number };
   deleteCompletedWorkout: (workoutId: string) => void;
-  updateCompletedWorkout: (workoutId: string, update: Partial<Pick<CompletedWorkout, "durationMinutes" | "sets">>) => void;
+  updateCompletedWorkout: (workoutId: string, update: Partial<Pick<CompletedWorkout, "durationMinutes" | "sets" | "notes">>) => void;
   scheduleProgram: (date: string, schedule: ScheduledWorkout) => void;
   removeSchedule: (date: string) => void;
   addProgram: (program: WorkoutProgram) => void;
@@ -218,10 +218,14 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
               distanceKm: typeof set.distanceKm === "number" && Number.isFinite(set.distanceKm) && set.distanceKm > 0 ? set.distanceKm : undefined,
             }))
           : workout.sets;
+        const notes = Object.prototype.hasOwnProperty.call(update, "notes")
+          ? update.notes?.trim() || undefined
+          : workout.notes;
         return {
           ...workout,
           durationMinutes,
           sets,
+          notes,
           totalVolume: update.sets ? calculateCompletedWorkoutVolume(sets ?? [], current.bodyWeightKg, current.bodyweightVolumePercent) : workout.totalVolume,
         };
       });

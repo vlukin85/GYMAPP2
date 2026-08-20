@@ -23,6 +23,7 @@ const bundleId =
 // e.g., "space.manus.my.app.t20240115103045" -> "manus20240115103045"
 const timestamp = bundleId.split(".").pop()?.replace(/^t/, "") ?? "";
 const schemeFromBundleId = `manus${timestamp}`;
+const vkAppId = process.env.EXPO_PUBLIC_VK_APP_ID?.trim();
 
 const env = {
   // App branding - update these values directly (do not use env vars)
@@ -30,8 +31,8 @@ const env = {
   appSlug: "gym-training-diary",
   // S3 URL of the app logo - set this to the URL returned by generate_image when creating custom logo
   // Leave empty to use the default icon from assets/images/icon.png
-  logoUrl: "https://files.manuscdn.com/user_upload_by_module/session_file/310519663890171987/txRdsCrtcsgwAYrB.png",
-  scheme: schemeFromBundleId,
+  logoUrl: "/manus-storage/icon_f5562a2b.png",
+  scheme: vkAppId ? `vk${vkAppId}` : schemeFromBundleId,
   iosBundleId: bundleId,
   androidPackage: bundleId,
 };
@@ -55,7 +56,7 @@ const config: ExpoConfig = {
   android: {
     versionCode: 4,
     adaptiveIcon: {
-      backgroundColor: "#FFFFFF",
+      backgroundColor: "#F6F0E6",
       foregroundImage: "./assets/images/android-icon-foreground.png",
       backgroundImage: "./assets/images/android-icon-background.png",
       monochromeImage: "./assets/images/android-icon-monochrome.png",

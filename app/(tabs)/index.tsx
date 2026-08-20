@@ -1,4 +1,5 @@
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useMemo, useState } from "react";
+import { PanResponder, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { router } from "expo-router";
 import Svg, { Line, Rect } from "react-native-svg";
 
@@ -66,6 +67,16 @@ export default function HomeScreen() {
 }
 
 function HomeWidgetStack({ homeWidgets, now, scheduled, completed, colors, foodCalories, dailyCalorieGoal, foodMacros, dailyMacroGoals, workoutTrend, weekVolume, dailyQuote }: any) {
+  const [draggingId, setDraggingId] = useState<HomeWidgetId | null>(null);
+  const [dragTarget, setDragTarget] = useState<number | null>(null);
+  const visibleIds = homeWidgets.order.filter((id: HomeWidgetId) => homeWidgets.visibility[id]);
+  const finishWidgetDrag = (id: HomeWidgetId, target: number) => {
+    const destinationId = visibleIds[target];
+    const destination = destinationId ? homeWidgets.order.indexOf(destinationId) : homeWidgets.order.length - 1;
+    homeWidgets.moveWidget(id, destination);
+    setDraggingId(null);
+    setDragTarget(null);
+  };
   const renderWidget = (id: HomeWidgetId) => {
     const compact = homeWidgets.compact[id];
     if (id === "quote") return <View key={id} style={[styles.quoteCard, compact && compactStyles.quoteCard, { borderColor: colors.border, backgroundColor: colors.surface }]}><View style={[styles.quoteAccent, { backgroundColor: colors.primary }]} /><Text style={[styles.quoteKicker, { color: colors.primary }]}>ЦИТАТА ДНЯ</Text><Text numberOfLines={compact ? 2 : undefined} style={[styles.quoteText, compact && compactStyles.quoteText, { color: colors.foreground }]}>«{dailyQuote.quote}»</Text><Text style={[styles.quoteAuthor, { color: colors.muted }]}>{dailyQuote.athlete.toUpperCase()} · {dailyQuote.discipline.toUpperCase()}</Text></View>;
@@ -75,7 +86,20 @@ function HomeWidgetStack({ homeWidgets, now, scheduled, completed, colors, foodC
     if (id === "metrics") return <View key={id} style={[styles.dataRow, compact && compactStyles.dataRow]}><Metric compact={compact} label="ТРЕНИРОВОК" value={String(completed.length)} suffix="" colors={colors} /><Metric compact={compact} label="ОБЪЁМ" value={`${(weekVolume / 1000).toFixed(1)}`} suffix=" т" colors={colors} /><Metric compact={compact} label="ВРЕМЯ" value={formatDuration(completed.reduce((sum: number, item: any) => sum + item.durationMinutes, 0)).replace(" ч 0 мин", " ч")} suffix="" colors={colors} /></View>;
     return <View key={id} style={[styles.footerActions, compact && compactStyles.footerActions]}><Pressable onPress={() => router.push("/(tabs)/calendar")} style={({ pressed }) => [styles.outlineAction, compact && compactStyles.outlineAction, { borderColor: colors.border, opacity: pressed ? 0.65 : 1 }]}><Text style={[styles.actionText, { color: colors.foreground }]}>КАЛЕНДАРЬ</Text><IconSymbol name="calendar" size={compact ? 16 : 19} color={colors.foreground} /></Pressable><Pressable onPress={() => router.push("/(tabs)/exercises")} style={({ pressed }) => [styles.outlineAction, compact && compactStyles.outlineAction, { borderColor: colors.border, opacity: pressed ? 0.65 : 1 }]}><Text style={[styles.actionText, { color: colors.foreground }]}>УПРАЖНЕНИЯ</Text><IconSymbol name="dumbbell.fill" size={compact ? 16 : 19} color={colors.foreground} /></Pressable></View>;
   };
-  return <>{homeWidgets.order.filter((id: HomeWidgetId) => homeWidgets.visibility[id]).map(renderWidget)}</>;
+  return <>{visibleIds.map((id: HomeWidgetId, index: number) => <DraggableHomeWidget key={id} id={id} index={index} total={visibleIds.length} dragging={draggingId === id} target={dragTarget === index && draggingId !== id} colors={colors} onDragStart={() => { setDraggingId(id); setDragTarget(index); }} onDragMove={(next) => setDragTarget(next)} onDragEnd={(target) => finishWidgetDrag(id, target)}>{renderWidget(id)}</DraggableHomeWidget>)}</>;
+}
+
+function DraggableHomeWidget({ id, index, total, dragging, target, colors, onDragStart, onDragMove, onDragEnd, children }: { id: HomeWidgetId; index: number; total: number; dragging: boolean; target: boolean; colors: any; onDragStart: () => void; onDragMove: (index: number) => void; onDragEnd: (index: number) => void; children: React.ReactNode }) {
+  const currentTargetRef = useMemo(() => ({ value: index }), [index]);
+  const trackedPanResponder = useMemo(() => PanResponder.create({
+    onStartShouldSetPanResponder: () => true,
+    onMoveShouldSetPanResponder: (_event, gesture) => Math.abs(gesture.dy) > 4,
+    onPanResponderGrant: () => { currentTargetRef.value = index; onDragStart(); },
+    onPanResponderMove: (_event, gesture) => { const next = Math.max(0, Math.min(total - 1, index + Math.round(gesture.dy / 96))); currentTargetRef.value = next; onDragMove(next); },
+    onPanResponderRelease: () => onDragEnd(currentTargetRef.value),
+    onPanResponderTerminate: () => onDragEnd(index),
+  }), [currentTargetRef, index, onDragEnd, onDragMove, onDragStart, total]);
+  return <View style={[styles.widgetShell, dragging && styles.widgetShellDragging]}>{target && <View style={[styles.widgetDropIndicator, { backgroundColor: colors.primary }]}><Text style={styles.widgetDropText}>ОТПУСТИТЕ ЗДЕСЬ</Text></View>}<View pointerEvents="box-none">{children}</View><View accessibilityRole="adjustable" accessibilityLabel="Перетащить виджет" style={[styles.widgetHandle, { backgroundColor: colors.background, borderColor: colors.border }]} {...trackedPanResponder.panHandlers}><Text style={[styles.widgetHandleText, { color: colors.muted }]}>⠿</Text></View></View>;
 }
 
 function EmptyPlan({ colors }: { colors: any }) { return <View style={styles.emptyPlan}><Text style={[styles.emptyPlanText, { color: colors.muted }]}>На сегодня программа не запланирована.</Text><Pressable onPress={() => router.push("/(tabs)/calendar")} style={({ pressed }) => [styles.planButton, { backgroundColor: colors.primary, opacity: pressed ? 0.72 : 1 }]}><Text style={styles.planButtonText}>ЗАПЛАНИРОВАТЬ</Text></Pressable></View>; }
@@ -107,8 +131,8 @@ const styles = StyleSheet.create({
   content: { paddingBottom: 28 },
   banner: { height: 8 },
   heroGrid: { flexDirection: "row", minHeight: 432 },
-  heroLeft: { width: 38, borderRightWidth: StyleSheet.hairlineWidth, alignItems: "center", justifyContent: "space-between", paddingVertical: 24 },
-  sideMotto: { fontSize: 10, fontWeight: "900", letterSpacing: 1.6, writingDirection: "ltr", transform: [{ rotate: "-90deg" }], width: 260, textAlign: "center" },
+  heroLeft: { width: 38, borderRightWidth: StyleSheet.hairlineWidth, alignItems: "center", justifyContent: "flex-end", paddingBottom: 24 },
+  sideMotto: { position: "absolute", top: 166, left: -111, fontSize: 10, fontWeight: "900", letterSpacing: 1.6, writingDirection: "ltr", transform: [{ rotate: "-90deg" }], width: 260, textAlign: "center" },
   mottoRule: { width: 1, height: 42 },
   dayPanel: { width: "44%", borderRightWidth: StyleSheet.hairlineWidth, padding: 14, overflow: "hidden", position: "relative" },
   dayNumber: { fontSize: 118, lineHeight: 104, letterSpacing: -8, fontWeight: "900" },
@@ -186,6 +210,12 @@ const styles = StyleSheet.create({
   footerActions: { flexDirection: "row", paddingHorizontal: 12, marginTop: 12, gap: 10 },
   outlineAction: { flex: 1, height: 48, borderWidth: StyleSheet.hairlineWidth, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 12 },
   actionText: { fontSize: 10, fontWeight: "900", letterSpacing: 0.7 },
+  widgetShell: { position: "relative" },
+  widgetShellDragging: { opacity: 0.54 },
+  widgetHandle: { position: "absolute", right: 5, top: 5, width: 29, height: 29, borderWidth: StyleSheet.hairlineWidth, justifyContent: "center", alignItems: "center", zIndex: 12 },
+  widgetHandleText: { fontSize: 19, lineHeight: 21, fontWeight: "900" },
+  widgetDropIndicator: { height: 24, marginHorizontal: 12, justifyContent: "center", alignItems: "center" },
+  widgetDropText: { color: "#FFFFFF", fontSize: 8, fontWeight: "900", letterSpacing: 0.7 },
 });
 
 const compactStyles = StyleSheet.create({

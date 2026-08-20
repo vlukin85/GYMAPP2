@@ -17,6 +17,11 @@ describe("manual completed-workout editing", () => {
     ];
     expect(rebuildPersonalRecords(completed, "epley")["bench-press"]).toMatchObject({ achievedWorkoutId: "w-1", weight: 70, reps: 5 });
   });
+
+  it("keeps a local training note alongside corrected results", () => {
+    const completed: CompletedWorkout = { id: "w-note", programId: "p", date: "2026-08-09", durationMinutes: 35, totalVolume: 1200, notes: "Техника стабильная, без боли." };
+    expect(completed.notes).toBe("Техника стабильная, без боли.");
+  });
 });
 
 describe("active workout start time", () => {
