@@ -26,6 +26,7 @@ import { getHeartRateTargetStatus, loadTargetHeartRateZone, saveTargetHeartRateZ
 import { useBodyStore } from "@/lib/body-store";
 import { openReplacementPicker, subscribeToExerciseReplacement } from "@/lib/exercise-replacement-bus";
 import { clearRestTimerLockScreenNotification, scheduleRestTimerLockScreenNotification, type RestTimerNotificationIds } from "@/lib/workout-notifications";
+import { consumeNativeRestTimerAction } from "@/modules/ironrise-rest-timer";
 
 type DropDraft = { reps: string; weight: string };
 type ActualSet = { reps: string; weight: string; distance?: string; type: SetType; dropSubsets?: DropDraft[] };
@@ -367,11 +368,16 @@ export default function WorkoutScreen() {
   const showRestLockScreenNotification = useCallback((endTimestamp: number) => {
     void (async () => {
       clearRestLockScreenNotification();
-      const ids = await scheduleRestTimerLockScreenNotification(endTimestamp);
+      const target = getHeartRateTargetStatus(heartRate.currentBpm, ageYears, targetHeartRateZone);
+      const ids = await scheduleRestTimerLockScreenNotification(endTimestamp, target.fromBpm && target.toBpm ? {
+        label: targetZoneLabel(targetHeartRateZone),
+        fromBpm: target.fromBpm,
+        toBpm: target.toBpm,
+      } : undefined);
       if (restEndRef.current === endTimestamp) restNotificationIdsRef.current = ids;
       else void clearRestTimerLockScreenNotification(ids);
     })();
-  }, [clearRestLockScreenNotification]);
+  }, [ageYears, clearRestLockScreenNotification, heartRate.currentBpm, targetHeartRateZone]);
 
   const startRestTimer = useCallback((durationSeconds: number) => {
     const seconds = Math.max(0, Math.round(durationSeconds));
@@ -409,6 +415,20 @@ export default function WorkoutScreen() {
     clearRestLockScreenNotification();
   }, [clearRestLockScreenNotification]);
 
+  const syncNativeRestTimerAction = useCallback(() => {
+    const action = consumeNativeRestTimerAction();
+    if (!action) return;
+    if (action.kind === "skip") {
+      skipRest();
+      return;
+    }
+    if (action.restEndAt <= Date.now()) return;
+    restEndRef.current = action.restEndAt;
+    setRestEndAt(action.restEndAt);
+    setRestTotal((current) => Math.max(current, getRemainingRestSeconds(action.restEndAt)));
+    setRest(getRemainingRestSeconds(action.restEndAt));
+  }, [skipRest]);
+
   useEffect(() => {
     const timer = setInterval(() => setElapsed(Math.floor((Date.now() - started) / 1000)), 1000);
     return () => clearInterval(timer);
@@ -443,6 +463,7 @@ export default function WorkoutScreen() {
   useEffect(() => {
     const subscription = AppState.addEventListener("change", (status) => {
       if (status === "active") {
+        syncNativeRestTimerAction();
         clearRestLockScreenNotification();
         syncRestTimer();
       } else if (restEndRef.current) {
@@ -450,7 +471,7 @@ export default function WorkoutScreen() {
       }
     });
     return () => subscription.remove();
-  }, [clearRestLockScreenNotification, showRestLockScreenNotification, syncRestTimer]);
+  }, [clearRestLockScreenNotification, showRestLockScreenNotification, syncNativeRestTimerAction, syncRestTimer]);
 
   useEffect(() => {
     setAudioModeAsync({ playsInSilentMode: true }).catch(() => undefined);

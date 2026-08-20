@@ -1,7 +1,7 @@
 import { Platform } from "react-native";
 import * as Notifications from "expo-notifications";
 import { getReminderTriggerDate } from "./workout-data";
-import { clearNativeRestCountdown, showNativeRestCountdown } from "@/modules/ironrise-rest-timer";
+import { clearNativeRestCountdown, showNativeRestCountdown, type LockScreenHeartRateTarget } from "@/modules/ironrise-rest-timer";
 
 Notifications.setNotificationHandler({ handleNotification: async () => ({ shouldShowBanner: true, shouldShowList: true, shouldPlaySound: true, shouldSetBadge: false }) });
 
@@ -42,13 +42,13 @@ async function ensureLocalNotificationAccess(channelId: string, channelName: str
  * notification shows the remaining rest time and a second native alert fires exactly
  * at completion, even while the phone is locked.
  */
-export async function scheduleRestTimerLockScreenNotification(restEndAt: number): Promise<RestTimerNotificationIds | undefined> {
+export async function scheduleRestTimerLockScreenNotification(restEndAt: number, target?: LockScreenHeartRateTarget): Promise<RestTimerNotificationIds | undefined> {
   if (Platform.OS === "web") return undefined;
   const seconds = Math.max(1, Math.ceil((restEndAt - Date.now()) / 1000));
   if (!(await ensureLocalNotificationAccess(REST_TIMER_CHANNEL, "Таймер отдыха", [0, 90]))) return undefined;
   await ensureLocalNotificationAccess(REST_TIMER_COMPLETION_CHANNEL, "Отдых завершён", [0, 350, 130, 700]);
 
-  const nativeCountdownStarted = showNativeRestCountdown(restEndAt);
+  const nativeCountdownStarted = showNativeRestCountdown(restEndAt, target);
   const activeId = nativeCountdownStarted ? undefined : await Notifications.scheduleNotificationAsync({
     content: {
       title: "Отдых между подходами",

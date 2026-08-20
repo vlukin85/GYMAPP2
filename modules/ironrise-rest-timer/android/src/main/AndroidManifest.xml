@@ -5,5 +5,8 @@
     <receiver
       android:name=".RestTimerCompletionReceiver"
       android:exported="false" />
+    <receiver
+      android:name=".RestTimerActionReceiver"
+      android:exported="false" />
   </application>
 </manifest>
