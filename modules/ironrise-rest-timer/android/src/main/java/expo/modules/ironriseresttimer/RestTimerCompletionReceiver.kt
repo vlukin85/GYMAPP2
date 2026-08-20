@@ -10,6 +10,7 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 
 private const val COMPLETION_CHANNEL = "ironrise-rest-complete-v2"
+private const val COMPLETION_ACCENT_COLOR = "#7C3AED"
 
 class RestTimerCompletionReceiver : BroadcastReceiver() {
   override fun onReceive(context: Context, intent: Intent) {
@@ -23,6 +24,7 @@ class RestTimerCompletionReceiver : BroadcastReceiver() {
       .setCategory(NotificationCompat.CATEGORY_ALARM)
       .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
       .setPriority(NotificationCompat.PRIORITY_MAX)
+      .setColor(android.graphics.Color.parseColor(COMPLETION_ACCENT_COLOR))
       .build()
     NotificationManagerCompat.from(context).notify(COMPLETION_NOTIFICATION_ID, notification)
   }

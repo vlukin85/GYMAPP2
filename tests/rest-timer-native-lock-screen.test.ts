@@ -21,6 +21,8 @@ describe("таймер отдыха на заблокированном Android-
     expect(nativeModule).toContain("setExactAndAllowWhileIdle");
     expect(receiver).toContain("enableVibration(true)");
     expect(receiver).toContain("vibrationPattern");
+    expect(receiver).toContain("COMPLETION_ACCENT_COLOR");
+    expect(receiver).toContain("setColor(android.graphics.Color.parseColor(COMPLETION_ACCENT_COLOR))");
   });
 
   it("даёт управлять отдыхом и видеть целевую зону на экране блокировки", () => {
