@@ -17,6 +17,7 @@ import { InterfaceDensityProvider } from "@/lib/interface-density-provider";
 import { NutritionProvider } from "@/lib/nutrition-store";
 import { HomeWidgetsProvider } from "@/lib/home-widgets";
 import { BodyProvider } from "@/lib/body-store";
+import { IronRiseLaunchSplash } from "@/components/ironrise-launch-splash";
 import {
   SafeAreaFrameContext,
   SafeAreaInsetsContext,
@@ -28,7 +29,8 @@ import type { EdgeInsets, Metrics, Rect } from "react-native-safe-area-context";
 import { subscribeSafeAreaInsets } from "@/lib/_core/manus-runtime";
 import { beginLaunchDiagnostics, completeLaunchDiagnostics, recordStartupChecks } from "@/lib/launch-diagnostics";
 
-SplashScreen.setOptions({ duration: 700, fade: true });
+void SplashScreen.preventAutoHideAsync();
+SplashScreen.setOptions({ duration: 250, fade: true });
 
 const DEFAULT_WEB_INSETS: EdgeInsets = { top: 0, right: 0, bottom: 0, left: 0 };
 const DEFAULT_WEB_FRAME: Rect = { x: 0, y: 0, width: 0, height: 0 };
@@ -43,6 +45,15 @@ export default function RootLayout() {
 
   const [insets, setInsets] = useState<EdgeInsets>(initialInsets);
   const [frame, setFrame] = useState<Rect>(initialFrame);
+  const [showLaunchSplash, setShowLaunchSplash] = useState(true);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setShowLaunchSplash(false);
+      void SplashScreen.hideAsync().catch(() => undefined);
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -106,6 +117,7 @@ export default function RootLayout() {
           </Stack>
           <WorkoutReplacementOverlay />
           <ReleaseNotesOverlay />
+          <IronRiseLaunchSplash visible={showLaunchSplash} />
           <StatusBar style="auto" />
     </GestureHandlerRootView>
   );

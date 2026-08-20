@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Alert, AppState, FlatList, Keyboard, KeyboardAvoidingView, LayoutAnimation, Modal, PanResponder, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, UIManager, View } from "react-native";
 import { setAudioModeAsync, useAudioPlayer } from "expo-audio";
-import { activateKeepAwakeAsync, deactivateKeepAwake } from "expo-keep-awake";
 import * as Haptics from "expo-haptics";
 import Svg, { Circle } from "react-native-svg";
 import { router, useLocalSearchParams } from "expo-router";
@@ -20,12 +19,12 @@ import { countWorkoutSetUnits, getWorkoutProgress } from "@/lib/workout-progress
 import { formatForecastDuration, getWorkoutFinishForecast } from "@/lib/workout-finish-forecast";
 import { useWorkoutStore } from "@/lib/workout-store";
 import { openReplacementPicker, subscribeToExerciseReplacement } from "@/lib/exercise-replacement-bus";
+import { clearRestTimerLockScreenNotification, scheduleRestTimerLockScreenNotification, type RestTimerNotificationIds } from "@/lib/workout-notifications";
 
 type DropDraft = { reps: string; weight: string };
 type ActualSet = { reps: string; weight: string; distance?: string; type: SetType; dropSubsets?: DropDraft[] };
 type HistorySet = { weight: number; reps: number; type?: string; drop?: DropDraft[] };
 
-const REST_KEEP_AWAKE_TAG = "gym-training-diary-rest-timer";
 const REST_CIRCLE_RADIUS = 108;
 const REST_CIRCLE_SIZE = 252;
 const REST_CIRCUMFERENCE = 2 * Math.PI * REST_CIRCLE_RADIUS;
@@ -268,6 +267,7 @@ export default function WorkoutScreen() {
   const [restEndAt, setRestEndAt] = useState<number | null>(null);
   const previousRestRef = useRef(0);
   const restEndRef = useRef<number | null>(null);
+  const restNotificationIdsRef = useRef<RestTimerNotificationIds | undefined>(undefined);
   const skippedRestRef = useRef(false);
   const restedSetSignatures = useRef<Record<string, string>>({});
   const modalScrollRef = useRef<ScrollView>(null);
@@ -302,6 +302,21 @@ export default function WorkoutScreen() {
     }
   }, []);
 
+  const clearRestLockScreenNotification = useCallback(() => {
+    const ids = restNotificationIdsRef.current;
+    restNotificationIdsRef.current = undefined;
+    void clearRestTimerLockScreenNotification(ids);
+  }, []);
+
+  const showRestLockScreenNotification = useCallback((endTimestamp: number) => {
+    void (async () => {
+      clearRestLockScreenNotification();
+      const ids = await scheduleRestTimerLockScreenNotification(endTimestamp);
+      if (restEndRef.current === endTimestamp) restNotificationIdsRef.current = ids;
+      else void clearRestTimerLockScreenNotification(ids);
+    })();
+  }, [clearRestLockScreenNotification]);
+
   const startRestTimer = useCallback((durationSeconds: number) => {
     const seconds = Math.max(0, Math.round(durationSeconds));
     if (!seconds) return;
@@ -320,7 +335,8 @@ export default function WorkoutScreen() {
     setRestEndAt(updatedEnd);
     setRestTotal((current) => Math.max(current, getRemainingRestSeconds(updatedEnd)));
     setRest(getRemainingRestSeconds(updatedEnd));
-  }, []);
+    if (AppState.currentState !== "active") showRestLockScreenNotification(updatedEnd);
+  }, [showRestLockScreenNotification]);
 
   const skipRest = useCallback(() => {
     skippedRestRef.current = true;
@@ -328,7 +344,8 @@ export default function WorkoutScreen() {
     setRestEndAt(null);
     setRestTotal(0);
     setRest(0);
-  }, []);
+    clearRestLockScreenNotification();
+  }, [clearRestLockScreenNotification]);
 
   useEffect(() => {
     const timer = setInterval(() => setElapsed(Math.floor((Date.now() - started) / 1000)), 1000);
@@ -344,18 +361,15 @@ export default function WorkoutScreen() {
 
   useEffect(() => {
     const subscription = AppState.addEventListener("change", (status) => {
-      if (status === "active") syncRestTimer();
+      if (status === "active") {
+        clearRestLockScreenNotification();
+        syncRestTimer();
+      } else if (restEndRef.current) {
+        showRestLockScreenNotification(restEndRef.current);
+      }
     });
     return () => subscription.remove();
-  }, [syncRestTimer]);
-
-  useEffect(() => {
-    if (!restEndAt || Platform.OS === "web") return;
-    activateKeepAwakeAsync(REST_KEEP_AWAKE_TAG).catch(() => undefined);
-    return () => {
-      deactivateKeepAwake(REST_KEEP_AWAKE_TAG).catch(() => undefined);
-    };
-  }, [restEndAt]);
+  }, [clearRestLockScreenNotification, showRestLockScreenNotification, syncRestTimer]);
 
   useEffect(() => {
     setAudioModeAsync({ playsInSilentMode: true }).catch(() => undefined);
@@ -368,12 +382,19 @@ export default function WorkoutScreen() {
         restSignalPlayer.play();
       }
       if (restTimerVibrationEnabled && Platform.OS !== "web") {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        if (Platform.OS === "android") {
+          Haptics.performAndroidHapticsAsync(Haptics.AndroidHaptics.Confirm).catch(() =>
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => undefined),
+          );
+        } else {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => undefined);
+        }
       }
+      clearRestLockScreenNotification();
     }
     if (rest === 0) skippedRestRef.current = false;
     previousRestRef.current = rest;
-  }, [rest, restSignalPlayer, restTimerSoundEnabled, restTimerVibrationEnabled]);
+  }, [clearRestLockScreenNotification, rest, restSignalPlayer, restTimerSoundEnabled, restTimerVibrationEnabled]);
 
   useEffect(() => {
     if (Platform.OS === "android") UIManager.setLayoutAnimationEnabledExperimental?.(true);
@@ -381,7 +402,8 @@ export default function WorkoutScreen() {
 
   useEffect(() => () => {
     if (autoScrollTimerRef.current) clearInterval(autoScrollTimerRef.current);
-  }, []);
+    clearRestLockScreenNotification();
+  }, [clearRestLockScreenNotification]);
 
   useEffect(
     () => subscribeToExerciseReplacement(({ originalId, replacementId }) => {

@@ -2,6 +2,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 
 export const HOME_WIDGETS = [
+  { id: "quote" as const, title: "Цитата дня", description: "Ежедневная мотивационная цитата спортсмена" },
   { id: "week" as const, title: "Неделя", description: "План и статус тренировок на текущей неделе" },
   { id: "nutrition" as const, title: "Питание", description: "Дневной прогресс калорий и БЖУ" },
   { id: "trainingTrend" as const, title: "График тренировок", description: "Объём завершённых тренировок" },
@@ -15,9 +16,9 @@ export type HomeWidgetCompact = Record<HomeWidgetId, boolean>;
 export type HomeWidgetPreferences = { visibility: HomeWidgetVisibility; order: HomeWidgetId[]; compact: HomeWidgetCompact };
 
 export const DEFAULT_HOME_WIDGETS: HomeWidgetPreferences = {
-  visibility: { week: true, nutrition: true, trainingTrend: true, metrics: true, shortcuts: true },
+  visibility: { quote: true, week: true, nutrition: true, trainingTrend: true, metrics: true, shortcuts: true },
   order: HOME_WIDGETS.map((item) => item.id),
-  compact: { week: false, nutrition: false, trainingTrend: false, metrics: false, shortcuts: false },
+  compact: { quote: false, week: false, nutrition: false, trainingTrend: false, metrics: false, shortcuts: false },
 };
 
 const STORAGE_KEY = "ironrise.home-widgets.v1";

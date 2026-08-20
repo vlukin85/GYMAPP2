@@ -11,6 +11,7 @@ import { type HomeWidgetId, useHomeWidgets } from "@/lib/home-widgets";
 import { useWorkoutStore } from "@/lib/workout-store";
 import { formatDuration, getExercise, getProgram } from "@/lib/workout-data";
 import { buildHomeWorkoutTrend, type HomeWorkoutTrendPoint } from "@/lib/home-workout-trend";
+import { getDailyAthleteQuote } from "@/lib/daily-athlete-quote";
 
 const REFERENCE_BLUE = "#1746D2";
 
@@ -34,6 +35,7 @@ export default function HomeScreen() {
   const todayFoodEntries = nutritionEntries.filter((entry) => entry.date === nutritionToday);
   const foodCalories = todayFoodEntries.reduce((sum, entry) => sum + entryCalories(entry), 0);
   const foodMacros = sumEntryMacros(todayFoodEntries);
+  const dailyQuote = getDailyAthleteQuote(now);
 
   return (
     <ScreenContainer className="px-0" containerClassName="bg-background">
@@ -57,15 +59,16 @@ export default function HomeScreen() {
             {todayProgram ? <PlanTimeline program={todayProgram} colors={colors} /> : <EmptyPlan colors={colors} />}
           </View>
         </View>
-        <HomeWidgetStack homeWidgets={homeWidgets} now={now} scheduled={scheduled} completed={completed} colors={colors} foodCalories={foodCalories} dailyCalorieGoal={dailyCalorieGoal} foodMacros={foodMacros} dailyMacroGoals={dailyMacroGoals} workoutTrend={workoutTrend} weekVolume={weekVolume} />
+        <HomeWidgetStack homeWidgets={homeWidgets} now={now} scheduled={scheduled} completed={completed} colors={colors} foodCalories={foodCalories} dailyCalorieGoal={dailyCalorieGoal} foodMacros={foodMacros} dailyMacroGoals={dailyMacroGoals} workoutTrend={workoutTrend} weekVolume={weekVolume} dailyQuote={dailyQuote} />
       </ScrollView>
     </ScreenContainer>
   );
 }
 
-function HomeWidgetStack({ homeWidgets, now, scheduled, completed, colors, foodCalories, dailyCalorieGoal, foodMacros, dailyMacroGoals, workoutTrend, weekVolume }: any) {
+function HomeWidgetStack({ homeWidgets, now, scheduled, completed, colors, foodCalories, dailyCalorieGoal, foodMacros, dailyMacroGoals, workoutTrend, weekVolume, dailyQuote }: any) {
   const renderWidget = (id: HomeWidgetId) => {
     const compact = homeWidgets.compact[id];
+    if (id === "quote") return <View key={id} style={[styles.quoteCard, compact && compactStyles.quoteCard, { borderColor: colors.border, backgroundColor: colors.surface }]}><View style={[styles.quoteAccent, { backgroundColor: colors.primary }]} /><Text style={[styles.quoteKicker, { color: colors.primary }]}>ЦИТАТА ДНЯ</Text><Text numberOfLines={compact ? 2 : undefined} style={[styles.quoteText, compact && compactStyles.quoteText, { color: colors.foreground }]}>«{dailyQuote.quote}»</Text><Text style={[styles.quoteAuthor, { color: colors.muted }]}>{dailyQuote.athlete.toUpperCase()} · {dailyQuote.discipline.toUpperCase()}</Text></View>;
     if (id === "week") return <WeekStrip key={id} now={now} scheduled={scheduled} completed={completed} colors={colors} compact={compact} />;
     if (id === "nutrition") return <NutritionProgress key={id} calories={foodCalories} calorieGoal={dailyCalorieGoal} macros={foodMacros} macroGoals={dailyMacroGoals} colors={colors} compact={compact} />;
     if (id === "trainingTrend") return <View key={id} style={[styles.analytics, compact && compactStyles.analytics, { borderTopColor: colors.border, borderBottomColor: colors.border }]}><View style={[styles.analyticsLabel, { borderRightColor: colors.border }]}><Text style={[styles.analyticsTitle, { color: colors.foreground }]}>ОБЪЁМ{`\n`}КГ</Text><View style={[styles.graphMark, { backgroundColor: colors.foreground }]}><IconSymbol name="chart.bar.fill" size={compact ? 24 : 34} color={colors.surface} /></View></View><View style={styles.chartArea}><View style={styles.chartTopline}><Text style={[styles.chartCaption, { color: colors.foreground }]}>ЗАВЕРШЁННЫЕ ТРЕНИРОВКИ</Text><Pressable onPress={() => router.push("/(tabs)/stats")} style={({ pressed }) => [styles.chartLink, { borderColor: colors.primary, opacity: pressed ? 0.65 : 1 }]}><Text style={[styles.chartLinkText, { color: colors.primary }]}>СТАТИСТИКА</Text></Pressable></View><CompletedWorkoutChart points={workoutTrend} colors={colors} compact={compact} /></View></View>;
@@ -101,10 +104,93 @@ function CompletedWorkoutChart({ points, colors, compact }: { points: HomeWorkou
 }
 
 const styles = StyleSheet.create({
-  content: { paddingBottom: 28 }, banner: { height: 8 }, heroGrid: { flexDirection: "row", minHeight: 432 }, heroLeft: { width: 38, borderRightWidth: StyleSheet.hairlineWidth, alignItems: "center", justifyContent: "space-between", paddingVertical: 24 }, sideMotto: { fontSize: 10, fontWeight: "900", letterSpacing: 1.6, writingDirection: "ltr", transform: [{ rotate: "-90deg" }], width: 260, textAlign: "center" }, mottoRule: { width: 1, height: 42 }, dayPanel: { width: "44%", borderRightWidth: StyleSheet.hairlineWidth, padding: 14, overflow: "hidden", position: "relative" }, dayNumber: { fontSize: 118, lineHeight: 104, letterSpacing: -8, fontWeight: "900" }, dayMeta: { marginTop: 12, marginLeft: 2 }, redKicker: { fontSize: 12, letterSpacing: 1.5, fontWeight: "900" }, dayName: { fontSize: 18, fontWeight: "900", marginTop: 7, textTransform: "uppercase" }, dateText: { fontSize: 12, fontWeight: "800", marginTop: 4 }, redRule: { width: 38, height: 3, marginTop: 16 }, wordmark: { alignSelf: "stretch", flexShrink: 1, fontSize: 34, lineHeight: 39, letterSpacing: -2.5, fontWeight: "900", marginTop: 38, includeFontPadding: false }, tagline: { fontSize: 8.5, fontWeight: "900", letterSpacing: 0.4, marginTop: 7 }, brandCredit: { marginTop: 8, gap: 2 }, creditName: { fontSize: 9, fontWeight: "900", letterSpacing: 0.15 }, creditRights: { fontSize: 7.5, fontWeight: "700", letterSpacing: 0.1 }, blueBlock: { position: "absolute", height: 130, width: 300, bottom: -98, right: -88, transform: [{ rotate: "-29deg" }] }, planPanel: { flex: 1, paddingHorizontal: 12, paddingTop: 18 }, planHeading: { flexDirection: "row", alignItems: "center", gap: 8, paddingBottom: 13, borderBottomWidth: StyleSheet.hairlineWidth }, planStar: { fontSize: 22, fontWeight: "900" }, planTitle: { fontSize: 16, letterSpacing: 1.1, fontWeight: "900" }, timeline: { paddingTop: 7 }, planItem: { minHeight: 75, flexDirection: "row" }, planIndex: { width: 38, paddingTop: 10, alignItems: "flex-start", position: "relative" }, indexText: { fontSize: 20, fontWeight: "900" }, timelineDot: { width: 8, height: 8, position: "absolute", right: 0, top: 18 }, planBody: { flex: 1, paddingVertical: 11, paddingLeft: 11 }, exerciseName: { fontSize: 13, lineHeight: 16, fontWeight: "900", textTransform: "uppercase" }, exerciseDetail: { fontSize: 10, lineHeight: 14, marginTop: 5, fontWeight: "700" }, morePlan: { fontSize: 10, fontWeight: "800", marginTop: 6, textAlign: "right" }, emptyPlan: { paddingTop: 28, gap: 13 }, emptyPlanText: { fontSize: 12, lineHeight: 17, fontWeight: "700" }, planButton: { minHeight: 37, justifyContent: "center", alignItems: "center", paddingHorizontal: 8 }, planButtonText: { color: "#FFFDF8", fontSize: 10, letterSpacing: 0.8, fontWeight: "900" }, weekStrip: { flexDirection: "row", borderBottomWidth: StyleSheet.hairlineWidth }, weekCell: { flex: 1, minHeight: 86, paddingTop: 10, alignItems: "center", borderRightWidth: StyleSheet.hairlineWidth }, weekDay: { fontSize: 9, fontWeight: "900" }, weekDate: { fontSize: 18, fontWeight: "900", marginTop: 4 }, weekStatus: { width: 7, height: 7, borderWidth: 1, borderRadius: 5, marginTop: 7 }, nutritionProgress: { margin: 12, borderWidth: 1, borderLeftWidth: 5, padding: 13, gap: 10 }, nutritionHead: { flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between" }, nutritionKicker: { fontSize: 9, fontWeight: "900", letterSpacing: .8 }, nutritionCalories: { fontSize: 26, fontWeight: "900", marginTop: 4, letterSpacing: -1 }, nutritionCaloriesSuffix: { fontSize: 10, letterSpacing: 0 }, nutritionPercent: { fontSize: 18, fontWeight: "900" }, nutritionTrack: { height: 8, overflow: "hidden" }, nutritionFill: { height: "100%" }, macroProgressRow: { flexDirection: "row", gap: 8 }, macroProgress: { flex: 1, gap: 4 }, macroProgressHead: { flexDirection: "row", justifyContent: "space-between" }, macroProgressLabel: { fontSize: 9, fontWeight: "900" }, macroProgressValue: { fontSize: 9, fontWeight: "900" }, macroProgressTrack: { height: 4, overflow: "hidden" }, macroProgressFill: { height: "100%" }, analytics: { minHeight: 216, borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: "row" }, analyticsLabel: { width: 92, borderRightWidth: StyleSheet.hairlineWidth, justifyContent: "space-between" }, analyticsTitle: { padding: 14, fontSize: 16, lineHeight: 20, letterSpacing: -0.6, fontWeight: "900" }, graphMark: { height: 78, alignItems: "center", justifyContent: "center" }, chartArea: { flex: 1, padding: 12 }, chartTopline: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" }, chartCaption: { fontSize: 9, fontWeight: "900", letterSpacing: 0.4, flex: 1 }, chartLink: { paddingBottom: 3, borderBottomWidth: 2 }, chartLinkText: { fontSize: 8, fontWeight: "900", letterSpacing: 0.2 }, chartAxis: { flexDirection: "row", justifyContent: "space-between", gap: 3, paddingHorizontal: 4 }, axisLabel: { fontSize: 8, flex: 1, textAlign: "center", fontWeight: "700" }, chartEmpty: { minHeight: 132, justifyContent: "center", alignItems: "center" }, chartEmptyText: { fontSize: 11, lineHeight: 16, textAlign: "center", fontWeight: "700", paddingHorizontal: 16 }, dataRow: { flexDirection: "row", marginHorizontal: 12, marginTop: 14, borderWidth: StyleSheet.hairlineWidth, borderColor: "#272624" }, metric: { flex: 1, minHeight: 75, padding: 11, borderRightWidth: StyleSheet.hairlineWidth }, metricValue: { fontSize: 19, fontWeight: "900", letterSpacing: -0.8 }, metricSuffix: { fontSize: 10 }, metricLabel: { fontSize: 8, fontWeight: "900", letterSpacing: 0.4, marginTop: 9 }, footerActions: { flexDirection: "row", paddingHorizontal: 12, marginTop: 12, gap: 10 }, outlineAction: { flex: 1, height: 48, borderWidth: StyleSheet.hairlineWidth, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 12 }, actionText: { fontSize: 10, fontWeight: "900", letterSpacing: 0.7 },
+  content: { paddingBottom: 28 },
+  banner: { height: 8 },
+  heroGrid: { flexDirection: "row", minHeight: 432 },
+  heroLeft: { width: 38, borderRightWidth: StyleSheet.hairlineWidth, alignItems: "center", justifyContent: "space-between", paddingVertical: 24 },
+  sideMotto: { fontSize: 10, fontWeight: "900", letterSpacing: 1.6, writingDirection: "ltr", transform: [{ rotate: "-90deg" }], width: 260, textAlign: "center" },
+  mottoRule: { width: 1, height: 42 },
+  dayPanel: { width: "44%", borderRightWidth: StyleSheet.hairlineWidth, padding: 14, overflow: "hidden", position: "relative" },
+  dayNumber: { fontSize: 118, lineHeight: 104, letterSpacing: -8, fontWeight: "900" },
+  dayMeta: { marginTop: 12, marginLeft: 2 },
+  redKicker: { fontSize: 12, letterSpacing: 1.5, fontWeight: "900" },
+  dayName: { fontSize: 18, fontWeight: "900", marginTop: 7, textTransform: "uppercase" },
+  dateText: { fontSize: 12, fontWeight: "800", marginTop: 4 },
+  redRule: { width: 38, height: 3, marginTop: 16 },
+  wordmark: { alignSelf: "stretch", flexShrink: 1, fontSize: 34, lineHeight: 39, letterSpacing: -2.5, fontWeight: "900", marginTop: 38, includeFontPadding: false },
+  tagline: { fontSize: 8.5, fontWeight: "900", letterSpacing: 0.4, marginTop: 7 },
+  brandCredit: { marginTop: 8, gap: 2 },
+  creditName: { fontSize: 9, fontWeight: "900", letterSpacing: 0.15 },
+  creditRights: { fontSize: 7.5, fontWeight: "700", letterSpacing: 0.1 },
+  blueBlock: { position: "absolute", height: 130, width: 300, bottom: -98, right: -88, transform: [{ rotate: "-29deg" }] },
+  planPanel: { flex: 1, paddingHorizontal: 12, paddingTop: 18 },
+  planHeading: { flexDirection: "row", alignItems: "center", gap: 8, paddingBottom: 13, borderBottomWidth: StyleSheet.hairlineWidth },
+  planStar: { fontSize: 22, fontWeight: "900" },
+  planTitle: { fontSize: 16, letterSpacing: 1.1, fontWeight: "900" },
+  timeline: { paddingTop: 7 },
+  planItem: { minHeight: 75, flexDirection: "row" },
+  planIndex: { width: 38, paddingTop: 10, alignItems: "flex-start", position: "relative" },
+  indexText: { fontSize: 20, fontWeight: "900" },
+  timelineDot: { width: 8, height: 8, position: "absolute", right: 0, top: 18 },
+  planBody: { flex: 1, paddingVertical: 11, paddingLeft: 11 },
+  exerciseName: { fontSize: 13, lineHeight: 16, fontWeight: "900", textTransform: "uppercase" },
+  exerciseDetail: { fontSize: 10, lineHeight: 14, marginTop: 5, fontWeight: "700" },
+  morePlan: { fontSize: 10, fontWeight: "800", marginTop: 6, textAlign: "right" },
+  emptyPlan: { paddingTop: 28, gap: 13 },
+  emptyPlanText: { fontSize: 12, lineHeight: 17, fontWeight: "700" },
+  planButton: { minHeight: 37, justifyContent: "center", alignItems: "center", paddingHorizontal: 8 },
+  planButtonText: { color: "#FFFDF8", fontSize: 10, letterSpacing: 0.8, fontWeight: "900" },
+  quoteCard: { margin: 12, marginBottom: 0, borderWidth: 1, padding: 15, paddingLeft: 18, gap: 7, overflow: "hidden", position: "relative" },
+  quoteAccent: { position: "absolute", left: 0, top: 0, bottom: 0, width: 5 },
+  quoteKicker: { fontSize: 9, letterSpacing: 1.1, fontWeight: "900" },
+  quoteText: { fontSize: 15, lineHeight: 22, fontWeight: "800" },
+  quoteAuthor: { fontSize: 8, letterSpacing: 0.7, fontWeight: "900", marginTop: 2 },
+  weekStrip: { flexDirection: "row", borderBottomWidth: StyleSheet.hairlineWidth },
+  weekCell: { flex: 1, minHeight: 86, paddingTop: 10, alignItems: "center", borderRightWidth: StyleSheet.hairlineWidth },
+  weekDay: { fontSize: 9, fontWeight: "900" },
+  weekDate: { fontSize: 18, fontWeight: "900", marginTop: 4 },
+  weekStatus: { width: 7, height: 7, borderWidth: 1, borderRadius: 5, marginTop: 7 },
+  nutritionProgress: { margin: 12, borderWidth: 1, borderLeftWidth: 5, padding: 13, gap: 10 },
+  nutritionHead: { flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between" },
+  nutritionKicker: { fontSize: 9, fontWeight: "900", letterSpacing: .8 },
+  nutritionCalories: { fontSize: 26, fontWeight: "900", marginTop: 4, letterSpacing: -1 },
+  nutritionCaloriesSuffix: { fontSize: 10, letterSpacing: 0 },
+  nutritionPercent: { fontSize: 18, fontWeight: "900" },
+  nutritionTrack: { height: 8, overflow: "hidden" },
+  nutritionFill: { height: "100%" },
+  macroProgressRow: { flexDirection: "row", gap: 8 },
+  macroProgress: { flex: 1, gap: 4 },
+  macroProgressHead: { flexDirection: "row", justifyContent: "space-between" },
+  macroProgressLabel: { fontSize: 9, fontWeight: "900" },
+  macroProgressValue: { fontSize: 9, fontWeight: "900" },
+  macroProgressTrack: { height: 4, overflow: "hidden" },
+  macroProgressFill: { height: "100%" },
+  analytics: { minHeight: 216, borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: "row" },
+  analyticsLabel: { width: 92, borderRightWidth: StyleSheet.hairlineWidth, justifyContent: "space-between" },
+  analyticsTitle: { padding: 14, fontSize: 16, lineHeight: 20, letterSpacing: -0.6, fontWeight: "900" },
+  graphMark: { height: 78, alignItems: "center", justifyContent: "center" },
+  chartArea: { flex: 1, padding: 12 },
+  chartTopline: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  chartCaption: { fontSize: 9, fontWeight: "900", letterSpacing: 0.4, flex: 1 },
+  chartLink: { paddingBottom: 3, borderBottomWidth: 2 },
+  chartLinkText: { fontSize: 8, fontWeight: "900", letterSpacing: 0.2 },
+  chartAxis: { flexDirection: "row", justifyContent: "space-between", gap: 3, paddingHorizontal: 4 },
+  axisLabel: { fontSize: 8, flex: 1, textAlign: "center", fontWeight: "700" },
+  chartEmpty: { minHeight: 132, justifyContent: "center", alignItems: "center" },
+  chartEmptyText: { fontSize: 11, lineHeight: 16, textAlign: "center", fontWeight: "700", paddingHorizontal: 16 },
+  dataRow: { flexDirection: "row", marginHorizontal: 12, marginTop: 14, borderWidth: StyleSheet.hairlineWidth, borderColor: "#272624" },
+  metric: { flex: 1, minHeight: 75, padding: 11, borderRightWidth: StyleSheet.hairlineWidth },
+  metricValue: { fontSize: 19, fontWeight: "900", letterSpacing: -0.8 },
+  metricSuffix: { fontSize: 10 },
+  metricLabel: { fontSize: 8, fontWeight: "900", letterSpacing: 0.4, marginTop: 9 },
+  footerActions: { flexDirection: "row", paddingHorizontal: 12, marginTop: 12, gap: 10 },
+  outlineAction: { flex: 1, height: 48, borderWidth: StyleSheet.hairlineWidth, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 12 },
+  actionText: { fontSize: 10, fontWeight: "900", letterSpacing: 0.7 },
 });
 
 const compactStyles = StyleSheet.create({
+  quoteCard: { paddingVertical: 10, gap: 4 },
+  quoteText: { fontSize: 12, lineHeight: 17 },
   weekCell: { minHeight: 54, paddingTop: 7 },
   weekDate: { fontSize: 14, marginTop: 2 },
   nutritionProgress: { paddingVertical: 9, gap: 7 },

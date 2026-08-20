@@ -10,7 +10,7 @@ const tabs = readFileSync(resolve(process.cwd(), "app/(tabs)/_layout.tsx"), "utf
 
 describe("home widgets", () => {
   it("provides a complete, configurable catalog of optional home widgets", () => {
-    expect(HOME_WIDGETS.map((widget) => widget.id)).toEqual(["week", "nutrition", "trainingTrend", "metrics", "shortcuts"]);
+    expect(HOME_WIDGETS.map((widget) => widget.id)).toEqual(["quote", "week", "nutrition", "trainingTrend", "metrics", "shortcuts"]);
     expect(home).toContain("useHomeWidgets");
     expect(home).toContain("homeWidgets.order");
   });

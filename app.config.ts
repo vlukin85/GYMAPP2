@@ -63,7 +63,7 @@ const config: ExpoConfig = {
     edgeToEdgeEnabled: true,
     predictiveBackGestureEnabled: false,
     package: env.androidPackage,
-    permissions: ["POST_NOTIFICATIONS", "CAMERA"],
+    permissions: ["POST_NOTIFICATIONS", "CAMERA", "VIBRATE"],
     intentFilters: [
       {
         action: "VIEW",
