@@ -105,6 +105,7 @@ function HomeWidgetStack({ homeWidgets, now, scheduled, completed, colors, foodC
   };
 
   const triggerWidgetGrabFeedback = () => {
+    if (!homeWidgets.dragHapticsEnabled) return;
     if (Platform.OS === "android") {
       void Haptics.performAndroidHapticsAsync(Haptics.AndroidHaptics.Drag_Start).catch(() => undefined);
       return;

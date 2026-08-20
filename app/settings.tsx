@@ -41,7 +41,7 @@ export default function SettingsScreen() {
   const { themeId: appThemeId, setThemeId: setAppThemeId } = useThemeContext();
   const { density, setDensity } = useInterfaceDensity();
   const { dailyCalorieGoal, dailyMacroGoals, setDailyCalorieGoal, setDailyMacroGoals } = useNutritionStore();
-  const { visibility: homeWidgets, order: homeWidgetOrder, compact: compactWidgets, setWidgetVisible, setWidgetCompact, moveWidget, resetWidgets } = useHomeWidgets();
+  const { visibility: homeWidgets, order: homeWidgetOrder, compact: compactWidgets, dragHapticsEnabled, setWidgetVisible, setWidgetCompact, setWidgetDragHapticsEnabled, moveWidget, resetWidgets } = useHomeWidgets();
   const { profile: bodyProfile, heightCm, ageYears, goals: bodyGoals, measurements: bodyMeasurements, setProfile: setBodyProfile, setProfileDetails, setGoals: setBodyGoals } = useBodyStore();
   const { oneRmFormula, setOneRmFormula, plateStepKg, setPlateStepKg, bodyWeightKg, bodyweightVolumePercent, setBodyweightVolumeSettings, hapticIntensity, setHapticIntensity, restTimerSoundEnabled, setRestTimerSoundEnabled, restTimerVibrationEnabled, setRestTimerVibrationEnabled, notificationsEnabled, defaultWorkoutTime, defaultReminderMinutes, setNotificationPreferences } = store;
   const [bodyWeight, setBodyWeight] = useState(String(bodyWeightKg));
@@ -202,6 +202,7 @@ export default function SettingsScreen() {
         <View style={[styles.densityCard, { backgroundColor: colors.surface, borderColor: colors.border }]}> 
           <Text style={[styles.iconThemeTitle, { color: colors.foreground }]}>Виджеты на экране «Сегодня»</Text>
           <Text style={[styles.iconThemeHint, { color: colors.muted }]}>Тяните маркер ⠿, чтобы изменить порядок. Основной блок с планом дня остаётся всегда.</Text>
+          <View style={[styles.widgetFeedbackRow, { borderColor: colors.border, backgroundColor: colors.background }]}><View style={{ flex: 1 }}><Text style={[styles.widgetTitle, { color: colors.foreground }]}>Виброотклик при переносе</Text><Text style={[styles.widgetHint, { color: colors.muted }]}>{dragHapticsEnabled ? "Лёгкое подтверждение при захвате виджета." : "Захват виджета проходит без вибрации."}</Text></View><Switch value={dragHapticsEnabled} onValueChange={setWidgetDragHapticsEnabled} trackColor={{ false: colors.border, true: `${colors.primary}88` }} thumbColor={dragHapticsEnabled ? colors.primary : colors.muted} /></View>
           <View style={styles.widgetOptions}>{homeWidgetOrder.map((id, index) => <WidgetSettingsRow key={id} widget={HOME_WIDGETS.find((item) => item.id === id)!} index={index} total={homeWidgetOrder.length} visible={homeWidgets[id]} compact={compactWidgets[id]} colors={colors} onVisible={setWidgetVisible} onCompact={setWidgetCompact} onMove={moveWidget} />)}</View>
           <Pressable onPress={() => Alert.alert("Сбросить виджеты?", "Вернутся исходный порядок, обычный размер и видимость всех блоков.", [{ text: "Отмена", style: "cancel" }, { text: "Сбросить", style: "destructive", onPress: resetWidgets }])} style={({ pressed }) => [widgetControlStyles.resetButton, { borderColor: colors.border, opacity: pressed ? 0.65 : 1 }]}><Text style={[widgetControlStyles.resetText, { color: colors.foreground }]}>СБРОСИТЬ НАСТРОЙКИ ВИДЖЕТОВ</Text></Pressable>
         </View>
@@ -364,7 +365,7 @@ export default function SettingsScreen() {
             <IconSymbol name="chevron.right" size={20} color={colors.muted} />
           </Pressable>
         ))}
-        <View style={[styles.note, { backgroundColor: colors.surface }]}>
+        <View style={[styles.note, { backgroundColor: colors.surface, borderLeftColor: colors.primary }]}>
           <IconSymbol name="checkmark.circle" size={20} color={colors.primary} />
           <Text style={[styles.noteText, { color: colors.muted }]}>Тренировки, настройки, рекорды и экспортируемые файлы сохраняются на этом устройстве. Для переноса используйте экспорт в CSV или ZIP.</Text>
         </View>
@@ -381,27 +382,27 @@ function WidgetSettingsRow({ widget, index, total, visible, compact, colors, onV
 }
 
 const styles = StyleSheet.create({
-  content: { paddingTop: 16, paddingBottom: 34, gap: 12 },
+  content: { paddingTop: 16, paddingBottom: 34, gap: 14 },
   header: { minHeight: 42, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   headerTitle: { fontSize: 16, fontWeight: "800" },
   eyebrow: { fontSize: 11, fontWeight: "900", letterSpacing: 1.2, marginTop: 10 },
   title: { fontSize: 28, fontWeight: "800", marginTop: 5 },
-  subtitle: { fontSize: 13, lineHeight: 20, marginTop: 4 },
+  subtitle: { fontSize: 12, lineHeight: 18, marginTop: 4 },
   options: { gap: 10, marginTop: 10 },
-  option: { borderWidth: 1, borderRadius: 18, padding: 14, flexDirection: "row", gap: 12 },
+  option: { borderWidth: 1, borderRadius: 0, borderLeftWidth: 5, padding: 14, flexDirection: "row", gap: 12 },
   radio: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, alignItems: "center", justifyContent: "center", marginTop: 2 },
   radioDot: { width: 11, height: 11, borderRadius: 6 },
-  optionTitle: { fontSize: 16, fontWeight: "800" },
-  optionFormula: { fontSize: 12, fontWeight: "800", marginTop: 5 },
-  optionDescription: { fontSize: 12, lineHeight: 18, marginTop: 7 },
-  sectionTitle: { fontSize: 18, fontWeight: "800", marginTop: 9 },
+  optionTitle: { fontSize: 14, fontWeight: "900" },
+  optionFormula: { fontSize: 11, fontWeight: "900", marginTop: 5 },
+  optionDescription: { fontSize: 11, lineHeight: 16, marginTop: 7 },
+  sectionTitle: { fontSize: 15, fontWeight: "900", letterSpacing: 0.35, marginTop: 12 },
   stepRow: { flexDirection: "row", gap: 9 },
-  step: { flex: 1, minHeight: 44, borderRadius: 13, borderWidth: 1, alignItems: "center", justifyContent: "center" },
-  iconThemeCard: { borderWidth: 1, borderRadius: 18, padding: 14, gap: 10 },
+  step: { flex: 1, minHeight: 44, borderRadius: 0, borderWidth: 1, alignItems: "center", justifyContent: "center" },
+  iconThemeCard: { borderWidth: 1, borderRadius: 0, borderLeftWidth: 5, padding: 14, gap: 10 },
   iconThemeTitle: { fontSize: 14, fontWeight: "900" },
   iconThemeHint: { fontSize: 11, lineHeight: 16 },
   iconThemeOptions: { gap: 8 },
-  iconThemeOption: { minHeight: 52, borderWidth: 1, borderRadius: 13, paddingHorizontal: 11, flexDirection: "row", alignItems: "center", gap: 9 },
+  iconThemeOption: { minHeight: 52, borderWidth: 1, borderRadius: 0, paddingHorizontal: 11, flexDirection: "row", alignItems: "center", gap: 9 },
   iconThemeSwatch: { width: 18, height: 18, borderRadius: 9 },
   iconThemeOptionTitle: { fontSize: 12, fontWeight: "900" },
   iconThemeOptionHint: { fontSize: 10, marginTop: 2 },
@@ -415,32 +416,32 @@ const styles = StyleSheet.create({
   densityOptions: { flexDirection: "row", gap: 8 },
   densityOption: { flex: 1, minHeight: 72, borderWidth: 1, borderRadius: 0, paddingHorizontal: 10, flexDirection: "row", alignItems: "center", gap: 8 },
   densitySample: { fontWeight: "900", letterSpacing: -1 },
-  vibrationCard: { borderWidth: 1, borderRadius: 18, padding: 14, gap: 10 },
-  restSoundCard: { borderWidth: 1, borderRadius: 18, padding: 14, flexDirection: "row", alignItems: "center", gap: 12 },
+  vibrationCard: { borderWidth: 1, borderRadius: 0, borderLeftWidth: 5, padding: 14, gap: 10 },
+  restSoundCard: { borderWidth: 1, borderRadius: 0, borderLeftWidth: 5, padding: 14, flexDirection: "row", alignItems: "center", gap: 12 },
   vibrationTitle: { fontSize: 14, fontWeight: "900" },
   vibrationHint: { fontSize: 11, lineHeight: 16 },
   vibrationOptions: { gap: 8 },
-  vibrationOption: { minHeight: 54, borderWidth: 1, borderRadius: 13, paddingHorizontal: 11, flexDirection: "row", alignItems: "center", gap: 9 },
+  vibrationOption: { minHeight: 54, borderWidth: 1, borderRadius: 0, paddingHorizontal: 11, flexDirection: "row", alignItems: "center", gap: 9 },
   vibrationRadio: { width: 18, height: 18, borderRadius: 9, borderWidth: 2, alignItems: "center", justifyContent: "center" },
   vibrationRadioDot: { width: 9, height: 9, borderRadius: 5 },
   vibrationOptionTitle: { fontSize: 12, fontWeight: "900" },
   vibrationOptionHint: { fontSize: 10, marginTop: 2 },
-  notificationCard: { borderWidth: 1, borderRadius: 18, padding: 14, gap: 11 },
+  notificationCard: { borderWidth: 1, borderRadius: 0, borderLeftWidth: 5, padding: 14, gap: 11 },
   notificationHeader: { flexDirection: "row", alignItems: "center", gap: 12 },
   notificationFields: { flexDirection: "row", gap: 9 },
   notificationMinutes: { flexDirection: "row", gap: 4 },
-  notificationMinute: { flex: 1, height: 48, borderWidth: 1, borderRadius: 10, justifyContent: "center", alignItems: "center" },
+  notificationMinute: { flex: 1, height: 48, borderWidth: 1, borderRadius: 0, justifyContent: "center", alignItems: "center" },
   bodyFields: { flexDirection: "row", gap: 9 },
   goalFields: { flexDirection: "row", flexWrap: "wrap", gap: 9 },
   goalField: { width: "47.7%" },
   bodyProfileChoices: { flexDirection: "row", gap: 8 },
-  bodyProfileChoice: { flex: 1, minHeight: 74, borderWidth: 1, padding: 10, flexDirection: "row", alignItems: "center", gap: 8 },
+  bodyProfileChoice: { flex: 1, minHeight: 74, borderWidth: 1, borderRadius: 0, padding: 10, flexDirection: "row", alignItems: "center", gap: 8 },
   bodyProfileMark: { width: 19, height: 19, alignItems: "center", justifyContent: "center" },
   bodyProfileCheck: { color: "#FFFDF8", fontSize: 13, fontWeight: "900" },
   bodyProfileTitle: { fontSize: 12, fontWeight: "900" },
   bodyProfileHint: { fontSize: 9, lineHeight: 13, marginTop: 3 },
   fieldLabel: { fontSize: 10, fontWeight: "800", marginBottom: 5 },
-  field: { height: 48, borderWidth: 1, borderRadius: 13, paddingHorizontal: 12, fontSize: 15, fontWeight: "800" },
+  field: { height: 48, borderWidth: 1, borderRadius: 0, paddingHorizontal: 12, fontSize: 14, fontWeight: "900" },
   macroGoalRow: { flexDirection: "row", gap: 8 },
   macroGoalField: { flex: 1 },
   calorieGuide: { borderWidth: 1, padding: 11, flexDirection: "row", alignItems: "center", gap: 9 },
@@ -450,26 +451,27 @@ const styles = StyleSheet.create({
   applyGuideText: { color: "#FFFDF8", fontSize: 8, fontWeight: "900", letterSpacing: .45 },
   widgetOptions: { gap: 8 },
   widgetOption: { minHeight: 58, borderWidth: 1, paddingHorizontal: 11, flexDirection: "row", alignItems: "center", gap: 12 },
+  widgetFeedbackRow: { minHeight: 62, borderWidth: 1, borderLeftWidth: 5, paddingHorizontal: 11, flexDirection: "row", alignItems: "center", gap: 12 },
   widgetTitle: { fontSize: 12, fontWeight: "900" },
   widgetHint: { fontSize: 10, lineHeight: 14, marginTop: 3 },
-  groqCard: { borderWidth: 1, borderRadius: 18, padding: 14, gap: 11 },
+  groqCard: { borderWidth: 1, borderRadius: 0, borderLeftWidth: 5, padding: 14, gap: 11 },
   groqHeader: { flexDirection: "row", alignItems: "center", gap: 10 },
-  groqIcon: { width: 40, height: 40, borderRadius: 13, alignItems: "center", justifyContent: "center" },
+  groqIcon: { width: 40, height: 40, borderRadius: 0, alignItems: "center", justifyContent: "center" },
   groqTitle: { fontSize: 14, fontWeight: "900" },
   groqSubtitle: { fontSize: 11, lineHeight: 16, marginTop: 3 },
   groqStatus: { paddingHorizontal: 7, paddingVertical: 5, borderRadius: 7, overflow: "hidden", fontSize: 8, fontWeight: "900", letterSpacing: 0.5 },
   groqActions: { flexDirection: "row", gap: 8 },
-  groqPrimary: { flex: 1, minHeight: 43, borderRadius: 12, justifyContent: "center", alignItems: "center" },
+  groqPrimary: { flex: 1, minHeight: 43, borderRadius: 0, justifyContent: "center", alignItems: "center" },
   groqPrimaryText: { color: "#101412", fontSize: 12, fontWeight: "900" },
-  groqDelete: { minHeight: 43, borderWidth: 1, borderRadius: 12, paddingHorizontal: 14, justifyContent: "center", alignItems: "center" },
+  groqDelete: { minHeight: 43, borderWidth: 1, borderRadius: 0, paddingHorizontal: 14, justifyContent: "center", alignItems: "center" },
   groqDeleteText: { fontSize: 12, fontWeight: "900" },
   groqPrivacy: { fontSize: 10, lineHeight: 14 },
-  storageCard: { borderWidth: 1, borderRadius: 18, padding: 14, gap: 11 },
+  storageCard: { borderWidth: 1, borderRadius: 0, borderLeftWidth: 5, padding: 14, gap: 11 },
   storageHeader: { flexDirection: "row", alignItems: "center", gap: 10 },
-  storageIcon: { width: 42, height: 42, borderRadius: 13, alignItems: "center", justifyContent: "center" },
-  storageTitle: { fontSize: 14, fontWeight: "800" },
+  storageIcon: { width: 42, height: 42, borderRadius: 0, alignItems: "center", justifyContent: "center" },
+  storageTitle: { fontSize: 14, fontWeight: "900" },
   storageSubtitle: { fontSize: 11, lineHeight: 16, marginTop: 3 },
-  refreshStorage: { width: 35, height: 35, borderRadius: 11, borderWidth: 1, alignItems: "center", justifyContent: "center" },
+  refreshStorage: { width: 35, height: 35, borderRadius: 0, borderWidth: 1, alignItems: "center", justifyContent: "center" },
   storageNumbers: { flexDirection: "row", justifyContent: "space-between", gap: 12 },
   storageNumberRight: { alignItems: "flex-end" },
   storageNumberLabel: { fontSize: 9, fontWeight: "900", letterSpacing: 0.65 },
@@ -484,21 +486,21 @@ const styles = StyleSheet.create({
   legendText: { fontSize: 10, lineHeight: 14, textAlign: "right" },
   storageBreakdown: { borderTopWidth: 1, paddingTop: 9, gap: 3 },
   breakdownText: { fontSize: 10, lineHeight: 15 },
-  offlineCard: { borderWidth: 1, borderRadius: 18, padding: 14, gap: 11 },
+  offlineCard: { borderWidth: 1, borderRadius: 0, borderLeftWidth: 5, padding: 14, gap: 11 },
   offlineHeader: { flexDirection: "row", alignItems: "center", gap: 10 },
-  offlineTitle: { fontSize: 14, fontWeight: "800" },
+  offlineTitle: { fontSize: 14, fontWeight: "900" },
   offlineSubtitle: { fontSize: 11, lineHeight: 16, marginTop: 4 },
   offlinePercent: { fontSize: 15, fontWeight: "900" },
   progressTrack: { height: 7, borderRadius: 4, overflow: "hidden" },
   progressFill: { height: "100%", borderRadius: 4, minWidth: 0 },
-  downloadButton: { minHeight: 46, borderRadius: 13, alignItems: "center", justifyContent: "center" },
+  downloadButton: { minHeight: 46, borderRadius: 0, alignItems: "center", justifyContent: "center" },
   downloadText: { color: "#101412", fontSize: 13, fontWeight: "900" },
   wifiHint: { fontSize: 10, lineHeight: 15 },
-  link: { minHeight: 67, borderRadius: 16, borderWidth: 1, padding: 13, flexDirection: "row", alignItems: "center", gap: 9 },
-  linkTitle: { fontSize: 14, fontWeight: "800" },
-  linkSubtitle: { fontSize: 11, marginTop: 4 },
-  note: { borderRadius: 16, padding: 14, flexDirection: "row", gap: 10, marginTop: 6 },
-  noteText: { flex: 1, fontSize: 12, lineHeight: 18 },
+  link: { minHeight: 67, borderRadius: 0, borderWidth: 1, borderLeftWidth: 5, padding: 13, flexDirection: "row", alignItems: "center", gap: 9 },
+  linkTitle: { fontSize: 14, fontWeight: "900" },
+  linkSubtitle: { fontSize: 11, lineHeight: 16, marginTop: 4 },
+  note: { borderRadius: 0, borderLeftWidth: 5, padding: 14, flexDirection: "row", gap: 10, marginTop: 6 },
+  noteText: { flex: 1, fontSize: 11, lineHeight: 16 },
   backdrop: { flex: 1, justifyContent: "flex-end", backgroundColor: "#090611B8" },
   sheetKeyboard: { width: "100%" },
   sheet: { padding: 20, borderTopLeftRadius: 28, borderTopRightRadius: 28, gap: 12 },
@@ -507,8 +509,8 @@ const styles = StyleSheet.create({
   sheetHint: { fontSize: 11, marginTop: 3 },
   close: { width: 34, height: 34, borderRadius: 17, alignItems: "center", justifyContent: "center" },
   closeText: { fontSize: 23, lineHeight: 25 },
-  keyInput: { height: 52, borderWidth: 1, borderRadius: 14, paddingHorizontal: 13, fontSize: 14, fontWeight: "700" },
-  saveKey: { minHeight: 52, borderRadius: 15, alignItems: "center", justifyContent: "center" },
+  keyInput: { height: 52, borderWidth: 1, borderRadius: 0, paddingHorizontal: 13, fontSize: 14, fontWeight: "900" },
+  saveKey: { minHeight: 52, borderRadius: 0, alignItems: "center", justifyContent: "center" },
   saveKeyText: { color: "#101412", fontSize: 13, fontWeight: "900" },
 });
 

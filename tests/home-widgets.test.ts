@@ -14,6 +14,7 @@ describe("home widgets", () => {
     expect(home).toContain("useHomeWidgets");
     expect(home).toContain("homeWidgets.order");
     expect(DEFAULT_HOME_WIDGETS.dragHintSeen).toBe(false);
+    expect(DEFAULT_HOME_WIDGETS.dragHapticsEnabled).toBe(true);
   });
   it("exposes each widget toggle in settings and uses the correct exercises tab title", () => {
     expect(settings).toContain("Виджеты на экране «Сегодня»");
@@ -42,5 +43,11 @@ describe("home widgets", () => {
     expect(home).toContain("Перемещайте виджеты");
     expect(home).toContain("ПОНЯТНО");
     expect(home).toContain("dismissWidgetDragHint");
+  });
+
+  it("allows users to disable drag haptics from widget settings", () => {
+    expect(settings).toContain("Виброотклик при переносе");
+    expect(settings).toContain("setWidgetDragHapticsEnabled");
+    expect(home).toContain("dragHapticsEnabled");
   });
 });

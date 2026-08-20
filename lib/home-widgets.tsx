@@ -13,13 +13,14 @@ export const HOME_WIDGETS = [
 export type HomeWidgetId = typeof HOME_WIDGETS[number]["id"];
 export type HomeWidgetVisibility = Record<HomeWidgetId, boolean>;
 export type HomeWidgetCompact = Record<HomeWidgetId, boolean>;
-export type HomeWidgetPreferences = { visibility: HomeWidgetVisibility; order: HomeWidgetId[]; compact: HomeWidgetCompact; dragHintSeen: boolean };
+export type HomeWidgetPreferences = { visibility: HomeWidgetVisibility; order: HomeWidgetId[]; compact: HomeWidgetCompact; dragHintSeen: boolean; dragHapticsEnabled: boolean };
 
 export const DEFAULT_HOME_WIDGETS: HomeWidgetPreferences = {
   visibility: { quote: true, week: true, nutrition: true, trainingTrend: true, metrics: true, shortcuts: true },
   order: HOME_WIDGETS.map((item) => item.id),
   compact: { quote: false, week: false, nutrition: false, trainingTrend: false, metrics: false, shortcuts: false },
   dragHintSeen: false,
+  dragHapticsEnabled: true,
 };
 
 const STORAGE_KEY = "ironrise.home-widgets.v1";
@@ -29,6 +30,7 @@ type HomeWidgetsContextValue = HomeWidgetPreferences & {
   setWidgetCompact: (id: HomeWidgetId, compact: boolean) => void;
   moveWidget: (id: HomeWidgetId, destination: number) => void;
   dismissWidgetDragHint: () => void;
+  setWidgetDragHapticsEnabled: (enabled: boolean) => void;
   resetWidgets: () => void;
 };
 const Context = createContext<HomeWidgetsContextValue | null>(null);
@@ -42,7 +44,7 @@ function normalize(raw: unknown): HomeWidgetPreferences {
   const legacyVisibility = saved.visibility && typeof saved.visibility === "object" ? saved.visibility as Record<string, unknown> : saved;
   const compact = saved.compact && typeof saved.compact === "object" ? saved.compact as Record<string, unknown> : {};
   const candidateOrder = Array.isArray(saved.order) ? saved.order.filter((id): id is HomeWidgetId => HOME_WIDGETS.some((item) => item.id === id)) : [];
-  return { visibility: validFlags(legacyVisibility, DEFAULT_HOME_WIDGETS.visibility), compact: validFlags(compact, DEFAULT_HOME_WIDGETS.compact), order: [...candidateOrder, ...DEFAULT_HOME_WIDGETS.order.filter((id) => !candidateOrder.includes(id))], dragHintSeen: saved.dragHintSeen === true };
+  return { visibility: validFlags(legacyVisibility, DEFAULT_HOME_WIDGETS.visibility), compact: validFlags(compact, DEFAULT_HOME_WIDGETS.compact), order: [...candidateOrder, ...DEFAULT_HOME_WIDGETS.order.filter((id) => !candidateOrder.includes(id))], dragHintSeen: saved.dragHintSeen === true, dragHapticsEnabled: saved.dragHapticsEnabled !== false };
 }
 
 export function HomeWidgetsProvider({ children }: { children: React.ReactNode }) {
@@ -57,6 +59,7 @@ export function HomeWidgetsProvider({ children }: { children: React.ReactNode })
     setWidgetCompact: (id: HomeWidgetId, compact: boolean) => setPreferences((current) => ({ ...current, compact: { ...current.compact, [id]: compact } })),
     moveWidget: (id: HomeWidgetId, destination: number) => setPreferences((current) => { const from = current.order.indexOf(id); if (from === -1) return current; const order = current.order.filter((item) => item !== id); order.splice(Math.max(0, Math.min(order.length, destination)), 0, id); return { ...current, order }; }),
     dismissWidgetDragHint: () => setPreferences((current) => current.dragHintSeen ? current : { ...current, dragHintSeen: true }),
+    setWidgetDragHapticsEnabled: (enabled: boolean) => setPreferences((current) => current.dragHapticsEnabled === enabled ? current : { ...current, dragHapticsEnabled: enabled }),
     resetWidgets: () => setPreferences(DEFAULT_HOME_WIDGETS),
   }), [preferences, ready]);
   return <Context.Provider value={value}>{children}</Context.Provider>;
