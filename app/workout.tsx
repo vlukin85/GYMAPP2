@@ -22,6 +22,7 @@ import { calculateHeartRateWorkoutEnergy, calculateWorkoutEnergy } from "@/lib/w
 import { connectHealthConnectHeartRate, getHealthConnectStatus, readHealthConnectHeartRate, type HealthConnectStatus } from "@/lib/health-connect";
 import type { HeartRateSummary } from "@/lib/health-connect-heart-rate";
 import { analyzeHeartRate } from "@/lib/heart-rate-analysis";
+import { getHeartRateTargetStatus, loadTargetHeartRateZone, saveTargetHeartRateZone, targetZoneLabel, TARGET_HEART_RATE_ZONES, type TargetHeartRateZoneId } from "@/lib/heart-rate-target-zone";
 import { useBodyStore } from "@/lib/body-store";
 import { openReplacementPicker, subscribeToExerciseReplacement } from "@/lib/exercise-replacement-bus";
 import { clearRestTimerLockScreenNotification, scheduleRestTimerLockScreenNotification, type RestTimerNotificationIds } from "@/lib/workout-notifications";
@@ -210,7 +211,7 @@ function ExerciseDragHandle({
   );
 }
 
-function WorkoutProgressCard({ completedSets, totalSets, elapsedSeconds, averageRestSeconds, currentRestSeconds, trackedActiveSeconds, trackedRestSeconds, lastAutosavedAt, healthConnectStatus, heartRate, onConnectHealthConnect, colors }: { completedSets: number; totalSets: number; elapsedSeconds: number; averageRestSeconds: number; currentRestSeconds: number; trackedActiveSeconds: number; trackedRestSeconds: number; lastAutosavedAt: number | null; healthConnectStatus: HealthConnectStatus; heartRate: HeartRateSummary; onConnectHealthConnect: () => void; colors: ReturnType<typeof useColors> }) {
+function WorkoutProgressCard({ completedSets, totalSets, elapsedSeconds, averageRestSeconds, currentRestSeconds, trackedActiveSeconds, trackedRestSeconds, lastAutosavedAt, healthConnectStatus, heartRate, targetHeartRateZone, ageYears, onConnectHealthConnect, onSelectTargetHeartRateZone, colors }: { completedSets: number; totalSets: number; elapsedSeconds: number; averageRestSeconds: number; currentRestSeconds: number; trackedActiveSeconds: number; trackedRestSeconds: number; lastAutosavedAt: number | null; healthConnectStatus: HealthConnectStatus; heartRate: HeartRateSummary; targetHeartRateZone: TargetHeartRateZoneId; ageYears?: number; onConnectHealthConnect: () => void; onSelectTargetHeartRateZone: (zone: TargetHeartRateZoneId) => void; colors: ReturnType<typeof useColors> }) {
   const progress = getWorkoutProgress(completedSets, totalSets);
   const forecast = getWorkoutFinishForecast(elapsedSeconds, completedSets, totalSets, Date.now(), averageRestSeconds, currentRestSeconds);
   const progressWidth = useSharedValue(progress.ratio * 100);
@@ -225,6 +226,9 @@ function WorkoutProgressCard({ completedSets, totalSets, elapsedSeconds, average
   const finishLabel = forecast.estimatedFinishAt
     ? new Intl.DateTimeFormat("ru-RU", { hour: "2-digit", minute: "2-digit" }).format(new Date(forecast.estimatedFinishAt))
     : null;
+  const targetStatus = getHeartRateTargetStatus(heartRate.currentBpm, ageYears, targetHeartRateZone);
+  const targetColor = targetStatus.state === "within" ? colors.success : targetStatus.state === "above" ? colors.error : targetStatus.state === "below" ? colors.warning : colors.muted;
+  const targetLabel = targetStatus.state === "within" ? "В ЦЕЛЕВОЙ ЗОНЕ" : targetStatus.state === "above" ? "ВЫШЕ ЦЕЛИ" : targetStatus.state === "below" ? "НИЖЕ ЦЕЛИ" : "НУЖЕН ВОЗРАСТ И ПУЛЬС";
   return (
     <View style={[styles.workoutProgressCard, { backgroundColor: colors.surface, borderColor: colors.border }]}> 
       <View style={styles.workoutProgressHeader}>
@@ -235,6 +239,7 @@ function WorkoutProgressCard({ completedSets, totalSets, elapsedSeconds, average
           <Text style={[styles.workoutForecast, { color: colors.muted }]}>{finishLabel ? `Текущий темп: ${formatForecastDuration(forecast.secondsRemaining)} · завершение к ${finishLabel}${forecast.restSecondsRemaining ? ` · отдых ${formatForecastDuration(forecast.restSecondsRemaining)}` : ""}` : "Прогноз появится после первого завершённого подхода"}</Text>
           <Text style={[styles.workoutTimingSummary, { color: colors.muted }]}>Факт: работа {formatTrackedSeconds(trackedActiveSeconds)} · отдых {formatTrackedSeconds(trackedRestSeconds)}</Text>
           <View style={[styles.heartRatePanel, { borderColor: colors.border, backgroundColor: colors.background }]}><View style={{ flex: 1 }}><Text style={[styles.heartRateEyebrow, { color: colors.primary }]}>ПУЛЬС · HEALTH CONNECT</Text><Text style={[styles.heartRateValue, { color: colors.foreground }]}>{healthConnectStatus.state === "ready" ? formatHeartRateSummary(heartRate) : healthConnectStatus.message}</Text></View>{healthConnectStatus.state === "ready" ? <Text style={[styles.heartRateBpm, { color: colors.primary }]}>{heartRate.currentBpm ? `${heartRate.currentBpm}` : "—"}</Text> : <Pressable onPress={onConnectHealthConnect} style={({ pressed }) => [styles.heartRateConnect, { borderColor: colors.primary, opacity: pressed ? 0.66 : 1 }]}><Text style={[styles.heartRateConnectText, { color: colors.primary }]}>{healthConnectStatus.state === "permission-required" ? "ПОДКЛЮЧИТЬ" : "ПРОВЕРИТЬ"}</Text></Pressable>}</View>
+          {healthConnectStatus.state === "ready" && <><View style={[styles.targetZoneAlert, { borderColor: targetColor, backgroundColor: `${targetColor}14` }]}><View style={{ flex: 1 }}><Text style={[styles.targetZoneEyebrow, { color: targetColor }]}>ЦЕЛЬ · {targetZoneLabel(targetHeartRateZone).toUpperCase()}</Text><Text style={[styles.targetZoneCopy, { color: colors.foreground }]}>{targetStatus.fromBpm && targetStatus.toBpm ? `${targetStatus.fromBpm}–${targetStatus.toBpm} уд/мин` : "Укажите возраст в профиле тела"}</Text></View><Text style={[styles.targetZoneStatus, { color: targetColor }]}>{targetLabel}</Text></View><View style={styles.targetZoneChoices}>{TARGET_HEART_RATE_ZONES.map((zone) => <Pressable key={zone.id} onPress={() => onSelectTargetHeartRateZone(zone.id)} style={({ pressed }) => [styles.targetZoneChoice, { borderColor: targetHeartRateZone === zone.id ? colors.primary : colors.border, backgroundColor: targetHeartRateZone === zone.id ? `${colors.primary}16` : colors.background, opacity: pressed ? 0.65 : 1 }]} accessibilityLabel={`Целевая зона: ${zone.label}`}><Text style={[styles.targetZoneChoiceText, { color: targetHeartRateZone === zone.id ? colors.primary : colors.muted }]}>{zone.label}</Text></Pressable>)}</View></>}
         </View>
         <View style={styles.workoutProgressRing}>
           <Svg width={WORKOUT_PROGRESS_CIRCLE_SIZE} height={WORKOUT_PROGRESS_CIRCLE_SIZE} viewBox={`0 0 ${WORKOUT_PROGRESS_CIRCLE_SIZE} ${WORKOUT_PROGRESS_CIRCLE_SIZE}`}>
@@ -311,6 +316,7 @@ export default function WorkoutScreen() {
   const [lastAutosavedAt, setLastAutosavedAt] = useState<number | null>(null);
   const [healthConnectStatus, setHealthConnectStatus] = useState<HealthConnectStatus>({ state: "unsupported", heartRateGranted: false, message: "Проверяем Health Connect…" });
   const [heartRate, setHeartRate] = useState<HeartRateSummary>({ sampleCount: 0 });
+  const [targetHeartRateZone, setTargetHeartRateZone] = useState<TargetHeartRateZoneId>("aerobic");
   const isDraftPersistenceEnabledRef = useRef(true);
   const latestDraftSnapshotRef = useRef<ActiveWorkoutDraftSnapshot | null>(null);
   const dragStateRef = useRef<{ sourceId: string; sourceIndex: number; targetIndex: number | null } | null>(null);
@@ -331,6 +337,11 @@ export default function WorkoutScreen() {
     setHealthConnectStatus(status);
     if (status.heartRateGranted) setHeartRate(await readHealthConnectHeartRate(new Date(started).toISOString(), new Date().toISOString()));
   }, [started]);
+
+  const selectTargetHeartRateZone = useCallback((zone: TargetHeartRateZoneId) => {
+    setTargetHeartRateZone(zone);
+    void saveTargetHeartRateZone(zone);
+  }, []);
 
   const syncRestTimer = useCallback(() => {
     if (!restEndRef.current) return;
@@ -407,6 +418,10 @@ export default function WorkoutScreen() {
     const timer = setInterval(() => void refreshHeartRate(), 20_000);
     return () => clearInterval(timer);
   }, [refreshHeartRate]);
+
+  useEffect(() => {
+    void loadTargetHeartRateZone().then(setTargetHeartRateZone);
+  }, []);
 
   useEffect(() => {
     if (!restEndAt) return;
@@ -1087,7 +1102,7 @@ export default function WorkoutScreen() {
         </View>
         <Text style={[styles.title, { color: colors.foreground }]}>{program.name}</Text>
         <Text style={[styles.helper, { color: colors.muted }]}>Сохраняйте только выполненные упражнения. Свайпните карточку влево для удаления, перетащите маркер ⠿ для смены порядка.</Text>
-        <WorkoutProgressCard completedSets={completedSetCount} totalSets={totalPlannedSetCount} elapsedSeconds={elapsed} averageRestSeconds={averagePlannedRestSeconds} currentRestSeconds={rest} trackedActiveSeconds={trackedActiveSeconds} trackedRestSeconds={trackedRestSeconds} lastAutosavedAt={lastAutosavedAt} healthConnectStatus={healthConnectStatus} heartRate={heartRate} onConnectHealthConnect={() => void connectHealthConnect()} colors={colors} />
+        <WorkoutProgressCard completedSets={completedSetCount} totalSets={totalPlannedSetCount} elapsedSeconds={elapsed} averageRestSeconds={averagePlannedRestSeconds} currentRestSeconds={rest} trackedActiveSeconds={trackedActiveSeconds} trackedRestSeconds={trackedRestSeconds} lastAutosavedAt={lastAutosavedAt} healthConnectStatus={healthConnectStatus} heartRate={heartRate} targetHeartRateZone={targetHeartRateZone} ageYears={ageYears} onConnectHealthConnect={() => void connectHealthConnect()} onSelectTargetHeartRateZone={selectTargetHeartRateZone} colors={colors} />
 
         {renderedSessionExercises.map((item, index) => {
           const exercise = getExercise(actualExerciseId(item.exerciseId));
@@ -1504,6 +1519,13 @@ const styles = StyleSheet.create({
   heartRateBpm: { fontSize: 24, fontWeight: "900", letterSpacing: -0.8 },
   heartRateConnect: { minHeight: 34, paddingHorizontal: 8, borderWidth: 1, alignItems: "center", justifyContent: "center" },
   heartRateConnectText: { fontSize: 8, fontWeight: "900", letterSpacing: 0.4 },
+  targetZoneAlert: { marginTop: 8, borderWidth: 1, borderLeftWidth: 5, minHeight: 50, paddingHorizontal: 9, paddingVertical: 7, flexDirection: "row", alignItems: "center", gap: 9 },
+  targetZoneEyebrow: { fontSize: 8, fontWeight: "900", letterSpacing: 0.65 },
+  targetZoneCopy: { fontSize: 11, fontWeight: "800", marginTop: 3 },
+  targetZoneStatus: { maxWidth: 86, textAlign: "right", fontSize: 9, lineHeight: 12, fontWeight: "900", letterSpacing: 0.35 },
+  targetZoneChoices: { marginTop: 7, flexDirection: "row", gap: 5 },
+  targetZoneChoice: { flex: 1, minHeight: 30, borderWidth: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 4 },
+  targetZoneChoiceText: { fontSize: 8, fontWeight: "900", letterSpacing: 0.2 },
   workoutProgressRing: { width: WORKOUT_PROGRESS_CIRCLE_SIZE, height: WORKOUT_PROGRESS_CIRCLE_SIZE, alignItems: "center", justifyContent: "center" },
   workoutProgressRingLabel: { position: "absolute", alignItems: "center", justifyContent: "center" },
   workoutProgressPercent: { fontSize: 16, fontWeight: "900" },
