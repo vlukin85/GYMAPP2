@@ -129,12 +129,15 @@ const config: ExpoConfig = {
         },
       },
     ],
+    "react-native-health-connect",
     [
       "expo-build-properties",
       {
         android: {
           buildArchs: ["armeabi-v7a", "arm64-v8a"],
-          minSdkVersion: 24,
+          compileSdkVersion: 36,
+          targetSdkVersion: 36,
+          minSdkVersion: 26,
         },
       },
     ],

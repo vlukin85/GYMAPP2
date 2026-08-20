@@ -21,6 +21,7 @@ import { useNutritionStore } from "@/lib/nutrition-store";
 import { HOME_WIDGETS, type HomeWidgetId, useHomeWidgets } from "@/lib/home-widgets";
 import { BODY_METRICS, DAILY_ACTIVITY_LEVELS, useBodyStore } from "@/lib/body-store";
 import { calculateDailyCalorieGuide } from "@/lib/body-calculations";
+import { connectHealthConnectHeartRate, getHealthConnectStatus, type HealthConnectStatus } from "@/lib/health-connect";
 
 const formulas: { id: OneRepMaxFormula; title: string; formula: string; description: string }[] = [
   { id: "epley", title: "Эпли", formula: "Вес × (1 + повторы / 30)", description: "Универсальная оценка для большинства рабочих подходов." },
@@ -40,7 +41,7 @@ const SETTINGS_CATEGORIES: { id: SettingsCategoryId; title: string; keywords: st
   { id: "appearance", title: "Внешний вид", keywords: ["внешний", "стиль", "тема", "цвет", "иконки", "плотность", "текст"] },
   { id: "body", title: "Питание и тело", keywords: ["питание", "калории", "расход", "активность", "движение", "бжу", "белки", "жиры", "углеводы", "тело", "рост", "возраст", "цель", "обхват"] },
   { id: "reminders", title: "Напоминания", keywords: ["напоминание", "уведомление", "время", "календарь"] },
-  { id: "data", title: "Данные и сервисы", keywords: ["данные", "хранилище", "фото", "офлайн", "экспорт", "импорт", "groq", "api", "инструменты"] },
+  { id: "data", title: "Данные и сервисы", keywords: ["данные", "хранилище", "фото", "офлайн", "экспорт", "импорт", "groq", "api", "health connect", "пульс", "часы", "инструменты"] },
 ];
 
 export default function SettingsScreen() {
@@ -69,6 +70,7 @@ export default function SettingsScreen() {
   const [keySheetVisible, setKeySheetVisible] = useState(false);
   const [keyDraft, setKeyDraft] = useState("");
   const [savingGroqKey, setSavingGroqKey] = useState(false);
+  const [healthConnectStatus, setHealthConnectStatus] = useState<HealthConnectStatus>({ state: "unsupported", heartRateGranted: false, message: "Проверяем Health Connect…" });
   const [settingsCategory, setSettingsCategory] = useState<SettingsCategoryId>("training");
   const [settingsQuery, setSettingsQuery] = useState("");
   const links = [
@@ -96,6 +98,7 @@ export default function SettingsScreen() {
   useEffect(() => {
     refreshStorageUsage();
     void getGroqApiKey().then((key) => setHasGroqKey(Boolean(key))).catch(() => setHasGroqKey(false));
+    void getHealthConnectStatus().then(setHealthConnectStatus);
   }, [refreshStorageUsage]);
   useEffect(() => { setNotificationTime(defaultWorkoutTime); }, [defaultWorkoutTime]);
   useEffect(() => { setCalorieGoalDraft(String(dailyCalorieGoal)); }, [dailyCalorieGoal]);
@@ -124,6 +127,7 @@ export default function SettingsScreen() {
     { text: "Отмена", style: "cancel" },
     { text: "Удалить", style: "destructive", onPress: () => { void clearGroqApiKey().then(() => setHasGroqKey(false)).catch(() => Alert.alert("Не удалось удалить ключ", "Повтори попытку.")); } },
   ]);
+  const connectHealthConnect = () => void connectHealthConnectHeartRate().then(setHealthConnectStatus);
 
   const downloadPhotos = async () => {
     setBulkState((state) => ({ ...state, loading: true, completed: 0, total: 0, message: "Проверяем подключение Wi‑Fi…" }));
@@ -339,6 +343,9 @@ export default function SettingsScreen() {
           <View style={styles.groqActions}><Pressable onPress={openGroqKeySheet} style={[styles.groqPrimary, { backgroundColor: colors.primary }]}><Text style={styles.groqPrimaryText}>{hasGroqKey ? "Обновить ключ" : "Добавить ключ"}</Text></Pressable>{hasGroqKey && <Pressable onPress={deleteGroqKey} style={[styles.groqDelete, { borderColor: colors.error }]}><Text style={[styles.groqDeleteText, { color: colors.error }]}>Удалить</Text></Pressable>}</View>
           <Text style={[styles.groqPrivacy, { color: colors.muted }]}>{Platform.OS === "web" ? "Не вводи рабочий ключ в веб-просмотре." : "Ключ хранится в защищённом системном хранилище Android и не добавляется в APK."}</Text>
         </View>
+
+        <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Health Connect</Text>
+        <View style={[styles.groqCard, { backgroundColor: colors.surface, borderColor: colors.border }]}><View style={styles.groqHeader}><View style={[styles.groqIcon, { backgroundColor: `${colors.primary}17` }]}><SafeMaterialIcon name="monitor-heart" size={20} color={colors.primary} /></View><View style={{ flex: 1 }}><Text style={[styles.groqTitle, { color: colors.foreground }]}>Пульс со смарт-часов</Text><Text style={[styles.groqSubtitle, { color: colors.muted }]}>{healthConnectStatus.message}</Text></View><Text style={[styles.groqStatus, { color: healthConnectStatus.heartRateGranted ? colors.success : colors.muted, backgroundColor: healthConnectStatus.heartRateGranted ? `${colors.success}18` : colors.border }]}>{healthConnectStatus.heartRateGranted ? "ГОТОВО" : "НЕТ ДОСТУПА"}</Text></View><View style={styles.groqActions}><Pressable onPress={connectHealthConnect} style={[styles.groqPrimary, { backgroundColor: colors.primary }]}><Text style={styles.groqPrimaryText}>{healthConnectStatus.state === "permission-required" ? "Подключить пульс" : "Проверить Health Connect"}</Text></Pressable></View><Text style={[styles.groqPrivacy, { color: colors.muted }]}>IronRise читает только данные пульса за время тренировки и сохраняет среднее и пиковое значение локально.</Text></View>
 
         <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Локальное хранилище</Text>
         <View style={[styles.storageCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>

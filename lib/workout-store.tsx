@@ -35,7 +35,7 @@ type WorkoutContextValue = WorkoutState & {
   ready: boolean;
   startWorkout: (programId: string, startedAt?: number) => void;
   discardActiveWorkout: () => void;
-  finishWorkout: (programId: string, volume: number, sets: { exerciseId: string; weight: number; reps: number; distanceKm?: number }[], metrics?: { activeSeconds?: number; restSeconds?: number; caloriesBurned?: number }) => { workoutId: string; minutes: number; newRecordIds: string[]; maxOneRmDelta: number; activeSeconds: number; restSeconds: number; caloriesBurned: number };
+  finishWorkout: (programId: string, volume: number, sets: { exerciseId: string; weight: number; reps: number; distanceKm?: number }[], metrics?: { activeSeconds?: number; restSeconds?: number; caloriesBurned?: number; averageHeartRateBpm?: number; peakHeartRateBpm?: number }) => { workoutId: string; minutes: number; newRecordIds: string[]; maxOneRmDelta: number; activeSeconds: number; restSeconds: number; caloriesBurned: number; averageHeartRateBpm?: number; peakHeartRateBpm?: number };
   deleteCompletedWorkout: (workoutId: string) => void;
   updateCompletedWorkout: (workoutId: string, update: Partial<Pick<CompletedWorkout, "durationMinutes" | "sets" | "notes">>) => void;
   scheduleProgram: (date: string, schedule: ScheduledWorkout) => void;
@@ -183,6 +183,8 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
       const activeSeconds = Math.max(0, Math.round(metrics?.activeSeconds ?? 0));
       const restSeconds = Math.max(0, Math.round(metrics?.restSeconds ?? 0));
       const caloriesBurned = Math.max(0, Math.round(metrics?.caloriesBurned ?? 0));
+      const averageHeartRateBpm = typeof metrics?.averageHeartRateBpm === "number" && Number.isFinite(metrics.averageHeartRateBpm) ? Math.max(1, Math.min(300, Math.round(metrics.averageHeartRateBpm))) : undefined;
+      const peakHeartRateBpm = typeof metrics?.peakHeartRateBpm === "number" && Number.isFinite(metrics.peakHeartRateBpm) ? Math.max(1, Math.min(300, Math.round(metrics.peakHeartRateBpm))) : undefined;
       const grouped = sets.reduce<Record<string, { weight: number; reps: number }[]>>((acc, set) => { (acc[set.exerciseId] ??= []).push({ weight: set.weight, reps: set.reps }); return acc; }, {});
       const records = { ...state.personalRecords };
       const newRecordIds: string[] = [];
@@ -198,8 +200,8 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
           maxOneRmDelta = Math.max(maxOneRmDelta, delta);
         }
       });
-      setState((current) => ({ ...current, activeWorkout: null, personalRecords: records, completed: [{ id: workoutId, programId, date: new Date().toISOString().slice(0, 10), durationMinutes: minutes, totalVolume: volume, sets, activeSeconds, restSeconds, caloriesBurned }, ...current.completed] }));
-      return { workoutId, minutes, newRecordIds, maxOneRmDelta, activeSeconds, restSeconds, caloriesBurned };
+      setState((current) => ({ ...current, activeWorkout: null, personalRecords: records, completed: [{ id: workoutId, programId, date: new Date().toISOString().slice(0, 10), durationMinutes: minutes, totalVolume: volume, sets, activeSeconds, restSeconds, caloriesBurned, averageHeartRateBpm, peakHeartRateBpm }, ...current.completed] }));
+      return { workoutId, minutes, newRecordIds, maxOneRmDelta, activeSeconds, restSeconds, caloriesBurned, averageHeartRateBpm, peakHeartRateBpm };
     },
     deleteCompletedWorkout: (workoutId) => setState((current) => {
       const completed = current.completed.filter((workout) => workout.id !== workoutId);

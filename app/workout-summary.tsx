@@ -20,7 +20,7 @@ function formatInterval(seconds: number) {
 export default function WorkoutSummaryScreen() {
   const colors = useColors();
   const { completed, personalRecords, programs } = useWorkoutStore();
-  const { workoutId, programId, volume = "0", minutes = "0", activeSeconds = "0", restSeconds = "0", calories = "0", records = "" } = useLocalSearchParams<{ workoutId?: string; programId: string; volume?: string; minutes?: string; activeSeconds?: string; restSeconds?: string; calories?: string; records?: string }>();
+  const { workoutId, programId, volume = "0", minutes = "0", activeSeconds = "0", restSeconds = "0", calories = "0", averageHeartRateBpm = "", peakHeartRateBpm = "", records = "" } = useLocalSearchParams<{ workoutId?: string; programId: string; volume?: string; minutes?: string; activeSeconds?: string; restSeconds?: string; calories?: string; averageHeartRateBpm?: string; peakHeartRateBpm?: string; records?: string }>();
   const [shareOpen, setShareOpen] = useState(false);
   const [shareTheme, setShareTheme] = useState<"dark" | "light">("dark");
   const [shareNote, setShareNote] = useState("");
@@ -31,6 +31,10 @@ export default function WorkoutSummaryScreen() {
     activeSeconds: completedWorkout?.activeSeconds ?? Math.max(0, Number(activeSeconds) || 0),
     restSeconds: completedWorkout?.restSeconds ?? Math.max(0, Number(restSeconds) || 0),
     caloriesBurned: completedWorkout?.caloriesBurned ?? Math.max(0, Number(calories) || 0),
+  };
+  const heartRate = {
+    averageBpm: completedWorkout?.averageHeartRateBpm ?? (Number(averageHeartRateBpm) || undefined),
+    peakBpm: completedWorkout?.peakHeartRateBpm ?? (Number(peakHeartRateBpm) || undefined),
   };
   const recordIds = records.split(",").filter(Boolean);
   const shareRecords = useMemo(
@@ -108,6 +112,8 @@ export default function WorkoutSummaryScreen() {
           <Text style={[styles.timingHint, { color: colors.muted }]}>Расход энергии рассчитан по измеренному времени подходов и пауз.</Text>
         </View>
 
+        {(heartRate.averageBpm || heartRate.peakBpm) && <View style={[styles.heartRatePanel, { backgroundColor: colors.surface, borderColor: colors.border }]}><View><Text style={[styles.timingEyebrow, { color: colors.primary }]}>ПУЛЬС · HEALTH CONNECT</Text><Text style={[styles.heartRateHint, { color: colors.muted }]}>Данные часов за время тренировки</Text></View><View style={styles.heartRateMetrics}><Text style={[styles.heartRateValue, { color: colors.foreground }]}>{heartRate.averageBpm ?? "—"}<Text style={[styles.heartRateUnit, { color: colors.muted }]}> СР.</Text></Text><Text style={[styles.heartRateValue, { color: colors.primary }]}>{heartRate.peakBpm ?? "—"}<Text style={[styles.heartRateUnit, { color: colors.muted }]}> ПИК</Text></Text></View></View>}
+
         {cardio.minutes > 0 && <View style={[styles.cardioPanel, { backgroundColor: colors.surface, borderColor: colors.border }]}><View><Text style={[styles.cardioEyebrow, { color: colors.primary }]}>КАРДИО · РЕЗУЛЬТАТ</Text><Text style={[styles.cardioTitle, { color: colors.foreground }]}>{cardio.minutes} мин{cardio.distanceKm > 0 ? ` · ${cardio.distanceKm.toFixed(2)} км` : ""}</Text></View><View style={styles.cardioPace}><Text style={[styles.cardioPaceValue, { color: "#1746D2" }]}>{formatCardioPace(cardio.paceSecondsPerKm)}</Text><Text style={[styles.cardioPaceLabel, { color: colors.muted }]}>СРЕДНИЙ ТЕМП</Text></View></View>}
         <View style={[styles.recordPanel, { backgroundColor: colors.surface, borderColor: colors.border }]}><View style={styles.recordPanelHeader}><IconSymbol name="trophy" size={23} color={colors.primary} /><Text style={[styles.recordPanelTitle, { color: colors.foreground }]}>ЛИЧНЫЕ РЕКОРДЫ</Text><Text style={[styles.recordCount, { color: colors.primary }]}>{recordIds.length}</Text></View>{recordIds.length ? recordIds.map((id, index) => <View key={id} style={[styles.recordRow, index > 0 && { borderTopColor: colors.border, borderTopWidth: StyleSheet.hairlineWidth }]}><Text style={[styles.recordNumber, { color: colors.primary }]}>{String(index + 1).padStart(2, "0")}</Text><Text style={[styles.recordName, { color: colors.foreground }]}>{getExercise(id)?.name ?? id}</Text><IconSymbol name="arrow.up.right" size={18} color="#1746D2" /></View>) : <Text style={[styles.noRecords, { color: colors.muted }]}>Сегодня без нового рекорда. Последовательность — уже прогресс.</Text>}</View>
         <View style={styles.actions}><Pressable onPress={() => setShareOpen(true)} style={({ pressed }) => [styles.shareAction, { borderColor: colors.primary, opacity: pressed ? 0.68 : 1 }]}><Text style={[styles.shareActionText, { color: colors.primary }]}>ПОДЕЛИТЬСЯ РЕЗУЛЬТАТОМ</Text><IconSymbol name="square.and.arrow.up" size={19} color={colors.primary} /></Pressable><Pressable onPress={() => router.replace("/(tabs)/stats")} style={({ pressed }) => [styles.primaryAction, { backgroundColor: colors.primary, opacity: pressed ? 0.75 : 1 }]}><Text style={styles.primaryActionText}>ОТКРЫТЬ СТАТИСТИКУ</Text><IconSymbol name="chart.bar.fill" size={19} color="#FFFDF8" /></Pressable><Pressable onPress={() => router.replace("/(tabs)")} style={({ pressed }) => [styles.secondaryAction, { borderColor: colors.border, opacity: pressed ? 0.65 : 1 }]}><Text style={[styles.secondaryActionText, { color: colors.foreground }]}>К ПЛАНУ</Text><IconSymbol name="house.fill" size={19} color={colors.foreground} /></Pressable></View>
@@ -136,6 +142,11 @@ const styles = StyleSheet.create({
   timingEyebrow: { fontSize: 9, fontWeight: "900", letterSpacing: 0.7 },
   timingValue: { fontSize: 17, fontWeight: "900", letterSpacing: -0.4 },
   timingHint: { fontSize: 10, lineHeight: 15 },
+  heartRatePanel: { borderWidth: 1, borderLeftWidth: 6, padding: 14, flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", gap: 10 },
+  heartRateHint: { fontSize: 10, lineHeight: 15, marginTop: 4 },
+  heartRateMetrics: { flexDirection: "row", gap: 10, alignItems: "baseline" },
+  heartRateValue: { fontSize: 21, fontWeight: "900", letterSpacing: -0.8 },
+  heartRateUnit: { fontSize: 8, fontWeight: "900", letterSpacing: 0.35 },
   cardioPanel: { borderWidth: 1, borderLeftWidth: 6, borderLeftColor: "#1746D2", padding: 14, flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", gap: 10 },
   cardioEyebrow: { fontSize: 9, fontWeight: "900", letterSpacing: 0.7 },
   cardioTitle: { fontSize: 20, fontWeight: "900", marginTop: 5, letterSpacing: -0.8 },

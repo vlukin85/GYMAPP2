@@ -19,6 +19,8 @@ import { countWorkoutSetUnits, getWorkoutProgress } from "@/lib/workout-progress
 import { formatForecastDuration, getWorkoutFinishForecast } from "@/lib/workout-finish-forecast";
 import { useWorkoutStore } from "@/lib/workout-store";
 import { calculateWorkoutEnergy } from "@/lib/workout-energy";
+import { connectHealthConnectHeartRate, getHealthConnectStatus, readHealthConnectHeartRate, type HealthConnectStatus } from "@/lib/health-connect";
+import type { HeartRateSummary } from "@/lib/health-connect-heart-rate";
 import { openReplacementPicker, subscribeToExerciseReplacement } from "@/lib/exercise-replacement-bus";
 import { clearRestTimerLockScreenNotification, scheduleRestTimerLockScreenNotification, type RestTimerNotificationIds } from "@/lib/workout-notifications";
 
@@ -55,6 +57,11 @@ function formatTrackedSeconds(totalSeconds: number) {
   const minutes = Math.floor(Math.max(0, totalSeconds) / 60);
   const seconds = Math.max(0, totalSeconds) % 60;
   return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+}
+
+function formatHeartRateSummary(summary: HeartRateSummary) {
+  if (!summary.sampleCount || !summary.currentBpm) return "Данные пульса ещё не поступили с часов.";
+  return `Сейчас ${summary.currentBpm} уд/мин · средний ${summary.averageBpm ?? "—"} · пик ${summary.peakBpm ?? "—"}`;
 }
 
 function setParts(set: ActualSet, isTimed = false): { reps: number; weightKg: number; distanceKm?: number }[] {
@@ -201,7 +208,7 @@ function ExerciseDragHandle({
   );
 }
 
-function WorkoutProgressCard({ completedSets, totalSets, elapsedSeconds, averageRestSeconds, currentRestSeconds, trackedActiveSeconds, trackedRestSeconds, lastAutosavedAt, colors }: { completedSets: number; totalSets: number; elapsedSeconds: number; averageRestSeconds: number; currentRestSeconds: number; trackedActiveSeconds: number; trackedRestSeconds: number; lastAutosavedAt: number | null; colors: ReturnType<typeof useColors> }) {
+function WorkoutProgressCard({ completedSets, totalSets, elapsedSeconds, averageRestSeconds, currentRestSeconds, trackedActiveSeconds, trackedRestSeconds, lastAutosavedAt, healthConnectStatus, heartRate, onConnectHealthConnect, colors }: { completedSets: number; totalSets: number; elapsedSeconds: number; averageRestSeconds: number; currentRestSeconds: number; trackedActiveSeconds: number; trackedRestSeconds: number; lastAutosavedAt: number | null; healthConnectStatus: HealthConnectStatus; heartRate: HeartRateSummary; onConnectHealthConnect: () => void; colors: ReturnType<typeof useColors> }) {
   const progress = getWorkoutProgress(completedSets, totalSets);
   const forecast = getWorkoutFinishForecast(elapsedSeconds, completedSets, totalSets, Date.now(), averageRestSeconds, currentRestSeconds);
   const progressWidth = useSharedValue(progress.ratio * 100);
@@ -225,6 +232,7 @@ function WorkoutProgressCard({ completedSets, totalSets, elapsedSeconds, average
           <Text style={[styles.workoutProgressSaved, { color: colors.muted }]}>Автосохранено: {savedLabel}</Text>
           <Text style={[styles.workoutForecast, { color: colors.muted }]}>{finishLabel ? `Текущий темп: ${formatForecastDuration(forecast.secondsRemaining)} · завершение к ${finishLabel}${forecast.restSecondsRemaining ? ` · отдых ${formatForecastDuration(forecast.restSecondsRemaining)}` : ""}` : "Прогноз появится после первого завершённого подхода"}</Text>
           <Text style={[styles.workoutTimingSummary, { color: colors.muted }]}>Факт: работа {formatTrackedSeconds(trackedActiveSeconds)} · отдых {formatTrackedSeconds(trackedRestSeconds)}</Text>
+          <View style={[styles.heartRatePanel, { borderColor: colors.border, backgroundColor: colors.background }]}><View style={{ flex: 1 }}><Text style={[styles.heartRateEyebrow, { color: colors.primary }]}>ПУЛЬС · HEALTH CONNECT</Text><Text style={[styles.heartRateValue, { color: colors.foreground }]}>{healthConnectStatus.state === "ready" ? formatHeartRateSummary(heartRate) : healthConnectStatus.message}</Text></View>{healthConnectStatus.state === "ready" ? <Text style={[styles.heartRateBpm, { color: colors.primary }]}>{heartRate.currentBpm ? `${heartRate.currentBpm}` : "—"}</Text> : <Pressable onPress={onConnectHealthConnect} style={({ pressed }) => [styles.heartRateConnect, { borderColor: colors.primary, opacity: pressed ? 0.66 : 1 }]}><Text style={[styles.heartRateConnectText, { color: colors.primary }]}>{healthConnectStatus.state === "permission-required" ? "ПОДКЛЮЧИТЬ" : "ПРОВЕРИТЬ"}</Text></Pressable>}</View>
         </View>
         <View style={styles.workoutProgressRing}>
           <Svg width={WORKOUT_PROGRESS_CIRCLE_SIZE} height={WORKOUT_PROGRESS_CIRCLE_SIZE} viewBox={`0 0 ${WORKOUT_PROGRESS_CIRCLE_SIZE} ${WORKOUT_PROGRESS_CIRCLE_SIZE}`}>
@@ -298,6 +306,8 @@ export default function WorkoutScreen() {
   const [dragState, setDragState] = useState<{ sourceId: string; sourceIndex: number; targetIndex: number | null } | null>(null);
   const [isRestoringDraft, setIsRestoringDraft] = useState(true);
   const [lastAutosavedAt, setLastAutosavedAt] = useState<number | null>(null);
+  const [healthConnectStatus, setHealthConnectStatus] = useState<HealthConnectStatus>({ state: "unsupported", heartRateGranted: false, message: "Проверяем Health Connect…" });
+  const [heartRate, setHeartRate] = useState<HeartRateSummary>({ sampleCount: 0 });
   const isDraftPersistenceEnabledRef = useRef(true);
   const latestDraftSnapshotRef = useRef<ActiveWorkoutDraftSnapshot | null>(null);
   const dragStateRef = useRef<{ sourceId: string; sourceIndex: number; targetIndex: number | null } | null>(null);
@@ -306,6 +316,18 @@ export default function WorkoutScreen() {
   const autoScrollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const autoScrollDirectionRef = useRef<-1 | 0 | 1>(0);
   const autoScrollTickRef = useRef(0);
+
+  const refreshHeartRate = useCallback(async () => {
+    const status = await getHealthConnectStatus();
+    setHealthConnectStatus(status);
+    if (status.heartRateGranted) setHeartRate(await readHealthConnectHeartRate(new Date(started).toISOString(), new Date().toISOString()));
+  }, [started]);
+
+  const connectHealthConnect = useCallback(async () => {
+    const status = await connectHealthConnectHeartRate();
+    setHealthConnectStatus(status);
+    if (status.heartRateGranted) setHeartRate(await readHealthConnectHeartRate(new Date(started).toISOString(), new Date().toISOString()));
+  }, [started]);
 
   const syncRestTimer = useCallback(() => {
     if (!restEndRef.current) return;
@@ -376,6 +398,12 @@ export default function WorkoutScreen() {
     const timer = setInterval(() => setElapsed(Math.floor((Date.now() - started) / 1000)), 1000);
     return () => clearInterval(timer);
   }, [started]);
+
+  useEffect(() => {
+    void refreshHeartRate();
+    const timer = setInterval(() => void refreshHeartRate(), 20_000);
+    return () => clearInterval(timer);
+  }, [refreshHeartRate]);
 
   useEffect(() => {
     if (!restEndAt) return;
@@ -876,7 +904,7 @@ export default function WorkoutScreen() {
     if (current && target !== current.sourceIndex) moveSessionExercise(current.sourceIndex, target);
     setDragPreview(null);
   };
-  const completeWorkout = () => {
+  const completeWorkout = async () => {
     const persisted = sessionExercises
       .filter((item) => done[item.exerciseId])
       .flatMap((item) =>
@@ -918,10 +946,13 @@ export default function WorkoutScreen() {
       activeSeconds: totalActiveSeconds,
       restSeconds: completedRestSeconds,
     });
+    const heartRateSummary = await readHealthConnectHeartRate(new Date(started).toISOString(), new Date().toISOString());
     const result = finishWorkout(program.id, total, recordSets, {
       activeSeconds: totalActiveSeconds,
       restSeconds: completedRestSeconds,
       caloriesBurned: energy.totalCalories,
+      averageHeartRateBpm: heartRateSummary.averageBpm,
+      peakHeartRateBpm: heartRateSummary.peakBpm,
     });
     isDraftPersistenceEnabledRef.current = false;
     void clearActiveWorkoutDraft().catch(() => undefined);
@@ -935,6 +966,8 @@ export default function WorkoutScreen() {
         activeSeconds: String(result.activeSeconds),
         restSeconds: String(result.restSeconds),
         calories: String(result.caloriesBurned),
+        averageHeartRateBpm: result.averageHeartRateBpm ? String(result.averageHeartRateBpm) : "",
+        peakHeartRateBpm: result.peakHeartRateBpm ? String(result.peakHeartRateBpm) : "",
         records: result.newRecordIds.join(","),
       },
     });
@@ -1033,7 +1066,7 @@ export default function WorkoutScreen() {
         </View>
         <Text style={[styles.title, { color: colors.foreground }]}>{program.name}</Text>
         <Text style={[styles.helper, { color: colors.muted }]}>Сохраняйте только выполненные упражнения. Свайпните карточку влево для удаления, перетащите маркер ⠿ для смены порядка.</Text>
-        <WorkoutProgressCard completedSets={completedSetCount} totalSets={totalPlannedSetCount} elapsedSeconds={elapsed} averageRestSeconds={averagePlannedRestSeconds} currentRestSeconds={rest} trackedActiveSeconds={trackedActiveSeconds} trackedRestSeconds={trackedRestSeconds} lastAutosavedAt={lastAutosavedAt} colors={colors} />
+        <WorkoutProgressCard completedSets={completedSetCount} totalSets={totalPlannedSetCount} elapsedSeconds={elapsed} averageRestSeconds={averagePlannedRestSeconds} currentRestSeconds={rest} trackedActiveSeconds={trackedActiveSeconds} trackedRestSeconds={trackedRestSeconds} lastAutosavedAt={lastAutosavedAt} healthConnectStatus={healthConnectStatus} heartRate={heartRate} onConnectHealthConnect={() => void connectHealthConnect()} colors={colors} />
 
         {renderedSessionExercises.map((item, index) => {
           const exercise = getExercise(actualExerciseId(item.exerciseId));
@@ -1444,6 +1477,12 @@ const styles = StyleSheet.create({
   workoutProgressSaved: { fontSize: 10, lineHeight: 15, marginTop: 5 },
   workoutForecast: { fontSize: 10, lineHeight: 15, marginTop: 2 },
   workoutTimingSummary: { fontSize: 10, lineHeight: 15, marginTop: 2, fontWeight: "700" },
+  heartRatePanel: { marginTop: 9, borderWidth: 1, padding: 9, flexDirection: "row", alignItems: "center", gap: 8 },
+  heartRateEyebrow: { fontSize: 8, fontWeight: "900", letterSpacing: 0.75 },
+  heartRateValue: { fontSize: 10, lineHeight: 14, fontWeight: "700", marginTop: 3 },
+  heartRateBpm: { fontSize: 24, fontWeight: "900", letterSpacing: -0.8 },
+  heartRateConnect: { minHeight: 34, paddingHorizontal: 8, borderWidth: 1, alignItems: "center", justifyContent: "center" },
+  heartRateConnectText: { fontSize: 8, fontWeight: "900", letterSpacing: 0.4 },
   workoutProgressRing: { width: WORKOUT_PROGRESS_CIRCLE_SIZE, height: WORKOUT_PROGRESS_CIRCLE_SIZE, alignItems: "center", justifyContent: "center" },
   workoutProgressRingLabel: { position: "absolute", alignItems: "center", justifyContent: "center" },
   workoutProgressPercent: { fontSize: 16, fontWeight: "900" },

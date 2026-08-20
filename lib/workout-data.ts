@@ -158,6 +158,8 @@ export type CompletedWorkout = {
   activeSeconds?: number;
   restSeconds?: number;
   caloriesBurned?: number;
+  averageHeartRateBpm?: number;
+  peakHeartRateBpm?: number;
 };
 
 export function isScheduledWorkoutCompleted(completed: CompletedWorkout[], date: string, programId: string) {
