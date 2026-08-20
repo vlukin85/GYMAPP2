@@ -23,7 +23,7 @@ class RestTimerActionReceiver : BroadcastReceiver() {
       val targetLabel = intent.getStringExtra(EXTRA_TARGET_LABEL) ?: ""
       val targetFrom = intent.getIntExtra(EXTRA_TARGET_FROM, 0)
       val targetTo = intent.getIntExtra(EXTRA_TARGET_TO, 0)
-      showCountdownNotification(context, extendedEndAt, targetLabel, targetFrom, targetTo, 0)
+      showCountdownNotification(context, extendedEndAt, targetLabel, targetFrom, targetTo, 0, "")
       savePendingAction(context, "extend", extendedEndAt)
     }
   }

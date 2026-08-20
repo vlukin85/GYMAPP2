@@ -19,6 +19,14 @@ export function estimateMaximumHeartRate(ageYears?: number) {
   return Math.round(208 - 0.7 * ageYears);
 }
 
+/** Returns the established visual color of the user's actual, current intensity zone. */
+export function getActualHeartRateZoneColor(currentBpm?: number, ageYears?: number) {
+  const estimatedMaxBpm = estimateMaximumHeartRate(ageYears);
+  if (typeof currentBpm !== "number" || !Number.isFinite(currentBpm) || currentBpm <= 0 || !estimatedMaxBpm) return undefined;
+  const ratio = currentBpm / estimatedMaxBpm;
+  return (HEART_RATE_ZONES.find((zone) => ratio >= zone.fromRatio && ratio < zone.toRatio) ?? HEART_RATE_ZONES[HEART_RATE_ZONES.length - 1]).color;
+}
+
 export function compressHeartRateSamples(samples: HeartRateSampleInput[], maxPoints = 180) {
   if (samples.length <= maxPoints) return samples;
   const bucketSize = samples.length / maxPoints;

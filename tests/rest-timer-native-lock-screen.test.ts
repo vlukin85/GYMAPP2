@@ -42,4 +42,10 @@ describe("таймер отдыха на заблокированном Android-
     expect(workoutScreen).toContain("lockScreenHeartRateVisible");
     expect(workoutScreen).toContain("loadLockScreenHeartRateVisible()");
   });
+
+  it("применяет цвет фактической зоны пульса к уведомлению", () => {
+    expect(nativeModule).toContain("heartRateZoneColor");
+    expect(nativeModule).toContain("Color.parseColor");
+    expect(workoutScreen).toContain("getActualHeartRateZoneColor");
+  });
 });

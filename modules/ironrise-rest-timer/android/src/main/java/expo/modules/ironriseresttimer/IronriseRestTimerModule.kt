@@ -33,8 +33,8 @@ class IronriseRestTimerModule : Module() {
   override fun definition() = ModuleDefinition {
     Name("IronriseRestTimer")
 
-    Function("showCountdown") { restEndAt: Double, targetLabel: String, targetFromBpm: Double, targetToBpm: Double, currentHeartRateBpm: Double ->
-      showCountdownNotification(context, restEndAt.toLong(), targetLabel, targetFromBpm.toInt(), targetToBpm.toInt(), currentHeartRateBpm.toInt())
+    Function("showCountdown") { restEndAt: Double, targetLabel: String, targetFromBpm: Double, targetToBpm: Double, currentHeartRateBpm: Double, heartRateZoneColor: String ->
+      showCountdownNotification(context, restEndAt.toLong(), targetLabel, targetFromBpm.toInt(), targetToBpm.toInt(), currentHeartRateBpm.toInt(), heartRateZoneColor)
     }
 
     Function("clearCountdown") {
@@ -51,7 +51,7 @@ class IronriseRestTimerModule : Module() {
 
 }
 
-internal fun showCountdownNotification(context: Context, restEndAt: Long, targetLabel: String, targetFromBpm: Int, targetToBpm: Int, currentHeartRateBpm: Int) {
+internal fun showCountdownNotification(context: Context, restEndAt: Long, targetLabel: String, targetFromBpm: Int, targetToBpm: Int, currentHeartRateBpm: Int, heartRateZoneColor: String) {
   val remaining = restEndAt - System.currentTimeMillis()
   if (remaining <= 0) {
     clearCountdownNotification(context)
@@ -75,6 +75,9 @@ internal fun showCountdownNotification(context: Context, restEndAt: Long, target
     .setCategory(NotificationCompat.CATEGORY_WORKOUT)
     .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
     .setPriority(NotificationCompat.PRIORITY_LOW)
+    .apply {
+      if (heartRateZoneColor.isNotBlank()) runCatching { setColor(android.graphics.Color.parseColor(heartRateZoneColor)) }
+    }
     .addAction(android.R.drawable.ic_menu_close_clear_cancel, "Пропустить", restActionPendingIntent(context, ACTION_SKIP, restEndAt, targetLabel, targetFromBpm, targetToBpm, SKIP_REQUEST_CODE))
     .addAction(android.R.drawable.ic_input_add, "+30 секунд", restActionPendingIntent(context, ACTION_EXTEND, restEndAt, targetLabel, targetFromBpm, targetToBpm, EXTEND_REQUEST_CODE))
     .addAction(android.R.drawable.ic_media_play, "Начать подход", restActionPendingIntent(context, ACTION_START, restEndAt, targetLabel, targetFromBpm, targetToBpm, START_REQUEST_CODE))

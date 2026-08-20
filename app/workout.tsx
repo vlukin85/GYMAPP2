@@ -21,7 +21,7 @@ import { useWorkoutStore } from "@/lib/workout-store";
 import { calculateHeartRateWorkoutEnergy, calculateWorkoutEnergy } from "@/lib/workout-energy";
 import { connectHealthConnectHeartRate, getHealthConnectStatus, readHealthConnectHeartRate, type HealthConnectStatus } from "@/lib/health-connect";
 import type { HeartRateSummary } from "@/lib/health-connect-heart-rate";
-import { analyzeHeartRate } from "@/lib/heart-rate-analysis";
+import { analyzeHeartRate, getActualHeartRateZoneColor } from "@/lib/heart-rate-analysis";
 import { getHeartRateTargetStatus, loadTargetHeartRateZone, saveTargetHeartRateZone, shouldSignalHeartRateTargetBoundary, targetZoneLabel, TARGET_HEART_RATE_ZONES, type HeartRateTargetState, type TargetHeartRateZoneId } from "@/lib/heart-rate-target-zone";
 import { useBodyStore } from "@/lib/body-store";
 import { openReplacementPicker, subscribeToExerciseReplacement } from "@/lib/exercise-replacement-bus";
@@ -371,11 +371,13 @@ export default function WorkoutScreen() {
     void (async () => {
       clearRestLockScreenNotification();
       const target = getHeartRateTargetStatus(heartRate.currentBpm, ageYears, targetHeartRateZone);
+      const zoneColor = lockScreenHeartRateVisible ? getActualHeartRateZoneColor(heartRate.currentBpm, ageYears) : undefined;
       const ids = await scheduleRestTimerLockScreenNotification(endTimestamp, target.fromBpm && target.toBpm ? {
         label: targetZoneLabel(targetHeartRateZone),
         fromBpm: target.fromBpm,
         toBpm: target.toBpm,
         currentBpm: lockScreenHeartRateVisible ? heartRate.currentBpm : undefined,
+        zoneColor,
       } : undefined);
       if (restEndRef.current === endTimestamp) restNotificationIdsRef.current = ids;
       else void clearRestTimerLockScreenNotification(ids);
