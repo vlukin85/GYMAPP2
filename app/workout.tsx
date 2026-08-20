@@ -18,12 +18,15 @@ import { filterActiveWorkoutCatalog, reorderActiveWorkoutExercises } from "@/lib
 import { countWorkoutSetUnits, getWorkoutProgress } from "@/lib/workout-progress";
 import { formatForecastDuration, getWorkoutFinishForecast } from "@/lib/workout-finish-forecast";
 import { useWorkoutStore } from "@/lib/workout-store";
+import { calculateWorkoutEnergy } from "@/lib/workout-energy";
 import { openReplacementPicker, subscribeToExerciseReplacement } from "@/lib/exercise-replacement-bus";
 import { clearRestTimerLockScreenNotification, scheduleRestTimerLockScreenNotification, type RestTimerNotificationIds } from "@/lib/workout-notifications";
 
 type DropDraft = { reps: string; weight: string };
 type ActualSet = { reps: string; weight: string; distance?: string; type: SetType; dropSubsets?: DropDraft[] };
 type HistorySet = { weight: number; reps: number; type?: string; drop?: DropDraft[] };
+type ActiveSetTracker = { exerciseId: string; setIndex: number; startedAt: number };
+type RecordedSetTiming = { startedAt: number; finishedAt: number; activeSeconds: number };
 
 const REST_CIRCLE_RADIUS = 108;
 const REST_CIRCLE_SIZE = 252;
@@ -47,6 +50,12 @@ const setTypeLabel: Record<SetType, string> = {
   drop: "Дроп-сет",
   failure: "Отказной",
 };
+
+function formatTrackedSeconds(totalSeconds: number) {
+  const minutes = Math.floor(Math.max(0, totalSeconds) / 60);
+  const seconds = Math.max(0, totalSeconds) % 60;
+  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+}
 
 function setParts(set: ActualSet, isTimed = false): { reps: number; weightKg: number; distanceKm?: number }[] {
   if (isTimed) {
@@ -192,7 +201,7 @@ function ExerciseDragHandle({
   );
 }
 
-function WorkoutProgressCard({ completedSets, totalSets, elapsedSeconds, averageRestSeconds, currentRestSeconds, lastAutosavedAt, colors }: { completedSets: number; totalSets: number; elapsedSeconds: number; averageRestSeconds: number; currentRestSeconds: number; lastAutosavedAt: number | null; colors: ReturnType<typeof useColors> }) {
+function WorkoutProgressCard({ completedSets, totalSets, elapsedSeconds, averageRestSeconds, currentRestSeconds, trackedActiveSeconds, trackedRestSeconds, lastAutosavedAt, colors }: { completedSets: number; totalSets: number; elapsedSeconds: number; averageRestSeconds: number; currentRestSeconds: number; trackedActiveSeconds: number; trackedRestSeconds: number; lastAutosavedAt: number | null; colors: ReturnType<typeof useColors> }) {
   const progress = getWorkoutProgress(completedSets, totalSets);
   const forecast = getWorkoutFinishForecast(elapsedSeconds, completedSets, totalSets, Date.now(), averageRestSeconds, currentRestSeconds);
   const progressWidth = useSharedValue(progress.ratio * 100);
@@ -215,6 +224,7 @@ function WorkoutProgressCard({ completedSets, totalSets, elapsedSeconds, average
           <Text style={[styles.workoutProgressCopy, { color: colors.foreground }]}>{progress.completed} из {progress.total || "—"} подходов завершено</Text>
           <Text style={[styles.workoutProgressSaved, { color: colors.muted }]}>Автосохранено: {savedLabel}</Text>
           <Text style={[styles.workoutForecast, { color: colors.muted }]}>{finishLabel ? `Текущий темп: ${formatForecastDuration(forecast.secondsRemaining)} · завершение к ${finishLabel}${forecast.restSecondsRemaining ? ` · отдых ${formatForecastDuration(forecast.restSecondsRemaining)}` : ""}` : "Прогноз появится после первого завершённого подхода"}</Text>
+          <Text style={[styles.workoutTimingSummary, { color: colors.muted }]}>Факт: работа {formatTrackedSeconds(trackedActiveSeconds)} · отдых {formatTrackedSeconds(trackedRestSeconds)}</Text>
         </View>
         <View style={styles.workoutProgressRing}>
           <Svg width={WORKOUT_PROGRESS_CIRCLE_SIZE} height={WORKOUT_PROGRESS_CIRCLE_SIZE} viewBox={`0 0 ${WORKOUT_PROGRESS_CIRCLE_SIZE} ${WORKOUT_PROGRESS_CIRCLE_SIZE}`}>
@@ -255,6 +265,8 @@ export default function WorkoutScreen() {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [focusedSetIndex, setFocusedSetIndex] = useState<number | null>(null);
   const [focusedSubsetIndex, setFocusedSubsetIndex] = useState<number | null>(null);
+  const [activeSet, setActiveSet] = useState<ActiveSetTracker | null>(null);
+  const [setTimings, setSetTimings] = useState<Record<string, RecordedSetTiming>>({});
   const [setsByExercise, setSetsByExercise] = useState<Record<string, ActualSet[]>>({});
   const [replacements, setReplacements] = useState<Record<string, string>>({});
   const [removedExerciseIds, setRemovedExerciseIds] = useState<string[]>([]);
@@ -265,8 +277,11 @@ export default function WorkoutScreen() {
   const [rest, setRest] = useState(0);
   const [restTotal, setRestTotal] = useState(0);
   const [restEndAt, setRestEndAt] = useState<number | null>(null);
+  const [restStartedAt, setRestStartedAt] = useState<number | null>(null);
+  const [completedRestSeconds, setCompletedRestSeconds] = useState(0);
   const previousRestRef = useRef(0);
   const restEndRef = useRef<number | null>(null);
+  const restStartedRef = useRef<number | null>(null);
   const restNotificationIdsRef = useRef<RestTimerNotificationIds | undefined>(undefined);
   const skippedRestRef = useRef(false);
   const restedSetSignatures = useRef<Record<string, string>>({});
@@ -297,6 +312,9 @@ export default function WorkoutScreen() {
     const remaining = getRemainingRestSeconds(restEndRef.current);
     setRest(remaining);
     if (remaining === 0) {
+      if (restStartedRef.current) setCompletedRestSeconds((current) => current + Math.max(0, Math.round((Date.now() - restStartedRef.current!) / 1000)));
+      restStartedRef.current = null;
+      setRestStartedAt(null);
       restEndRef.current = null;
       setRestEndAt(null);
       setRestTotal(0);
@@ -322,7 +340,10 @@ export default function WorkoutScreen() {
     const seconds = Math.max(0, Math.round(durationSeconds));
     if (!seconds) return;
     skippedRestRef.current = false;
-    const endTimestamp = Date.now() + seconds * 1000;
+    const startedAt = Date.now();
+    const endTimestamp = startedAt + seconds * 1000;
+    restStartedRef.current = startedAt;
+    setRestStartedAt(startedAt);
     restEndRef.current = endTimestamp;
     setRestEndAt(endTimestamp);
     setRestTotal(seconds);
@@ -341,6 +362,9 @@ export default function WorkoutScreen() {
 
   const skipRest = useCallback(() => {
     skippedRestRef.current = true;
+    if (restStartedRef.current) setCompletedRestSeconds((current) => current + Math.max(0, Math.round((Date.now() - restStartedRef.current!) / 1000)));
+    restStartedRef.current = null;
+    setRestStartedAt(null);
     restEndRef.current = null;
     setRestEndAt(null);
     setRestTotal(0);
@@ -430,13 +454,18 @@ export default function WorkoutScreen() {
           setStarted(snapshot.startedAt);
           setRestEndAt(snapshot.restEndAt);
           restEndRef.current = snapshot.restEndAt;
+          setRestStartedAt(snapshot.restStartedAt);
+          restStartedRef.current = snapshot.restStartedAt;
           setRestTotal(snapshot.restTotal);
+          setCompletedRestSeconds(snapshot.completedRestSeconds);
           setRest(snapshot.restEndAt ? getRemainingRestSeconds(snapshot.restEndAt) : 0);
           setLastAutosavedAt(snapshot.savedAt);
           setMachineSetup(snapshot.machineSetup);
           setNote(snapshot.note);
           setAddedSessionExercises(snapshot.addedSessionExercises);
           setSessionOrder(snapshot.sessionOrder);
+          setActiveSet(snapshot.activeSet);
+          setSetTimings(snapshot.setTimings);
         } else {
           setActiveId(null);
           setSetsByExercise({});
@@ -447,13 +476,18 @@ export default function WorkoutScreen() {
           setStarted(Date.now());
           setRestEndAt(null);
           restEndRef.current = null;
+          setRestStartedAt(null);
+          restStartedRef.current = null;
           setRestTotal(0);
+          setCompletedRestSeconds(0);
           setRest(0);
           setLastAutosavedAt(null);
           setMachineSetup("");
           setNote("");
           setAddedSessionExercises([]);
           setSessionOrder([]);
+          setActiveSet(null);
+          setSetTimings({});
         }
       })
       .catch(() => undefined)
@@ -480,11 +514,15 @@ export default function WorkoutScreen() {
       sessionOrder,
       restEndAt,
       restTotal,
+      restStartedAt,
+      completedRestSeconds,
       savedAt: Date.now(),
       machineSetup,
       note,
+      activeSet,
+      setTimings,
     };
-  }, [activeId, addedSessionExercises, done, draft, isRestoringDraft, machineSetup, note, programSnapshotId, removedExerciseIds, replacements, restEndAt, restTotal, sessionOrder, setsByExercise, started]);
+  }, [activeId, activeSet, addedSessionExercises, completedRestSeconds, done, draft, isRestoringDraft, machineSetup, note, programSnapshotId, removedExerciseIds, replacements, restEndAt, restStartedAt, restTotal, sessionOrder, setTimings, setsByExercise, started]);
 
   useEffect(() => () => {
     const snapshot = latestDraftSnapshotRef.current;
@@ -509,13 +547,17 @@ export default function WorkoutScreen() {
         sessionOrder,
         restEndAt,
         restTotal,
+        restStartedAt,
+        completedRestSeconds,
         savedAt,
         machineSetup,
         note,
+        activeSet,
+        setTimings,
       }).then(() => setLastAutosavedAt(savedAt)).catch(() => undefined);
     }, 180);
     return () => clearTimeout(snapshotTimer);
-  }, [activeId, addedSessionExercises, done, draft, isRestoringDraft, machineSetup, note, programSnapshotId, removedExerciseIds, replacements, restEndAt, restTotal, sessionOrder, setsByExercise, started]);
+  }, [activeId, activeSet, addedSessionExercises, completedRestSeconds, done, draft, isRestoringDraft, machineSetup, note, programSnapshotId, removedExerciseIds, replacements, restEndAt, restStartedAt, restTotal, sessionOrder, setTimings, setsByExercise, started]);
 
   if (!program) return null;
 
@@ -665,6 +707,16 @@ export default function WorkoutScreen() {
     setFocusedSetIndex(index);
     setFocusedSubsetIndex(subsetIndex ?? null);
   };
+  const setTimingKey = (exerciseId: string, setIndex: number) => `${exerciseId}:${setIndex}`;
+  const startSet = (setIndex: number) => {
+    if (!activeId || activeSet) return;
+    setActiveSet({ exerciseId: activeId, setIndex, startedAt: Date.now() });
+    if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => undefined);
+  };
+  const openFinishSetEditor = (setIndex: number) => {
+    if (!activeId || activeSet?.exerciseId !== activeId || activeSet.setIndex !== setIndex) return;
+    openSetEditor(setIndex);
+  };
   const closeSetEditor = () => {
     Keyboard.dismiss();
     setFocusedSetIndex(null);
@@ -682,6 +734,12 @@ export default function WorkoutScreen() {
   };
   const finishFocusedSet = () => {
     if (focusedSetIndex === null) return;
+    const finishedAt = Date.now();
+    if (activeId && activeSet?.exerciseId === activeId && activeSet.setIndex === focusedSetIndex) {
+      const key = setTimingKey(activeId, focusedSetIndex);
+      setSetTimings((current) => ({ ...current, [key]: { startedAt: activeSet.startedAt, finishedAt, activeSeconds: Math.max(0, Math.round((finishedAt - activeSet.startedAt) / 1000)) } }));
+      setActiveSet(null);
+    }
     startRestAfterSetInput(focusedSetIndex);
     if (Platform.OS !== "web") {
       const style = hapticIntensity === "heavy" ? Haptics.ImpactFeedbackStyle.Heavy : hapticIntensity === "medium" ? Haptics.ImpactFeedbackStyle.Medium : Haptics.ImpactFeedbackStyle.Light;
@@ -691,6 +749,7 @@ export default function WorkoutScreen() {
   };
   const focusedSet = focusedSetIndex === null ? undefined : draft[focusedSetIndex];
   const focusedPart = focusedSet && focusedSubsetIndex !== null ? focusedSet.dropSubsets?.[focusedSubsetIndex] : focusedSet;
+  const activeSetElapsedSeconds = activeSet ? Math.max(0, Math.floor((Date.now() - activeSet.startedAt) / 1000)) : 0;
   const previousWorkingResult = focusedSetIndex === null ? null : getPreviousWorkingResult(draft, focusedSetIndex);
   const quickWeightOptions = focusedPart
     && !activeIsTimed ? getHistoricalQuickWeightOptions(history.flatMap((entry) => entry.sets), previousWorkingResult?.weight ?? String(activePlan?.weight ?? ""), plateStepKg)
@@ -847,10 +906,38 @@ export default function WorkoutScreen() {
         ? set.dropSubsets.map((part) => ({ exerciseId: set.exerciseId, reps: part.reps, weight: part.weightKg }))
         : [{ exerciseId: set.exerciseId, reps: set.reps, weight: set.weightKg, distanceKm: set.distanceKm }],
     );
-    const result = finishWorkout(program.id, total, recordSets);
+    const totalActiveSeconds = sessionExercises
+      .filter((item) => done[item.exerciseId])
+      .reduce((seconds, item) => seconds + (setsByExercise[item.exerciseId] ?? []).reduce((setSeconds, set, index) => {
+        const isTimed = isTimeBasedExercise(getExercise(actualExerciseId(item.exerciseId)));
+        if (!setParts(set, isTimed).length) return setSeconds;
+        return setSeconds + (setTimings[setTimingKey(item.exerciseId, index)]?.activeSeconds ?? 0);
+      }, 0), 0);
+    const energy = calculateWorkoutEnergy({
+      weightKg: bodyWeightKg,
+      activeSeconds: totalActiveSeconds,
+      restSeconds: completedRestSeconds,
+    });
+    const result = finishWorkout(program.id, total, recordSets, {
+      activeSeconds: totalActiveSeconds,
+      restSeconds: completedRestSeconds,
+      caloriesBurned: energy.totalCalories,
+    });
     isDraftPersistenceEnabledRef.current = false;
     void clearActiveWorkoutDraft().catch(() => undefined);
-    router.replace({ pathname: "/workout-summary" as never, params: { workoutId: result.workoutId, programId: program.id, volume: String(Math.round(total)), minutes: String(result.minutes), records: result.newRecordIds.join(",") } });
+    router.replace({
+      pathname: "/workout-summary" as never,
+      params: {
+        workoutId: result.workoutId,
+        programId: program.id,
+        volume: String(Math.round(total)),
+        minutes: String(result.minutes),
+        activeSeconds: String(result.activeSeconds),
+        restSeconds: String(result.restSeconds),
+        calories: String(result.caloriesBurned),
+        records: result.newRecordIds.join(","),
+      },
+    });
   };
 
   const resetActiveWorkout = () => {
@@ -915,6 +1002,8 @@ export default function WorkoutScreen() {
     (totalSets, item) => totalSets + (setsByExercise[item.exerciseId] ?? []).reduce((setTotal, set) => setTotal + setParts(set, isTimeBasedExercise(getExercise(actualExerciseId(item.exerciseId)))).length, 0),
     0,
   );
+  const trackedActiveSeconds = Object.values(setTimings).reduce((seconds, timing) => seconds + timing.activeSeconds, 0) + activeSetElapsedSeconds;
+  const trackedRestSeconds = completedRestSeconds + (restStartedAt ? Math.max(0, Math.floor((Date.now() - restStartedAt) / 1000)) : 0);
 
   return (
     <ScreenContainer edges={["top", "left", "right", "bottom"]} className="px-5" containerClassName="bg-background">
@@ -944,7 +1033,7 @@ export default function WorkoutScreen() {
         </View>
         <Text style={[styles.title, { color: colors.foreground }]}>{program.name}</Text>
         <Text style={[styles.helper, { color: colors.muted }]}>Сохраняйте только выполненные упражнения. Свайпните карточку влево для удаления, перетащите маркер ⠿ для смены порядка.</Text>
-        <WorkoutProgressCard completedSets={completedSetCount} totalSets={totalPlannedSetCount} elapsedSeconds={elapsed} averageRestSeconds={averagePlannedRestSeconds} currentRestSeconds={rest} lastAutosavedAt={lastAutosavedAt} colors={colors} />
+        <WorkoutProgressCard completedSets={completedSetCount} totalSets={totalPlannedSetCount} elapsedSeconds={elapsed} averageRestSeconds={averagePlannedRestSeconds} currentRestSeconds={rest} trackedActiveSeconds={trackedActiveSeconds} trackedRestSeconds={trackedRestSeconds} lastAutosavedAt={lastAutosavedAt} colors={colors} />
 
         {renderedSessionExercises.map((item, index) => {
           const exercise = getExercise(actualExerciseId(item.exerciseId));
@@ -1247,11 +1336,21 @@ export default function WorkoutScreen() {
                         <Text style={[styles.addSubsetText, { color: colors.primary }]}>＋ Добавить подподход</Text>
                       </Pressable>
                     )}
-                    <Text style={[styles.dropVolume, { color: colors.muted }]}>
+                    <Text style={[styles.dropVolume, { color: colors.muted }]}> 
                       Объём дроп-сета: {Math.round(getSetVolumeWithDropSubsets({ weightKg: Number(set.weight) || 0, reps: Number(set.reps) || 0, setType: "drop", dropSubsets: setParts(set) })).toLocaleString("ru-RU")} кг
                     </Text>
                   </View>
                 )}
+                {activeId && <View style={[styles.setActionPanel, { borderTopColor: colors.border }]}>
+                  {activeSet?.exerciseId === activeId && activeSet.setIndex === index ? <>
+                    <Text style={[styles.setActionTimer, { color: colors.primary }]}>ПОДХОД ВЫПОЛНЯЕТСЯ · {formatTrackedSeconds(activeSetElapsedSeconds)}</Text>
+                    <Pressable onPress={() => openFinishSetEditor(index)} style={({ pressed }) => [styles.finishSetAction, { backgroundColor: colors.primary, opacity: pressed ? 0.76 : 1 }]}>
+                      <Text style={styles.finishSetActionText}>ЗАВЕРШИТЬ ПОДХОД</Text>
+                    </Pressable>
+                  </> : setTimings[setTimingKey(activeId, index)] ? <View style={styles.setCompletedLine}><Text style={[styles.setActionTimer, { color: colors.success }]}>ПОДХОД ЗАФИКСИРОВАН · {formatTrackedSeconds(setTimings[setTimingKey(activeId, index)].activeSeconds)}</Text><Pressable onPress={() => openSetEditor(index)}><Text style={[styles.setEditLink, { color: colors.primary }]}>ИЗМЕНИТЬ</Text></Pressable></View> : <Pressable disabled={Boolean(activeSet)} onPress={() => startSet(index)} style={({ pressed }) => [styles.startSetAction, { borderColor: colors.primary, opacity: activeSet ? 0.38 : pressed ? 0.7 : 1 }]}>
+                    <Text style={[styles.startSetActionText, { color: colors.primary }]}>НАЧАТЬ ПОДХОД</Text>
+                  </Pressable>}
+                </View>}
               </View>
             ))}
             <Pressable
@@ -1344,6 +1443,7 @@ const styles = StyleSheet.create({
   workoutProgressCopy: { fontSize: 13, fontWeight: "800", marginTop: 4 },
   workoutProgressSaved: { fontSize: 10, lineHeight: 15, marginTop: 5 },
   workoutForecast: { fontSize: 10, lineHeight: 15, marginTop: 2 },
+  workoutTimingSummary: { fontSize: 10, lineHeight: 15, marginTop: 2, fontWeight: "700" },
   workoutProgressRing: { width: WORKOUT_PROGRESS_CIRCLE_SIZE, height: WORKOUT_PROGRESS_CIRCLE_SIZE, alignItems: "center", justifyContent: "center" },
   workoutProgressRingLabel: { position: "absolute", alignItems: "center", justifyContent: "center" },
   workoutProgressPercent: { fontSize: 16, fontWeight: "900" },
@@ -1436,6 +1536,14 @@ const styles = StyleSheet.create({
   quickWeightText: { fontSize: 12, fontWeight: "900" },
   setEditorFinish: { minHeight: 62, borderRadius: 0, alignItems: "center", justifyContent: "center", marginTop: 2 },
   setEditorFinishText: { color: "#FFFDF8", fontSize: 17, fontWeight: "900" },
+  setActionPanel: { marginTop: 10, paddingTop: 10, borderTopWidth: StyleSheet.hairlineWidth, gap: 7 },
+  startSetAction: { minHeight: 42, borderWidth: 1, alignItems: "center", justifyContent: "center" },
+  startSetActionText: { fontSize: 11, fontWeight: "900", letterSpacing: .65 },
+  finishSetAction: { minHeight: 44, alignItems: "center", justifyContent: "center" },
+  finishSetActionText: { color: "#FFFDF8", fontSize: 11, fontWeight: "900", letterSpacing: .65 },
+  setActionTimer: { fontSize: 9, fontWeight: "900", letterSpacing: .45, textAlign: "center" },
+  setCompletedLine: { minHeight: 38, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 },
+  setEditLink: { fontSize: 9, fontWeight: "900", letterSpacing: .35 },
   modalRoot: { flex: 1, paddingTop: 10 },
   modalHeader: { minHeight: 56, paddingHorizontal: 18, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   cancel: { fontSize: 14 },

@@ -14,6 +14,8 @@ import { useWorkoutStore } from "@/lib/workout-store";
 import { formatDuration, getExercise, getProgram } from "@/lib/workout-data";
 import { buildHomeWorkoutTrend, type HomeWorkoutTrendPoint } from "@/lib/home-workout-trend";
 import { getDailyAthleteQuote } from "@/lib/daily-athlete-quote";
+import { useBodyStore } from "@/lib/body-store";
+import { calculateDailyEnergy } from "@/lib/workout-energy";
 
 const REFERENCE_BLUE = "#1746D2";
 
@@ -22,7 +24,8 @@ const titleCase = (value: string) => value ? value[0].toUpperCase() + value.slic
 
 export default function HomeScreen() {
   const colors = useColors();
-  const { programs, completed, scheduled, startWorkout } = useWorkoutStore();
+  const { programs, completed, scheduled, startWorkout, bodyWeightKg } = useWorkoutStore();
+  const { profile, heightCm, ageYears, measurements } = useBodyStore();
   const { entries: nutritionEntries, dailyCalorieGoal, dailyMacroGoals } = useNutritionStore();
   const homeWidgets = useHomeWidgets();
   const now = new Date();
@@ -38,6 +41,12 @@ export default function HomeScreen() {
   const foodCalories = todayFoodEntries.reduce((sum, entry) => sum + entryCalories(entry), 0);
   const foodMacros = sumEntryMacros(todayFoodEntries);
   const dailyQuote = getDailyAthleteQuote(now);
+  const latestRecordedWeight = measurements.find((measurement) => typeof measurement.weightKg === "number" && measurement.weightKg > 0)?.weightKg;
+  const currentWeightKg = latestRecordedWeight ?? bodyWeightKg;
+  const workoutCaloriesToday = completed
+    .filter((workout) => workout.date === today)
+    .reduce((sum, workout) => sum + Math.max(0, workout.caloriesBurned ?? 0), 0);
+  const dailyEnergy = calculateDailyEnergy({ profile, weightKg: currentWeightKg, heightCm, ageYears, workoutCalories: workoutCaloriesToday });
 
   return (
     <ScreenContainer className="px-0" containerClassName="bg-background">
@@ -61,13 +70,13 @@ export default function HomeScreen() {
             {todayProgram ? <PlanTimeline program={todayProgram} colors={colors} /> : <EmptyPlan colors={colors} />}
           </View>
         </View>
-        <HomeWidgetStack homeWidgets={homeWidgets} now={now} scheduled={scheduled} completed={completed} colors={colors} foodCalories={foodCalories} dailyCalorieGoal={dailyCalorieGoal} foodMacros={foodMacros} dailyMacroGoals={dailyMacroGoals} workoutTrend={workoutTrend} weekVolume={weekVolume} dailyQuote={dailyQuote} />
+        <HomeWidgetStack homeWidgets={homeWidgets} now={now} scheduled={scheduled} completed={completed} colors={colors} foodCalories={foodCalories} dailyCalorieGoal={dailyCalorieGoal} foodMacros={foodMacros} dailyMacroGoals={dailyMacroGoals} workoutTrend={workoutTrend} weekVolume={weekVolume} dailyQuote={dailyQuote} dailyEnergy={dailyEnergy} />
       </ScrollView>
     </ScreenContainer>
   );
 }
 
-function HomeWidgetStack({ homeWidgets, now, scheduled, completed, colors, foodCalories, dailyCalorieGoal, foodMacros, dailyMacroGoals, workoutTrend, weekVolume, dailyQuote }: any) {
+function HomeWidgetStack({ homeWidgets, now, scheduled, completed, colors, foodCalories, dailyCalorieGoal, foodMacros, dailyMacroGoals, workoutTrend, weekVolume, dailyQuote, dailyEnergy }: any) {
   const [draggingId, setDraggingId] = useState<HomeWidgetId | null>(null);
   const [dragTarget, setDragTarget] = useState<number | null>(null);
   const [previewOrder, setPreviewOrder] = useState<HomeWidgetId[] | null>(null);
@@ -118,7 +127,7 @@ function HomeWidgetStack({ homeWidgets, now, scheduled, completed, colors, foodC
     if (id === "week") return <WeekStrip key={id} now={now} scheduled={scheduled} completed={completed} colors={colors} compact={compact} />;
     if (id === "nutrition") return <NutritionProgress key={id} calories={foodCalories} calorieGoal={dailyCalorieGoal} macros={foodMacros} macroGoals={dailyMacroGoals} colors={colors} compact={compact} />;
     if (id === "trainingTrend") return <View key={id} style={[styles.analytics, compact && compactStyles.analytics, { borderTopColor: colors.border, borderBottomColor: colors.border }]}><View style={[styles.analyticsLabel, { borderRightColor: colors.border }]}><Text style={[styles.analyticsTitle, { color: colors.foreground }]}>ОБЪЁМ{`\n`}КГ</Text><View style={[styles.graphMark, { backgroundColor: colors.foreground }]}><IconSymbol name="chart.bar.fill" size={compact ? 24 : 34} color={colors.surface} /></View></View><View style={styles.chartArea}><View style={styles.chartTopline}><Text style={[styles.chartCaption, { color: colors.foreground }]}>ЗАВЕРШЁННЫЕ ТРЕНИРОВКИ</Text><Pressable onPress={() => router.push("/(tabs)/stats")} style={({ pressed }) => [styles.chartLink, { borderColor: colors.primary, opacity: pressed ? 0.65 : 1 }]}><Text style={[styles.chartLinkText, { color: colors.primary }]}>СТАТИСТИКА</Text></Pressable></View><CompletedWorkoutChart points={workoutTrend} colors={colors} compact={compact} /></View></View>;
-    if (id === "metrics") return <View key={id} style={[styles.dataRow, compact && compactStyles.dataRow]}><Metric compact={compact} label="ТРЕНИРОВОК" value={String(completed.length)} suffix="" colors={colors} /><Metric compact={compact} label="ОБЪЁМ" value={`${(weekVolume / 1000).toFixed(1)}`} suffix=" т" colors={colors} /><Metric compact={compact} label="ВРЕМЯ" value={formatDuration(completed.reduce((sum: number, item: any) => sum + item.durationMinutes, 0)).replace(" ч 0 мин", " ч")} suffix="" colors={colors} /></View>;
+    if (id === "metrics") return <View key={id} style={styles.metricsStack}><DailyEnergyCard estimate={dailyEnergy} colors={colors} compact={compact} /><View style={[styles.dataRow, compact && compactStyles.dataRow]}><Metric compact={compact} label="ТРЕНИРОВОК" value={String(completed.length)} suffix="" colors={colors} /><Metric compact={compact} label="ОБЪЁМ" value={`${(weekVolume / 1000).toFixed(1)}`} suffix=" т" colors={colors} /><Metric compact={compact} label="ВРЕМЯ" value={formatDuration(completed.reduce((sum: number, item: any) => sum + item.durationMinutes, 0)).replace(" ч 0 мин", " ч")} suffix="" colors={colors} /></View></View>;
     return <View key={id} style={[styles.footerActions, compact && compactStyles.footerActions]}><Pressable onPress={() => router.push("/(tabs)/calendar")} style={({ pressed }) => [styles.outlineAction, compact && compactStyles.outlineAction, { borderColor: colors.border, opacity: pressed ? 0.65 : 1 }]}><Text style={[styles.actionText, { color: colors.foreground }]}>КАЛЕНДАРЬ</Text><IconSymbol name="calendar" size={compact ? 16 : 19} color={colors.foreground} /></Pressable><Pressable onPress={() => router.push("/(tabs)/exercises")} style={({ pressed }) => [styles.outlineAction, compact && compactStyles.outlineAction, { borderColor: colors.border, opacity: pressed ? 0.65 : 1 }]}><Text style={[styles.actionText, { color: colors.foreground }]}>УПРАЖНЕНИЯ</Text><IconSymbol name="dumbbell.fill" size={compact ? 16 : 19} color={colors.foreground} /></Pressable></View>;
   };
   return <>{homeWidgets.ready && !homeWidgets.dragHintSeen && <WidgetDragHint colors={colors} onDismiss={homeWidgets.dismissWidgetDragHint} />}{displayedIds.map((id: HomeWidgetId, index: number) => <DraggableHomeWidget key={id} id={id} index={index} total={visibleIds.length} dragging={draggingId === id} colors={colors} onDragStart={() => { triggerWidgetGrabFeedback(); setDraggingId(id); setDragTarget(index); setPreviewOrder(visibleIds); }} onDragMove={(next) => previewWidgetMove(id, next)} onDragEnd={(target) => finishWidgetDrag(id, target)}>{renderWidget(id)}</DraggableHomeWidget>)}</>;
@@ -157,6 +166,10 @@ function WeekStrip({ now, scheduled, completed, colors, compact }: { now: Date; 
 }
 
 function Metric({ label, value, suffix, colors, compact }: { label: string; value: string; suffix: string; colors: any; compact: boolean }) { return <Pressable onPress={() => router.push("/(tabs)/stats")} style={({ pressed }) => [styles.metric, compact && compactStyles.metric, { borderColor: colors.border, opacity: pressed ? 0.64 : 1 }]}><Text numberOfLines={1} style={[styles.metricValue, compact && compactStyles.metricValue, { color: colors.foreground }]}>{value}<Text style={styles.metricSuffix}>{suffix}</Text></Text><Text style={[styles.metricLabel, compact && compactStyles.metricLabel, { color: colors.muted }]}>{label}</Text></Pressable>; }
+
+function DailyEnergyCard({ estimate, colors, compact }: { estimate: { restingCalories: number; movementCalories: number; workoutCalories: number; totalCalories: number; isPersonalizedRestingEstimate: boolean }; colors: any; compact: boolean }) {
+  return <Pressable onPress={() => router.push("/(tabs)/body")} style={({ pressed }) => [styles.energyCard, compact && compactStyles.energyCard, { backgroundColor: colors.surface, borderColor: colors.border, opacity: pressed ? 0.68 : 1 }]}><View style={styles.energyHead}><View><Text style={[styles.energyKicker, { color: colors.primary }]}>РАСХОД · СЕГОДНЯ</Text><Text style={[styles.energyValue, compact && compactStyles.energyValue, { color: colors.foreground }]}>{estimate.totalCalories.toLocaleString("ru-RU")} <Text style={styles.energySuffix}>ККАЛ</Text></Text></View><IconSymbol name="bolt.fill" size={compact ? 25 : 30} color={colors.primary} /></View>{!compact && <View style={[styles.energyBreakdown, { borderTopColor: colors.border }]}><Text style={[styles.energyPart, { color: colors.muted }]}>Покой <Text style={[styles.energyPartValue, { color: colors.foreground }]}>{estimate.restingCalories}</Text></Text><Text style={[styles.energyPart, { color: colors.muted }]}>Движение <Text style={[styles.energyPartValue, { color: colors.foreground }]}>{estimate.movementCalories}</Text></Text><Text style={[styles.energyPart, { color: colors.muted }]}>Тренировка <Text style={[styles.energyPartValue, { color: colors.primary }]}>{estimate.workoutCalories}</Text></Text></View>}<Text style={[styles.energyHint, { color: colors.muted }]}>{estimate.isPersonalizedRestingEstimate ? "Основано на профиле тела и завершённых тренировках." : "Добавьте рост и возраст в профиле для более точной оценки."}</Text></Pressable>;
+}
 
 function NutritionProgress({ calories, calorieGoal, macros, macroGoals, colors, compact }: { calories: number; calorieGoal: number; macros: { protein: number; fat: number; carbs: number }; macroGoals: { protein: number; fat: number; carbs: number }; colors: any; compact: boolean }) {
   const items = [{ label: "Б", value: macros.protein, goal: macroGoals.protein, color: colors.primary }, { label: "Ж", value: macros.fat, goal: macroGoals.fat, color: "#2F5FC4" }, { label: "У", value: macros.carbs, goal: macroGoals.carbs, color: "#E6A52D" }]; const caloriePercent = Math.min(100, Math.round((calories / Math.max(1, calorieGoal)) * 100));
@@ -243,6 +256,16 @@ const styles = StyleSheet.create({
   axisLabel: { fontSize: 8, flex: 1, textAlign: "center", fontWeight: "700" },
   chartEmpty: { minHeight: 132, justifyContent: "center", alignItems: "center" },
   chartEmptyText: { fontSize: 11, lineHeight: 16, textAlign: "center", fontWeight: "700", paddingHorizontal: 16 },
+  metricsStack: { gap: 0 },
+  energyCard: { marginHorizontal: 12, marginTop: 14, borderWidth: 1, borderLeftWidth: 6, padding: 14, gap: 9 },
+  energyHead: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between" },
+  energyKicker: { fontSize: 9, fontWeight: "900", letterSpacing: 0.8 },
+  energyValue: { fontSize: 30, fontWeight: "900", letterSpacing: -1.3, marginTop: 3 },
+  energySuffix: { fontSize: 11, letterSpacing: 0 },
+  energyBreakdown: { flexDirection: "row", justifyContent: "space-between", gap: 6, paddingTop: 8, borderTopWidth: StyleSheet.hairlineWidth },
+  energyPart: { fontSize: 9, fontWeight: "800", flex: 1 },
+  energyPartValue: { fontSize: 11, fontWeight: "900" },
+  energyHint: { fontSize: 9, lineHeight: 13, fontWeight: "700" },
   dataRow: { flexDirection: "row", marginHorizontal: 12, marginTop: 14, borderWidth: StyleSheet.hairlineWidth, borderColor: "#272624" },
   metric: { flex: 1, minHeight: 75, padding: 11, borderRightWidth: StyleSheet.hairlineWidth },
   metricValue: { fontSize: 19, fontWeight: "900", letterSpacing: -0.8 },
@@ -271,6 +294,8 @@ const compactStyles = StyleSheet.create({
   nutritionProgress: { paddingVertical: 9, gap: 7 },
   nutritionCalories: { fontSize: 20, marginTop: 1 },
   analytics: { minHeight: 150 },
+  energyCard: { paddingVertical: 10, gap: 4 },
+  energyValue: { fontSize: 23, marginTop: 1 },
   dataRow: { marginTop: 9 },
   metric: { minHeight: 56, paddingVertical: 8 },
   metricValue: { fontSize: 16 },

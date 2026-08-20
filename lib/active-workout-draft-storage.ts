@@ -11,6 +11,18 @@ export type WorkoutDraftSet = {
   dropSubsets?: { reps: string; weight: string }[];
 };
 
+export type ActiveSetDraftTiming = {
+  exerciseId: string;
+  setIndex: number;
+  startedAt: number;
+};
+
+export type CompletedSetDraftTiming = {
+  startedAt: number;
+  finishedAt: number;
+  activeSeconds: number;
+};
+
 export type ActiveWorkoutDraftSnapshot = {
   programId: string;
   startedAt: number;
@@ -24,9 +36,13 @@ export type ActiveWorkoutDraftSnapshot = {
   sessionOrder: string[];
   restEndAt: number | null;
   restTotal: number;
+  restStartedAt: number | null;
+  completedRestSeconds: number;
   savedAt: number | null;
   machineSetup: string;
   note: string;
+  activeSet: ActiveSetDraftTiming | null;
+  setTimings: Record<string, CompletedSetDraftTiming>;
 };
 
 function isFiniteNumber(value: unknown): value is number {
@@ -51,9 +67,22 @@ export function normalizeActiveWorkoutDraft(value: unknown): ActiveWorkoutDraftS
     sessionOrder: Array.isArray(draft.sessionOrder) ? draft.sessionOrder.filter((id): id is string => typeof id === "string") : [],
     restEndAt: isFiniteNumber(draft.restEndAt) ? draft.restEndAt : null,
     restTotal: isFiniteNumber(draft.restTotal) ? Math.max(0, draft.restTotal) : 0,
+    restStartedAt: isFiniteNumber(draft.restStartedAt) ? draft.restStartedAt : null,
+    completedRestSeconds: isFiniteNumber(draft.completedRestSeconds) ? Math.max(0, draft.completedRestSeconds) : 0,
     savedAt: isFiniteNumber(draft.savedAt) ? draft.savedAt : null,
     machineSetup: typeof draft.machineSetup === "string" ? draft.machineSetup : "",
     note: typeof draft.note === "string" ? draft.note : "",
+    activeSet: draft.activeSet && typeof draft.activeSet === "object" && typeof draft.activeSet.exerciseId === "string" && Number.isInteger(draft.activeSet.setIndex) && isFiniteNumber(draft.activeSet.startedAt)
+      ? { exerciseId: draft.activeSet.exerciseId, setIndex: Math.max(0, draft.activeSet.setIndex), startedAt: draft.activeSet.startedAt }
+      : null,
+    setTimings: draft.setTimings && typeof draft.setTimings === "object"
+      ? Object.fromEntries(Object.entries(draft.setTimings).flatMap(([key, timing]) => {
+          const candidate = timing as Partial<CompletedSetDraftTiming>;
+          return isFiniteNumber(candidate.startedAt) && isFiniteNumber(candidate.finishedAt) && isFiniteNumber(candidate.activeSeconds)
+            ? [[key, { startedAt: candidate.startedAt, finishedAt: candidate.finishedAt, activeSeconds: Math.max(0, candidate.activeSeconds) }]]
+            : [];
+        }))
+      : {},
   };
 }
 

@@ -15,16 +15,37 @@ describe("черновик активной тренировки", () => {
     sessionOrder: ["bench-press"],
     restEndAt: null,
     restTotal: 90,
+    restStartedAt: null,
+    completedRestSeconds: 48,
     savedAt: 1_700_000_000_120,
     machineSetup: "Скамья 2",
     note: "Контроль паузы",
+    activeSet: { exerciseId: "bench-press", setIndex: 0, startedAt: 1_700_000_000_050 },
+    setTimings: { "bench-press:0": { startedAt: 1_700_000_000_010, finishedAt: 1_700_000_000_040, activeSeconds: 30 } },
   };
 
   it("восстанавливает валидный сохранённый черновик", () => {
     const restored = normalizeActiveWorkoutDraft(snapshot);
     expect(restored?.setsByExercise["bench-press"][0].weight).toBe("80");
     expect(restored?.savedAt).toBe(1_700_000_000_120);
+    expect(restored?.completedRestSeconds).toBe(48);
+    expect(restored?.activeSet).toEqual(snapshot.activeSet);
+    expect(restored?.setTimings["bench-press:0"].activeSeconds).toBe(30);
     expect(isDraftForProgram(restored, "upper-strength")).toBe(true);
+  });
+
+  it("безопасно дополняет старые черновики без метрик времени", () => {
+    const legacySnapshot = { ...snapshot } as Record<string, unknown>;
+    delete legacySnapshot.restStartedAt;
+    delete legacySnapshot.completedRestSeconds;
+    delete legacySnapshot.activeSet;
+    delete legacySnapshot.setTimings;
+    const restored = normalizeActiveWorkoutDraft(legacySnapshot);
+
+    expect(restored?.restStartedAt).toBeNull();
+    expect(restored?.completedRestSeconds).toBe(0);
+    expect(restored?.activeSet).toBeNull();
+    expect(restored?.setTimings).toEqual({});
   });
 
   it("игнорирует повреждённый или чужой черновик", () => {
