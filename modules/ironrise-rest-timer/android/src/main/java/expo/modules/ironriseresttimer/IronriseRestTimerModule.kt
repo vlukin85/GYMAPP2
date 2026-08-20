@@ -8,6 +8,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.os.SystemClock
+import android.media.RingtoneManager
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import expo.modules.kotlin.modules.Module
@@ -27,14 +28,15 @@ internal const val EXTRA_REST_END_AT = "restEndAt"
 internal const val EXTRA_TARGET_LABEL = "targetLabel"
 internal const val EXTRA_TARGET_FROM = "targetFrom"
 internal const val EXTRA_TARGET_TO = "targetTo"
+internal const val EXTRA_COMPLETION_SOUND = "completionSound"
 private const val ACTION_PREFERENCES = "ironrise.rest.timer.actions"
 
 class IronriseRestTimerModule : Module() {
   override fun definition() = ModuleDefinition {
     Name("IronriseRestTimer")
 
-    Function("showCountdown") { restEndAt: Double, targetLabel: String, targetFromBpm: Double, targetToBpm: Double, currentHeartRateBpm: Double, heartRateZoneColor: String ->
-      showCountdownNotification(context, restEndAt.toLong(), targetLabel, targetFromBpm.toInt(), targetToBpm.toInt(), currentHeartRateBpm.toInt(), heartRateZoneColor)
+    Function("showCountdown") { restEndAt: Double, targetLabel: String, targetFromBpm: Double, targetToBpm: Double, currentHeartRateBpm: Double, heartRateZoneColor: String, completionSound: String ->
+      showCountdownNotification(context, restEndAt.toLong(), targetLabel, targetFromBpm.toInt(), targetToBpm.toInt(), currentHeartRateBpm.toInt(), heartRateZoneColor, completionSound)
     }
 
     Function("clearCountdown") {
@@ -51,7 +53,7 @@ class IronriseRestTimerModule : Module() {
 
 }
 
-internal fun showCountdownNotification(context: Context, restEndAt: Long, targetLabel: String, targetFromBpm: Int, targetToBpm: Int, currentHeartRateBpm: Int, heartRateZoneColor: String) {
+internal fun showCountdownNotification(context: Context, restEndAt: Long, targetLabel: String, targetFromBpm: Int, targetToBpm: Int, currentHeartRateBpm: Int, heartRateZoneColor: String, completionSound: String) {
   val remaining = restEndAt - System.currentTimeMillis()
   if (remaining <= 0) {
     clearCountdownNotification(context)
@@ -78,12 +80,12 @@ internal fun showCountdownNotification(context: Context, restEndAt: Long, target
     .apply {
       if (heartRateZoneColor.isNotBlank()) runCatching { setColor(android.graphics.Color.parseColor(heartRateZoneColor)) }
     }
-    .addAction(android.R.drawable.ic_menu_close_clear_cancel, "Пропустить", restActionPendingIntent(context, ACTION_SKIP, restEndAt, targetLabel, targetFromBpm, targetToBpm, SKIP_REQUEST_CODE))
-    .addAction(android.R.drawable.ic_input_add, "+30 секунд", restActionPendingIntent(context, ACTION_EXTEND, restEndAt, targetLabel, targetFromBpm, targetToBpm, EXTEND_REQUEST_CODE))
-    .addAction(android.R.drawable.ic_media_play, "Начать подход", restActionPendingIntent(context, ACTION_START, restEndAt, targetLabel, targetFromBpm, targetToBpm, START_REQUEST_CODE))
+    .addAction(android.R.drawable.ic_menu_close_clear_cancel, "Пропустить", restActionPendingIntent(context, ACTION_SKIP, restEndAt, targetLabel, targetFromBpm, targetToBpm, SKIP_REQUEST_CODE, completionSound))
+    .addAction(android.R.drawable.ic_input_add, "+30 секунд", restActionPendingIntent(context, ACTION_EXTEND, restEndAt, targetLabel, targetFromBpm, targetToBpm, EXTEND_REQUEST_CODE, completionSound))
+    .addAction(android.R.drawable.ic_media_play, "Начать подход", restActionPendingIntent(context, ACTION_START, restEndAt, targetLabel, targetFromBpm, targetToBpm, START_REQUEST_CODE, completionSound))
     .build()
   NotificationManagerCompat.from(context).notify(COUNTDOWN_NOTIFICATION_ID, notification)
-  scheduleCompletionAlarm(context, restEndAt)
+  scheduleCompletionAlarm(context, restEndAt, completionSound)
 }
 
 internal fun clearCountdownNotification(context: Context) {
@@ -104,13 +106,14 @@ private fun ensureCountdownChannel(context: Context) {
   manager.createNotificationChannel(channel)
 }
 
-internal fun restActionPendingIntent(context: Context, action: String, restEndAt: Long, targetLabel: String, targetFromBpm: Int, targetToBpm: Int, requestCode: Int): PendingIntent {
+internal fun restActionPendingIntent(context: Context, action: String, restEndAt: Long, targetLabel: String, targetFromBpm: Int, targetToBpm: Int, requestCode: Int, completionSound: String = "system"): PendingIntent {
   val intent = Intent(context, RestTimerActionReceiver::class.java).apply {
     this.action = action
     putExtra(EXTRA_REST_END_AT, restEndAt)
     putExtra(EXTRA_TARGET_LABEL, targetLabel)
     putExtra(EXTRA_TARGET_FROM, targetFromBpm)
     putExtra(EXTRA_TARGET_TO, targetToBpm)
+    putExtra(EXTRA_COMPLETION_SOUND, completionSound)
   }
   return PendingIntent.getBroadcast(context, requestCode, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
 }
@@ -127,16 +130,17 @@ internal fun consumePendingAction(context: Context): Map<String, Any>? {
   return mapOf("kind" to kind, "restEndAt" to restEndAt)
 }
 
-internal fun completionPendingIntent(context: Context, flags: Int): PendingIntent {
+internal fun completionPendingIntent(context: Context, flags: Int, completionSound: String = "system"): PendingIntent {
   val intent = Intent(context, RestTimerCompletionReceiver::class.java).apply {
     action = "expo.modules.ironriseresttimer.COMPLETE"
+    putExtra(EXTRA_COMPLETION_SOUND, completionSound)
   }
   return PendingIntent.getBroadcast(context, ALARM_REQUEST_CODE, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE or flags)
 }
 
-internal fun scheduleCompletionAlarm(context: Context, restEndAt: Long) {
+internal fun scheduleCompletionAlarm(context: Context, restEndAt: Long, completionSound: String) {
   val manager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
-  val pendingIntent = completionPendingIntent(context, 0)
+  val pendingIntent = completionPendingIntent(context, 0, completionSound)
   if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && manager.canScheduleExactAlarms()) {
     manager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, restEndAt, pendingIntent)
   } else if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {

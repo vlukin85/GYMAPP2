@@ -16,7 +16,7 @@ import { formatStorageBytes, getUsagePercent } from "@/lib/storage-usage-utils";
 import type { LocalStorageUsage } from "@/lib/local-storage-usage";
 import { clearGroqApiKey, getGroqApiKey, saveGroqApiKey } from "@/lib/groq-settings";
 import { type OneRepMaxFormula } from "@/lib/workout-data";
-import { type SetHapticIntensity, useWorkoutStore } from "@/lib/workout-store";
+import { type RestCompletionSound, type SetHapticIntensity, useWorkoutStore } from "@/lib/workout-store";
 import { useNutritionStore } from "@/lib/nutrition-store";
 import { HOME_WIDGETS, type HomeWidgetId, useHomeWidgets } from "@/lib/home-widgets";
 import { BODY_METRICS, DAILY_ACTIVITY_LEVELS, useBodyStore } from "@/lib/body-store";
@@ -33,6 +33,11 @@ const hapticIntensityOptions: { id: SetHapticIntensity; title: string; descripti
   { id: "light", title: "Лёгкая", description: "Короткое деликатное подтверждение" },
   { id: "medium", title: "Средняя", description: "Более заметный отклик" },
   { id: "heavy", title: "Сильная", description: "Выраженное подтверждение" },
+];
+const restCompletionSoundOptions: { id: RestCompletionSound; title: string; description: string }[] = [
+  { id: "system", title: "Системный", description: "Стандартный сигнал уведомления Android" },
+  { id: "alarm", title: "Будильник", description: "Более заметный системный сигнал" },
+  { id: "silent", title: "Без звука", description: "Оставить только вибрацию и визуальное уведомление" },
 ];
 const primaryThemeChoices = APP_COLOR_THEMES.filter((theme) => theme.id === "editorial" || theme.id === "orchid");
 type SettingsCategoryId = "training" | "home" | "appearance" | "body" | "reminders" | "data";
@@ -54,7 +59,7 @@ export default function SettingsScreen() {
   const { dailyCalorieGoal, dailyMacroGoals, setDailyCalorieGoal, setDailyMacroGoals } = useNutritionStore();
   const { visibility: homeWidgets, order: homeWidgetOrder, compact: compactWidgets, dragHapticsEnabled, setWidgetVisible, setWidgetCompact, setWidgetDragHapticsEnabled, moveWidget, resetWidgets } = useHomeWidgets();
   const { profile: bodyProfile, heightCm, ageYears, goals: bodyGoals, measurements: bodyMeasurements, activityLevel, setProfile: setBodyProfile, setProfileDetails, setGoals: setBodyGoals, setActivityLevel } = useBodyStore();
-  const { oneRmFormula, setOneRmFormula, plateStepKg, setPlateStepKg, bodyWeightKg, bodyweightVolumePercent, setBodyweightVolumeSettings, hapticIntensity, setHapticIntensity, restTimerSoundEnabled, setRestTimerSoundEnabled, restTimerVibrationEnabled, setRestTimerVibrationEnabled, notificationsEnabled, defaultWorkoutTime, defaultReminderMinutes, setNotificationPreferences } = store;
+  const { oneRmFormula, setOneRmFormula, plateStepKg, setPlateStepKg, bodyWeightKg, bodyweightVolumePercent, setBodyweightVolumeSettings, hapticIntensity, setHapticIntensity, restTimerSoundEnabled, setRestTimerSoundEnabled, restTimerCompletionSound, setRestTimerCompletionSound, restTimerVibrationEnabled, setRestTimerVibrationEnabled, notificationsEnabled, defaultWorkoutTime, defaultReminderMinutes, setNotificationPreferences } = store;
   const [bodyWeight, setBodyWeight] = useState(String(bodyWeightKg));
   const [bodyPercent, setBodyPercent] = useState(String(bodyweightVolumePercent));
   const [notificationTime, setNotificationTime] = useState(defaultWorkoutTime);
@@ -280,9 +285,21 @@ export default function SettingsScreen() {
         <View style={!isSectionVisible("training") && styles.hiddenSection}>
         <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Таймер отдыха</Text>
         <View style={[styles.restSoundCard, { backgroundColor: colors.surface, borderColor: colors.border }]}> 
-          <View style={{ flex: 1 }}><Text style={[styles.vibrationTitle, { color: colors.foreground }]}>Звук окончания отдыха</Text><Text style={[styles.vibrationHint, { color: colors.muted }]}>{restTimerSoundEnabled ? "Короткий сигнал прозвучит сразу после нулевого таймера." : "Окончание отдыха будет без звукового сигнала."}</Text></View>
+          <View style={{ flex: 1 }}><Text style={[styles.vibrationTitle, { color: colors.foreground }]}>Звук окончания отдыха</Text><Text style={[styles.vibrationHint, { color: colors.muted }]}>{restTimerSoundEnabled ? "Выберите сигнал для Android-уведомления по завершении отдыха." : "Окончание отдыха будет без звукового сигнала."}</Text></View>
           <Switch value={restTimerSoundEnabled} onValueChange={setRestTimerSoundEnabled} trackColor={{ false: colors.border, true: `${colors.primary}88` }} thumbColor={restTimerSoundEnabled ? colors.primary : colors.muted} />
         </View>
+        {restTimerSoundEnabled && <View style={[styles.vibrationCard, { backgroundColor: colors.surface, borderColor: colors.border }]}> 
+          <Text style={[styles.vibrationTitle, { color: colors.foreground }]}>Сигнал завершения</Text>
+          <View style={styles.vibrationOptions}>
+            {restCompletionSoundOptions.map((option) => {
+              const selected = option.id === restTimerCompletionSound;
+              return <Pressable key={option.id} onPress={() => setRestTimerCompletionSound(option.id)} style={({ pressed }) => [styles.vibrationOption, { backgroundColor: selected ? `${colors.primary}18` : colors.background, borderColor: selected ? colors.primary : colors.border, opacity: pressed ? 0.72 : 1 }]}>
+                <View style={[styles.vibrationRadio, { borderColor: selected ? colors.primary : colors.muted }]}>{selected && <View style={[styles.vibrationRadioDot, { backgroundColor: colors.primary }]} />}</View>
+                <View style={{ flex: 1 }}><Text style={[styles.vibrationOptionTitle, { color: colors.foreground }]}>{option.title}</Text><Text style={[styles.vibrationOptionHint, { color: colors.muted }]}>{option.description}</Text></View>
+              </Pressable>;
+            })}
+          </View>
+        </View>}
         <View style={[styles.restSoundCard, { backgroundColor: colors.surface, borderColor: colors.border }]}> 
           <View style={{ flex: 1 }}><Text style={[styles.vibrationTitle, { color: colors.foreground }]}>Вибрация окончания отдыха</Text><Text style={[styles.vibrationHint, { color: colors.muted }]}>{restTimerVibrationEnabled ? "Короткий тактильный сигнал дополнит окончание отсчёта." : "Окончание отдыха будет без вибрации."}</Text></View>
           <Switch value={restTimerVibrationEnabled} onValueChange={setRestTimerVibrationEnabled} trackColor={{ false: colors.border, true: `${colors.primary}88` }} thumbColor={restTimerVibrationEnabled ? colors.primary : colors.muted} />

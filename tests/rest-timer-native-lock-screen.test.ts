@@ -10,7 +10,7 @@ const workoutScreen = readFileSync(resolve(process.cwd(), "app/workout.tsx"), "u
 
 describe("таймер отдыха на заблокированном Android-экране", () => {
   it("передаёт обратный отсчёт нативному модулю и не дублирует Expo-уведомление", () => {
-    expect(notificationService).toContain("showNativeRestCountdown(restEndAt, target)");
+    expect(notificationService).toContain("showNativeRestCountdown(restEndAt, target, completionSound)");
     expect(notificationService).toContain("nativeCountdownStarted ? undefined");
     expect(notificationService).toContain("clearNativeRestCountdown()");
   });
@@ -49,5 +49,13 @@ describe("таймер отдыха на заблокированном Android-
     expect(nativeModule).toContain("heartRateZoneColor");
     expect(nativeModule).toContain("Color.parseColor");
     expect(workoutScreen).toContain("getActualHeartRateZoneColor");
+  });
+
+  it("применяет выбранный звук и позволяет начать подход из уведомления завершения", () => {
+    expect(nativeModule).toContain("completionSound");
+    expect(receiver).toContain("RingtoneManager.TYPE_ALARM");
+    expect(receiver).toContain('"Начать подход"');
+    expect(receiver).toContain("ACTION_START");
+    expect(workoutScreen).toContain("restTimerCompletionSound");
   });
 });

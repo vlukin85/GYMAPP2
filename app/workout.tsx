@@ -272,6 +272,7 @@ export default function WorkoutScreen() {
     bodyWeightKg,
     bodyweightVolumePercent,
     restTimerSoundEnabled,
+    restTimerCompletionSound,
     restTimerVibrationEnabled,
     hapticIntensity,
     exercisePreferences,
@@ -378,11 +379,11 @@ export default function WorkoutScreen() {
         toBpm: target.toBpm,
         currentBpm: lockScreenHeartRateVisible ? heartRate.currentBpm : undefined,
         zoneColor,
-      } : undefined);
+      } : undefined, restTimerSoundEnabled ? restTimerCompletionSound : "silent");
       if (restEndRef.current === endTimestamp) restNotificationIdsRef.current = ids;
       else void clearRestTimerLockScreenNotification(ids);
     })();
-  }, [ageYears, clearRestLockScreenNotification, heartRate.currentBpm, lockScreenHeartRateVisible, targetHeartRateZone]);
+  }, [ageYears, clearRestLockScreenNotification, heartRate.currentBpm, lockScreenHeartRateVisible, restTimerCompletionSound, restTimerSoundEnabled, targetHeartRateZone]);
 
   const startRestTimer = useCallback((durationSeconds: number) => {
     const seconds = Math.max(0, Math.round(durationSeconds));
