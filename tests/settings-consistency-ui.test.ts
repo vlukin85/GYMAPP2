@@ -19,4 +19,14 @@ describe("settings visual system", () => {
     expect(settings).toContain('storageCard: { borderWidth: 1, borderRadius: 0, borderLeftWidth: 5');
     expect(settings).toContain('offlineCard: { borderWidth: 1, borderRadius: 0, borderLeftWidth: 5');
   });
+
+  it("groups settings into navigable categories and exposes a focused parameter search", () => {
+    expect(settings).toContain("SETTINGS_CATEGORIES");
+    expect(settings).toContain("Тренировка");
+    expect(settings).toContain("Главный экран");
+    expect(settings).toContain("Питание и тело");
+    expect(settings).toContain("Поиск настроек");
+    expect(settings).toContain("isSectionVisible");
+    expect(settings).toContain("Ничего не найдено");
+  });
 });

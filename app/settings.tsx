@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Alert, KeyboardAvoidingView, Modal, PanResponder, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
 import { router } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
@@ -33,6 +33,15 @@ const hapticIntensityOptions: { id: SetHapticIntensity; title: string; descripti
   { id: "heavy", title: "Сильная", description: "Выраженное подтверждение" },
 ];
 const primaryThemeChoices = APP_COLOR_THEMES.filter((theme) => theme.id === "editorial" || theme.id === "orchid");
+type SettingsCategoryId = "training" | "home" | "appearance" | "body" | "reminders" | "data";
+const SETTINGS_CATEGORIES: { id: SettingsCategoryId; title: string; keywords: string[] }[] = [
+  { id: "training", title: "Тренировка", keywords: ["тренировка", "подход", "1rm", "вес", "блины", "таймер", "отдых", "звук", "вибрация"] },
+  { id: "home", title: "Главный экран", keywords: ["главный", "сегодня", "виджет", "перенос", "цитата", "вибрация"] },
+  { id: "appearance", title: "Внешний вид", keywords: ["внешний", "стиль", "тема", "цвет", "иконки", "плотность", "текст"] },
+  { id: "body", title: "Питание и тело", keywords: ["питание", "калории", "бжу", "белки", "жиры", "углеводы", "тело", "рост", "возраст", "цель", "обхват"] },
+  { id: "reminders", title: "Напоминания", keywords: ["напоминание", "уведомление", "время", "календарь"] },
+  { id: "data", title: "Данные и сервисы", keywords: ["данные", "хранилище", "фото", "офлайн", "экспорт", "импорт", "groq", "api", "инструменты"] },
+];
 
 export default function SettingsScreen() {
   const colors = useColors();
@@ -60,6 +69,8 @@ export default function SettingsScreen() {
   const [keySheetVisible, setKeySheetVisible] = useState(false);
   const [keyDraft, setKeyDraft] = useState("");
   const [savingGroqKey, setSavingGroqKey] = useState(false);
+  const [settingsCategory, setSettingsCategory] = useState<SettingsCategoryId>("training");
+  const [settingsQuery, setSettingsQuery] = useState("");
   const links = [
     { title: "Профиль штанги и блинов", subtitle: "Вес грифа и доступные номиналы", route: "/barbell" as const },
     { title: "Рекомендации следующей тренировки", subtitle: "Рабочий вес с объяснением расчёта", route: "/recommendations" as const },
@@ -134,6 +145,9 @@ export default function SettingsScreen() {
   const latestMeasuredWeight = bodyMeasurements[0]?.weightKg;
   const calorieGuide = calculateDailyCalorieGuide(bodyProfile, latestMeasuredWeight, heightCm, ageYears);
   const applyCalorieGuide = () => { if (calorieGuide === undefined) return; setDailyCalorieGoal(calorieGuide); setCalorieGoalDraft(String(calorieGuide)); };
+  const normalizedSettingsQuery = settingsQuery.trim().toLocaleLowerCase("ru-RU");
+  const matchingCategories = useMemo(() => SETTINGS_CATEGORIES.filter((category) => !normalizedSettingsQuery || [category.title, ...category.keywords].some((term) => term.toLocaleLowerCase("ru-RU").includes(normalizedSettingsQuery))), [normalizedSettingsQuery]);
+  const isSectionVisible = useCallback((category: SettingsCategoryId) => normalizedSettingsQuery ? matchingCategories.some((item) => item.id === category) : settingsCategory === category, [matchingCategories, normalizedSettingsQuery, settingsCategory]);
 
   return (
     <ScreenContainer edges={["top", "left", "right", "bottom"]} className="px-5" containerClassName="bg-background">
@@ -146,6 +160,21 @@ export default function SettingsScreen() {
           <View style={{ width: 27 }} />
         </View>
 
+        <View style={[styles.settingsSearch, { borderColor: colors.border, backgroundColor: colors.surface }]}>
+          <SafeMaterialIcon name="search" size={20} color={colors.muted} />
+          <TextInput value={settingsQuery} onChangeText={setSettingsQuery} placeholder="Поиск настроек" placeholderTextColor={colors.muted} returnKeyType="done" style={[styles.settingsSearchInput, { color: colors.foreground }]} />
+          {settingsQuery.length > 0 && <Pressable onPress={() => setSettingsQuery("")} accessibilityLabel="Очистить поиск настроек" style={({ pressed }) => [styles.searchClear, { opacity: pressed ? 0.62 : 1 }]}><SafeMaterialIcon name="close" size={18} color={colors.muted} /></Pressable>}
+        </View>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryTabs}>
+          {SETTINGS_CATEGORIES.map((category) => {
+            const active = !normalizedSettingsQuery && settingsCategory === category.id;
+            const matched = matchingCategories.some((item) => item.id === category.id);
+            return <Pressable key={category.id} onPress={() => { setSettingsCategory(category.id); setSettingsQuery(""); }} style={({ pressed }) => [styles.categoryTab, { borderColor: active ? colors.primary : colors.border, backgroundColor: active ? colors.primary : colors.surface, opacity: normalizedSettingsQuery && !matched ? 0.42 : pressed ? 0.72 : 1 }]}><Text style={[styles.categoryTabText, { color: active ? "#101412" : colors.foreground }]}>{category.title}</Text></Pressable>;
+          })}
+        </ScrollView>
+        {normalizedSettingsQuery.length > 0 && <Text style={[styles.searchResultHint, { color: colors.muted }]}>{matchingCategories.length ? `Подходящие категории: ${matchingCategories.map((category) => category.title).join(" · ")}` : "Ничего не найдено. Попробуйте другой запрос."}</Text>}
+
+        <View style={!isSectionVisible("training") && styles.hiddenSection}>
         <Text style={[styles.eyebrow, { color: colors.primary }]}>РАСЧЁТ СИЛЫ</Text>
         <Text style={[styles.title, { color: colors.foreground }]}>Формула 1RM</Text>
         <Text style={[styles.subtitle, { color: colors.muted }]}>Выбор применяется к зонам, истории и личным рекордам.</Text>
@@ -173,7 +202,9 @@ export default function SettingsScreen() {
             </Pressable>
           ))}
         </View>
+        </View>
 
+        <View style={!isSectionVisible("appearance") && styles.hiddenSection}>
         <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Стиль интерфейса</Text>
         <View style={[styles.appThemeCard, { backgroundColor: colors.surface, borderColor: colors.border }]}> 
           <Text style={[styles.iconThemeTitle, { color: colors.foreground }]}>Editorial или Orchid Voltage</Text>
@@ -187,7 +218,9 @@ export default function SettingsScreen() {
           <Text style={[styles.iconThemeHint, { color: colors.muted }]}>Выберите представление, которое комфортнее для тренировок и чтения статистики.</Text>
           <View style={styles.densityOptions}>{INTERFACE_DENSITY_PRESETS.map((option) => { const selected = density === option.id; return <Pressable key={option.id} onPress={() => setDensity(option.id)} style={({ pressed }) => [styles.densityOption, { backgroundColor: selected ? colors.primary : colors.background, borderColor: selected ? colors.primary : colors.border, opacity: pressed ? 0.72 : 1 }]}><Text style={[styles.densitySample, { color: selected ? colors.surface : colors.foreground, fontSize: option.id === "large" ? 24 : 18 }]}>Aa</Text><View style={{ flex: 1 }}><Text style={[styles.appThemeName, { color: selected ? colors.surface : colors.foreground }]}>{option.title}</Text><Text style={[styles.appThemeHint, { color: selected ? `${colors.surface}CC` : colors.muted }]}>{option.hint}</Text></View>{selected && <IconSymbol name="checkmark" size={17} color={colors.surface} />}</Pressable>; })}</View>
         </View>
+        </View>
 
+        <View style={!isSectionVisible("body") && styles.hiddenSection}>
         <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Питание</Text>
         <View style={[styles.densityCard, { backgroundColor: colors.surface, borderColor: colors.border }]}> 
           <Text style={[styles.iconThemeTitle, { color: colors.foreground }]}>Дневные цели калорий и БЖУ</Text>
@@ -197,7 +230,9 @@ export default function SettingsScreen() {
           <TextInput value={calorieGoalDraft} onChangeText={setCalorieGoalDraft} onEndEditing={() => { const value = Number(calorieGoalDraft); if (Number.isFinite(value) && value > 0) setDailyCalorieGoal(value); else setCalorieGoalDraft(String(dailyCalorieGoal)); }} keyboardType="number-pad" placeholder="2200" placeholderTextColor={colors.muted} style={[styles.field, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.background }]} />
           <View style={styles.macroGoalRow}>{([['protein', 'Белки, г', '150'], ['fat', 'Жиры, г', '70'], ['carbs', 'Углеводы, г', '250']] as const).map(([key, label, placeholder]) => <View key={key} style={styles.macroGoalField}><Text style={[styles.fieldLabel, { color: colors.muted }]}>{label}</Text><TextInput value={macroGoalDrafts[key]} onChangeText={(value) => setMacroGoalDrafts((current) => ({ ...current, [key]: value }))} onEndEditing={saveMacroGoals} keyboardType="number-pad" placeholder={placeholder} placeholderTextColor={colors.muted} style={[styles.field, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.background }]} /></View>)}</View>
         </View>
+        </View>
 
+        <View style={!isSectionVisible("home") && styles.hiddenSection}>
         <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Главный экран</Text>
         <View style={[styles.densityCard, { backgroundColor: colors.surface, borderColor: colors.border }]}> 
           <Text style={[styles.iconThemeTitle, { color: colors.foreground }]}>Виджеты на экране «Сегодня»</Text>
@@ -206,7 +241,9 @@ export default function SettingsScreen() {
           <View style={styles.widgetOptions}>{homeWidgetOrder.map((id, index) => <WidgetSettingsRow key={id} widget={HOME_WIDGETS.find((item) => item.id === id)!} index={index} total={homeWidgetOrder.length} visible={homeWidgets[id]} compact={compactWidgets[id]} colors={colors} onVisible={setWidgetVisible} onCompact={setWidgetCompact} onMove={moveWidget} />)}</View>
           <Pressable onPress={() => Alert.alert("Сбросить виджеты?", "Вернутся исходный порядок, обычный размер и видимость всех блоков.", [{ text: "Отмена", style: "cancel" }, { text: "Сбросить", style: "destructive", onPress: resetWidgets }])} style={({ pressed }) => [widgetControlStyles.resetButton, { borderColor: colors.border, opacity: pressed ? 0.65 : 1 }]}><Text style={[widgetControlStyles.resetText, { color: colors.foreground }]}>СБРОСИТЬ НАСТРОЙКИ ВИДЖЕТОВ</Text></Pressable>
         </View>
+        </View>
 
+        <View style={!isSectionVisible("appearance") && styles.hiddenSection}>
         <Text style={[styles.sectionTitle, { color: colors.foreground }]}>SVG-иконки</Text>
         <View style={[styles.iconThemeCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <Text style={[styles.iconThemeTitle, { color: colors.foreground }]}>Цвет интерфейсных иконок</Text>
@@ -227,7 +264,9 @@ export default function SettingsScreen() {
             })}
           </View>
         </View>
+        </View>
 
+        <View style={!isSectionVisible("training") && styles.hiddenSection}>
         <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Таймер отдыха</Text>
         <View style={[styles.restSoundCard, { backgroundColor: colors.surface, borderColor: colors.border }]}> 
           <View style={{ flex: 1 }}><Text style={[styles.vibrationTitle, { color: colors.foreground }]}>Звук окончания отдыха</Text><Text style={[styles.vibrationHint, { color: colors.muted }]}>{restTimerSoundEnabled ? "Короткий сигнал прозвучит сразу после нулевого таймера." : "Окончание отдыха будет без звукового сигнала."}</Text></View>
@@ -252,13 +291,17 @@ export default function SettingsScreen() {
             })}
           </View>
         </View>
+        </View>
 
+        <View style={!isSectionVisible("reminders") && styles.hiddenSection}>
         <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Напоминания о тренировках</Text>
         <View style={[styles.notificationCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <View style={styles.notificationHeader}><View style={{ flex: 1 }}><Text style={[styles.vibrationTitle, { color: colors.foreground }]}>Локальные уведомления</Text><Text style={[styles.vibrationHint, { color: colors.muted }]}>{notificationsEnabled ? "Новые планы в календаре получат напоминание по этим настройкам." : "Новые планы сохраняются без системного напоминания."}</Text></View><Switch value={notificationsEnabled} onValueChange={(enabled) => setNotificationPreferences({ notificationsEnabled: enabled, defaultWorkoutTime, defaultReminderMinutes })} trackColor={{ false: colors.border, true: `${colors.primary}88` }} thumbColor={notificationsEnabled ? colors.primary : colors.muted} /></View>
           <View style={styles.notificationFields}><View style={{ flex: 1 }}><Text style={[styles.fieldLabel, { color: colors.muted }]}>Время по умолчанию</Text><TextInput value={notificationTime} onChangeText={setNotificationTime} onEndEditing={() => setNotificationPreferences({ notificationsEnabled, defaultWorkoutTime: notificationTime, defaultReminderMinutes })} placeholder="18:30" placeholderTextColor={colors.muted} style={[styles.field, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.background }]} /></View><View style={{ flex: 1.35 }}><Text style={[styles.fieldLabel, { color: colors.muted }]}>Напомнить за</Text><View style={styles.notificationMinutes}>{[15, 30, 60, 120].map((minutes) => <Pressable key={minutes} onPress={() => setNotificationPreferences({ notificationsEnabled, defaultWorkoutTime: notificationTime || defaultWorkoutTime, defaultReminderMinutes: minutes })} style={[styles.notificationMinute, { backgroundColor: defaultReminderMinutes === minutes ? colors.primary : colors.background, borderColor: defaultReminderMinutes === minutes ? colors.primary : colors.border }]}><Text style={{ color: defaultReminderMinutes === minutes ? "#101412" : colors.foreground, fontSize: 10, fontWeight: "900" }}>{minutes}м</Text></Pressable>)}</View></View></View>
         </View>
+        </View>
 
+        <View style={!isSectionVisible("training") && styles.hiddenSection}>
         <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Упражнения с весом тела</Text>
         <Text style={[styles.subtitle, { color: colors.muted }]}>Для тоннажа приложение использует заданную долю массы тела: например, приседания или отжимания.</Text>
         <View style={styles.bodyFields}>
@@ -271,13 +314,17 @@ export default function SettingsScreen() {
             <TextInput value={bodyPercent} onChangeText={setBodyPercent} keyboardType="number-pad" onEndEditing={() => setBodyweightVolumeSettings(Number(bodyWeight) || bodyWeightKg, Number(bodyPercent) || bodyweightVolumePercent)} style={[styles.field, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.surface }]} />
           </View>
         </View>
+        </View>
 
+        <View style={!isSectionVisible("body") && styles.hiddenSection}>
         <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Профиль тела</Text>
         <View style={[styles.densityCard, { backgroundColor: colors.surface, borderColor: colors.border }]}><Text style={[styles.iconThemeTitle, { color: colors.foreground }]}>Силуэт и расчёты</Text><Text style={[styles.iconThemeHint, { color: colors.muted }]}>Профиль, рост и возраст используются только в локальных расчётах ИМТ и калорийного ориентира.</Text><View style={styles.bodyProfileChoices}>{([{ id: "male", title: "Мужчина", hint: "Широкие плечи · узкая талия" }, { id: "female", title: "Женщина", hint: "Мягкая линия плеч · акцент на бёдра" }] as const).map((option) => { const active = bodyProfile === option.id; return <Pressable key={option.id} onPress={() => setBodyProfile(option.id)} style={({ pressed }) => [styles.bodyProfileChoice, { borderColor: active ? colors.primary : colors.border, backgroundColor: active ? `${colors.primary}13` : colors.background, opacity: pressed ? 0.7 : 1 }]}><View style={[styles.bodyProfileMark, { backgroundColor: active ? colors.primary : colors.border }]}>{active && <Text style={styles.bodyProfileCheck}>✓</Text>}</View><View style={{ flex: 1 }}><Text style={[styles.bodyProfileTitle, { color: colors.foreground }]}>{option.title}</Text><Text style={[styles.bodyProfileHint, { color: colors.muted }]}>{option.hint}</Text></View></Pressable>; })}</View><View style={styles.bodyFields}><View style={{ flex: 1 }}><Text style={[styles.fieldLabel, { color: colors.muted }]}>Рост, см</Text><TextInput value={heightDraft} onChangeText={setHeightDraft} onEndEditing={saveBodyDetails} keyboardType="number-pad" placeholder="175" placeholderTextColor={colors.muted} style={[styles.field, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.background }]} /></View><View style={{ flex: 1 }}><Text style={[styles.fieldLabel, { color: colors.muted }]}>Возраст, лет</Text><TextInput value={ageDraft} onChangeText={setAgeDraft} onEndEditing={saveBodyDetails} keyboardType="number-pad" placeholder="30" placeholderTextColor={colors.muted} style={[styles.field, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.background }]} /></View></View></View>
 
         <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Цели параметров тела</Text>
         <View style={[styles.densityCard, { backgroundColor: colors.surface, borderColor: colors.border }]}><Text style={[styles.iconThemeTitle, { color: colors.foreground }]}>Вес и обхваты</Text><Text style={[styles.iconThemeHint, { color: colors.muted }]}>Целевые линии появятся в графиках на вкладке «Тело». Оставьте поле пустым, чтобы скрыть ориентир.</Text><View style={styles.goalFields}>{BODY_METRICS.filter((metric) => metric.id !== "bodyFatPct").map((metric) => <View key={metric.id} style={styles.goalField}><Text style={[styles.fieldLabel, { color: colors.muted }]}>{metric.label}, {metric.unit}</Text><TextInput value={bodyGoalDrafts[metric.id] ?? ""} onChangeText={(value) => setBodyGoalDrafts((current) => ({ ...current, [metric.id]: value }))} onEndEditing={saveBodyGoals} keyboardType="decimal-pad" placeholder="—" placeholderTextColor={colors.muted} style={[styles.field, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.background }]} /></View>)}</View></View>
+        </View>
 
+        <View style={!isSectionVisible("data") && styles.hiddenSection}>
         <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Groq AI</Text>
         <View style={[styles.groqCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <View style={styles.groqHeader}>
@@ -369,6 +416,8 @@ export default function SettingsScreen() {
           <IconSymbol name="checkmark.circle" size={20} color={colors.primary} />
           <Text style={[styles.noteText, { color: colors.muted }]}>Тренировки, настройки, рекорды и экспортируемые файлы сохраняются на этом устройстве. Для переноса используйте экспорт в CSV или ZIP.</Text>
         </View>
+        </View>
+        {normalizedSettingsQuery.length > 0 && !matchingCategories.length && <View style={[styles.searchEmpty, { backgroundColor: colors.surface, borderColor: colors.border }]}><Text style={[styles.iconThemeTitle, { color: colors.foreground }]}>Ничего не найдено</Text><Text style={[styles.iconThemeHint, { color: colors.muted }]}>Попробуйте «вибрация», «калории», «уведомления» или «экспорт».</Text><Pressable onPress={() => setSettingsQuery("")} style={({ pressed }) => [styles.searchEmptyAction, { borderColor: colors.primary, opacity: pressed ? 0.68 : 1 }]}><Text style={[widgetControlStyles.resetText, { color: colors.primary }]}>ОЧИСТИТЬ ПОИСК</Text></Pressable></View>}
       </ScrollView>
       <Modal visible={keySheetVisible} transparent animationType="slide" onRequestClose={() => setKeySheetVisible(false)}><View style={styles.backdrop}><KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={styles.sheetKeyboard}><View style={[styles.sheet, { backgroundColor: colors.background }]}><View style={styles.sheetHeader}><View><Text style={[styles.sheetTitle, { color: colors.foreground }]}>{hasGroqKey ? "Обновить ключ Groq" : "Добавить ключ Groq"}</Text><Text style={[styles.sheetHint, { color: colors.muted }]}>Новый ключ заменит предыдущий на этом устройстве.</Text></View><Pressable onPress={() => setKeySheetVisible(false)} style={[styles.close, { backgroundColor: colors.surface }]}><Text style={[styles.closeText, { color: colors.foreground }]}>×</Text></Pressable></View><TextInput value={keyDraft} onChangeText={setKeyDraft} secureTextEntry autoCapitalize="none" autoCorrect={false} placeholder="gsk_…" placeholderTextColor={colors.muted} style={[styles.keyInput, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.foreground }]} /><Pressable disabled={savingGroqKey} onPress={saveGroqKey} style={[styles.saveKey, { backgroundColor: colors.primary, opacity: savingGroqKey ? 0.6 : 1 }]}><Text style={styles.saveKeyText}>{savingGroqKey ? "Сохраняем…" : "Сохранить на устройстве"}</Text></Pressable></View></KeyboardAvoidingView></View></Modal>
     </ScreenContainer>
@@ -385,6 +434,16 @@ const styles = StyleSheet.create({
   content: { paddingTop: 16, paddingBottom: 34, gap: 14 },
   header: { minHeight: 42, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   headerTitle: { fontSize: 16, fontWeight: "800" },
+  settingsSearch: { minHeight: 48, borderWidth: 1, borderLeftWidth: 5, paddingHorizontal: 12, flexDirection: "row", alignItems: "center", gap: 9 },
+  settingsSearchInput: { flex: 1, minHeight: 46, fontSize: 14, fontWeight: "800" },
+  searchClear: { width: 32, height: 32, alignItems: "center", justifyContent: "center" },
+  categoryTabs: { gap: 7, paddingRight: 10 },
+  categoryTab: { minHeight: 36, borderWidth: 1, paddingHorizontal: 11, justifyContent: "center" },
+  categoryTabText: { fontSize: 10, fontWeight: "900", letterSpacing: 0.25 },
+  searchResultHint: { fontSize: 10, lineHeight: 15, marginTop: -4 },
+  hiddenSection: { display: "none" },
+  searchEmpty: { borderWidth: 1, borderLeftWidth: 5, padding: 14, gap: 8 },
+  searchEmptyAction: { alignSelf: "flex-start", minHeight: 36, borderWidth: 1, paddingHorizontal: 10, justifyContent: "center" },
   eyebrow: { fontSize: 11, fontWeight: "900", letterSpacing: 1.2, marginTop: 10 },
   title: { fontSize: 28, fontWeight: "800", marginTop: 5 },
   subtitle: { fontSize: 12, lineHeight: 18, marginTop: 4 },
