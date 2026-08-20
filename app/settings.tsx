@@ -22,6 +22,7 @@ import { HOME_WIDGETS, type HomeWidgetId, useHomeWidgets } from "@/lib/home-widg
 import { BODY_METRICS, DAILY_ACTIVITY_LEVELS, useBodyStore } from "@/lib/body-store";
 import { calculateDailyCalorieGuide } from "@/lib/body-calculations";
 import { connectHealthConnectHeartRate, getHealthConnectStatus, type HealthConnectStatus } from "@/lib/health-connect";
+import { loadLockScreenHeartRateVisible, saveLockScreenHeartRateVisible } from "@/lib/lock-screen-heart-rate-privacy";
 
 const formulas: { id: OneRepMaxFormula; title: string; formula: string; description: string }[] = [
   { id: "epley", title: "Эпли", formula: "Вес × (1 + повторы / 30)", description: "Универсальная оценка для большинства рабочих подходов." },
@@ -41,7 +42,7 @@ const SETTINGS_CATEGORIES: { id: SettingsCategoryId; title: string; keywords: st
   { id: "appearance", title: "Внешний вид", keywords: ["внешний", "стиль", "тема", "цвет", "иконки", "плотность", "текст"] },
   { id: "body", title: "Питание и тело", keywords: ["питание", "калории", "расход", "активность", "движение", "бжу", "белки", "жиры", "углеводы", "тело", "рост", "возраст", "цель", "обхват"] },
   { id: "reminders", title: "Напоминания", keywords: ["напоминание", "уведомление", "время", "календарь"] },
-  { id: "data", title: "Данные и сервисы", keywords: ["данные", "хранилище", "фото", "офлайн", "экспорт", "импорт", "groq", "api", "health connect", "пульс", "часы", "инструменты"] },
+  { id: "data", title: "Данные и сервисы", keywords: ["данные", "хранилище", "фото", "офлайн", "экспорт", "импорт", "groq", "api", "health connect", "пульс", "часы", "инструменты", "приватность", "экран блокировки"] },
 ];
 
 export default function SettingsScreen() {
@@ -71,6 +72,7 @@ export default function SettingsScreen() {
   const [keyDraft, setKeyDraft] = useState("");
   const [savingGroqKey, setSavingGroqKey] = useState(false);
   const [healthConnectStatus, setHealthConnectStatus] = useState<HealthConnectStatus>({ state: "unsupported", heartRateGranted: false, message: "Проверяем Health Connect…" });
+  const [lockScreenHeartRateVisible, setLockScreenHeartRateVisible] = useState(true);
   const [settingsCategory, setSettingsCategory] = useState<SettingsCategoryId>("training");
   const [settingsQuery, setSettingsQuery] = useState("");
   const links = [
@@ -99,6 +101,7 @@ export default function SettingsScreen() {
     refreshStorageUsage();
     void getGroqApiKey().then((key) => setHasGroqKey(Boolean(key))).catch(() => setHasGroqKey(false));
     void getHealthConnectStatus().then(setHealthConnectStatus);
+    void loadLockScreenHeartRateVisible().then(setLockScreenHeartRateVisible);
   }, [refreshStorageUsage]);
   useEffect(() => { setNotificationTime(defaultWorkoutTime); }, [defaultWorkoutTime]);
   useEffect(() => { setCalorieGoalDraft(String(dailyCalorieGoal)); }, [dailyCalorieGoal]);
@@ -345,7 +348,7 @@ export default function SettingsScreen() {
         </View>
 
         <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Health Connect</Text>
-        <View style={[styles.groqCard, { backgroundColor: colors.surface, borderColor: colors.border }]}><View style={styles.groqHeader}><View style={[styles.groqIcon, { backgroundColor: `${colors.primary}17` }]}><SafeMaterialIcon name="monitor-heart" size={20} color={colors.primary} /></View><View style={{ flex: 1 }}><Text style={[styles.groqTitle, { color: colors.foreground }]}>Пульс со смарт-часов</Text><Text style={[styles.groqSubtitle, { color: colors.muted }]}>{healthConnectStatus.message}</Text></View><Text style={[styles.groqStatus, { color: healthConnectStatus.heartRateGranted ? colors.success : colors.muted, backgroundColor: healthConnectStatus.heartRateGranted ? `${colors.success}18` : colors.border }]}>{healthConnectStatus.heartRateGranted ? "ГОТОВО" : "НЕТ ДОСТУПА"}</Text></View><View style={styles.groqActions}><Pressable onPress={connectHealthConnect} style={[styles.groqPrimary, { backgroundColor: colors.primary }]}><Text style={styles.groqPrimaryText}>{healthConnectStatus.state === "permission-required" ? "Подключить пульс" : "Проверить Health Connect"}</Text></Pressable></View><Text style={[styles.groqPrivacy, { color: colors.muted }]}>IronRise читает только данные пульса за время тренировки и сохраняет среднее и пиковое значение локально.</Text></View>
+        <View style={[styles.groqCard, { backgroundColor: colors.surface, borderColor: colors.border }]}><View style={styles.groqHeader}><View style={[styles.groqIcon, { backgroundColor: `${colors.primary}17` }]}><SafeMaterialIcon name="monitor-heart" size={20} color={colors.primary} /></View><View style={{ flex: 1 }}><Text style={[styles.groqTitle, { color: colors.foreground }]}>Пульс со смарт-часов</Text><Text style={[styles.groqSubtitle, { color: colors.muted }]}>{healthConnectStatus.message}</Text></View><Text style={[styles.groqStatus, { color: healthConnectStatus.heartRateGranted ? colors.success : colors.muted, backgroundColor: healthConnectStatus.heartRateGranted ? `${colors.success}18` : colors.border }]}>{healthConnectStatus.heartRateGranted ? "ГОТОВО" : "НЕТ ДОСТУПА"}</Text></View><View style={styles.groqActions}><Pressable onPress={connectHealthConnect} style={[styles.groqPrimary, { backgroundColor: colors.primary }]}><Text style={styles.groqPrimaryText}>{healthConnectStatus.state === "permission-required" ? "Подключить пульс" : "Проверить Health Connect"}</Text></Pressable></View><View style={[styles.widgetFeedbackRow, { borderColor: colors.border, backgroundColor: colors.background }]}><View style={{ flex: 1 }}><Text style={[styles.widgetTitle, { color: colors.foreground }]}>Пульс на экране блокировки</Text><Text style={[styles.widgetHint, { color: colors.muted }]}>{lockScreenHeartRateVisible ? "Текущая ЧСС видна рядом с целью во время отдыха." : "ЧСС скрыта из уведомления таймера отдыха."}</Text></View><Switch value={lockScreenHeartRateVisible} onValueChange={(value) => { setLockScreenHeartRateVisible(value); void saveLockScreenHeartRateVisible(value); }} trackColor={{ false: colors.border, true: `${colors.primary}88` }} thumbColor={lockScreenHeartRateVisible ? colors.primary : colors.muted} /></View><Text style={[styles.groqPrivacy, { color: colors.muted }]}>IronRise читает только данные пульса за время тренировки и сохраняет среднее и пиковое значение локально.</Text></View>
 
         <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Локальное хранилище</Text>
         <View style={[styles.storageCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>

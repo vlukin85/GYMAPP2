@@ -29,4 +29,10 @@ describe("settings visual system", () => {
     expect(settings).toContain("isSectionVisible");
     expect(settings).toContain("Ничего не найдено");
   });
+
+  it("keeps lock-screen heart-rate visibility under explicit local privacy control", () => {
+    expect(settings).toContain("Пульс на экране блокировки");
+    expect(settings).toContain("loadLockScreenHeartRateVisible");
+    expect(settings).toContain("saveLockScreenHeartRateVisible");
+  });
 });

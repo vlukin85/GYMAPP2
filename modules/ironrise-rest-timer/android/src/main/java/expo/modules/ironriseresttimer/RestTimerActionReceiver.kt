@@ -13,12 +13,17 @@ class RestTimerActionReceiver : BroadcastReceiver() {
       savePendingAction(context, "skip", System.currentTimeMillis())
       return
     }
+    if (action == ACTION_START) {
+      clearCountdownNotification(context)
+      savePendingAction(context, "start", System.currentTimeMillis())
+      return
+    }
     if (action == ACTION_EXTEND) {
       val extendedEndAt = maxOf(restEndAt, System.currentTimeMillis()) + 30_000
       val targetLabel = intent.getStringExtra(EXTRA_TARGET_LABEL) ?: ""
       val targetFrom = intent.getIntExtra(EXTRA_TARGET_FROM, 0)
       val targetTo = intent.getIntExtra(EXTRA_TARGET_TO, 0)
-      showCountdownNotification(context, extendedEndAt, targetLabel, targetFrom, targetTo)
+      showCountdownNotification(context, extendedEndAt, targetLabel, targetFrom, targetTo, 0)
       savePendingAction(context, "extend", extendedEndAt)
     }
   }

@@ -19,8 +19,10 @@ internal const val COMPLETION_NOTIFICATION_ID = 40102
 internal const val ALARM_REQUEST_CODE = 40103
 internal const val SKIP_REQUEST_CODE = 40104
 internal const val EXTEND_REQUEST_CODE = 40105
+internal const val START_REQUEST_CODE = 40106
 internal const val ACTION_SKIP = "expo.modules.ironriseresttimer.SKIP"
 internal const val ACTION_EXTEND = "expo.modules.ironriseresttimer.EXTEND"
+internal const val ACTION_START = "expo.modules.ironriseresttimer.START"
 internal const val EXTRA_REST_END_AT = "restEndAt"
 internal const val EXTRA_TARGET_LABEL = "targetLabel"
 internal const val EXTRA_TARGET_FROM = "targetFrom"
@@ -31,8 +33,8 @@ class IronriseRestTimerModule : Module() {
   override fun definition() = ModuleDefinition {
     Name("IronriseRestTimer")
 
-    Function("showCountdown") { restEndAt: Double, targetLabel: String, targetFromBpm: Double, targetToBpm: Double ->
-      showCountdownNotification(context, restEndAt.toLong(), targetLabel, targetFromBpm.toInt(), targetToBpm.toInt())
+    Function("showCountdown") { restEndAt: Double, targetLabel: String, targetFromBpm: Double, targetToBpm: Double, currentHeartRateBpm: Double ->
+      showCountdownNotification(context, restEndAt.toLong(), targetLabel, targetFromBpm.toInt(), targetToBpm.toInt(), currentHeartRateBpm.toInt())
     }
 
     Function("clearCountdown") {
@@ -49,7 +51,7 @@ class IronriseRestTimerModule : Module() {
 
 }
 
-internal fun showCountdownNotification(context: Context, restEndAt: Long, targetLabel: String, targetFromBpm: Int, targetToBpm: Int) {
+internal fun showCountdownNotification(context: Context, restEndAt: Long, targetLabel: String, targetFromBpm: Int, targetToBpm: Int, currentHeartRateBpm: Int) {
   val remaining = restEndAt - System.currentTimeMillis()
   if (remaining <= 0) {
     clearCountdownNotification(context)
@@ -59,7 +61,11 @@ internal fun showCountdownNotification(context: Context, restEndAt: Long, target
   val notification = NotificationCompat.Builder(context, COUNTDOWN_CHANNEL)
     .setSmallIcon(context.applicationInfo.icon)
     .setContentTitle("Отдых между подходами")
-    .setContentText(if (targetLabel.isBlank()) "До следующего подхода" else "Цель пульса: $targetLabel · $targetFromBpm–$targetToBpm уд/мин")
+    .setContentText(when {
+      targetLabel.isBlank() -> "До следующего подхода"
+      currentHeartRateBpm > 0 -> "ЧСС $currentHeartRateBpm · цель $targetLabel $targetFromBpm–$targetToBpm"
+      else -> "Цель пульса: $targetLabel · $targetFromBpm–$targetToBpm уд/мин"
+    })
     .setWhen(SystemClock.elapsedRealtime() + remaining)
     .setShowWhen(true)
     .setUsesChronometer(true)
@@ -71,6 +77,7 @@ internal fun showCountdownNotification(context: Context, restEndAt: Long, target
     .setPriority(NotificationCompat.PRIORITY_LOW)
     .addAction(android.R.drawable.ic_menu_close_clear_cancel, "Пропустить", restActionPendingIntent(context, ACTION_SKIP, restEndAt, targetLabel, targetFromBpm, targetToBpm, SKIP_REQUEST_CODE))
     .addAction(android.R.drawable.ic_input_add, "+30 секунд", restActionPendingIntent(context, ACTION_EXTEND, restEndAt, targetLabel, targetFromBpm, targetToBpm, EXTEND_REQUEST_CODE))
+    .addAction(android.R.drawable.ic_media_play, "Начать подход", restActionPendingIntent(context, ACTION_START, restEndAt, targetLabel, targetFromBpm, targetToBpm, START_REQUEST_CODE))
     .build()
   NotificationManagerCompat.from(context).notify(COUNTDOWN_NOTIFICATION_ID, notification)
   scheduleCompletionAlarm(context, restEndAt)

@@ -2,13 +2,13 @@ import { Platform } from "react-native";
 import { requireOptionalNativeModule } from "expo-modules-core";
 
 type IronriseRestTimerNativeModule = {
-  showCountdown(restEndAt: number, targetLabel: string, targetFromBpm: number, targetToBpm: number): void;
+  showCountdown(restEndAt: number, targetLabel: string, targetFromBpm: number, targetToBpm: number, currentHeartRateBpm: number): void;
   clearCountdown(): void;
-  consumePendingAction(): { kind: "skip" | "extend"; restEndAt: number } | null;
+  consumePendingAction(): { kind: "skip" | "extend" | "start"; restEndAt: number } | null;
 };
 
-export type NativeRestTimerAction = { kind: "skip" | "extend"; restEndAt: number };
-export type LockScreenHeartRateTarget = { label: string; fromBpm?: number; toBpm?: number };
+export type NativeRestTimerAction = { kind: "skip" | "extend" | "start"; restEndAt: number };
+export type LockScreenHeartRateTarget = { label: string; fromBpm?: number; toBpm?: number; currentBpm?: number };
 
 function getModule(): IronriseRestTimerNativeModule | null {
   if (Platform.OS !== "android") return null;
@@ -18,7 +18,7 @@ function getModule(): IronriseRestTimerNativeModule | null {
 export function showNativeRestCountdown(restEndAt: number, target?: LockScreenHeartRateTarget) {
   const module = getModule();
   if (!module) return false;
-  module.showCountdown(restEndAt, target?.label ?? "", target?.fromBpm ?? 0, target?.toBpm ?? 0);
+  module.showCountdown(restEndAt, target?.label ?? "", target?.fromBpm ?? 0, target?.toBpm ?? 0, target?.currentBpm ?? 0);
   return true;
 }
 

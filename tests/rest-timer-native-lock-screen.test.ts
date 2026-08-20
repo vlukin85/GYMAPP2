@@ -33,4 +33,13 @@ describe("таймер отдыха на заблокированном Android-
     expect(workoutScreen).toContain("consumeNativeRestTimerAction()");
     expect(workoutScreen).toContain("scheduleRestTimerLockScreenNotification(endTimestamp");
   });
+
+  it("добавляет приватную текущую ЧСС и действие начала подхода", () => {
+    expect(nativeModule).toContain('"Начать подход"');
+    expect(nativeModule).toContain("currentHeartRateBpm");
+    expect(actionReceiver).toContain("ACTION_START");
+    expect(actionReceiver).toContain('savePendingAction(context, "start"');
+    expect(workoutScreen).toContain("lockScreenHeartRateVisible");
+    expect(workoutScreen).toContain("loadLockScreenHeartRateVisible()");
+  });
 });

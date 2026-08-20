@@ -27,6 +27,7 @@ import { useBodyStore } from "@/lib/body-store";
 import { openReplacementPicker, subscribeToExerciseReplacement } from "@/lib/exercise-replacement-bus";
 import { clearRestTimerLockScreenNotification, scheduleRestTimerLockScreenNotification, type RestTimerNotificationIds } from "@/lib/workout-notifications";
 import { consumeNativeRestTimerAction } from "@/modules/ironrise-rest-timer";
+import { loadLockScreenHeartRateVisible } from "@/lib/lock-screen-heart-rate-privacy";
 
 type DropDraft = { reps: string; weight: string };
 type ActualSet = { reps: string; weight: string; distance?: string; type: SetType; dropSubsets?: DropDraft[] };
@@ -318,6 +319,7 @@ export default function WorkoutScreen() {
   const [healthConnectStatus, setHealthConnectStatus] = useState<HealthConnectStatus>({ state: "unsupported", heartRateGranted: false, message: "Проверяем Health Connect…" });
   const [heartRate, setHeartRate] = useState<HeartRateSummary>({ sampleCount: 0 });
   const [targetHeartRateZone, setTargetHeartRateZone] = useState<TargetHeartRateZoneId>("aerobic");
+  const [lockScreenHeartRateVisible, setLockScreenHeartRateVisible] = useState(true);
   const heartRateTargetStateRef = useRef<HeartRateTargetState>("unavailable");
   const isDraftPersistenceEnabledRef = useRef(true);
   const latestDraftSnapshotRef = useRef<ActiveWorkoutDraftSnapshot | null>(null);
@@ -373,11 +375,12 @@ export default function WorkoutScreen() {
         label: targetZoneLabel(targetHeartRateZone),
         fromBpm: target.fromBpm,
         toBpm: target.toBpm,
+        currentBpm: lockScreenHeartRateVisible ? heartRate.currentBpm : undefined,
       } : undefined);
       if (restEndRef.current === endTimestamp) restNotificationIdsRef.current = ids;
       else void clearRestTimerLockScreenNotification(ids);
     })();
-  }, [ageYears, clearRestLockScreenNotification, heartRate.currentBpm, targetHeartRateZone]);
+  }, [ageYears, clearRestLockScreenNotification, heartRate.currentBpm, lockScreenHeartRateVisible, targetHeartRateZone]);
 
   const startRestTimer = useCallback((durationSeconds: number) => {
     const seconds = Math.max(0, Math.round(durationSeconds));
@@ -418,7 +421,7 @@ export default function WorkoutScreen() {
   const syncNativeRestTimerAction = useCallback(() => {
     const action = consumeNativeRestTimerAction();
     if (!action) return;
-    if (action.kind === "skip") {
+    if (action.kind === "skip" || action.kind === "start") {
       skipRest();
       return;
     }
@@ -442,6 +445,10 @@ export default function WorkoutScreen() {
 
   useEffect(() => {
     void loadTargetHeartRateZone().then(setTargetHeartRateZone);
+  }, []);
+
+  useEffect(() => {
+    void loadLockScreenHeartRateVisible().then(setLockScreenHeartRateVisible);
   }, []);
 
   useEffect(() => {
