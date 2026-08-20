@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getHeartRateTargetStatus, targetZoneLabel } from "../lib/heart-rate-target-zone";
+import { getHeartRateTargetStatus, shouldSignalHeartRateTargetBoundary, targetZoneLabel } from "../lib/heart-rate-target-zone";
 
 describe("целевая зона пульса", () => {
   it("определяет положение пульса в расчётной аэробной зоне", () => {
@@ -12,5 +12,12 @@ describe("целевая зона пульса", () => {
     expect(getHeartRateTargetStatus(undefined, 40, "aerobic").state).toBe("unavailable");
     expect(getHeartRateTargetStatus(130, undefined, "aerobic").state).toBe("unavailable");
     expect(targetZoneLabel("threshold")).toBe("Пороговая");
+  });
+
+  it("сигнализирует только при изменении состояния на выход за границу", () => {
+    expect(shouldSignalHeartRateTargetBoundary("within", "above")).toBe(true);
+    expect(shouldSignalHeartRateTargetBoundary("above", "above")).toBe(false);
+    expect(shouldSignalHeartRateTargetBoundary("above", "within")).toBe(false);
+    expect(shouldSignalHeartRateTargetBoundary("unavailable", "below")).toBe(true);
   });
 });

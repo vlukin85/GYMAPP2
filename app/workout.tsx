@@ -22,7 +22,7 @@ import { calculateHeartRateWorkoutEnergy, calculateWorkoutEnergy } from "@/lib/w
 import { connectHealthConnectHeartRate, getHealthConnectStatus, readHealthConnectHeartRate, type HealthConnectStatus } from "@/lib/health-connect";
 import type { HeartRateSummary } from "@/lib/health-connect-heart-rate";
 import { analyzeHeartRate } from "@/lib/heart-rate-analysis";
-import { getHeartRateTargetStatus, loadTargetHeartRateZone, saveTargetHeartRateZone, targetZoneLabel, TARGET_HEART_RATE_ZONES, type TargetHeartRateZoneId } from "@/lib/heart-rate-target-zone";
+import { getHeartRateTargetStatus, loadTargetHeartRateZone, saveTargetHeartRateZone, shouldSignalHeartRateTargetBoundary, targetZoneLabel, TARGET_HEART_RATE_ZONES, type HeartRateTargetState, type TargetHeartRateZoneId } from "@/lib/heart-rate-target-zone";
 import { useBodyStore } from "@/lib/body-store";
 import { openReplacementPicker, subscribeToExerciseReplacement } from "@/lib/exercise-replacement-bus";
 import { clearRestTimerLockScreenNotification, scheduleRestTimerLockScreenNotification, type RestTimerNotificationIds } from "@/lib/workout-notifications";
@@ -317,6 +317,7 @@ export default function WorkoutScreen() {
   const [healthConnectStatus, setHealthConnectStatus] = useState<HealthConnectStatus>({ state: "unsupported", heartRateGranted: false, message: "Проверяем Health Connect…" });
   const [heartRate, setHeartRate] = useState<HeartRateSummary>({ sampleCount: 0 });
   const [targetHeartRateZone, setTargetHeartRateZone] = useState<TargetHeartRateZoneId>("aerobic");
+  const heartRateTargetStateRef = useRef<HeartRateTargetState>("unavailable");
   const isDraftPersistenceEnabledRef = useRef(true);
   const latestDraftSnapshotRef = useRef<ActiveWorkoutDraftSnapshot | null>(null);
   const dragStateRef = useRef<{ sourceId: string; sourceIndex: number; targetIndex: number | null } | null>(null);
@@ -422,6 +423,15 @@ export default function WorkoutScreen() {
   useEffect(() => {
     void loadTargetHeartRateZone().then(setTargetHeartRateZone);
   }, []);
+
+  useEffect(() => {
+    const nextState = getHeartRateTargetStatus(heartRate.currentBpm, ageYears, targetHeartRateZone).state;
+    const previousState = heartRateTargetStateRef.current;
+    if (Platform.OS !== "web" && restTimerVibrationEnabled && shouldSignalHeartRateTargetBoundary(previousState, nextState)) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => undefined);
+    }
+    heartRateTargetStateRef.current = nextState;
+  }, [ageYears, heartRate.currentBpm, restTimerVibrationEnabled, targetHeartRateZone]);
 
   useEffect(() => {
     if (!restEndAt) return;

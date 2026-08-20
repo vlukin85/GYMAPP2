@@ -22,6 +22,10 @@ export function getHeartRateTargetStatus(currentBpm: number | undefined, ageYear
   return { state: currentBpm < fromBpm ? "below" : currentBpm > toBpm ? "above" : "within", fromBpm, toBpm, maximumBpm };
 }
 
+export function shouldSignalHeartRateTargetBoundary(previous: HeartRateTargetState, next: HeartRateTargetState) {
+  return previous !== next && (next === "below" || next === "above");
+}
+
 export async function loadTargetHeartRateZone(): Promise<TargetHeartRateZoneId> {
   try {
     const value = await AsyncStorage.getItem(STORAGE_KEY);

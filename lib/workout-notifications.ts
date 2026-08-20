@@ -1,10 +1,12 @@
 import { Platform } from "react-native";
 import * as Notifications from "expo-notifications";
 import { getReminderTriggerDate } from "./workout-data";
+import { clearNativeRestCountdown, showNativeRestCountdown } from "@/modules/ironrise-rest-timer";
 
 Notifications.setNotificationHandler({ handleNotification: async () => ({ shouldShowBanner: true, shouldShowList: true, shouldPlaySound: true, shouldSetBadge: false }) });
 
 const REST_TIMER_CHANNEL = "rest-timer";
+const REST_TIMER_COMPLETION_CHANNEL = "rest-timer-completion-v2";
 
 export type RestTimerNotificationIds = {
   activeId?: string;
@@ -16,13 +18,15 @@ function formatRestNotificationTime(seconds: number) {
   return `${Math.floor(safe / 60)}:${String(safe % 60).padStart(2, "0")}`;
 }
 
-async function ensureLocalNotificationAccess(channelId: string, channelName: string) {
+async function ensureLocalNotificationAccess(channelId: string, channelName: string, vibrationPattern: number[]) {
   if (Platform.OS === "web") return false;
   if (Platform.OS === "android") {
     await Notifications.setNotificationChannelAsync(channelId, {
       name: channelName,
-      importance: Notifications.AndroidImportance.HIGH,
-      vibrationPattern: [0, 220, 120, 260],
+      importance: Notifications.AndroidImportance.MAX,
+      vibrationPattern,
+      enableVibrate: true,
+      lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
       lightColor: "#E83928",
       sound: "default",
     });
@@ -41,9 +45,11 @@ async function ensureLocalNotificationAccess(channelId: string, channelName: str
 export async function scheduleRestTimerLockScreenNotification(restEndAt: number): Promise<RestTimerNotificationIds | undefined> {
   if (Platform.OS === "web") return undefined;
   const seconds = Math.max(1, Math.ceil((restEndAt - Date.now()) / 1000));
-  if (!(await ensureLocalNotificationAccess(REST_TIMER_CHANNEL, "Таймер отдыха"))) return undefined;
+  if (!(await ensureLocalNotificationAccess(REST_TIMER_CHANNEL, "Таймер отдыха", [0, 90]))) return undefined;
+  await ensureLocalNotificationAccess(REST_TIMER_COMPLETION_CHANNEL, "Отдых завершён", [0, 350, 130, 700]);
 
-  const activeId = await Notifications.scheduleNotificationAsync({
+  const nativeCountdownStarted = showNativeRestCountdown(restEndAt);
+  const activeId = nativeCountdownStarted ? undefined : await Notifications.scheduleNotificationAsync({
     content: {
       title: "Отдых между подходами",
       body: `Осталось ${formatRestNotificationTime(seconds)}. IronRise сообщит, когда можно продолжить.`,
@@ -53,7 +59,7 @@ export async function scheduleRestTimerLockScreenNotification(restEndAt: number)
     },
     trigger: null,
   });
-  const completionId = await Notifications.scheduleNotificationAsync({
+  const completionId = nativeCountdownStarted ? undefined : await Notifications.scheduleNotificationAsync({
     content: {
       title: "Отдых завершён",
       body: "Время следующего подхода.",
@@ -63,13 +69,14 @@ export async function scheduleRestTimerLockScreenNotification(restEndAt: number)
     trigger: {
       type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
       seconds,
-      channelId: Platform.OS === "android" ? REST_TIMER_CHANNEL : undefined,
+      channelId: Platform.OS === "android" ? REST_TIMER_COMPLETION_CHANNEL : undefined,
     },
   });
   return { activeId, completionId };
 }
 
 export async function clearRestTimerLockScreenNotification(ids?: RestTimerNotificationIds) {
+  clearNativeRestCountdown();
   if (Platform.OS === "web" || !ids) return;
   await Promise.all([
     ids.activeId ? Notifications.dismissNotificationAsync(ids.activeId).catch(() => undefined) : undefined,
