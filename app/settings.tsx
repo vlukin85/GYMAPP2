@@ -19,7 +19,7 @@ import { type OneRepMaxFormula } from "@/lib/workout-data";
 import { type SetHapticIntensity, useWorkoutStore } from "@/lib/workout-store";
 import { useNutritionStore } from "@/lib/nutrition-store";
 import { HOME_WIDGETS, type HomeWidgetId, useHomeWidgets } from "@/lib/home-widgets";
-import { BODY_METRICS, useBodyStore } from "@/lib/body-store";
+import { BODY_METRICS, DAILY_ACTIVITY_LEVELS, useBodyStore } from "@/lib/body-store";
 import { calculateDailyCalorieGuide } from "@/lib/body-calculations";
 
 const formulas: { id: OneRepMaxFormula; title: string; formula: string; description: string }[] = [
@@ -38,7 +38,7 @@ const SETTINGS_CATEGORIES: { id: SettingsCategoryId; title: string; keywords: st
   { id: "training", title: "Тренировка", keywords: ["тренировка", "подход", "1rm", "вес", "блины", "таймер", "отдых", "звук", "вибрация"] },
   { id: "home", title: "Главный экран", keywords: ["главный", "сегодня", "виджет", "перенос", "цитата", "вибрация"] },
   { id: "appearance", title: "Внешний вид", keywords: ["внешний", "стиль", "тема", "цвет", "иконки", "плотность", "текст"] },
-  { id: "body", title: "Питание и тело", keywords: ["питание", "калории", "бжу", "белки", "жиры", "углеводы", "тело", "рост", "возраст", "цель", "обхват"] },
+  { id: "body", title: "Питание и тело", keywords: ["питание", "калории", "расход", "активность", "движение", "бжу", "белки", "жиры", "углеводы", "тело", "рост", "возраст", "цель", "обхват"] },
   { id: "reminders", title: "Напоминания", keywords: ["напоминание", "уведомление", "время", "календарь"] },
   { id: "data", title: "Данные и сервисы", keywords: ["данные", "хранилище", "фото", "офлайн", "экспорт", "импорт", "groq", "api", "инструменты"] },
 ];
@@ -51,7 +51,7 @@ export default function SettingsScreen() {
   const { density, setDensity } = useInterfaceDensity();
   const { dailyCalorieGoal, dailyMacroGoals, setDailyCalorieGoal, setDailyMacroGoals } = useNutritionStore();
   const { visibility: homeWidgets, order: homeWidgetOrder, compact: compactWidgets, dragHapticsEnabled, setWidgetVisible, setWidgetCompact, setWidgetDragHapticsEnabled, moveWidget, resetWidgets } = useHomeWidgets();
-  const { profile: bodyProfile, heightCm, ageYears, goals: bodyGoals, measurements: bodyMeasurements, setProfile: setBodyProfile, setProfileDetails, setGoals: setBodyGoals } = useBodyStore();
+  const { profile: bodyProfile, heightCm, ageYears, goals: bodyGoals, measurements: bodyMeasurements, activityLevel, setProfile: setBodyProfile, setProfileDetails, setGoals: setBodyGoals, setActivityLevel } = useBodyStore();
   const { oneRmFormula, setOneRmFormula, plateStepKg, setPlateStepKg, bodyWeightKg, bodyweightVolumePercent, setBodyweightVolumeSettings, hapticIntensity, setHapticIntensity, restTimerSoundEnabled, setRestTimerSoundEnabled, restTimerVibrationEnabled, setRestTimerVibrationEnabled, notificationsEnabled, defaultWorkoutTime, defaultReminderMinutes, setNotificationPreferences } = store;
   const [bodyWeight, setBodyWeight] = useState(String(bodyWeightKg));
   const [bodyPercent, setBodyPercent] = useState(String(bodyweightVolumePercent));
@@ -224,6 +224,9 @@ export default function SettingsScreen() {
         <View style={!isSectionVisible("body") && styles.hiddenSection}>
         <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Питание</Text>
         <View style={[styles.densityCard, { backgroundColor: colors.surface, borderColor: colors.border }]}> 
+          <Text style={[styles.iconThemeTitle, { color: colors.foreground }]}>Повседневная активность</Text>
+          <Text style={[styles.iconThemeHint, { color: colors.muted }]}>Выбор влияет на строку «Движение» в суммарном расходе калорий на главном экране. Тренировка учитывается отдельно.</Text>
+          <View style={styles.options}>{DAILY_ACTIVITY_LEVELS.map((option) => { const selected = option.id === activityLevel; return <Pressable key={option.id} onPress={() => setActivityLevel(option.id)} style={({ pressed }) => [styles.option, { backgroundColor: colors.background, borderColor: selected ? colors.primary : colors.border, opacity: pressed ? 0.72 : 1 }]}><View style={[styles.radio, { borderColor: selected ? colors.primary : colors.muted }]}>{selected && <View style={[styles.radioDot, { backgroundColor: colors.primary }]} />}</View><View style={{ flex: 1 }}><Text style={[styles.optionTitle, { color: colors.foreground }]}>{option.title}</Text><Text style={[styles.optionDescription, { color: colors.muted }]}>{option.description}</Text></View></Pressable>; })}</View>
           <Text style={[styles.iconThemeTitle, { color: colors.foreground }]}>Дневные цели калорий и БЖУ</Text>
           <Text style={[styles.iconThemeHint, { color: colors.muted }]}>Плановый калораж за сутки и цели БЖУ сохраняются на устройстве и используются в визуальном прогрессе дневника питания.</Text>
           <View style={[styles.calorieGuide, { borderColor: colors.border, backgroundColor: colors.background }]}><View style={{ flex: 1 }}><Text style={[styles.fieldLabel, { color: colors.primary }]}>АВТОМАТИЧЕСКИЙ ОРИЕНТИР</Text><Text style={[styles.calorieGuideValue, { color: colors.foreground }]}>{calorieGuide === undefined ? "Нужны профиль, возраст, рост и вес" : `${calorieGuide} ккал / день`}</Text><Text style={[styles.calorieGuideHint, { color: colors.muted }]}>{calorieGuide === undefined ? "Вес берётся из последнего замера на вкладке «Тело»." : "Mifflin–St Jeor × 1,4 · ориентир поддержки, не медицинское назначение."}</Text></View>{calorieGuide !== undefined && <Pressable onPress={applyCalorieGuide} style={({ pressed }) => [styles.applyGuide, { backgroundColor: colors.primary, opacity: pressed ? 0.7 : 1 }]}><Text style={styles.applyGuideText}>ПРИМЕНИТЬ</Text></Pressable>}</View>

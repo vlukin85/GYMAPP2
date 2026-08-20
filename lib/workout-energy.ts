@@ -1,9 +1,8 @@
-import type { BodyProfile } from "./body-store";
+import { DAILY_ACTIVITY_LEVELS, type BodyProfile, type DailyActivityLevel } from "./body-store";
 import { calculateMifflinStJeorBmr } from "./body-calculations";
 
 const ACTIVE_STRENGTH_MET = 6;
 const REST_MET = 1.5;
-const DAILY_MOVEMENT_SHARE = 0.2;
 
 export type WorkoutEnergyInput = {
   weightKg: number;
@@ -36,6 +35,7 @@ export type DailyEnergyInput = {
   weightKg: number;
   heightCm?: number;
   ageYears?: number;
+  activityLevel?: DailyActivityLevel;
   workoutCalories?: number;
 };
 
@@ -48,13 +48,14 @@ export type DailyEnergyEstimate = {
 };
 
 /**
- * Daily expenditure = resting needs + a modest everyday-movement estimate + completed training.
+ * Daily expenditure = resting needs + a selected everyday-movement estimate + completed training.
  * If height or age are missing, 1 kcal/kg/hour is used as an explicitly less-personalized fallback.
  */
 export function calculateDailyEnergy(input: DailyEnergyInput): DailyEnergyEstimate {
   const personalizedResting = calculateMifflinStJeorBmr(input.profile, input.weightKg, input.heightCm, input.ageYears);
   const restingCalories = personalizedResting ?? Math.round(Math.max(1, input.weightKg) * 24);
-  const movementCalories = Math.round(restingCalories * DAILY_MOVEMENT_SHARE);
+  const movementShare = DAILY_ACTIVITY_LEVELS.find((level) => level.id === (input.activityLevel ?? "light"))?.movementShare ?? 0.2;
+  const movementCalories = Math.round(restingCalories * movementShare);
   const workoutCalories = Math.max(0, Math.round(input.workoutCalories ?? 0));
   return {
     restingCalories,
