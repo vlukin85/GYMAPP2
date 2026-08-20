@@ -24,4 +24,11 @@ describe("completed workout deletion from history", () => {
     expect(screen).toContain("ЗАМЕТКА К ТРЕНИРОВКЕ");
     expect(screen).toContain("notes: noteDraft");
   });
+
+  it("opens from a chart in editing mode and can undo the last draft change", () => {
+    expect(screen).toContain('edit === "1"');
+    expect(screen).toContain("undoLastChange");
+    expect(screen).toContain("Отменить последнее изменение");
+    expect(screen).toContain("takeUndoSnapshot");
+  });
 });

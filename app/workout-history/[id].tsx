@@ -10,6 +10,7 @@ import { groupWorkoutHistoryExercises } from "@/lib/workout-history";
 import { useWorkoutStore } from "@/lib/workout-store";
 
 type HistorySetDraft = { exerciseId: string; reps: string; weight: string; distanceKm: string };
+type EditorDraftSnapshot = { duration: string; note: string; sets: HistorySetDraft[] };
 
 function toDecimal(value: string) {
   return Number(value.trim().replace(",", "."));
@@ -17,13 +18,15 @@ function toDecimal(value: string) {
 
 export default function WorkoutHistoryScreen() {
   const colors = useColors();
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, edit } = useLocalSearchParams<{ id: string; edit?: string }>();
   const { completed, programs, deleteCompletedWorkout, updateCompletedWorkout } = useWorkoutStore();
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [durationDraft, setDurationDraft] = useState("");
   const [noteDraft, setNoteDraft] = useState("");
   const [setsDraft, setSetsDraft] = useState<HistorySetDraft[]>([]);
+  const [undoSnapshot, setUndoSnapshot] = useState<EditorDraftSnapshot | null>(null);
+  const autoEditorOpened = useRef(false);
   const fade = useRef(new Animated.Value(0)).current;
   const pulse = useRef(new Animated.Value(0.45)).current;
 
@@ -45,27 +48,52 @@ export default function WorkoutHistoryScreen() {
   const workout = completed.find((item) => item.id === id);
   const exercises = useMemo(() => workout ? groupWorkoutHistoryExercises(workout) : [], [workout]);
 
-  const openEditor = () => {
-    if (!workout) return;
-    setDurationDraft(String(workout.durationMinutes));
-    setNoteDraft(workout.notes ?? "");
-    setSetsDraft((workout.sets ?? []).map((set) => ({
+  const hydrateDraft = (source: NonNullable<typeof workout>) => {
+    setDurationDraft(String(source.durationMinutes));
+    setNoteDraft(source.notes ?? "");
+    setSetsDraft((source.sets ?? []).map((set) => ({
       exerciseId: set.exerciseId,
       reps: String(set.reps),
       weight: String(set.weight),
       distanceKm: set.distanceKm ? String(set.distanceKm) : "",
     })));
+    setUndoSnapshot(null);
+  };
+
+  const openEditor = () => {
+    if (!workout) return;
+    hydrateDraft(workout);
     setIsEditing(true);
   };
 
+  useEffect(() => {
+    if (!loading && workout && edit === "1" && !autoEditorOpened.current) {
+      autoEditorOpened.current = true;
+      hydrateDraft(workout);
+      setIsEditing(true);
+    }
+  }, [edit, loading, workout]);
+
+  const takeUndoSnapshot = () => setUndoSnapshot({ duration: durationDraft, note: noteDraft, sets: setsDraft.map((set) => ({ ...set })) });
+  const undoLastChange = () => {
+    if (!undoSnapshot) return;
+    const current = { duration: durationDraft, note: noteDraft, sets: setsDraft.map((set) => ({ ...set })) };
+    setDurationDraft(undoSnapshot.duration);
+    setNoteDraft(undoSnapshot.note);
+    setSetsDraft(undoSnapshot.sets);
+    setUndoSnapshot(current);
+  };
+  const updateDuration = (value: string) => { takeUndoSnapshot(); setDurationDraft(value); };
+  const updateNote = (value: string) => { takeUndoSnapshot(); setNoteDraft(value); };
   const updateDraftSet = (index: number, key: keyof Pick<HistorySetDraft, "reps" | "weight" | "distanceKm">, value: string) => {
+    takeUndoSnapshot();
     setSetsDraft((current) => current.map((set, setIndex) => setIndex === index ? { ...set, [key]: value } : set));
   };
 
   const removeDraftSet = (index: number) => {
     Alert.alert("Удалить подход?", "Этот фактический подход будет исключён из результата тренировки. Объём и рекорды пересчитаются после сохранения.", [
       { text: "Отмена", style: "cancel" },
-      { text: "Удалить подход", style: "destructive", onPress: () => setSetsDraft((current) => current.filter((_set, setIndex) => setIndex !== index)) },
+      { text: "Удалить подход", style: "destructive", onPress: () => { takeUndoSnapshot(); setSetsDraft((current) => current.filter((_set, setIndex) => setIndex !== index)); } },
     ]);
   };
 
@@ -133,8 +161,9 @@ export default function WorkoutHistoryScreen() {
           <View style={styles.editorHeader}><Pressable onPress={() => setIsEditing(false)}><Text style={[styles.cancelText, { color: colors.muted }]}>Отмена</Text></Pressable><Text style={[styles.headerTitle, { color: colors.foreground }]}>Корректировка</Text><Pressable onPress={saveChanges}><Text style={[styles.saveText, { color: colors.primary }]}>Сохранить</Text></Pressable></View>
           <ScrollView contentContainerStyle={styles.editorContent} keyboardShouldPersistTaps="handled">
             <View style={[styles.editorLead, { backgroundColor: colors.surface, borderColor: colors.border }]}><Text style={[styles.eyebrow, { color: colors.primary }]}>ФАКТИЧЕСКИЙ РЕЗУЛЬТАТ</Text><Text style={[styles.editorTitle, { color: colors.foreground }]}>Исправьте длительность, подходы и заметку</Text><Text style={[styles.editorDescription, { color: colors.muted }]}>Удалите ошибочный подход до сохранения — итоговый объём, статистика и рекорды обновятся автоматически.</Text></View>
-            <View style={[styles.durationCard, { borderColor: colors.border }]}><Text style={[styles.fieldLabel, { color: colors.muted }]}>ДЛИТЕЛЬНОСТЬ, МИНУТЫ</Text><TextInput value={durationDraft} onChangeText={setDurationDraft} keyboardType="numeric" returnKeyType="done" style={[styles.durationInput, { color: colors.foreground, borderColor: colors.primary, backgroundColor: colors.background }]} /></View>
-            <View style={[styles.noteEditorCard, { borderColor: colors.border }]}><Text style={[styles.fieldLabel, { color: colors.muted }]}>ЗАМЕТКА К ТРЕНИРОВКЕ</Text><TextInput value={noteDraft} onChangeText={setNoteDraft} placeholder="Самочувствие, техника, особенности выполнения…" placeholderTextColor={colors.muted} multiline textAlignVertical="top" style={[styles.noteInput, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.background }]} /></View>
+            <Pressable disabled={!undoSnapshot} onPress={undoLastChange} style={({ pressed }) => [styles.undoButton, { borderColor: undoSnapshot ? colors.primary : colors.border, backgroundColor: undoSnapshot ? `${colors.primary}10` : colors.surface, opacity: pressed ? 0.72 : 1 }]}><Text style={[styles.undoButtonText, { color: undoSnapshot ? colors.primary : colors.muted }]}>↶ Отменить последнее изменение</Text></Pressable>
+            <View style={[styles.durationCard, { borderColor: colors.border }]}><Text style={[styles.fieldLabel, { color: colors.muted }]}>ДЛИТЕЛЬНОСТЬ, МИНУТЫ</Text><TextInput value={durationDraft} onChangeText={updateDuration} keyboardType="numeric" returnKeyType="done" style={[styles.durationInput, { color: colors.foreground, borderColor: colors.primary, backgroundColor: colors.background }]} /></View>
+            <View style={[styles.noteEditorCard, { borderColor: colors.border }]}><Text style={[styles.fieldLabel, { color: colors.muted }]}>ЗАМЕТКА К ТРЕНИРОВКЕ</Text><TextInput value={noteDraft} onChangeText={updateNote} placeholder="Самочувствие, техника, особенности выполнения…" placeholderTextColor={colors.muted} multiline textAlignVertical="top" style={[styles.noteInput, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.background }]} /></View>
             {setsDraft.length ? <><Text style={[styles.editorSection, { color: colors.foreground }]}>Подходы</Text>{setsDraft.map((set, index) => {
               const exercise = getExercise(set.exerciseId);
               const isTimed = isTimeBasedExercise(exercise);
@@ -158,5 +187,5 @@ function Metric({ value, label, colors }: { value: string; label: string; colors
 }
 
 const styles = StyleSheet.create({
-  content: { paddingTop: 16, paddingBottom: 32, gap: 12 }, header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" }, headerTitle: { fontSize: 16, fontWeight: "900" }, summary: { borderWidth: 1, borderRadius: 20, padding: 16, gap: 7 }, eyebrow: { fontSize: 10, fontWeight: "900", letterSpacing: 0.8 }, title: { fontSize: 24, fontWeight: "900" }, date: { fontSize: 12 }, metrics: { flexDirection: "row", justifyContent: "space-between", marginTop: 7 }, metricValue: { fontSize: 14, fontWeight: "900" }, metricLabel: { fontSize: 9, marginTop: 3 }, noteCard: { borderWidth: 1, borderRadius: 15, padding: 13, gap: 6 }, noteLabel: { fontSize: 9, fontWeight: "900", letterSpacing: 0.8 }, noteText: { fontSize: 13, fontWeight: "700", lineHeight: 19 }, actions: { flexDirection: "row", gap: 9 }, editButton: { minHeight: 46, borderRadius: 14, alignItems: "center", justifyContent: "center", flex: 1 }, editButtonText: { color: "#FFFFFF", fontSize: 12, fontWeight: "900" }, deleteButton: { minHeight: 46, borderWidth: 1, borderRadius: 14, alignItems: "center", justifyContent: "center", paddingHorizontal: 18 }, deleteButtonText: { fontSize: 12, fontWeight: "900" }, actionHint: { fontSize: 10, lineHeight: 14, textAlign: "center", marginTop: -5 }, sectionTitle: { fontSize: 19, fontWeight: "900", marginTop: 4 }, hint: { fontSize: 11, lineHeight: 16, marginTop: -6 }, exercise: { minHeight: 72, borderWidth: 1, borderRadius: 16, padding: 12, flexDirection: "row", alignItems: "center", gap: 11 }, exerciseIcon: { width: 39, height: 39, borderRadius: 13, justifyContent: "center", alignItems: "center" }, exerciseName: { fontSize: 14, fontWeight: "900" }, exerciseMeta: { fontSize: 11, marginTop: 4 }, noSets: { borderWidth: 1, borderRadius: 16, padding: 16, alignItems: "center" }, empty: { flex: 1, justifyContent: "center", alignItems: "center", gap: 10 }, emptyTitle: { fontSize: 18, fontWeight: "900" }, link: { fontSize: 14, fontWeight: "800" }, skeletonContent: { flex: 1, paddingTop: 18, gap: 13 }, skeletonHeader: { height: 40, flexDirection: "row", alignItems: "center", gap: 14 }, skeletonCircle: { width: 30, height: 30, borderRadius: 15 }, skeletonTitle: { width: 162, height: 17, borderRadius: 8 }, skeletonSummary: { height: 162, borderRadius: 20, marginTop: 5 }, skeletonExercise: { height: 72, borderRadius: 16 }, editorHeader: { height: 58, flexDirection: "row", justifyContent: "space-between", alignItems: "center" }, cancelText: { fontSize: 13, fontWeight: "800", minWidth: 65 }, saveText: { fontSize: 13, fontWeight: "900", minWidth: 65, textAlign: "right" }, editorContent: { gap: 13, paddingTop: 8, paddingBottom: 34 }, editorLead: { borderWidth: 1, borderRadius: 20, padding: 16, gap: 7 }, editorTitle: { fontSize: 21, fontWeight: "900", lineHeight: 25 }, editorDescription: { fontSize: 12, lineHeight: 17 }, durationCard: { borderWidth: 1, borderRadius: 16, padding: 14, gap: 7 }, noteEditorCard: { borderWidth: 1, borderRadius: 16, padding: 14, gap: 7 }, fieldLabel: { fontSize: 9, fontWeight: "900", letterSpacing: 0.6 }, durationInput: { height: 49, borderWidth: 1, borderRadius: 12, paddingHorizontal: 13, fontSize: 20, fontWeight: "900" }, noteInput: { minHeight: 94, borderWidth: 1, borderRadius: 12, paddingHorizontal: 13, paddingVertical: 11, fontSize: 14, lineHeight: 19, fontWeight: "700" }, editorSection: { fontSize: 19, fontWeight: "900", marginTop: 4 }, setCard: { borderWidth: 1, borderRadius: 16, padding: 13, gap: 12 }, setTop: { flexDirection: "row", alignItems: "center", gap: 10 }, setNumber: { fontSize: 13, fontWeight: "900", minWidth: 23 }, setExercise: { fontSize: 13, fontWeight: "900", flex: 1 }, removeSetButton: { borderWidth: 1, paddingHorizontal: 7, paddingVertical: 5 }, removeSetText: { fontSize: 7.5, letterSpacing: 0.4, fontWeight: "900" }, setFields: { flexDirection: "row", gap: 10 }, fieldWrap: { flex: 1, gap: 6 }, setInput: { height: 43, borderWidth: 1, borderRadius: 11, paddingHorizontal: 11, fontSize: 16, fontWeight: "800" }, saveButton: { minHeight: 52, borderRadius: 15, justifyContent: "center", alignItems: "center", marginTop: 5 }, saveButtonText: { color: "#FFFFFF", fontSize: 13, fontWeight: "900" },
+  content: { paddingTop: 16, paddingBottom: 32, gap: 12 }, header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" }, headerTitle: { fontSize: 16, fontWeight: "900" }, summary: { borderWidth: 1, borderRadius: 20, padding: 16, gap: 7 }, eyebrow: { fontSize: 10, fontWeight: "900", letterSpacing: 0.8 }, title: { fontSize: 24, fontWeight: "900" }, date: { fontSize: 12 }, metrics: { flexDirection: "row", justifyContent: "space-between", marginTop: 7 }, metricValue: { fontSize: 14, fontWeight: "900" }, metricLabel: { fontSize: 9, marginTop: 3 }, noteCard: { borderWidth: 1, borderRadius: 15, padding: 13, gap: 6 }, noteLabel: { fontSize: 9, fontWeight: "900", letterSpacing: 0.8 }, noteText: { fontSize: 13, fontWeight: "700", lineHeight: 19 }, actions: { flexDirection: "row", gap: 9 }, editButton: { minHeight: 46, borderRadius: 14, alignItems: "center", justifyContent: "center", flex: 1 }, editButtonText: { color: "#FFFFFF", fontSize: 12, fontWeight: "900" }, deleteButton: { minHeight: 46, borderWidth: 1, borderRadius: 14, alignItems: "center", justifyContent: "center", paddingHorizontal: 18 }, deleteButtonText: { fontSize: 12, fontWeight: "900" }, actionHint: { fontSize: 10, lineHeight: 14, textAlign: "center", marginTop: -5 }, sectionTitle: { fontSize: 19, fontWeight: "900", marginTop: 4 }, hint: { fontSize: 11, lineHeight: 16, marginTop: -6 }, exercise: { minHeight: 72, borderWidth: 1, borderRadius: 16, padding: 12, flexDirection: "row", alignItems: "center", gap: 11 }, exerciseIcon: { width: 39, height: 39, borderRadius: 13, justifyContent: "center", alignItems: "center" }, exerciseName: { fontSize: 14, fontWeight: "900" }, exerciseMeta: { fontSize: 11, marginTop: 4 }, noSets: { borderWidth: 1, borderRadius: 16, padding: 16, alignItems: "center" }, empty: { flex: 1, justifyContent: "center", alignItems: "center", gap: 10 }, emptyTitle: { fontSize: 18, fontWeight: "900" }, link: { fontSize: 14, fontWeight: "800" }, skeletonContent: { flex: 1, paddingTop: 18, gap: 13 }, skeletonHeader: { height: 40, flexDirection: "row", alignItems: "center", gap: 14 }, skeletonCircle: { width: 30, height: 30, borderRadius: 15 }, skeletonTitle: { width: 162, height: 17, borderRadius: 8 }, skeletonSummary: { height: 162, borderRadius: 20, marginTop: 5 }, skeletonExercise: { height: 72, borderRadius: 16 }, editorHeader: { height: 58, flexDirection: "row", justifyContent: "space-between", alignItems: "center" }, cancelText: { fontSize: 13, fontWeight: "800", minWidth: 65 }, saveText: { fontSize: 13, fontWeight: "900", minWidth: 65, textAlign: "right" }, editorContent: { gap: 13, paddingTop: 8, paddingBottom: 34 }, editorLead: { borderWidth: 1, borderRadius: 20, padding: 16, gap: 7 }, editorTitle: { fontSize: 21, fontWeight: "900", lineHeight: 25 }, editorDescription: { fontSize: 12, lineHeight: 17 }, undoButton: { minHeight: 43, borderWidth: 1, borderRadius: 13, alignItems: "center", justifyContent: "center" }, undoButtonText: { fontSize: 12, fontWeight: "900" }, durationCard: { borderWidth: 1, borderRadius: 16, padding: 14, gap: 7 }, noteEditorCard: { borderWidth: 1, borderRadius: 16, padding: 14, gap: 7 }, fieldLabel: { fontSize: 9, fontWeight: "900", letterSpacing: 0.6 }, durationInput: { height: 49, borderWidth: 1, borderRadius: 12, paddingHorizontal: 13, fontSize: 20, fontWeight: "900" }, noteInput: { minHeight: 94, borderWidth: 1, borderRadius: 12, paddingHorizontal: 13, paddingVertical: 11, fontSize: 14, lineHeight: 19, fontWeight: "700" }, editorSection: { fontSize: 19, fontWeight: "900", marginTop: 4 }, setCard: { borderWidth: 1, borderRadius: 16, padding: 13, gap: 12 }, setTop: { flexDirection: "row", alignItems: "center", gap: 10 }, setNumber: { fontSize: 13, fontWeight: "900", minWidth: 23 }, setExercise: { fontSize: 13, fontWeight: "900", flex: 1 }, removeSetButton: { borderWidth: 1, paddingHorizontal: 7, paddingVertical: 5 }, removeSetText: { fontSize: 7.5, letterSpacing: 0.4, fontWeight: "900" }, setFields: { flexDirection: "row", gap: 10 }, fieldWrap: { flex: 1, gap: 6 }, setInput: { height: 43, borderWidth: 1, borderRadius: 11, paddingHorizontal: 11, fontSize: 16, fontWeight: "800" }, saveButton: { minHeight: 52, borderRadius: 15, justifyContent: "center", alignItems: "center", marginTop: 5 }, saveButtonText: { color: "#FFFFFF", fontSize: 13, fontWeight: "900" },
 });

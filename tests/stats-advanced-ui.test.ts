@@ -10,6 +10,11 @@ describe("advanced statistics UI", () => {
     expect(screen).toContain('pathname: "/workout-history/[id]"');
   });
 
+  it("opens the selected chart point directly in editing mode", () => {
+    expect(screen).toContain('edit: "1"');
+    expect(screen).toContain("Нажмите точку, чтобы редактировать");
+  });
+
   it("persists the selected exercise together with period filters and renders comparisons", () => {
     expect(screen).toContain("loadStatsPreferences");
     expect(screen).toContain("saveStatsPreferences");
