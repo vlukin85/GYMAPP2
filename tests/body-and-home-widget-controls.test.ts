@@ -33,8 +33,15 @@ describe("body tracking and home widget controls", () => {
     expect(bodyVisuals).toContain("МУЖСКОЙ ПРОФИЛЬ");
     expect(bodyVisuals).toContain("body-silhouette-female.png");
     expect(bodyVisuals).toContain("body-silhouette-male.png");
-    expect(bodyVisuals).toContain("Реалистичный женский силуэт тела");
-    expect(bodyVisuals).toContain("Реалистичный мужской силуэт тела");
+    expect(bodyVisuals).toContain("body-silhouette-female-back.png");
+    expect(bodyVisuals).toContain("body-silhouette-male-back.png");
+    expect(bodyVisuals).toContain("Реалистичный женский");
+    expect(bodyVisuals).toContain("Реалистичный мужской");
+    expect(bodyVisuals).toContain('useState<"front" | "back">("front")');
+    expect(bodyVisuals).toContain("СПЕРЕДИ");
+    expect(bodyVisuals).toContain("СЗАДИ");
+    expect(bodyVisuals).toContain("Увеличить силуэт");
+    expect(bodyVisuals).toContain("Уменьшить силуэт");
   });
   it("adds the body tab to swipe navigation", () => {
     expect(getMainTabIdFromPathname("/body")).toBe("body");

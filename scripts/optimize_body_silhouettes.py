@@ -17,3 +17,5 @@ def optimize(filename: str) -> None:
 if __name__ == "__main__":
     optimize("body-silhouette-male.png")
     optimize("body-silhouette-female.png")
+    optimize("body-silhouette-male-back.png")
+    optimize("body-silhouette-female-back.png")
