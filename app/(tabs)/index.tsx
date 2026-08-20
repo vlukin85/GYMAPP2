@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Animated, LayoutAnimation, PanResponder, Platform, Pressable, ScrollView, StyleSheet, Text, UIManager, View } from "react-native";
+import { Animated, LayoutAnimation, Modal, PanResponder, Platform, Pressable, ScrollView, StyleSheet, Text, UIManager, View } from "react-native";
 import { router } from "expo-router";
+import * as Haptics from "expo-haptics";
 import Svg, { Line, Rect } from "react-native-svg";
 
 import { ScreenContainer } from "@/components/screen-container";
@@ -102,6 +103,14 @@ function HomeWidgetStack({ homeWidgets, now, scheduled, completed, colors, foodC
     setDragTarget(null);
     setPreviewOrder(null);
   };
+
+  const triggerWidgetGrabFeedback = () => {
+    if (Platform.OS === "android") {
+      void Haptics.performAndroidHapticsAsync(Haptics.AndroidHaptics.Drag_Start).catch(() => undefined);
+      return;
+    }
+    if (Platform.OS !== "web") void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => undefined);
+  };
   const renderWidget = (id: HomeWidgetId) => {
     const compact = homeWidgets.compact[id];
     if (id === "quote") return <View key={id} style={[styles.quoteCard, compact && compactStyles.quoteCard, { borderColor: colors.border, backgroundColor: colors.surface }]}><View style={[styles.quoteAccent, { backgroundColor: colors.primary }]} /><Text style={[styles.quoteKicker, { color: colors.primary }]}>ЦИТАТА ДНЯ</Text><Text numberOfLines={compact ? 2 : undefined} style={[styles.quoteText, compact && compactStyles.quoteText, { color: colors.foreground }]}>«{dailyQuote.quote}»</Text><Text style={[styles.quoteAuthor, { color: colors.muted }]}>{dailyQuote.athlete.toUpperCase()} · {dailyQuote.discipline.toUpperCase()}</Text></View>;
@@ -111,7 +120,11 @@ function HomeWidgetStack({ homeWidgets, now, scheduled, completed, colors, foodC
     if (id === "metrics") return <View key={id} style={[styles.dataRow, compact && compactStyles.dataRow]}><Metric compact={compact} label="ТРЕНИРОВОК" value={String(completed.length)} suffix="" colors={colors} /><Metric compact={compact} label="ОБЪЁМ" value={`${(weekVolume / 1000).toFixed(1)}`} suffix=" т" colors={colors} /><Metric compact={compact} label="ВРЕМЯ" value={formatDuration(completed.reduce((sum: number, item: any) => sum + item.durationMinutes, 0)).replace(" ч 0 мин", " ч")} suffix="" colors={colors} /></View>;
     return <View key={id} style={[styles.footerActions, compact && compactStyles.footerActions]}><Pressable onPress={() => router.push("/(tabs)/calendar")} style={({ pressed }) => [styles.outlineAction, compact && compactStyles.outlineAction, { borderColor: colors.border, opacity: pressed ? 0.65 : 1 }]}><Text style={[styles.actionText, { color: colors.foreground }]}>КАЛЕНДАРЬ</Text><IconSymbol name="calendar" size={compact ? 16 : 19} color={colors.foreground} /></Pressable><Pressable onPress={() => router.push("/(tabs)/exercises")} style={({ pressed }) => [styles.outlineAction, compact && compactStyles.outlineAction, { borderColor: colors.border, opacity: pressed ? 0.65 : 1 }]}><Text style={[styles.actionText, { color: colors.foreground }]}>УПРАЖНЕНИЯ</Text><IconSymbol name="dumbbell.fill" size={compact ? 16 : 19} color={colors.foreground} /></Pressable></View>;
   };
-  return <>{displayedIds.map((id: HomeWidgetId, index: number) => <DraggableHomeWidget key={id} id={id} index={index} total={visibleIds.length} dragging={draggingId === id} colors={colors} onDragStart={() => { setDraggingId(id); setDragTarget(index); setPreviewOrder(visibleIds); }} onDragMove={(next) => previewWidgetMove(id, next)} onDragEnd={(target) => finishWidgetDrag(id, target)}>{renderWidget(id)}</DraggableHomeWidget>)}</>;
+  return <>{homeWidgets.ready && !homeWidgets.dragHintSeen && <WidgetDragHint colors={colors} onDismiss={homeWidgets.dismissWidgetDragHint} />}{displayedIds.map((id: HomeWidgetId, index: number) => <DraggableHomeWidget key={id} id={id} index={index} total={visibleIds.length} dragging={draggingId === id} colors={colors} onDragStart={() => { triggerWidgetGrabFeedback(); setDraggingId(id); setDragTarget(index); setPreviewOrder(visibleIds); }} onDragMove={(next) => previewWidgetMove(id, next)} onDragEnd={(target) => finishWidgetDrag(id, target)}>{renderWidget(id)}</DraggableHomeWidget>)}</>;
+}
+
+function WidgetDragHint({ colors, onDismiss }: { colors: any; onDismiss: () => void }) {
+  return <Modal transparent animationType="fade" visible onRequestClose={onDismiss}><View style={styles.hintBackdrop}><View style={[styles.hintCard, { backgroundColor: colors.background, borderColor: colors.primary }]}><Text style={[styles.hintEyebrow, { color: colors.primary }]}>НАСТРОЙТЕ «СЕГОДНЯ» ПОД СЕБЯ</Text><Text style={[styles.hintTitle, { color: colors.foreground }]}>Перемещайте виджеты</Text><Text style={[styles.hintText, { color: colors.muted }]}>Зажмите маркер ⠿ на карточке и потяните её вверх или вниз. Соседние блоки плавно освободят место, а новый порядок сохранится автоматически.</Text><Pressable onPress={onDismiss} style={({ pressed }) => [styles.hintButton, { backgroundColor: colors.primary, opacity: pressed ? 0.74 : 1 }]}><Text style={styles.hintButtonText}>ПОНЯТНО</Text></Pressable></View></View></Modal>;
 }
 
 function DraggableHomeWidget({ id, index, total, dragging, colors, onDragStart, onDragMove, onDragEnd, children }: { id: HomeWidgetId; index: number; total: number; dragging: boolean; colors: any; onDragStart: () => void; onDragMove: (index: number) => void; onDragEnd: (index: number) => void; children: React.ReactNode }) {
@@ -240,6 +253,13 @@ const styles = StyleSheet.create({
   widgetShell: { position: "relative" },
   widgetHandle: { position: "absolute", right: 5, top: 5, width: 29, height: 29, borderWidth: StyleSheet.hairlineWidth, justifyContent: "center", alignItems: "center", zIndex: 12 },
   widgetHandleText: { fontSize: 19, lineHeight: 21, fontWeight: "900" },
+  hintBackdrop: { flex: 1, backgroundColor: "#111016B8", alignItems: "center", justifyContent: "center", padding: 24 },
+  hintCard: { width: "100%", maxWidth: 360, borderWidth: 2, padding: 22, gap: 12 },
+  hintEyebrow: { fontSize: 9, fontWeight: "900", letterSpacing: 0.9 },
+  hintTitle: { fontSize: 25, lineHeight: 29, fontWeight: "900" },
+  hintText: { fontSize: 13, lineHeight: 20, fontWeight: "700" },
+  hintButton: { minHeight: 48, alignItems: "center", justifyContent: "center", marginTop: 4 },
+  hintButtonText: { color: "#FFFFFF", fontSize: 12, fontWeight: "900", letterSpacing: 0.7 },
 });
 
 const compactStyles = StyleSheet.create({
