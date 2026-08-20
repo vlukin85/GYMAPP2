@@ -10,7 +10,7 @@ import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { SafeMaterialIcon } from "@/components/ui/safe-material-icon";
 import { useColors } from "@/hooks/use-colors";
-import { clearActiveWorkoutDraft, isDraftForProgram, loadActiveWorkoutDraft, saveActiveWorkoutDraft } from "@/lib/active-workout-draft-storage";
+import { clearActiveWorkoutDraft, isDraftForProgram, loadActiveWorkoutDraft, saveActiveWorkoutDraft, type ActiveWorkoutDraftSnapshot } from "@/lib/active-workout-draft-storage";
 import { MAX_DROP_SUBSETS, bestOneRepMax, exercises, getEffectiveSetWeight, getExercise, getExerciseHistory, getLoadZones, getSetVolumeWithDropSubsets, isTimeBasedExercise, muscleGroups, roundToWeightIncrement, supportsDistanceTracking, type Exercise, type ProgramExercise, type SetType } from "@/lib/workout-data";
 import { getRemainingRestSeconds, getRestProgress } from "@/lib/rest-timer";
 import { getHistoricalQuickWeightOptions, getPreviousWorkingResult, prefillWorkingSet } from "@/lib/workout-set-entry";
@@ -260,7 +260,7 @@ export default function WorkoutScreen() {
   const [removedExerciseIds, setRemovedExerciseIds] = useState<string[]>([]);
   const [draft, setDraft] = useState<ActualSet[]>([]);
   const [done, setDone] = useState<Record<string, boolean>>({});
-  const [started, setStarted] = useState(Date.now());
+  const [started, setStarted] = useState(() => store.activeWorkout?.programId === programSnapshotId ? store.activeWorkout.startedAt : Date.now());
   const [elapsed, setElapsed] = useState(0);
   const [rest, setRest] = useState(0);
   const [restTotal, setRestTotal] = useState(0);
@@ -284,6 +284,7 @@ export default function WorkoutScreen() {
   const [isRestoringDraft, setIsRestoringDraft] = useState(true);
   const [lastAutosavedAt, setLastAutosavedAt] = useState<number | null>(null);
   const isDraftPersistenceEnabledRef = useRef(true);
+  const latestDraftSnapshotRef = useRef<ActiveWorkoutDraftSnapshot | null>(null);
   const dragStateRef = useRef<{ sourceId: string; sourceIndex: number; targetIndex: number | null } | null>(null);
   const workoutScrollRef = useRef<ScrollView>(null);
   const scrollMetricsRef = useRef({ offsetY: 0, viewportTop: 0, viewportHeight: 0, contentHeight: 0 });
@@ -463,6 +464,32 @@ export default function WorkoutScreen() {
       mounted = false;
     };
   }, [programSnapshotId]);
+
+  useEffect(() => {
+    if (isRestoringDraft) return;
+    latestDraftSnapshotRef.current = {
+      programId: programSnapshotId,
+      startedAt: started,
+      activeId,
+      draft,
+      setsByExercise,
+      replacements,
+      removedExerciseIds,
+      done,
+      addedSessionExercises,
+      sessionOrder,
+      restEndAt,
+      restTotal,
+      savedAt: Date.now(),
+      machineSetup,
+      note,
+    };
+  }, [activeId, addedSessionExercises, done, draft, isRestoringDraft, machineSetup, note, programSnapshotId, removedExerciseIds, replacements, restEndAt, restTotal, sessionOrder, setsByExercise, started]);
+
+  useEffect(() => () => {
+    const snapshot = latestDraftSnapshotRef.current;
+    if (isDraftPersistenceEnabledRef.current && snapshot) void saveActiveWorkoutDraft({ ...snapshot, savedAt: Date.now() }).catch(() => undefined);
+  }, []);
 
   useEffect(() => {
     if (isRestoringDraft) return;
@@ -848,6 +875,15 @@ export default function WorkoutScreen() {
     ]);
   };
 
+  const leaveWorkout = () => {
+    const snapshot = latestDraftSnapshotRef.current;
+    if (isDraftPersistenceEnabledRef.current && snapshot) {
+      const savedAt = Date.now();
+      void saveActiveWorkoutDraft({ ...snapshot, savedAt }).then(() => setLastAutosavedAt(savedAt)).catch(() => undefined);
+    }
+    router.back();
+  };
+
   const fieldStyle = (value: string) => [
     styles.input,
     {
@@ -897,7 +933,7 @@ export default function WorkoutScreen() {
         }}
       >
         <View style={styles.nav}>
-          <Pressable onPress={() => router.back()}>
+          <Pressable onPress={leaveWorkout}>
             <IconSymbol name="chevron.left" size={27} color={colors.foreground} />
           </Pressable>
           <Text style={[styles.navTitle, { color: colors.foreground }]}>Активная тренировка</Text>

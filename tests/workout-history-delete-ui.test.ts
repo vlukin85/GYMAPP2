@@ -10,4 +10,11 @@ describe("completed workout deletion from history", () => {
     expect(screen).toContain("Статистика и личные рекорды будут пересчитаны");
     expect(screen).toContain("router.back()");
   });
+
+  it("offers a full local correction flow for duration and factual sets", () => {
+    expect(screen).toContain("Редактировать");
+    expect(screen).toContain("updateCompletedWorkout(workout.id");
+    expect(screen).toContain("Сохранить изменения");
+    expect(screen).toContain("ФАКТИЧЕСКИЙ РЕЗУЛЬТАТ");
+  });
 });

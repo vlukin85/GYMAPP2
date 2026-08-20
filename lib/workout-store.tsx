@@ -1,6 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
-import { bestOneRepMax, completedWorkouts as seedCompleted, createCustomExercise, defaultPrograms, getExercise, isTimeBasedExercise, mergeStoredPrograms, normalizeExerciseImagePreference, normalizeStoredMuscleGroup, setCustomExercises, type AiExerciseArtStyle, type BarbellProfile, type CompletedWorkout, type CustomExerciseDraft, type Exercise, type ExerciseGalleryImage, type ExerciseImagePreference, type ExercisePreference, type OneRepMaxFormula, type PersonalRecord, type ScheduledWorkout, type WorkoutProgram } from "./workout-data";
+import { bestOneRepMax, completedWorkouts as seedCompleted, createCustomExercise, defaultPrograms, getEffectiveSetWeight, getExercise, isTimeBasedExercise, mergeStoredPrograms, normalizeExerciseImagePreference, normalizeStoredMuscleGroup, setCustomExercises, type AiExerciseArtStyle, type BarbellProfile, type CompletedWorkout, type CustomExerciseDraft, type Exercise, type ExerciseGalleryImage, type ExerciseImagePreference, type ExercisePreference, type OneRepMaxFormula, type PersonalRecord, type ScheduledWorkout, type WorkoutProgram } from "./workout-data";
 
 export const SET_HAPTIC_INTENSITIES = ["light", "medium", "heavy"] as const;
 export type SetHapticIntensity = (typeof SET_HAPTIC_INTENSITIES)[number];
@@ -33,10 +33,11 @@ type WorkoutState = {
 
 type WorkoutContextValue = WorkoutState & {
   ready: boolean;
-  startWorkout: (programId: string) => void;
+  startWorkout: (programId: string, startedAt?: number) => void;
   discardActiveWorkout: () => void;
   finishWorkout: (programId: string, volume: number, sets: { exerciseId: string; weight: number; reps: number; distanceKm?: number }[]) => { workoutId: string; minutes: number; newRecordIds: string[]; maxOneRmDelta: number };
   deleteCompletedWorkout: (workoutId: string) => void;
+  updateCompletedWorkout: (workoutId: string, update: Partial<Pick<CompletedWorkout, "durationMinutes" | "sets">>) => void;
   scheduleProgram: (date: string, schedule: ScheduledWorkout) => void;
   removeSchedule: (date: string) => void;
   addProgram: (program: WorkoutProgram) => void;
@@ -93,6 +94,36 @@ export function rebuildPersonalRecords(completed: CompletedWorkout[], formula: O
     }, {});
 }
 
+/** Recalculates historical volume from the saved factual sets after a manual correction. */
+export function calculateCompletedWorkoutVolume(
+  sets: NonNullable<CompletedWorkout["sets"]>,
+  bodyWeightKg: number,
+  bodyweightVolumePercent: number,
+) {
+  return sets.reduce((total, set) => {
+    const exercise = getExercise(set.exerciseId);
+    if (isTimeBasedExercise(exercise)) return total;
+    const effectiveWeight = getEffectiveSetWeight({
+      weightKg: Math.max(0, set.weight),
+      equipment: exercise?.equipment ?? "",
+      bodyWeightKg,
+      bodyweightVolumePercent,
+    });
+    return total + effectiveWeight * Math.max(0, set.reps);
+  }, 0);
+}
+
+export function resolveWorkoutStartTime(
+  activeWorkout: { programId: string; startedAt: number } | null,
+  programId: string,
+  requestedStartedAt?: number,
+  now = Date.now(),
+) {
+  if (typeof requestedStartedAt === "number" && Number.isFinite(requestedStartedAt)) return requestedStartedAt;
+  if (activeWorkout?.programId === programId) return activeWorkout.startedAt;
+  return now;
+}
+
 const initialState: WorkoutState = {
   programs: defaultPrograms,
   completed: seedCompleted,
@@ -144,7 +175,7 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
   const value = useMemo<WorkoutContextValue>(() => ({
     ...state,
     ready,
-    startWorkout: (programId) => setState((current) => ({ ...current, activeWorkout: { programId, startedAt: Date.now() } })),
+    startWorkout: (programId, startedAt) => setState((current) => ({ ...current, activeWorkout: { programId, startedAt: resolveWorkoutStartTime(current.activeWorkout, programId, startedAt) } })),
     discardActiveWorkout: () => setState((current) => ({ ...current, activeWorkout: null })),
     finishWorkout: (programId, volume, sets) => {
       const workoutId = `w-${Date.now()}`;
@@ -169,6 +200,31 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
     },
     deleteCompletedWorkout: (workoutId) => setState((current) => {
       const completed = current.completed.filter((workout) => workout.id !== workoutId);
+      return { ...current, completed, personalRecords: rebuildPersonalRecords(completed, current.oneRmFormula) };
+    }),
+    updateCompletedWorkout: (workoutId, update) => setState((current) => {
+      const completed = current.completed.map((workout) => {
+        if (workout.id !== workoutId) return workout;
+        const durationMinutes = typeof update.durationMinutes === "number"
+          ? Math.max(1, Math.round(update.durationMinutes))
+          : workout.durationMinutes;
+        const sets = update.sets
+          ? update.sets
+            .filter((set) => typeof set.exerciseId === "string" && Number.isFinite(set.weight) && Number.isFinite(set.reps))
+            .map((set) => ({
+              exerciseId: set.exerciseId,
+              weight: Math.max(0, set.weight),
+              reps: Math.max(0, Math.round(set.reps)),
+              distanceKm: typeof set.distanceKm === "number" && Number.isFinite(set.distanceKm) && set.distanceKm > 0 ? set.distanceKm : undefined,
+            }))
+          : workout.sets;
+        return {
+          ...workout,
+          durationMinutes,
+          sets,
+          totalVolume: update.sets ? calculateCompletedWorkoutVolume(sets ?? [], current.bodyWeightKg, current.bodyweightVolumePercent) : workout.totalVolume,
+        };
+      });
       return { ...current, completed, personalRecords: rebuildPersonalRecords(completed, current.oneRmFormula) };
     }),
     scheduleProgram: (date, schedule) => setState((current) => ({ ...current, scheduled: { ...current.scheduled, [date]: schedule } })),
