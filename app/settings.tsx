@@ -175,32 +175,33 @@ export default function SettingsScreen() {
         {normalizedSettingsQuery.length > 0 && <Text style={[styles.searchResultHint, { color: colors.muted }]}>{matchingCategories.length ? `Подходящие категории: ${matchingCategories.map((category) => category.title).join(" · ")}` : "Ничего не найдено. Попробуйте другой запрос."}</Text>}
 
         <View style={!isSectionVisible("training") && styles.hiddenSection}>
-        <Text style={[styles.eyebrow, { color: colors.primary }]}>РАСЧЁТ СИЛЫ</Text>
-        <Text style={[styles.title, { color: colors.foreground }]}>Формула 1RM</Text>
-        <Text style={[styles.subtitle, { color: colors.muted }]}>Выбор применяется к зонам, истории и личным рекордам.</Text>
-        <View style={styles.options}>
-          {formulas.map((option) => {
-            const selected = option.id === oneRmFormula;
-            return (
-              <Pressable key={option.id} onPress={() => setOneRmFormula(option.id)} style={[styles.option, { backgroundColor: colors.surface, borderColor: selected ? colors.primary : colors.border }]}>
-                <View style={[styles.radio, { borderColor: selected ? colors.primary : colors.muted }]}>{selected && <View style={[styles.radioDot, { backgroundColor: colors.primary }]} />}</View>
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.optionTitle, { color: colors.foreground }]}>{option.title}</Text>
-                  <Text style={[styles.optionFormula, { color: colors.primary }]}>{option.formula}</Text>
-                  <Text style={[styles.optionDescription, { color: colors.muted }]}>{option.description}</Text>
-                </View>
+        <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Расчёт силы</Text>
+        <View style={[styles.densityCard, { backgroundColor: colors.surface, borderColor: colors.border }]}> 
+          <Text style={[styles.iconThemeTitle, { color: colors.foreground }]}>Формула 1RM</Text>
+          <Text style={[styles.iconThemeHint, { color: colors.muted }]}>Выбор применяется к зонам нагрузки, истории и личным рекордам.</Text>
+          <View style={styles.options}>
+            {formulas.map((option) => {
+              const selected = option.id === oneRmFormula;
+              return (
+                <Pressable key={option.id} onPress={() => setOneRmFormula(option.id)} style={[styles.option, { backgroundColor: colors.background, borderColor: selected ? colors.primary : colors.border }]}>
+                  <View style={[styles.radio, { borderColor: selected ? colors.primary : colors.muted }]}>{selected && <View style={[styles.radioDot, { backgroundColor: colors.primary }]} />}</View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.optionTitle, { color: colors.foreground }]}>{option.title}</Text>
+                    <Text style={[styles.optionFormula, { color: colors.primary }]}>{option.formula}</Text>
+                    <Text style={[styles.optionDescription, { color: colors.muted }]}>{option.description}</Text>
+                  </View>
+                </Pressable>
+              );
+            })}
+          </View>
+          <Text style={[styles.fieldLabel, styles.strengthStepLabel, { color: colors.muted }]}>ШАГ ВЕСА</Text>
+          <View style={styles.stepRow}>
+            {[1.25, 2.5, 5].map((step) => (
+              <Pressable key={step} onPress={() => setPlateStepKg(step)} style={[styles.step, { backgroundColor: plateStepKg === step ? colors.primary : colors.background, borderColor: plateStepKg === step ? colors.primary : colors.border }]}>
+                <Text style={{ color: plateStepKg === step ? "#101412" : colors.foreground, fontWeight: "900" }}>{step} кг</Text>
               </Pressable>
-            );
-          })}
-        </View>
-
-        <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Шаг веса</Text>
-        <View style={styles.stepRow}>
-          {[1.25, 2.5, 5].map((step) => (
-            <Pressable key={step} onPress={() => setPlateStepKg(step)} style={[styles.step, { backgroundColor: plateStepKg === step ? colors.primary : colors.surface, borderColor: plateStepKg === step ? colors.primary : colors.border }]}>
-              <Text style={{ color: plateStepKg === step ? "#101412" : colors.foreground, fontWeight: "800" }}>{step} кг</Text>
-            </Pressable>
-          ))}
+            ))}
+          </View>
         </View>
         </View>
 
@@ -500,6 +501,7 @@ const styles = StyleSheet.create({
   bodyProfileTitle: { fontSize: 12, fontWeight: "900" },
   bodyProfileHint: { fontSize: 9, lineHeight: 13, marginTop: 3 },
   fieldLabel: { fontSize: 10, fontWeight: "800", marginBottom: 5 },
+  strengthStepLabel: { marginTop: 4 },
   field: { height: 48, borderWidth: 1, borderRadius: 0, paddingHorizontal: 12, fontSize: 14, fontWeight: "900" },
   macroGoalRow: { flexDirection: "row", gap: 8 },
   macroGoalField: { flex: 1 },

@@ -31,6 +31,10 @@ describe("body tracking and home widget controls", () => {
     expect(bodyVisuals).toContain('profile === "female"');
     expect(bodyVisuals).toContain("ЖЕНСКИЙ ПРОФИЛЬ");
     expect(bodyVisuals).toContain("МУЖСКОЙ ПРОФИЛЬ");
+    expect(bodyVisuals).toContain("body-silhouette-female.png");
+    expect(bodyVisuals).toContain("body-silhouette-male.png");
+    expect(bodyVisuals).toContain("Реалистичный женский силуэт тела");
+    expect(bodyVisuals).toContain("Реалистичный мужской силуэт тела");
   });
   it("adds the body tab to swipe navigation", () => {
     expect(getMainTabIdFromPathname("/body")).toBe("body");
