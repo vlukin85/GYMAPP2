@@ -39,6 +39,10 @@ class IronriseRestTimerModule : Module() {
       showCountdownNotification(context, restEndAt.toLong(), targetLabel, targetFromBpm.toInt(), targetToBpm.toInt(), currentHeartRateBpm.toInt(), heartRateZoneColor, completionSound)
     }
 
+    Function("previewCompletionSound") { completionSound: String ->
+      completionSoundUri(completionSound)?.let { RingtoneManager.getRingtone(context, it)?.play() }
+    }
+
     Function("clearCountdown") {
       clearCountdownNotification(context)
     }
@@ -130,17 +134,18 @@ internal fun consumePendingAction(context: Context): Map<String, Any>? {
   return mapOf("kind" to kind, "restEndAt" to restEndAt)
 }
 
-internal fun completionPendingIntent(context: Context, flags: Int, completionSound: String = "system"): PendingIntent {
+internal fun completionPendingIntent(context: Context, flags: Int, completionSound: String = "system", restEndAt: Long = 0): PendingIntent {
   val intent = Intent(context, RestTimerCompletionReceiver::class.java).apply {
     action = "expo.modules.ironriseresttimer.COMPLETE"
     putExtra(EXTRA_COMPLETION_SOUND, completionSound)
+    putExtra(EXTRA_REST_END_AT, restEndAt)
   }
   return PendingIntent.getBroadcast(context, ALARM_REQUEST_CODE, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE or flags)
 }
 
 internal fun scheduleCompletionAlarm(context: Context, restEndAt: Long, completionSound: String) {
   val manager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
-  val pendingIntent = completionPendingIntent(context, 0, completionSound)
+  val pendingIntent = completionPendingIntent(context, 0, completionSound, restEndAt)
   if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && manager.canScheduleExactAlarms()) {
     manager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, restEndAt, pendingIntent)
   } else if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
@@ -148,4 +153,10 @@ internal fun scheduleCompletionAlarm(context: Context, restEndAt: Long, completi
   } else {
     manager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, restEndAt, pendingIntent)
   }
+}
+
+internal fun completionSoundUri(completionSound: String) = when (completionSound) {
+  "alarm" -> RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
+  "silent" -> null
+  else -> android.provider.Settings.System.DEFAULT_NOTIFICATION_URI
 }

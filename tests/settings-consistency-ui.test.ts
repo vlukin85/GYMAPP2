@@ -35,4 +35,11 @@ describe("settings visual system", () => {
     expect(settings).toContain("loadLockScreenHeartRateVisible");
     expect(settings).toContain("saveLockScreenHeartRateVisible");
   });
+
+  it("позволяет предпрослушать выбранный сигнал окончания отдыха", () => {
+    expect(settings).toContain("Сигнал завершения");
+    expect(settings).toContain("Предпрослушать сигнал");
+    expect(settings).toContain("previewRestCompletionSound");
+    expect(settings).toContain("previewNativeRestCompletionSound");
+  });
 });

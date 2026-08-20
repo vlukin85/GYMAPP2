@@ -53,9 +53,15 @@ describe("таймер отдыха на заблокированном Android-
 
   it("применяет выбранный звук и позволяет начать подход из уведомления завершения", () => {
     expect(nativeModule).toContain("completionSound");
-    expect(receiver).toContain("RingtoneManager.TYPE_ALARM");
+    expect(nativeModule).toContain("RingtoneManager.TYPE_ALARM");
     expect(receiver).toContain('"Начать подход"');
     expect(receiver).toContain("ACTION_START");
     expect(workoutScreen).toContain("restTimerCompletionSound");
+  });
+
+  it("позволяет продлить паузу из финального уведомления", () => {
+    expect(receiver).toContain('"+30 секунд"');
+    expect(receiver).toContain("ACTION_EXTEND");
+    expect(receiver).toContain("EXTRA_REST_END_AT");
   });
 });

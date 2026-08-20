@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Alert, KeyboardAvoidingView, Modal, PanResponder, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
+import { setAudioModeAsync, useAudioPlayer } from "expo-audio";
 import { router } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
@@ -23,6 +24,7 @@ import { BODY_METRICS, DAILY_ACTIVITY_LEVELS, useBodyStore } from "@/lib/body-st
 import { calculateDailyCalorieGuide } from "@/lib/body-calculations";
 import { connectHealthConnectHeartRate, getHealthConnectStatus, type HealthConnectStatus } from "@/lib/health-connect";
 import { loadLockScreenHeartRateVisible, saveLockScreenHeartRateVisible } from "@/lib/lock-screen-heart-rate-privacy";
+import { previewNativeRestCompletionSound } from "@/modules/ironrise-rest-timer";
 
 const formulas: { id: OneRepMaxFormula; title: string; formula: string; description: string }[] = [
   { id: "epley", title: "Эпли", formula: "Вес × (1 + повторы / 30)", description: "Универсальная оценка для большинства рабочих подходов." },
@@ -80,6 +82,7 @@ export default function SettingsScreen() {
   const [lockScreenHeartRateVisible, setLockScreenHeartRateVisible] = useState(true);
   const [settingsCategory, setSettingsCategory] = useState<SettingsCategoryId>("training");
   const [settingsQuery, setSettingsQuery] = useState("");
+  const restSoundPreviewPlayer = useAudioPlayer(require("@/assets/sounds/rest-complete.wav"));
   const links = [
     { title: "Профиль штанги и блинов", subtitle: "Вес грифа и доступные номиналы", route: "/barbell" as const },
     { title: "Рекомендации следующей тренировки", subtitle: "Рабочий вес с объяснением расчёта", route: "/recommendations" as const },
@@ -89,6 +92,17 @@ export default function SettingsScreen() {
     { title: "Сравнение тренировок", subtitle: "Объём, длительность и прогресс 1RM", route: "/compare" as const },
     { title: "Месячный PDF-отчёт", subtitle: "Красивые итоги и таблица подходов", route: "/report" as const },
   ];
+
+  const previewRestCompletionSound = useCallback(async () => {
+    if (restTimerCompletionSound === "silent") {
+      Alert.alert("Без звука", "Для этого варианта уведомление завершения остаётся без аудиосигнала.");
+      return;
+    }
+    if (previewNativeRestCompletionSound(restTimerCompletionSound)) return;
+    await setAudioModeAsync({ playsInSilentMode: true });
+    restSoundPreviewPlayer.seekTo(0);
+    restSoundPreviewPlayer.play();
+  }, [restSoundPreviewPlayer, restTimerCompletionSound]);
 
   const refreshStorageUsage = useCallback(async () => {
     setStorageLoading(true);
@@ -299,6 +313,9 @@ export default function SettingsScreen() {
               </Pressable>;
             })}
           </View>
+          <Pressable onPress={() => void previewRestCompletionSound()} style={({ pressed }) => [styles.soundPreviewButton, { backgroundColor: colors.primary, opacity: pressed ? 0.76 : 1 }]}>
+            <Text style={styles.soundPreviewButtonText}>Предпрослушать сигнал</Text>
+          </Pressable>
         </View>}
         <View style={[styles.restSoundCard, { backgroundColor: colors.surface, borderColor: colors.border }]}> 
           <View style={{ flex: 1 }}><Text style={[styles.vibrationTitle, { color: colors.foreground }]}>Вибрация окончания отдыха</Text><Text style={[styles.vibrationHint, { color: colors.muted }]}>{restTimerVibrationEnabled ? "Короткий тактильный сигнал дополнит окончание отсчёта." : "Окончание отдыха будет без вибрации."}</Text></View>
@@ -510,6 +527,8 @@ const styles = StyleSheet.create({
   restSoundCard: { borderWidth: 1, borderRadius: 0, borderLeftWidth: 5, padding: 14, flexDirection: "row", alignItems: "center", gap: 12 },
   vibrationTitle: { fontSize: 14, fontWeight: "900" },
   vibrationHint: { fontSize: 11, lineHeight: 16 },
+  soundPreviewButton: { minHeight: 42, alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 8, paddingHorizontal: 14 },
+  soundPreviewButtonText: { color: "#101412", fontSize: 12, fontWeight: "900" },
   vibrationOptions: { gap: 8 },
   vibrationOption: { minHeight: 54, borderWidth: 1, borderRadius: 0, paddingHorizontal: 11, flexDirection: "row", alignItems: "center", gap: 9 },
   vibrationRadio: { width: 18, height: 18, borderRadius: 9, borderWidth: 2, alignItems: "center", justifyContent: "center" },

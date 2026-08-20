@@ -17,6 +17,7 @@ class RestTimerCompletionReceiver : BroadcastReceiver() {
   override fun onReceive(context: Context, intent: Intent) {
     NotificationManagerCompat.from(context).cancel(COUNTDOWN_NOTIFICATION_ID)
     val completionSound = intent.getStringExtra(EXTRA_COMPLETION_SOUND) ?: "system"
+    val restEndAt = intent.getLongExtra(EXTRA_REST_END_AT, System.currentTimeMillis())
     val channelId = ensureCompletionChannel(context, completionSound)
     val notification = NotificationCompat.Builder(context, channelId)
       .setSmallIcon(context.applicationInfo.icon)
@@ -28,6 +29,7 @@ class RestTimerCompletionReceiver : BroadcastReceiver() {
       .setPriority(NotificationCompat.PRIORITY_MAX)
       .setColor(android.graphics.Color.parseColor(COMPLETION_ACCENT_COLOR))
       .addAction(android.R.drawable.ic_media_play, "Начать подход", restActionPendingIntent(context, ACTION_START, System.currentTimeMillis(), "", 0, 0, START_REQUEST_CODE, completionSound))
+      .addAction(android.R.drawable.ic_input_add, "+30 секунд", restActionPendingIntent(context, ACTION_EXTEND, restEndAt, "", 0, 0, EXTEND_REQUEST_CODE, completionSound))
       .build()
     NotificationManagerCompat.from(context).notify(COMPLETION_NOTIFICATION_ID, notification)
   }
@@ -40,11 +42,7 @@ class RestTimerCompletionReceiver : BroadcastReceiver() {
       lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
       enableVibration(true)
       vibrationPattern = longArrayOf(0, 350, 130, 700)
-      setSound(when (completionSound) {
-        "alarm" -> RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
-        "silent" -> null
-        else -> android.provider.Settings.System.DEFAULT_NOTIFICATION_URI
-      }, null)
+      setSound(completionSoundUri(completionSound), null)
     }
     manager.createNotificationChannel(channel)
     return channelId

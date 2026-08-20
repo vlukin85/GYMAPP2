@@ -3,6 +3,7 @@ import { requireOptionalNativeModule } from "expo-modules-core";
 
 type IronriseRestTimerNativeModule = {
   showCountdown(restEndAt: number, targetLabel: string, targetFromBpm: number, targetToBpm: number, currentHeartRateBpm: number, heartRateZoneColor: string, completionSound: string): void;
+  previewCompletionSound(completionSound: string): void;
   clearCountdown(): void;
   consumePendingAction(): { kind: "skip" | "extend" | "start"; restEndAt: number } | null;
 };
@@ -27,6 +28,13 @@ export function clearNativeRestCountdown() {
   const module = getModule();
   if (!module) return false;
   module.clearCountdown();
+  return true;
+}
+
+export function previewNativeRestCompletionSound(completionSound: NativeRestCompletionSound) {
+  const module = getModule();
+  if (!module || completionSound === "silent") return false;
+  module.previewCompletionSound(completionSound);
   return true;
 }
 
