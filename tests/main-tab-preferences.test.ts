@@ -91,6 +91,9 @@ describe("main tab preferences", () => {
     expect(settings).toContain("Компактный режим");
     expect(settings).toContain("moveTab");
     expect(settings).toContain("Тяните маркер ⠿");
+    expect(settings).toContain("triggerTabDragHaptic");
+    expect(settings).toContain("AndroidHaptics.Drag_Start");
+    expect(settings).toContain("AndroidHaptics.Segment_Tick");
     expect(tabs).toContain("useMainTabPreferences");
     expect(tabs).toContain("OrderedMainTabBar");
     expect(tabs).toContain('href: showTab("exercises") ? undefined : null');

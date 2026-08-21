@@ -16,6 +16,7 @@ import {
   View,
 } from "react-native";
 import { setAudioModeAsync, useAudioPlayer } from "expo-audio";
+import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
@@ -217,6 +218,26 @@ function CompletionVolumeSlider({
 const primaryThemeChoices = APP_COLOR_THEMES.filter(
   (theme) => theme.id === "editorial" || theme.id === "orchid",
 );
+
+function triggerTabDragHaptic(phase: "start" | "move") {
+  if (Platform.OS === "web") return;
+  if (Platform.OS === "android") {
+    const pattern =
+      phase === "start"
+        ? Haptics.AndroidHaptics.Drag_Start
+        : Haptics.AndroidHaptics.Segment_Tick;
+    void Haptics.performAndroidHapticsAsync(pattern).catch(() => undefined);
+    return;
+  }
+  if (phase === "start") {
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(
+      () => undefined,
+    );
+  } else {
+    void Haptics.selectionAsync().catch(() => undefined);
+  }
+}
+
 type SettingsCategoryId =
   | "training"
   | "home"
@@ -2949,16 +2970,22 @@ function TabVisibilityRow({
   const pan = PanResponder.create({
     onStartShouldSetPanResponder: () => true,
     onMoveShouldSetPanResponder: (_, gesture) => Math.abs(gesture.dy) > 4,
-    onPanResponderGrant: () => setDragging(true),
+    onPanResponderGrant: () => {
+      setDragging(true);
+      triggerTabDragHaptic("start");
+    },
     onPanResponderRelease: (_, gesture) => {
       setDragging(false);
+      const destination = Math.max(
+        0,
+        Math.min(total - 1, index + Math.round(gesture.dy / 68)),
+      );
+      if (destination === index) return;
       if (Platform.OS === "android")
         UIManager.setLayoutAnimationEnabledExperimental?.(true);
       LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-      onMove(
-        tab.id,
-        Math.max(0, Math.min(total - 1, index + Math.round(gesture.dy / 68))),
-      );
+      onMove(tab.id, destination);
+      triggerTabDragHaptic("move");
     },
     onPanResponderTerminate: () => setDragging(false),
   });
