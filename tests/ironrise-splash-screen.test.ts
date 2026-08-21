@@ -23,16 +23,16 @@ describe("native launch splash", () => {
     expect(appConfig).toContain("backgroundColor");
   });
 
-  it("lets Android auto-hide the native splash and keeps the branded screen as a web-only visual", () => {
+  it("lets Android auto-hide the native splash and keeps the branded bodybuilder screen as a web-only visual", () => {
     expect(rootLayout).not.toContain("preventAutoHideAsync");
     expect(rootLayout).toContain('Platform.OS === "web",');
     expect(rootLayout).toContain('if (Platform.OS !== "web") return;');
     expect(rootLayout).toContain("launchSplashTimer");
     expect(rootLayout).toContain("launchSplashDuration");
     expect(launchSplash).toContain(
-      'require("@/assets/images/splash-icon.png")',
+      "user_upload_by_module/session_file/310519663890171987",
     );
-    expect(launchSplash).not.toContain("files.manuscdn.com");
+    expect(launchSplash).toContain("files.manuscdn.com");
   });
 
   it("сохраняет выбранную длительность фирменной заставки в настройках", () => {

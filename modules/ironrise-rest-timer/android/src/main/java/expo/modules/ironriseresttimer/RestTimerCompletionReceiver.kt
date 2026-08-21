@@ -5,12 +5,13 @@ import android.app.NotificationManager
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.media.AudioAttributes
 import android.media.RingtoneManager
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 
-private const val COMPLETION_CHANNEL = "ironrise-rest-complete-v2"
+private const val COMPLETION_CHANNEL = "ironrise-rest-complete-v3"
 private const val COMPLETION_ACCENT_COLOR = "#7C3AED"
 
 class RestTimerCompletionReceiver : BroadcastReceiver() {
@@ -21,7 +22,8 @@ class RestTimerCompletionReceiver : BroadcastReceiver() {
     val completionVibrationEnabled = intent.getBooleanExtra(EXTRA_COMPLETION_VIBRATION, true)
     val completionVibrationPattern = intent.getStringExtra(EXTRA_COMPLETION_VIBRATION_PATTERN) ?: "short"
     val restEndAt = intent.getLongExtra(EXTRA_REST_END_AT, System.currentTimeMillis())
-    val channelId = ensureCompletionChannel(context, completionSound, completionVibrationEnabled, completionVibrationPattern)
+    val soundUri = completionSoundUri(context, completionSound)
+    val channelId = ensureCompletionChannel(context, completionSound, completionVibrationEnabled, completionVibrationPattern, soundUri)
     val notification = NotificationCompat.Builder(context, channelId)
       .setSmallIcon(context.applicationInfo.icon)
       .setContentTitle("Отдых завершён")
@@ -33,9 +35,12 @@ class RestTimerCompletionReceiver : BroadcastReceiver() {
       .setColor(android.graphics.Color.parseColor(COMPLETION_ACCENT_COLOR))
       .addAction(android.R.drawable.ic_media_play, "Начать подход", restActionPendingIntent(context, ACTION_START, System.currentTimeMillis(), "", 0, 0, START_REQUEST_CODE, completionSound, completionVolume, completionVibrationEnabled, completionVibrationPattern))
       .addAction(android.R.drawable.ic_input_add, "+30 секунд", restActionPendingIntent(context, ACTION_EXTEND, restEndAt, "", 0, 0, EXTEND_REQUEST_CODE, completionSound, completionVolume, completionVibrationEnabled, completionVibrationPattern))
+      .apply {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) soundUri?.let { setSound(it) }
+      }
       .build()
     NotificationManagerCompat.from(context).notify(COMPLETION_NOTIFICATION_ID, notification)
-    completionSoundUri(context, completionSound)?.let { uri ->
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) soundUri?.let { uri ->
       RingtoneManager.getRingtone(context, uri)?.apply {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) volume = completionVolume
         play()
@@ -43,7 +48,7 @@ class RestTimerCompletionReceiver : BroadcastReceiver() {
     }
   }
 
-  private fun ensureCompletionChannel(context: Context, completionSound: String, vibrationEnabled: Boolean, vibrationPatternId: String): String {
+  private fun ensureCompletionChannel(context: Context, completionSound: String, vibrationEnabled: Boolean, vibrationPatternId: String, soundUri: android.net.Uri?): String {
     val channelId = "$COMPLETION_CHANNEL-$completionSound-${if (vibrationEnabled) vibrationPatternId else "silent"}"
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return channelId
     val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
@@ -51,7 +56,14 @@ class RestTimerCompletionReceiver : BroadcastReceiver() {
       lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
       enableVibration(vibrationEnabled)
       if (vibrationEnabled) vibrationPattern = completionVibrationPattern(vibrationPatternId)
-      setSound(null, null)
+      if (soundUri == null) {
+        setSound(null, null)
+      } else {
+        setSound(soundUri, AudioAttributes.Builder()
+          .setUsage(AudioAttributes.USAGE_ALARM)
+          .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+          .build())
+      }
     }
     manager.createNotificationChannel(channel)
     return channelId

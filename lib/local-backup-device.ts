@@ -15,6 +15,7 @@ import {
 const MEDIA_DIRECTORY_NAME = "gym-diary-media";
 const BACKUP_DIRECTORY_NAME = "ironrise-backups";
 const BACKUP_DIRECTORY_URI_KEY = "ironrise.local-backup.directory-uri.v1";
+const MAX_INTERNAL_BACKUPS = 5;
 
 export type LocalBackupProgress = {
   value: number;
@@ -24,6 +25,7 @@ export type LocalBackupProgress = {
 export type LocalBackupFile = LocalBackupPreview & {
   uri: string;
   fileName: string;
+  deletedOldBackups?: number;
 };
 
 export type AvailableLocalBackup = LocalBackupFile & {
@@ -91,6 +93,30 @@ async function ensureAppBackupDirectory() {
   const uri = backupDirectoryUri();
   await FileSystem.makeDirectoryAsync(uri, { intermediates: true });
   return uri;
+}
+
+export async function cleanupOldInternalBackups(keep = MAX_INTERNAL_BACKUPS) {
+  const directoryUri = await ensureAppBackupDirectory();
+  const files = await Promise.all(
+    (await FileSystem.readDirectoryAsync(directoryUri))
+      .filter((name) => name.toLowerCase().endsWith(".zip"))
+      .map(async (name) => {
+        const uri = `${directoryUri}${name}`;
+        const info = await FileSystem.getInfoAsync(uri);
+        return {
+          uri,
+          modifiedAt:
+            info.exists && "modificationTime" in info
+              ? (info.modificationTime ?? 0)
+              : 0,
+        };
+      }),
+  );
+  const stale = files
+    .sort((first, second) => second.modifiedAt - first.modifiedAt)
+    .slice(Math.max(1, keep));
+  await Promise.all(stale.map(({ uri }) => FileSystem.deleteAsync(uri)));
+  return stale.length;
 }
 
 async function readBackupFromFile(
@@ -234,7 +260,14 @@ export async function createAndShareLocalBackup(
     });
   }
   const preview = unpackLocalBackupArchive(archive);
-  const backup: LocalBackupFile = { ...preview, uri, fileName };
+  const deletedOldBackups =
+    Platform.OS === "web" ? 0 : await cleanupOldInternalBackups();
+  const backup: LocalBackupFile = {
+    ...preview,
+    uri,
+    fileName,
+    ...(deletedOldBackups ? { deletedOldBackups } : {}),
+  };
   onProgress?.({ value: 82, label: "Открываем меню «Поделиться»…" });
   await shareLocalBackupFile(backup);
   onProgress?.({ value: 100, label: "Резервная копия готова." });

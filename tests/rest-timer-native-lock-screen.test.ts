@@ -127,6 +127,9 @@ describe("таймер отдыха на заблокированном Android-
     ).toBe(true);
     expect(receiver).toContain('"Начать подход"');
     expect(receiver).toContain("ACTION_START");
+    expect(receiver).toContain("ironrise-rest-complete-v3");
+    expect(receiver).toContain("AudioAttributes.USAGE_ALARM");
+    expect(receiver).toContain("setSound(soundUri");
     expect(workoutScreen).toContain("restTimerCompletionSound");
   });
 

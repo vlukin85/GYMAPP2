@@ -717,7 +717,7 @@ export default function SettingsScreen() {
       setAvailableBackups(await listAvailableLocalBackups());
       Alert.alert(
         "Резервная копия подготовлена",
-        "В системном меню выберите «Сохранить на устройство» или папку «Загрузки». Такой файл сохранится после удаления IronRise.",
+        `В системном меню выберите «Сохранить на устройство» или папку «Загрузки». Такой файл сохранится после удаления IronRise.${backup.deletedOldBackups ? ` Внутренняя папка очищена: удалено старых копий — ${backup.deletedOldBackups}.` : ""}`,
       );
     } catch (error) {
       Alert.alert(

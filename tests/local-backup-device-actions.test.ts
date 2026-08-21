@@ -20,4 +20,11 @@ describe("операции переносимой резервной копии"
     expect(device).toContain("listAvailableLocalBackups");
     expect(device).toContain("readBackupFromFile");
   });
+
+  it("автоматически очищает только старые внутренние ZIP-копии", () => {
+    expect(device).toContain("const MAX_INTERNAL_BACKUPS = 5");
+    expect(device).toContain("cleanupOldInternalBackups");
+    expect(device).toContain("FileSystem.deleteAsync(uri)");
+    expect(device).toContain("await cleanupOldInternalBackups()");
+  });
 });
