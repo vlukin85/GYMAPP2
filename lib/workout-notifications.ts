@@ -19,6 +19,12 @@ function formatRestNotificationTime(seconds: number) {
   return `${Math.floor(safe / 60)}:${String(safe % 60).padStart(2, "0")}`;
 }
 
+function getCompletionVibrationPattern(pattern: string) {
+  if (pattern === "long") return [0, 900];
+  if (pattern === "pulse") return [0, 160, 110, 160, 110, 160];
+  return [0, 240];
+}
+
 async function ensureLocalNotificationAccess(channelId: string, channelName: string, vibrationPattern: number[], sound = true) {
   if (Platform.OS === "web") return false;
   if (Platform.OS === "android") {
@@ -43,14 +49,15 @@ async function ensureLocalNotificationAccess(channelId: string, channelName: str
  * notification shows the remaining rest time and a second native alert fires exactly
  * at completion, even while the phone is locked.
  */
-export async function scheduleRestTimerLockScreenNotification(restEndAt: number, target?: LockScreenHeartRateTarget, completionSound: NativeRestCompletionSound = "female", completionVolume = 0.8, completionVibrationEnabled = true): Promise<RestTimerNotificationIds | undefined> {
+export async function scheduleRestTimerLockScreenNotification(restEndAt: number, target?: LockScreenHeartRateTarget, completionSound: NativeRestCompletionSound = "female", completionVolume = 0.8, completionVibrationEnabled = true, completionVibrationPattern = "short"): Promise<RestTimerNotificationIds | undefined> {
   if (Platform.OS === "web") return undefined;
   const seconds = Math.max(1, Math.ceil((restEndAt - Date.now()) / 1000));
   if (!(await ensureLocalNotificationAccess(REST_TIMER_CHANNEL, "Таймер отдыха", [0, 90]))) return undefined;
   const completionChannelId = `${REST_TIMER_COMPLETION_CHANNEL}-${completionSound}`;
-  await ensureLocalNotificationAccess(completionChannelId, "Отдых завершён", completionVibrationEnabled ? [0, 350, 130, 700] : [], completionSound !== "silent");
+  const vibrationPattern = completionVibrationEnabled ? getCompletionVibrationPattern(completionVibrationPattern) : [];
+  await ensureLocalNotificationAccess(completionChannelId, "Отдых завершён", vibrationPattern, completionSound !== "silent");
 
-  const nativeCountdownStarted = showNativeRestCountdown(restEndAt, target, completionSound, completionVolume, completionVibrationEnabled);
+  const nativeCountdownStarted = showNativeRestCountdown(restEndAt, target, completionSound, completionVolume, completionVibrationEnabled, completionVibrationPattern);
   const activeId = nativeCountdownStarted ? undefined : await Notifications.scheduleNotificationAsync({
     content: {
       title: "Отдых между подходами",
@@ -66,7 +73,7 @@ export async function scheduleRestTimerLockScreenNotification(restEndAt: number,
       title: "Отдых завершён",
       body: "Время следующего подхода.",
       sound: completionSound !== "silent",
-      vibrate: completionVibrationEnabled ? [0, 350, 130, 700] : undefined,
+      vibrate: completionVibrationEnabled ? vibrationPattern : undefined,
       data: { kind: "rest-timer-complete", restEndAt },
     },
     trigger: {

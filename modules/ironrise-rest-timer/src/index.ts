@@ -2,7 +2,7 @@ import { Platform } from "react-native";
 import { requireOptionalNativeModule } from "expo-modules-core";
 
 type IronriseRestTimerNativeModule = {
-  showCountdown(restEndAt: number, targetLabel: string, targetFromBpm: number, targetToBpm: number, currentHeartRateBpm: number, heartRateZoneColor: string, completionSound: string, completionVolume: number, completionVibrationEnabled: boolean): void;
+  showCountdown(restEndAt: number, targetLabel: string, targetFromBpm: number, targetToBpm: number, currentHeartRateBpm: number, heartRateZoneColor: string, completionSound: string, completionVolume: number, completionVibrationEnabled: boolean, completionVibrationPattern: string): void;
   previewCompletionSound(completionSound: string): void;
   clearCountdown(): void;
   consumePendingAction(): { kind: "skip" | "extend" | "start"; restEndAt: number } | null;
@@ -17,10 +17,10 @@ function getModule(): IronriseRestTimerNativeModule | null {
   return requireOptionalNativeModule<IronriseRestTimerNativeModule>("IronriseRestTimer");
 }
 
-export function showNativeRestCountdown(restEndAt: number, target?: LockScreenHeartRateTarget, completionSound: NativeRestCompletionSound = "female", completionVolume = 0.8, completionVibrationEnabled = true) {
+export function showNativeRestCountdown(restEndAt: number, target?: LockScreenHeartRateTarget, completionSound: NativeRestCompletionSound = "female", completionVolume = 0.8, completionVibrationEnabled = true, completionVibrationPattern = "short") {
   const module = getModule();
   if (!module) return false;
-  module.showCountdown(restEndAt, target?.label ?? "", target?.fromBpm ?? 0, target?.toBpm ?? 0, target?.currentBpm ?? 0, target?.zoneColor ?? "", completionSound, Math.max(0.1, Math.min(1, completionVolume)), completionVibrationEnabled);
+  module.showCountdown(restEndAt, target?.label ?? "", target?.fromBpm ?? 0, target?.toBpm ?? 0, target?.currentBpm ?? 0, target?.zoneColor ?? "", completionSound, Math.max(0.1, Math.min(1, completionVolume)), completionVibrationEnabled, completionVibrationPattern);
   return true;
 }
 

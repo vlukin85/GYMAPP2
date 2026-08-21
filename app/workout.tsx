@@ -88,16 +88,25 @@ function RestTimerOverlay({
   totalRest,
   onAddTime,
   onSkip,
+  soundEnabled,
+  soundVolume,
+  vibrationEnabled,
+  vibrationPattern,
 }: {
   colors: ReturnType<typeof useColors>;
   rest: number;
   totalRest: number;
   onAddTime: () => void;
   onSkip: () => void;
+  soundEnabled: boolean;
+  soundVolume: number;
+  vibrationEnabled: boolean;
+  vibrationPattern: "short" | "long" | "pulse";
 }) {
   if (rest <= 0 || totalRest <= 0) return null;
   const progress = getRestProgress(rest, totalRest);
   const dashOffset = REST_CIRCUMFERENCE * (1 - progress);
+  const vibrationLabel = vibrationPattern === "long" ? "длинная" : vibrationPattern === "pulse" ? "пульсирующая" : "короткая";
 
   return (
     <Modal visible transparent animationType="fade" presentationStyle="fullScreen" statusBarTranslucent onRequestClose={onSkip}>
@@ -138,6 +147,12 @@ function RestTimerOverlay({
         <View style={styles.restCopy}>
           <Text style={[styles.restTitle, { color: colors.foreground }]}>Следующий подход — после сигнала</Text>
           <Text style={[styles.restHint, { color: colors.muted }]}>Отсчёт продолжится после блокировки экрана.</Text>
+          <View style={[styles.restAlertStatus, { borderColor: colors.border, backgroundColor: colors.background }]}>
+            <SafeMaterialIcon name={soundEnabled ? "volume-up" : "volume-off"} size={16} color={soundEnabled ? colors.primary : colors.muted} />
+            <Text style={[styles.restAlertStatusText, { color: colors.foreground }]}>{soundEnabled ? `Звук ${Math.round(soundVolume * 100)}%` : "Звук выкл."}</Text>
+            <SafeMaterialIcon name="vibration" size={16} color={vibrationEnabled ? colors.primary : colors.muted} />
+            <Text style={[styles.restAlertStatusText, { color: colors.foreground }]}>{vibrationEnabled ? `Вибрация: ${vibrationLabel}` : "Вибрация выкл."}</Text>
+          </View>
         </View>
         </View>
         <View style={styles.restActions}>
@@ -275,6 +290,7 @@ export default function WorkoutScreen() {
     restTimerCompletionSound,
     restTimerCompletionVolume,
     restTimerVibrationEnabled,
+    restTimerVibrationPattern,
     hapticIntensity,
     exercisePreferences,
     setExercisePreference,
@@ -382,11 +398,11 @@ export default function WorkoutScreen() {
         toBpm: target.toBpm,
         currentBpm: lockScreenHeartRateVisible ? heartRate.currentBpm : undefined,
         zoneColor,
-      } : undefined, restTimerSoundEnabled ? restTimerCompletionSound : "silent", restTimerCompletionVolume, restTimerVibrationEnabled);
+      } : undefined, restTimerSoundEnabled ? restTimerCompletionSound : "silent", restTimerCompletionVolume, restTimerVibrationEnabled, restTimerVibrationPattern);
       if (restEndRef.current === endTimestamp) restNotificationIdsRef.current = ids;
       else void clearRestTimerLockScreenNotification(ids);
     })();
-  }, [ageYears, clearRestLockScreenNotification, heartRate.currentBpm, lockScreenHeartRateVisible, restTimerCompletionSound, restTimerCompletionVolume, restTimerSoundEnabled, restTimerVibrationEnabled, targetHeartRateZone]);
+  }, [ageYears, clearRestLockScreenNotification, heartRate.currentBpm, lockScreenHeartRateVisible, restTimerCompletionSound, restTimerCompletionVolume, restTimerSoundEnabled, restTimerVibrationEnabled, restTimerVibrationPattern, targetHeartRateZone]);
 
   const startRestTimer = useCallback((durationSeconds: number) => {
     const seconds = Math.max(0, Math.round(durationSeconds));
@@ -1232,7 +1248,7 @@ export default function WorkoutScreen() {
         </Pressable>
       </ScrollView>
 
-      {!activeId && <RestTimerOverlay colors={colors} rest={rest} totalRest={restTotal} onAddTime={extendRestTimer} onSkip={skipRest} />}
+      {!activeId && <RestTimerOverlay colors={colors} rest={rest} totalRest={restTotal} onAddTime={extendRestTimer} onSkip={skipRest} soundEnabled={restTimerSoundEnabled} soundVolume={restTimerCompletionVolume} vibrationEnabled={restTimerVibrationEnabled} vibrationPattern={restTimerVibrationPattern} />}
 
       <Modal visible={catalogVisible} animationType="slide" presentationStyle="fullScreen" onRequestClose={() => setCatalogVisible(false)}>
         <View style={[styles.catalogModal, { backgroundColor: colors.background }]}>
@@ -1489,7 +1505,7 @@ export default function WorkoutScreen() {
               <Text style={styles.saveButtonText}>Завершить упражнение</Text>
             </Pressable>
           </ScrollView>
-          <RestTimerOverlay colors={colors} rest={rest} totalRest={restTotal} onAddTime={extendRestTimer} onSkip={skipRest} />
+          <RestTimerOverlay colors={colors} rest={rest} totalRest={restTotal} onAddTime={extendRestTimer} onSkip={skipRest} soundEnabled={restTimerSoundEnabled} soundVolume={restTimerCompletionVolume} vibrationEnabled={restTimerVibrationEnabled} vibrationPattern={restTimerVibrationPattern} />
           <Modal visible={focusedSetIndex !== null} animationType="slide" presentationStyle="fullScreen" onRequestClose={closeSetEditor} statusBarTranslucent>
             <KeyboardAvoidingView style={[styles.setEditorBackdrop, { backgroundColor: colors.background }]} behavior={Platform.OS === "ios" ? "padding" : "height"} keyboardVerticalOffset={Platform.OS === "ios" ? 12 : 0}>
               {focusedSetIndex !== null && focusedSet && focusedPart && (
@@ -1641,6 +1657,8 @@ const styles = StyleSheet.create({
   restCopy: { alignItems: "center", gap: 8, maxWidth: 280 },
   restTitle: { textAlign: "center", fontSize: 20, fontWeight: "900", lineHeight: 27 },
   restHint: { textAlign: "center", fontSize: 13, lineHeight: 19 },
+  restAlertStatus: { marginTop: 4, borderWidth: 1, paddingHorizontal: 10, paddingVertical: 8, flexDirection: "row", alignItems: "center", gap: 6 },
+  restAlertStatusText: { fontSize: 10, fontWeight: "800" },
   restActions: { flexDirection: "row", gap: 10 },
   restSecondaryAction: { flex: 1, minHeight: 54, paddingHorizontal: 12, borderRadius: 0, borderWidth: 1, alignItems: "center", justifyContent: "center" },
   restSecondaryText: { fontSize: 14, fontWeight: "900" },

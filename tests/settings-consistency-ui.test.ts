@@ -52,4 +52,12 @@ describe("settings visual system", () => {
     expect(settings).toContain("Вибрация вместе со звуком");
     expect(settings).toContain("restTimerCompletionVolume");
   });
+
+  it("позволяет выбрать паттерн вибрации завершения отдыха", () => {
+    expect(settings).toContain("Паттерн вибрации");
+    expect(settings).toContain("Короткая");
+    expect(settings).toContain("Длинная");
+    expect(settings).toContain("Пульсирующая");
+    expect(settings).toContain("restTimerVibrationPattern");
+  });
 });

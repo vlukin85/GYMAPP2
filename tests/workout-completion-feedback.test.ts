@@ -4,6 +4,12 @@ import { describe, expect, it } from "vitest";
 const workoutScreen = readFileSync("/home/ubuntu/gym-training-diary/app/workout.tsx", "utf8");
 
 describe("workout completion feedback", () => {
+  it("показывает в таймере текущие состояния звука и вибрации", () => {
+    expect(workoutScreen).toContain("Звук выкл.");
+    expect(workoutScreen).toContain("Вибрация выкл.");
+    expect(workoutScreen).toContain("restAlertStatus");
+  });
+
   it("starts rest only from the explicit set-completion action", () => {
     const finishSetBlock = workoutScreen.slice(workoutScreen.indexOf("const finishFocusedSet"), workoutScreen.indexOf("const focusedSet"));
     const saveExerciseBlock = workoutScreen.slice(workoutScreen.indexOf("const saveExercise"), workoutScreen.indexOf("const removeExerciseFromSession"));

@@ -8,6 +8,9 @@ const isSetHapticIntensity = (value: unknown): value is SetHapticIntensity => ty
 export const REST_COMPLETION_SOUNDS = ["female", "male", "siren"] as const;
 export type RestCompletionSound = (typeof REST_COMPLETION_SOUNDS)[number];
 const isRestCompletionSound = (value: unknown): value is RestCompletionSound => typeof value === "string" && REST_COMPLETION_SOUNDS.includes(value as RestCompletionSound);
+export const REST_COMPLETION_VIBRATION_PATTERNS = ["short", "long", "pulse"] as const;
+export type RestCompletionVibrationPattern = (typeof REST_COMPLETION_VIBRATION_PATTERNS)[number];
+const isRestCompletionVibrationPattern = (value: unknown): value is RestCompletionVibrationPattern => typeof value === "string" && REST_COMPLETION_VIBRATION_PATTERNS.includes(value as RestCompletionVibrationPattern);
 const normalizeRestCompletionVolume = (value: unknown) => typeof value === "number" && Number.isFinite(value) ? Math.max(0.1, Math.min(1, value)) : 0.8;
 
 type WorkoutState = {
@@ -25,6 +28,7 @@ type WorkoutState = {
   restTimerCompletionSound: RestCompletionSound;
   restTimerCompletionVolume: number;
   restTimerVibrationEnabled: boolean;
+  restTimerVibrationPattern: RestCompletionVibrationPattern;
   hapticIntensity: SetHapticIntensity;
   notificationsEnabled: boolean;
   defaultWorkoutTime: string;
@@ -72,6 +76,7 @@ type WorkoutContextValue = WorkoutState & {
   setRestTimerCompletionSound: (sound: RestCompletionSound) => void;
   setRestTimerCompletionVolume: (volume: number) => void;
   setRestTimerVibrationEnabled: (enabled: boolean) => void;
+  setRestTimerVibrationPattern: (pattern: RestCompletionVibrationPattern) => void;
   setHapticIntensity: (intensity: SetHapticIntensity) => void;
   setNotificationPreferences: (preferences: Pick<WorkoutState, "notificationsEnabled" | "defaultWorkoutTime" | "defaultReminderMinutes">) => void;
   setExercisePreference: (exerciseId: string, preference: ExercisePreference) => void;
@@ -147,6 +152,7 @@ const initialState: WorkoutState = {
   restTimerCompletionSound: "female",
   restTimerCompletionVolume: 0.8,
   restTimerVibrationEnabled: true,
+  restTimerVibrationPattern: "short",
   hapticIntensity: "light",
   notificationsEnabled: true,
   defaultWorkoutTime: "18:30",
@@ -174,7 +180,7 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
         const customExercises = (parsed.customExercises ?? []).map((exercise) => ({ ...exercise, group: normalizeStoredMuscleGroup(exercise.group, exercise.name) }));
         setCustomExercises(customExercises);
         const exerciseImagePreferences = Object.fromEntries(Object.entries(parsed.exerciseImagePreferences ?? {}).map(([exerciseId, preference]) => [exerciseId, normalizeExerciseImagePreference(preference)]));
-        setState({ ...initialState, ...parsed, programs: mergeStoredPrograms(parsed.programs).filter((program) => !deletedProgramIds.includes(program.id)), scheduled: migratedScheduled, deletedProgramIds, customExercises, exerciseImageOverrides: parsed.exerciseImageOverrides ?? {}, exerciseGalleries: parsed.exerciseGalleries ?? {}, exerciseImagePreferences, oneRmFormula: parsed.oneRmFormula ?? initialState.oneRmFormula, plateStepKg: parsed.plateStepKg ?? initialState.plateStepKg, barbellProfile: parsed.barbellProfile ?? initialState.barbellProfile, personalRecords: parsed.personalRecords ?? {}, bodyWeightKg: parsed.bodyWeightKg ?? initialState.bodyWeightKg, bodyweightVolumePercent: parsed.bodyweightVolumePercent ?? initialState.bodyweightVolumePercent, restTimerSoundEnabled: parsed.restTimerSoundEnabled ?? initialState.restTimerSoundEnabled, restTimerCompletionSound: isRestCompletionSound(parsed.restTimerCompletionSound) ? parsed.restTimerCompletionSound : initialState.restTimerCompletionSound, restTimerCompletionVolume: normalizeRestCompletionVolume(parsed.restTimerCompletionVolume), restTimerVibrationEnabled: parsed.restTimerVibrationEnabled ?? initialState.restTimerVibrationEnabled, hapticIntensity: isSetHapticIntensity(parsed.hapticIntensity) ? parsed.hapticIntensity : initialState.hapticIntensity, notificationsEnabled: parsed.notificationsEnabled ?? initialState.notificationsEnabled, defaultWorkoutTime: parsed.defaultWorkoutTime ?? initialState.defaultWorkoutTime, defaultReminderMinutes: parsed.defaultReminderMinutes ?? initialState.defaultReminderMinutes, exercisePreferences: parsed.exercisePreferences ?? {} });
+        setState({ ...initialState, ...parsed, programs: mergeStoredPrograms(parsed.programs).filter((program) => !deletedProgramIds.includes(program.id)), scheduled: migratedScheduled, deletedProgramIds, customExercises, exerciseImageOverrides: parsed.exerciseImageOverrides ?? {}, exerciseGalleries: parsed.exerciseGalleries ?? {}, exerciseImagePreferences, oneRmFormula: parsed.oneRmFormula ?? initialState.oneRmFormula, plateStepKg: parsed.plateStepKg ?? initialState.plateStepKg, barbellProfile: parsed.barbellProfile ?? initialState.barbellProfile, personalRecords: parsed.personalRecords ?? {}, bodyWeightKg: parsed.bodyWeightKg ?? initialState.bodyWeightKg, bodyweightVolumePercent: parsed.bodyweightVolumePercent ?? initialState.bodyweightVolumePercent, restTimerSoundEnabled: parsed.restTimerSoundEnabled ?? initialState.restTimerSoundEnabled, restTimerCompletionSound: isRestCompletionSound(parsed.restTimerCompletionSound) ? parsed.restTimerCompletionSound : initialState.restTimerCompletionSound, restTimerCompletionVolume: normalizeRestCompletionVolume(parsed.restTimerCompletionVolume), restTimerVibrationEnabled: parsed.restTimerVibrationEnabled ?? initialState.restTimerVibrationEnabled, restTimerVibrationPattern: isRestCompletionVibrationPattern(parsed.restTimerVibrationPattern) ? parsed.restTimerVibrationPattern : initialState.restTimerVibrationPattern, hapticIntensity: isSetHapticIntensity(parsed.hapticIntensity) ? parsed.hapticIntensity : initialState.hapticIntensity, notificationsEnabled: parsed.notificationsEnabled ?? initialState.notificationsEnabled, defaultWorkoutTime: parsed.defaultWorkoutTime ?? initialState.defaultWorkoutTime, defaultReminderMinutes: parsed.defaultReminderMinutes ?? initialState.defaultReminderMinutes, exercisePreferences: parsed.exercisePreferences ?? {} });
       }
       setReady(true);
     }).catch(() => setReady(true));
@@ -325,6 +331,7 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
     setRestTimerCompletionSound: (restTimerCompletionSound) => setState((current) => ({ ...current, restTimerCompletionSound })),
     setRestTimerCompletionVolume: (restTimerCompletionVolume) => setState((current) => ({ ...current, restTimerCompletionVolume: normalizeRestCompletionVolume(restTimerCompletionVolume) })),
     setRestTimerVibrationEnabled: (restTimerVibrationEnabled) => setState((current) => ({ ...current, restTimerVibrationEnabled })),
+    setRestTimerVibrationPattern: (restTimerVibrationPattern) => setState((current) => ({ ...current, restTimerVibrationPattern })),
     setHapticIntensity: (hapticIntensity) => setState((current) => ({ ...current, hapticIntensity })),
     setNotificationPreferences: (preferences) => setState((current) => ({ ...current, ...preferences, defaultReminderMinutes: Math.max(0, preferences.defaultReminderMinutes), defaultWorkoutTime: preferences.defaultWorkoutTime || current.defaultWorkoutTime })),
     setExercisePreference: (exerciseId, preference) => setState((current) => ({ ...current, exercisePreferences: { ...current.exercisePreferences, [exerciseId]: preference } })),

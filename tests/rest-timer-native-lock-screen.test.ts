@@ -10,7 +10,7 @@ const workoutScreen = readFileSync(resolve(process.cwd(), "app/workout.tsx"), "u
 
 describe("таймер отдыха на заблокированном Android-экране", () => {
   it("передаёт обратный отсчёт нативному модулю и не дублирует Expo-уведомление", () => {
-    expect(notificationService).toContain("showNativeRestCountdown(restEndAt, target, completionSound, completionVolume, completionVibrationEnabled)");
+    expect(notificationService).toContain("showNativeRestCountdown(restEndAt, target, completionSound, completionVolume, completionVibrationEnabled, completionVibrationPattern)");
     expect(notificationService).toContain("nativeCountdownStarted ? undefined");
     expect(notificationService).toContain("clearNativeRestCountdown()");
   });
@@ -80,5 +80,14 @@ describe("таймер отдыха на заблокированном Android-
     expect(receiver).toContain("volume = completionVolume");
     expect(receiver).toContain("completionVibrationEnabled");
     expect(workoutScreen).toContain("restTimerCompletionVolume");
+  });
+
+  it("сохраняет короткий, длинный или пульсирующий паттерн вибрации при продлении отдыха", () => {
+    expect(nativeModule).toContain("EXTRA_COMPLETION_VIBRATION_PATTERN");
+    expect(nativeModule).toContain("completionVibrationPattern");
+    expect(actionReceiver).toContain("completionVibrationPattern");
+    expect(receiver).toContain('"pulse"');
+    expect(receiver).toContain("completionVibrationPattern(vibrationPatternId)");
+    expect(workoutScreen).toContain("restTimerVibrationPattern");
   });
 });

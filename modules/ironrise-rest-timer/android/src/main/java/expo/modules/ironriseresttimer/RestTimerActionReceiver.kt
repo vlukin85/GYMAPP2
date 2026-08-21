@@ -26,7 +26,8 @@ class RestTimerActionReceiver : BroadcastReceiver() {
       val completionSound = intent.getStringExtra(EXTRA_COMPLETION_SOUND) ?: "female"
       val completionVolume = intent.getFloatExtra(EXTRA_COMPLETION_VOLUME, 0.8f)
       val completionVibrationEnabled = intent.getBooleanExtra(EXTRA_COMPLETION_VIBRATION, true)
-      showCountdownNotification(context, extendedEndAt, targetLabel, targetFrom, targetTo, 0, "", completionSound, completionVolume, completionVibrationEnabled)
+      val completionVibrationPattern = intent.getStringExtra(EXTRA_COMPLETION_VIBRATION_PATTERN) ?: "short"
+      showCountdownNotification(context, extendedEndAt, targetLabel, targetFrom, targetTo, 0, "", completionSound, completionVolume, completionVibrationEnabled, completionVibrationPattern)
       savePendingAction(context, "extend", extendedEndAt)
     }
   }

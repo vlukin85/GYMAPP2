@@ -17,7 +17,7 @@ import { formatStorageBytes, getUsagePercent } from "@/lib/storage-usage-utils";
 import type { LocalStorageUsage } from "@/lib/local-storage-usage";
 import { clearGroqApiKey, getGroqApiKey, saveGroqApiKey } from "@/lib/groq-settings";
 import { type OneRepMaxFormula } from "@/lib/workout-data";
-import { type RestCompletionSound, type SetHapticIntensity, useWorkoutStore } from "@/lib/workout-store";
+import { type RestCompletionSound, type RestCompletionVibrationPattern, type SetHapticIntensity, useWorkoutStore } from "@/lib/workout-store";
 import { useNutritionStore } from "@/lib/nutrition-store";
 import { HOME_WIDGETS, type HomeWidgetId, useHomeWidgets } from "@/lib/home-widgets";
 import { BODY_METRICS, DAILY_ACTIVITY_LEVELS, useBodyStore } from "@/lib/body-store";
@@ -41,6 +41,11 @@ const restCompletionSoundOptions: { id: RestCompletionSound; title: string; desc
   { id: "female", title: "Женский голос", description: "Короткая голосовая команда о завершении отдыха" },
   { id: "male", title: "Мужской голос", description: "Уверенная голосовая команда о следующем подходе" },
   { id: "siren", title: "Сирена", description: "Короткий заметный электронный сигнал" },
+];
+const restCompletionVibrationOptions: { id: RestCompletionVibrationPattern; title: string; description: string }[] = [
+  { id: "short", title: "Короткая", description: "Один короткий импульс" },
+  { id: "long", title: "Длинная", description: "Один заметный длинный импульс" },
+  { id: "pulse", title: "Пульсирующая", description: "Три коротких последовательных импульса" },
 ];
 
 function CompletionVolumeSlider({ value, onChange, colors }: { value: number; onChange: (value: number) => void; colors: ReturnType<typeof useColors> }) {
@@ -82,7 +87,7 @@ export default function SettingsScreen() {
   const { dailyCalorieGoal, dailyMacroGoals, setDailyCalorieGoal, setDailyMacroGoals } = useNutritionStore();
   const { visibility: homeWidgets, order: homeWidgetOrder, compact: compactWidgets, dragHapticsEnabled, setWidgetVisible, setWidgetCompact, setWidgetDragHapticsEnabled, moveWidget, resetWidgets } = useHomeWidgets();
   const { profile: bodyProfile, heightCm, ageYears, goals: bodyGoals, measurements: bodyMeasurements, activityLevel, setProfile: setBodyProfile, setProfileDetails, setGoals: setBodyGoals, setActivityLevel } = useBodyStore();
-  const { oneRmFormula, setOneRmFormula, plateStepKg, setPlateStepKg, bodyWeightKg, bodyweightVolumePercent, setBodyweightVolumeSettings, hapticIntensity, setHapticIntensity, restTimerSoundEnabled, setRestTimerSoundEnabled, restTimerCompletionSound, setRestTimerCompletionSound, restTimerCompletionVolume, setRestTimerCompletionVolume, restTimerVibrationEnabled, setRestTimerVibrationEnabled, notificationsEnabled, defaultWorkoutTime, defaultReminderMinutes, setNotificationPreferences } = store;
+  const { oneRmFormula, setOneRmFormula, plateStepKg, setPlateStepKg, bodyWeightKg, bodyweightVolumePercent, setBodyweightVolumeSettings, hapticIntensity, setHapticIntensity, restTimerSoundEnabled, setRestTimerSoundEnabled, restTimerCompletionSound, setRestTimerCompletionSound, restTimerCompletionVolume, setRestTimerCompletionVolume, restTimerVibrationEnabled, setRestTimerVibrationEnabled, restTimerVibrationPattern, setRestTimerVibrationPattern, notificationsEnabled, defaultWorkoutTime, defaultReminderMinutes, setNotificationPreferences } = store;
   const [bodyWeight, setBodyWeight] = useState(String(bodyWeightKg));
   const [bodyPercent, setBodyPercent] = useState(String(bodyweightVolumePercent));
   const [notificationTime, setNotificationTime] = useState(defaultWorkoutTime);
@@ -367,6 +372,10 @@ export default function SettingsScreen() {
           <View style={{ flex: 1 }}><Text style={[styles.vibrationTitle, { color: colors.foreground }]}>Вибрация вместе со звуком</Text><Text style={[styles.vibrationHint, { color: colors.muted }]}>{restTimerSoundEnabled ? restTimerVibrationEnabled ? "Короткий тактильный сигнал дополнит звук окончания отдыха." : "Окончание отдыха пройдёт только со звуком." : "Сначала включите звуковой сигнал завершения отдыха."}</Text></View>
           <Switch value={restTimerVibrationEnabled} disabled={!restTimerSoundEnabled} onValueChange={setRestTimerVibrationEnabled} trackColor={{ false: colors.border, true: `${colors.primary}88` }} thumbColor={restTimerVibrationEnabled && restTimerSoundEnabled ? colors.primary : colors.muted} />
         </View>
+        {restTimerSoundEnabled && restTimerVibrationEnabled && <View style={[styles.vibrationCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <Text style={[styles.vibrationTitle, { color: colors.foreground }]}>Паттерн вибрации</Text>
+          <View style={styles.vibrationOptions}>{restCompletionVibrationOptions.map((option) => { const selected = option.id === restTimerVibrationPattern; return <Pressable key={option.id} onPress={() => setRestTimerVibrationPattern(option.id)} style={({ pressed }) => [styles.vibrationOption, { backgroundColor: selected ? `${colors.primary}18` : colors.background, borderColor: selected ? colors.primary : colors.border, opacity: pressed ? 0.72 : 1 }]}><View style={[styles.vibrationRadio, { borderColor: selected ? colors.primary : colors.muted }]}>{selected && <View style={[styles.vibrationRadioDot, { backgroundColor: colors.primary }]} />}</View><View style={{ flex: 1 }}><Text style={[styles.vibrationOptionTitle, { color: colors.foreground }]}>{option.title}</Text><Text style={[styles.vibrationOptionHint, { color: colors.muted }]}>{option.description}</Text></View></Pressable>; })}</View>
+        </View>}
         <View style={[styles.vibrationCard, { backgroundColor: colors.surface, borderColor: colors.border }]}> 
           <Text style={[styles.vibrationTitle, { color: colors.foreground }]}>Вибрация при завершении подхода</Text>
           <Text style={[styles.vibrationHint, { color: colors.muted }]}>Интенсивность сохраняется на этом устройстве. В веб-просмотре вибрация не запускается.</Text>
