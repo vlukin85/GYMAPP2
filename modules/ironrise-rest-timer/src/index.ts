@@ -10,14 +10,14 @@ type IronriseRestTimerNativeModule = {
 
 export type NativeRestTimerAction = { kind: "skip" | "extend" | "start"; restEndAt: number };
 export type LockScreenHeartRateTarget = { label: string; fromBpm?: number; toBpm?: number; currentBpm?: number; zoneColor?: string };
-export type NativeRestCompletionSound = "system" | "alarm" | "silent";
+export type NativeRestCompletionSound = "female" | "male" | "siren" | "silent";
 
 function getModule(): IronriseRestTimerNativeModule | null {
   if (Platform.OS !== "android") return null;
   return requireOptionalNativeModule<IronriseRestTimerNativeModule>("IronriseRestTimer");
 }
 
-export function showNativeRestCountdown(restEndAt: number, target?: LockScreenHeartRateTarget, completionSound: NativeRestCompletionSound = "system") {
+export function showNativeRestCountdown(restEndAt: number, target?: LockScreenHeartRateTarget, completionSound: NativeRestCompletionSound = "female") {
   const module = getModule();
   if (!module) return false;
   module.showCountdown(restEndAt, target?.label ?? "", target?.fromBpm ?? 0, target?.toBpm ?? 0, target?.currentBpm ?? 0, target?.zoneColor ?? "", completionSound);

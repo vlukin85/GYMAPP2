@@ -48,11 +48,16 @@ export default function RootLayout() {
   const [showLaunchSplash, setShowLaunchSplash] = useState(true);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setShowLaunchSplash(false);
+    const nativeSplashTimer = setTimeout(() => {
       void SplashScreen.hideAsync().catch(() => undefined);
+    }, 180);
+    const launchSplashTimer = setTimeout(() => {
+      setShowLaunchSplash(false);
     }, 1500);
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(nativeSplashTimer);
+      clearTimeout(launchSplashTimer);
+    };
   }, []);
 
   useEffect(() => {

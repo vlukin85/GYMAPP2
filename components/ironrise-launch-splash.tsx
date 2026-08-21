@@ -1,12 +1,12 @@
 import { Image, StyleSheet, Text, View } from "react-native";
 
-const BODYBUILDER_SPLASH_URL = "https://files.manuscdn.com/user_upload_by_module/session_file/310519663890171987/TcMPDzXeAGxQKUhl.png";
+const IRONRISE_SPLASH_ART = require("@/assets/images/splash-icon.png");
 
 export function IronRiseLaunchSplash({ visible }: { visible: boolean }) {
   if (!visible) return null;
   return (
     <View pointerEvents="none" style={styles.root} accessibilityLabel="Загрузка IronRise">
-      <Image source={{ uri: BODYBUILDER_SPLASH_URL }} resizeMode="cover" style={styles.image} />
+      <Image source={IRONRISE_SPLASH_ART} resizeMode="cover" style={styles.image} />
       <View style={styles.scrim} />
       <View style={styles.wordmark}>
         <Text style={styles.name}>IRON<Text style={styles.rise}>RISE</Text></Text>

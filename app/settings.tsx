@@ -37,9 +37,9 @@ const hapticIntensityOptions: { id: SetHapticIntensity; title: string; descripti
   { id: "heavy", title: "Сильная", description: "Выраженное подтверждение" },
 ];
 const restCompletionSoundOptions: { id: RestCompletionSound; title: string; description: string }[] = [
-  { id: "system", title: "Системный", description: "Стандартный сигнал уведомления Android" },
-  { id: "alarm", title: "Будильник", description: "Более заметный системный сигнал" },
-  { id: "silent", title: "Без звука", description: "Оставить только вибрацию и визуальное уведомление" },
+  { id: "female", title: "Женский голос", description: "Короткая голосовая команда о завершении отдыха" },
+  { id: "male", title: "Мужской голос", description: "Уверенная голосовая команда о следующем подходе" },
+  { id: "siren", title: "Сирена", description: "Короткий заметный электронный сигнал" },
 ];
 const primaryThemeChoices = APP_COLOR_THEMES.filter((theme) => theme.id === "editorial" || theme.id === "orchid");
 type SettingsCategoryId = "training" | "home" | "appearance" | "body" | "reminders" | "data";
@@ -82,7 +82,9 @@ export default function SettingsScreen() {
   const [lockScreenHeartRateVisible, setLockScreenHeartRateVisible] = useState(true);
   const [settingsCategory, setSettingsCategory] = useState<SettingsCategoryId>("training");
   const [settingsQuery, setSettingsQuery] = useState("");
-  const restSoundPreviewPlayer = useAudioPlayer(require("@/assets/sounds/rest-complete.wav"));
+  const femaleRestSoundPreviewPlayer = useAudioPlayer(require("@/assets/sounds/rest-complete-female.wav"));
+  const maleRestSoundPreviewPlayer = useAudioPlayer(require("@/assets/sounds/rest-complete-male.wav"));
+  const sirenRestSoundPreviewPlayer = useAudioPlayer(require("@/assets/sounds/rest-complete-siren.mp3"));
   const links = [
     { title: "Профиль штанги и блинов", subtitle: "Вес грифа и доступные номиналы", route: "/barbell" as const },
     { title: "Рекомендации следующей тренировки", subtitle: "Рабочий вес с объяснением расчёта", route: "/recommendations" as const },
@@ -94,15 +96,12 @@ export default function SettingsScreen() {
   ];
 
   const previewRestCompletionSound = useCallback(async () => {
-    if (restTimerCompletionSound === "silent") {
-      Alert.alert("Без звука", "Для этого варианта уведомление завершения остаётся без аудиосигнала.");
-      return;
-    }
     if (previewNativeRestCompletionSound(restTimerCompletionSound)) return;
     await setAudioModeAsync({ playsInSilentMode: true });
-    restSoundPreviewPlayer.seekTo(0);
-    restSoundPreviewPlayer.play();
-  }, [restSoundPreviewPlayer, restTimerCompletionSound]);
+    const player = restTimerCompletionSound === "female" ? femaleRestSoundPreviewPlayer : restTimerCompletionSound === "male" ? maleRestSoundPreviewPlayer : sirenRestSoundPreviewPlayer;
+    player.seekTo(0);
+    player.play();
+  }, [femaleRestSoundPreviewPlayer, maleRestSoundPreviewPlayer, restTimerCompletionSound, sirenRestSoundPreviewPlayer]);
 
   const refreshStorageUsage = useCallback(async () => {
     setStorageLoading(true);

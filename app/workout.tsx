@@ -305,7 +305,9 @@ export default function WorkoutScreen() {
   const skippedRestRef = useRef(false);
   const restedSetSignatures = useRef<Record<string, string>>({});
   const modalScrollRef = useRef<ScrollView>(null);
-  const restSignalPlayer = useAudioPlayer(require("@/assets/sounds/rest-complete.wav"));
+  const femaleRestSignalPlayer = useAudioPlayer(require("@/assets/sounds/rest-complete-female.wav"));
+  const maleRestSignalPlayer = useAudioPlayer(require("@/assets/sounds/rest-complete-male.wav"));
+  const sirenRestSignalPlayer = useAudioPlayer(require("@/assets/sounds/rest-complete-siren.mp3"));
   const [expanded, setExpanded] = useState<string | null>(null);
   const [machineSetup, setMachineSetup] = useState("");
   const [note, setNote] = useState("");
@@ -490,8 +492,9 @@ export default function WorkoutScreen() {
   useEffect(() => {
     if (previousRestRef.current > 0 && rest === 0 && !skippedRestRef.current) {
       if (restTimerSoundEnabled) {
-        restSignalPlayer.seekTo(0);
-        restSignalPlayer.play();
+        const player = restTimerCompletionSound === "female" ? femaleRestSignalPlayer : restTimerCompletionSound === "male" ? maleRestSignalPlayer : sirenRestSignalPlayer;
+        player.seekTo(0);
+        player.play();
       }
       if (restTimerVibrationEnabled && Platform.OS !== "web") {
         if (Platform.OS === "android") {
@@ -506,7 +509,7 @@ export default function WorkoutScreen() {
     }
     if (rest === 0) skippedRestRef.current = false;
     previousRestRef.current = rest;
-  }, [clearRestLockScreenNotification, rest, restSignalPlayer, restTimerSoundEnabled, restTimerVibrationEnabled]);
+  }, [clearRestLockScreenNotification, femaleRestSignalPlayer, maleRestSignalPlayer, rest, restTimerCompletionSound, restTimerSoundEnabled, restTimerVibrationEnabled, sirenRestSignalPlayer]);
 
   useEffect(() => {
     if (Platform.OS === "android") UIManager.setLayoutAnimationEnabledExperimental?.(true);

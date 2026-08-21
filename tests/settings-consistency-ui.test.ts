@@ -39,6 +39,9 @@ describe("settings visual system", () => {
   it("позволяет предпрослушать выбранный сигнал окончания отдыха", () => {
     expect(settings).toContain("Сигнал завершения");
     expect(settings).toContain("Предпрослушать сигнал");
+    expect(settings).toContain("Женский голос");
+    expect(settings).toContain("Мужской голос");
+    expect(settings).toContain("Сирена");
     expect(settings).toContain("previewRestCompletionSound");
     expect(settings).toContain("previewNativeRestCompletionSound");
   });

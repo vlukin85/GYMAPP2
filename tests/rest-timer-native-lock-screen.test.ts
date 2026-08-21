@@ -51,9 +51,12 @@ describe("таймер отдыха на заблокированном Android-
     expect(workoutScreen).toContain("getActualHeartRateZoneColor");
   });
 
-  it("применяет выбранный звук и позволяет начать подход из уведомления завершения", () => {
+  it("применяет женский голос, мужской голос или сирену и позволяет начать подход из уведомления завершения", () => {
     expect(nativeModule).toContain("completionSound");
-    expect(nativeModule).toContain("RingtoneManager.TYPE_ALARM");
+    expect(nativeModule).toContain('"rest_complete_female"');
+    expect(nativeModule).toContain('"rest_complete_male"');
+    expect(nativeModule).toContain('"rest_complete_siren"');
+    expect(nativeModule).toContain("completionSoundUri(context, completionSound)");
     expect(receiver).toContain('"Начать подход"');
     expect(receiver).toContain("ACTION_START");
     expect(workoutScreen).toContain("restTimerCompletionSound");

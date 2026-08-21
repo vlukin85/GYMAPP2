@@ -40,7 +40,7 @@ class IronriseRestTimerModule : Module() {
     }
 
     Function("previewCompletionSound") { completionSound: String ->
-      completionSoundUri(completionSound)?.let { RingtoneManager.getRingtone(context, it)?.play() }
+      completionSoundUri(context, completionSound)?.let { RingtoneManager.getRingtone(context, it)?.play() }
     }
 
     Function("clearCountdown") {
@@ -110,7 +110,7 @@ private fun ensureCountdownChannel(context: Context) {
   manager.createNotificationChannel(channel)
 }
 
-internal fun restActionPendingIntent(context: Context, action: String, restEndAt: Long, targetLabel: String, targetFromBpm: Int, targetToBpm: Int, requestCode: Int, completionSound: String = "system"): PendingIntent {
+internal fun restActionPendingIntent(context: Context, action: String, restEndAt: Long, targetLabel: String, targetFromBpm: Int, targetToBpm: Int, requestCode: Int, completionSound: String = "female"): PendingIntent {
   val intent = Intent(context, RestTimerActionReceiver::class.java).apply {
     this.action = action
     putExtra(EXTRA_REST_END_AT, restEndAt)
@@ -134,7 +134,7 @@ internal fun consumePendingAction(context: Context): Map<String, Any>? {
   return mapOf("kind" to kind, "restEndAt" to restEndAt)
 }
 
-internal fun completionPendingIntent(context: Context, flags: Int, completionSound: String = "system", restEndAt: Long = 0): PendingIntent {
+internal fun completionPendingIntent(context: Context, flags: Int, completionSound: String = "female", restEndAt: Long = 0): PendingIntent {
   val intent = Intent(context, RestTimerCompletionReceiver::class.java).apply {
     action = "expo.modules.ironriseresttimer.COMPLETE"
     putExtra(EXTRA_COMPLETION_SOUND, completionSound)
@@ -155,8 +155,15 @@ internal fun scheduleCompletionAlarm(context: Context, restEndAt: Long, completi
   }
 }
 
-internal fun completionSoundUri(completionSound: String) = when (completionSound) {
-  "alarm" -> RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
+internal fun completionSoundUri(context: Context, completionSound: String) = when (completionSound) {
   "silent" -> null
-  else -> android.provider.Settings.System.DEFAULT_NOTIFICATION_URI
+  else -> {
+    val resourceName = when (completionSound) {
+      "male" -> "rest_complete_male"
+      "siren" -> "rest_complete_siren"
+      else -> "rest_complete_female"
+    }
+    val resourceId = context.resources.getIdentifier(resourceName, "raw", context.packageName)
+    if (resourceId == 0) null else android.net.Uri.parse("android.resource://${context.packageName}/$resourceId")
+  }
 }

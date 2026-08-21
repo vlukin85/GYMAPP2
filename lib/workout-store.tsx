@@ -5,7 +5,7 @@ import { bestOneRepMax, completedWorkouts as seedCompleted, createCustomExercise
 export const SET_HAPTIC_INTENSITIES = ["light", "medium", "heavy"] as const;
 export type SetHapticIntensity = (typeof SET_HAPTIC_INTENSITIES)[number];
 const isSetHapticIntensity = (value: unknown): value is SetHapticIntensity => typeof value === "string" && SET_HAPTIC_INTENSITIES.includes(value as SetHapticIntensity);
-export const REST_COMPLETION_SOUNDS = ["system", "alarm", "silent"] as const;
+export const REST_COMPLETION_SOUNDS = ["female", "male", "siren"] as const;
 export type RestCompletionSound = (typeof REST_COMPLETION_SOUNDS)[number];
 const isRestCompletionSound = (value: unknown): value is RestCompletionSound => typeof value === "string" && REST_COMPLETION_SOUNDS.includes(value as RestCompletionSound);
 
@@ -141,7 +141,7 @@ const initialState: WorkoutState = {
   bodyWeightKg: 75,
   bodyweightVolumePercent: 65,
   restTimerSoundEnabled: true,
-  restTimerCompletionSound: "system",
+  restTimerCompletionSound: "female",
   restTimerVibrationEnabled: true,
   hapticIntensity: "light",
   notificationsEnabled: true,
