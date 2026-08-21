@@ -3244,9 +3244,6 @@ export default function WorkoutScreen() {
                         onChangeText={(value) =>
                           updateSet(index, (item) => ({ ...item, reps: value }))
                         }
-                        onFocus={() => {
-                          if (!isSetCompleted(index)) openSetEditor(index);
-                        }}
                         editable={!isSetCompleted(index)}
                         keyboardType="decimal-pad"
                         returnKeyType="done"
@@ -3266,9 +3263,6 @@ export default function WorkoutScreen() {
                               distance: value,
                             }))
                           }
-                          onFocus={() => {
-                            if (!isSetCompleted(index)) openSetEditor(index);
-                          }}
                           editable={!isSetCompleted(index)}
                           keyboardType="decimal-pad"
                           returnKeyType="done"
@@ -3292,9 +3286,6 @@ export default function WorkoutScreen() {
                               reps: value,
                             }))
                           }
-                          onFocus={() => {
-                            if (!isSetCompleted(index)) openSetEditor(index);
-                          }}
                           editable={!isSetCompleted(index)}
                           keyboardType="number-pad"
                           returnKeyType="done"
@@ -3313,9 +3304,6 @@ export default function WorkoutScreen() {
                               weight: value,
                             }))
                           }
-                          onFocus={() => {
-                            if (!isSetCompleted(index)) openSetEditor(index);
-                          }}
                           editable={!isSetCompleted(index)}
                           keyboardType="decimal-pad"
                           returnKeyType="done"
@@ -3416,10 +3404,6 @@ export default function WorkoutScreen() {
                           onChangeText={(value) =>
                             updateDropSubset(index, subsetIndex, "reps", value)
                           }
-                          onFocus={() => {
-                            if (!isSetCompleted(index))
-                              openSetEditor(index, subsetIndex);
-                          }}
                           editable={!isSetCompleted(index)}
                           keyboardType="number-pad"
                           returnKeyType="done"
@@ -3440,10 +3424,6 @@ export default function WorkoutScreen() {
                               value,
                             )
                           }
-                          onFocus={() => {
-                            if (!isSetCompleted(index))
-                              openSetEditor(index, subsetIndex);
-                          }}
                           editable={!isSetCompleted(index)}
                           keyboardType="decimal-pad"
                           returnKeyType="done"

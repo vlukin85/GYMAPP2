@@ -8,9 +8,7 @@ describe("редактирование завершённого подхода",
   it("не даёт открыть форму или изменить поля завершённого подхода без явной команды", () => {
     expect(workout).toContain("const isSetCompleted");
     expect(workout).toContain("editable={!isSetCompleted(index)}");
-    expect(workout).toContain(
-      "if (!isSetCompleted(index)) openSetEditor(index);",
-    );
+    expect(workout).not.toContain("onFocus={() => {");
     expect(workout).toContain("disabled={isSetCompleted(index)}");
     expect(workout).toContain("styles.completedSetField");
   });
