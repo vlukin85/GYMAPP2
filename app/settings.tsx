@@ -42,8 +42,12 @@ import type {
 } from "@/lib/local-backup";
 import {
   loadLocalBackupRecord,
+  loadLocalBackupReminderPreferences,
   recordSuccessfulLocalBackup,
+  saveLocalBackupReminderPreferences,
+  type BackupReminderFrequency,
   type LocalBackupRecord,
+  type LocalBackupReminderPreferences,
 } from "@/lib/local-backup-reminder";
 import {
   clearGroqApiKey,
@@ -465,6 +469,11 @@ export default function SettingsScreen() {
     useState<LocalBackupPreview | null>(null);
   const [lastBackupRecord, setLastBackupRecord] =
     useState<LocalBackupRecord | null>(null);
+  const [backupReminderPreferences, setBackupReminderPreferences] =
+    useState<LocalBackupReminderPreferences>({
+      enabled: true,
+      frequency: "monthly",
+    });
   const [hasGroqKey, setHasGroqKey] = useState(false);
   const [keySheetVisible, setKeySheetVisible] = useState(false);
   const [keyDraft, setKeyDraft] = useState("");
@@ -564,6 +573,9 @@ export default function SettingsScreen() {
   useEffect(() => {
     refreshStorageUsage();
     void loadLocalBackupRecord().then(setLastBackupRecord);
+    void loadLocalBackupReminderPreferences().then(
+      setBackupReminderPreferences,
+    );
     void getGroqApiKey()
       .then((key) => setHasGroqKey(Boolean(key)))
       .catch(() => setHasGroqKey(false));
@@ -696,6 +708,24 @@ export default function SettingsScreen() {
       );
     } finally {
       setBackupBusy(false);
+    }
+  };
+  const updateBackupReminderPreferences = async (
+    patch: Partial<LocalBackupReminderPreferences>,
+  ) => {
+    const previous = backupReminderPreferences;
+    const next = { ...previous, ...patch };
+    setBackupReminderPreferences(next);
+    try {
+      const result = await saveLocalBackupReminderPreferences(next);
+      setBackupReminderPreferences(result.preferences);
+      setLastBackupRecord(result.record);
+    } catch {
+      setBackupReminderPreferences(previous);
+      Alert.alert(
+        "Не удалось обновить напоминание",
+        "Проверьте разрешение на уведомления и повторите попытку.",
+      );
     }
   };
   const applyBackup = async (backup: LocalBackupPayload) => {
@@ -2788,9 +2818,96 @@ export default function SettingsScreen() {
                 : "Резервная копия ещё не создавалась."}
             </Text>
             <Text style={[styles.backupHint, { color: colors.muted }]}>
-              Через месяц после сохранения IronRise напомнит о новой копии
-              системным уведомлением.
+              {backupReminderPreferences.enabled
+                ? backupReminderPreferences.frequency === "weekly"
+                  ? "IronRise напомнит о новой копии раз в неделю системным уведомлением."
+                  : "IronRise напомнит о новой копии раз в месяц системным уведомлением."
+                : "Системные напоминания о резервной копии отключены."}
             </Text>
+            <View
+              style={[
+                styles.backupReminderRow,
+                {
+                  borderColor: colors.border,
+                  backgroundColor: colors.background,
+                },
+              ]}
+            >
+              <View style={{ flex: 1 }}>
+                <Text
+                  style={[
+                    styles.backupReminderTitle,
+                    { color: colors.foreground },
+                  ]}
+                >
+                  Напоминать о копии
+                </Text>
+                <Text
+                  style={[styles.backupReminderText, { color: colors.muted }]}
+                >
+                  Системное уведомление в 10:00 по местному времени.
+                </Text>
+              </View>
+              <Switch
+                value={backupReminderPreferences.enabled}
+                onValueChange={(enabled) =>
+                  void updateBackupReminderPreferences({ enabled })
+                }
+                trackColor={{
+                  false: colors.border,
+                  true: `${colors.primary}88`,
+                }}
+                thumbColor={
+                  backupReminderPreferences.enabled
+                    ? colors.primary
+                    : colors.muted
+                }
+              />
+            </View>
+            {backupReminderPreferences.enabled && (
+              <View style={styles.backupFrequencyRow}>
+                {(
+                  [
+                    ["weekly", "Раз в неделю"],
+                    ["monthly", "Раз в месяц"],
+                  ] as const
+                ).map(([frequency, title]) => {
+                  const selected =
+                    backupReminderPreferences.frequency === frequency;
+                  return (
+                    <Pressable
+                      key={frequency}
+                      onPress={() =>
+                        void updateBackupReminderPreferences({
+                          frequency: frequency as BackupReminderFrequency,
+                        })
+                      }
+                      style={({ pressed }) => [
+                        styles.backupFrequencyOption,
+                        {
+                          backgroundColor: selected
+                            ? colors.primary
+                            : colors.background,
+                          borderColor: selected
+                            ? colors.primary
+                            : colors.border,
+                          opacity: pressed ? 0.72 : 1,
+                        },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.backupFrequencyText,
+                          { color: selected ? "#FFFDF8" : colors.foreground },
+                        ]}
+                      >
+                        {title}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            )}
             <View style={styles.backupActions}>
               <Pressable
                 disabled={backupBusy}
@@ -3660,6 +3777,25 @@ const styles = StyleSheet.create({
   },
   backupMeta: { fontSize: 10, lineHeight: 15 },
   backupHint: { fontSize: 10, lineHeight: 15, marginTop: -5 },
+  backupReminderRow: {
+    minHeight: 64,
+    borderWidth: 1,
+    paddingHorizontal: 11,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  backupReminderTitle: { fontSize: 12, fontWeight: "900" },
+  backupReminderText: { fontSize: 10, lineHeight: 14, marginTop: 3 },
+  backupFrequencyRow: { flexDirection: "row", gap: 8 },
+  backupFrequencyOption: {
+    flex: 1,
+    minHeight: 38,
+    borderWidth: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  backupFrequencyText: { fontSize: 10, fontWeight: "900" },
   backupActions: { gap: 8 },
   backupPrimary: {
     minHeight: 48,

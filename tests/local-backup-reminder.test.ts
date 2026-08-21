@@ -17,6 +17,8 @@ describe("ежемесячное напоминание о резервной к
     expect(reminder).toContain(
       'const BACKUP_REMINDER_CHANNEL = "local-backup"',
     );
+    expect(reminder).toContain("SchedulableTriggerInputTypes.WEEKLY");
+    expect(reminder).toContain("weekday: created.getDay() + 1");
   });
 
   it("сохраняет запись о последнем успешном создании копии", () => {
@@ -25,5 +27,15 @@ describe("ежемесячное напоминание о резервной к
     );
     expect(reminder).toContain("recordSuccessfulLocalBackup");
     expect(reminder).toContain("saveLocalBackupRecord(record)");
+  });
+
+  it("сохраняет включение и периодичность напоминаний и отменяет его при выключении", () => {
+    expect(reminder).toContain(
+      'type BackupReminderFrequency = "weekly" | "monthly"',
+    );
+    expect(reminder).toContain("loadLocalBackupReminderPreferences");
+    expect(reminder).toContain("saveLocalBackupReminderPreferences");
+    expect(reminder).toContain("if (!preferences.enabled)");
+    expect(reminder).toContain("cancelScheduledNotificationAsync");
   });
 });
