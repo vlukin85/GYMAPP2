@@ -73,8 +73,8 @@ describe("таймер отдыха на заблокированном Android-
     expect(actionReceiver).toContain("ACTION_EXTEND");
     expect(actionReceiver).toContain("savePendingAction");
     expect(workoutScreen).toContain("consumeNativeRestTimerAction()");
-    expect(workoutScreen).toContain(
-      "scheduleRestTimerLockScreenNotification(endTimestamp",
+    expect(workoutScreen).toMatch(
+      /scheduleRestTimerLockScreenNotification\(\s*endTimestamp/,
     );
   });
 

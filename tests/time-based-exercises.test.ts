@@ -23,7 +23,9 @@ describe("time-based exercise entries", () => {
   it("renders minutes without a weight editor and preserves minutes in history", () => {
     expect(workoutScreen).toContain('activeIsTimed ? "МИНУТЫ" : "ПОВТОРЫ"');
     expect(workoutScreen).toContain('placeholder={`план ${activePlan?.reps ?? "—"} мин`}');
-    expect(workoutScreen).toContain("!activeIsTimed && <View style={styles.setEditorFieldWrap}");
+    expect(workoutScreen).toMatch(
+      /!activeIsTimed\s*&&\s*\(\s*<View\s+style=\{styles\.setEditorFieldWrap\}/,
+    );
     expect(historyScreen).toContain('isTimed ? "Минуты" : "Повторы"');
     expect(historyScreen).toContain('isTimed ? `${set.reps} мин` : set.reps');
   });

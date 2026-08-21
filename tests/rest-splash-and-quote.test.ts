@@ -28,8 +28,8 @@ describe("rest feedback, launch screen and daily quote", () => {
   });
 
   it("uses Android-specific haptics and a rest notification lifecycle", () => {
-    expect(workout).toContain(
-      "performAndroidHapticsAsync(Haptics.AndroidHaptics.Confirm)",
+    expect(workout).toMatch(
+      /performAndroidHapticsAsync\(\s*Haptics\.AndroidHaptics\.Confirm,?\s*\)/,
     );
     expect(workout).toContain("showRestLockScreenNotification");
     expect(workout).toContain("clearRestLockScreenNotification");

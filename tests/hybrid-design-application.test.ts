@@ -58,8 +58,8 @@ describe("IronRise editorial reference design", () => {
   it("extends the editorial grid to workout surfaces, program cards and statistics", () => {
     expect(workout).toContain('const EDITORIAL_BLUE = "#1746D2"');
     expect(workout).toContain("restPosterHeader");
-    expect(workout).toContain(
-      "workoutProgressCard: { borderWidth: 1, borderRadius: 0",
+    expect(workout).toMatch(
+      /workoutProgressCard:\s*\{\s*borderWidth:\s*1,\s*borderRadius:\s*0/,
     );
     expect(programs).toContain("cardAccent");
     expect(programs).toContain("card: { borderRadius: 0");

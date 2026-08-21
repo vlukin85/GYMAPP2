@@ -42,7 +42,9 @@ describe("workout completion feedback", () => {
   });
 
   it("uses a green check mark for an exercise saved as complete", () => {
-    expect(workoutScreen).toContain("backgroundColor: filled ? colors.success");
+    expect(workoutScreen).toMatch(
+      /backgroundColor:\s*filled\s*\?\s*colors\.success/,
+    );
     expect(workoutScreen).toContain('name="check"');
   });
 });
