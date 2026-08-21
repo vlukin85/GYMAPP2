@@ -1,19 +1,43 @@
 # Android-сборка IronRise через GitHub Actions
 
-Этот workflow собирает устанавливаемый APK без EAS Build. Он предназначен для тестирования приложения на Android-устройстве и запускается вручную из репозитория GitHub.
+Workflow **Android build** собирает APK для тестирования и подписанный Android App Bundle (`.aab`) для Google Play без EAS Build. Он запускается вручную из репозитория GitHub и до Android-сборки всегда проверяет TypeScript и запускает unit-тесты.
 
-## Один раз
+## Тестовый APK
 
-1. Создайте или подключите репозиторий GitHub и перенесите в него текущий проект IronRise.
-2. Убедитесь, что файл `.github/workflows/android-apk.yml` находится в основной ветке.
-3. В репозитории откройте **Actions** → **Android APK** → **Run workflow**.
+Откройте **Actions** → **Android build** → **Run workflow**. Для установки на личное устройство выберите `debug` или `release` в поле **Вариант Android-сборки**, а в поле **Выходной артефакт** — `apk`. Готовый файл будет доступен в блоке **Artifacts** 14 дней.
 
-## Получение APK
+> Тестовый APK использует стандартную тестовую подпись Android. Он подходит для проверки на устройстве, но не для публикации в Google Play.
 
-Выберите `release` для обычной тестовой сборки или `debug` для отладки. После успешного job откройте страницу запуска и скачайте файл из блока **Artifacts**. APK хранится 14 дней.
+## Production keystore и GitHub Secrets
 
-> Эта конфигурация использует стандартную тестовую подпись Android. Для публикации в Google Play понадобится отдельный production keystore, сохранённый в GitHub Secrets, и отдельная конфигурация подписанного AAB.
+Подписанный AAB требует постоянного upload key. Его нельзя коммитить в репозиторий, удалять или менять после первой публикации: при обновлении Google Play ожидает ту же подпись. Для IronRise уже зафиксирован Android package name `com.app.gymtrainingdiary` в `app.config.ts`; его также нельзя менять после первой загрузки приложения в Google Play.
 
-## Проверки
+Создайте keystore в защищённом локальном хранилище, а затем сохраните резервную копию файла и паролей вне GitHub:
 
-Workflow генерирует нативный Android-проект из Expo-конфигурации на чистом runner, устанавливает заблокированные зависимости из `pnpm-lock.yaml` и запускает Gradle с лимитом 45 минут.
+```bash
+keytool -genkeypair -v \
+  -keystore ironrise-upload.keystore \
+  -alias ironrise-upload \
+  -keyalg RSA -keysize 2048 -validity 10000
+```
+
+В **Settings** → **Secrets and variables** → **Actions** → **New repository secret** добавьте четыре секрета. Значение `KEYSTORE_BASE64` создаётся локально командой `base64 -w 0 ironrise-upload.keystore`.
+
+| Secret              | Значение                                                           |
+| ------------------- | ------------------------------------------------------------------ |
+| `KEYSTORE_BASE64`   | Base64-строка файла `ironrise-upload.keystore` без переносов строк |
+| `KEYSTORE_PASSWORD` | Пароль хранилища ключей                                            |
+| `KEY_ALIAS`         | `ironrise-upload` или выбранный вами alias                         |
+| `KEY_PASSWORD`      | Пароль ключа; может совпадать с паролем хранилища                  |
+
+> В workflow секреты применяются только при выпуске AAB. Во время job keystore восстанавливается во временном Android-проекте и не загружается как artifact.
+
+## Выпуск подписанного AAB
+
+После настройки секретов откройте **Actions** → **Android build** → **Run workflow** и выберите: **Вариант Android-сборки** — `release`; **Выходной артефакт** — `aab`. Когда оба этапа workflow завершатся успешно, скачайте `ironrise-release-aab` из **Artifacts** и загрузите этот файл в Google Play Console.
+
+Для одновременной проверки APK и подготовки AAB выберите `release` и `both`. В этом случае оба файла подписываются production keystore.
+
+## Что проверяет workflow
+
+Workflow устанавливает зависимости строго по `pnpm-lock.yaml`, выполняет `pnpm check`, запускает unit-тесты в однопоточном fork-пуле, генерирует Android-проект из Expo-конфигурации и только после этих шагов запускает Gradle. Если TypeScript, тесты или обязательные secrets не проходят проверку, сборка AAB не начинается.

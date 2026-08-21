@@ -1,4 +1,4 @@
-name: Android APK
+name: Android build
 
 on:
   workflow_dispatch:
@@ -11,17 +11,53 @@ on:
         options:
           - release
           - debug
+      artifact_type:
+        description: "Выходной артефакт"
+        required: true
+        default: "apk"
+        type: choice
+        options:
+          - apk
+          - aab
+          - both
 
 permissions:
   contents: read
 
 concurrency:
-  group: android-apk-${{ github.ref }}
+  group: android-build-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
-  build-apk:
-    name: Build Android APK
+  verify:
+    name: Verify source
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install JavaScript dependencies
+        run: |
+          corepack enable
+          pnpm install --frozen-lockfile
+
+      - name: Check TypeScript
+        run: pnpm check
+
+      - name: Run unit tests
+        run: pnpm vitest run --pool=forks --poolOptions.forks.singleFork
+
+  build-android:
+    name: Build Android ${{ inputs.artifact_type }}
+    needs: verify
     runs-on: ubuntu-latest
     timeout-minutes: 45
 
@@ -50,22 +86,94 @@ jobs:
           corepack enable
           pnpm install --frozen-lockfile
 
+      - name: Validate build selection
+        run: |
+          if [ "${{ inputs.build_variant }}" = "debug" ] && [ "${{ inputs.artifact_type }}" != "apk" ]; then
+            echo "AAB для Google Play собирается только в варианте release."
+            exit 1
+          fi
+
       - name: Generate Android project
         run: pnpm exec expo prebuild --platform android --non-interactive --no-install
 
-      - name: Assemble APK
+      - name: Configure production signing
+        if: ${{ inputs.artifact_type == 'aab' || inputs.artifact_type == 'both' }}
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          for secret_name in KEYSTORE_BASE64 KEYSTORE_PASSWORD KEY_ALIAS KEY_PASSWORD; do
+            if [ -z "${!secret_name}" ]; then
+              echo "Не настроен обязательный GitHub Secret: ${secret_name}."
+              exit 1
+            fi
+          done
+
+          echo "${KEYSTORE_BASE64}" | base64 --decode > android/app/ironrise-release.keystore
+          chmod 600 android/app/ironrise-release.keystore
+          {
+            printf 'storeFile=app/ironrise-release.keystore\n'
+            printf 'storePassword=%s\n' "${KEYSTORE_PASSWORD}"
+            printf 'keyAlias=%s\n' "${KEY_ALIAS}"
+            printf 'keyPassword=%s\n' "${KEY_PASSWORD}"
+          } > android/keystore.properties
+
+          cat > android/app/ironrise-signing.gradle <<'GRADLE'
+          def ironriseKeystorePropertiesFile = rootProject.file("keystore.properties")
+          if (ironriseKeystorePropertiesFile.exists()) {
+              def ironriseKeystoreProperties = new Properties()
+              ironriseKeystorePropertiesFile.withInputStream { stream ->
+                  ironriseKeystoreProperties.load(stream)
+              }
+
+              android {
+                  signingConfigs {
+                      release {
+                          storeFile rootProject.file(ironriseKeystoreProperties["storeFile"])
+                          storePassword ironriseKeystoreProperties["storePassword"]
+                          keyAlias ironriseKeystoreProperties["keyAlias"]
+                          keyPassword ironriseKeystoreProperties["keyPassword"]
+                      }
+                  }
+                  buildTypes {
+                      release {
+                          signingConfig signingConfigs.release
+                      }
+                  }
+              }
+          }
+          GRADLE
+          printf '\napply from: file("ironrise-signing.gradle")\n' >> android/app/build.gradle
+
+      - name: Build Android artifacts
         working-directory: android
         run: |
           if [ "${{ inputs.build_variant }}" = "debug" ]; then
-            ./gradlew app:assembleDebug --no-daemon
+            ./gradlew :app:assembleDebug --no-daemon
+          elif [ "${{ inputs.artifact_type }}" = "aab" ]; then
+            ./gradlew :app:bundleRelease --no-daemon
+          elif [ "${{ inputs.artifact_type }}" = "both" ]; then
+            ./gradlew :app:assembleRelease :app:bundleRelease --no-daemon
           else
-            ./gradlew app:assembleRelease --no-daemon
+            ./gradlew :app:assembleRelease --no-daemon
           fi
 
       - name: Upload installable APK
+        if: ${{ inputs.artifact_type == 'apk' || inputs.artifact_type == 'both' }}
         uses: actions/upload-artifact@v4
         with:
           name: ironrise-${{ inputs.build_variant }}-apk
           path: android/app/build/outputs/apk/${{ inputs.build_variant }}/*.apk
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload signed Android App Bundle
+        if: ${{ inputs.artifact_type == 'aab' || inputs.artifact_type == 'both' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ironrise-release-aab
+          path: android/app/build/outputs/bundle/release/*.aab
           if-no-files-found: error
           retention-days: 14

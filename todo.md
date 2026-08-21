@@ -763,3 +763,7 @@
 - [x] Настроить безопасную тестовую подпись APK без ключей в репозитории и документировать production-подпись
 - [x] Проверить pipeline и документировать запуск сборки
 - [ ] При подготовке к Google Play добавить production keystore и секреты GitHub для подписанного AAB
+- [ ] Добавить в GitHub Actions автоматический запуск typecheck и unit-тестов до Android-сборки
+- [ ] Добавить создание подписанного Android App Bundle (AAB) из GitHub Secrets
+- [ ] Создать production keystore и настроить защищённые секреты репозитория GYMAPP2
+- [ ] Проверить workflow AAB и зафиксировать инструкцию выпуска в Google Play
