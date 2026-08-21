@@ -827,6 +827,7 @@ export default function WorkoutScreen() {
       setSetTimings((current) => ({ ...current, [key]: { startedAt: activeSet.startedAt, finishedAt, activeSeconds: Math.max(0, Math.round((finishedAt - activeSet.startedAt) / 1000)) } }));
       setActiveSet(null);
     }
+    if (activeId) setSetsByExercise((current) => ({ ...current, [activeId]: draft }));
     startRestAfterSetInput(focusedSetIndex);
     if (Platform.OS !== "web") {
       const style = hapticIntensity === "heavy" ? Haptics.ImpactFeedbackStyle.Heavy : hapticIntensity === "medium" ? Haptics.ImpactFeedbackStyle.Medium : Haptics.ImpactFeedbackStyle.Light;
