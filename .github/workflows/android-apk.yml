@@ -10,6 +10,7 @@ on:
       - "components/**"
       - "lib/**"
       - "modules/**"
+      - "tests/**"
       - "app.config.ts"
       - "package.json"
       - "pnpm-lock.yaml"
