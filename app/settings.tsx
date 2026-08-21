@@ -41,6 +41,11 @@ import type {
   LocalBackupPreview,
 } from "@/lib/local-backup";
 import {
+  loadLocalBackupRecord,
+  recordSuccessfulLocalBackup,
+  type LocalBackupRecord,
+} from "@/lib/local-backup-reminder";
+import {
   clearGroqApiKey,
   getGroqApiKey,
   saveGroqApiKey,
@@ -458,6 +463,8 @@ export default function SettingsScreen() {
   const [backupBusy, setBackupBusy] = useState(false);
   const [lastBackupPreview, setLastBackupPreview] =
     useState<LocalBackupPreview | null>(null);
+  const [lastBackupRecord, setLastBackupRecord] =
+    useState<LocalBackupRecord | null>(null);
   const [hasGroqKey, setHasGroqKey] = useState(false);
   const [keySheetVisible, setKeySheetVisible] = useState(false);
   const [keyDraft, setKeyDraft] = useState("");
@@ -556,6 +563,7 @@ export default function SettingsScreen() {
 
   useEffect(() => {
     refreshStorageUsage();
+    void loadLocalBackupRecord().then(setLastBackupRecord);
     void getGroqApiKey()
       .then((key) => setHasGroqKey(Boolean(key)))
       .catch(() => setHasGroqKey(false));
@@ -670,7 +678,13 @@ export default function SettingsScreen() {
     setBackupBusy(true);
     try {
       const backup = await createAndShareLocalBackup();
+      const result = await recordSuccessfulLocalBackup({
+        createdAt: backup.exportedAt,
+        storageEntryCount: backup.storageEntryCount,
+        mediaFileCount: backup.mediaFileCount,
+      });
       setLastBackupPreview(backup);
+      setLastBackupRecord(result.record);
       Alert.alert(
         "Резервная копия подготовлена",
         "В системном меню выберите «Сохранить на устройство» или папку «Загрузки». Такой файл сохранится после удаления IronRise.",
@@ -2768,6 +2782,15 @@ export default function SettingsScreen() {
                 записей · {lastBackupPreview.mediaFileCount} фото
               </Text>
             )}
+            <Text style={[styles.backupMeta, { color: colors.muted }]}>
+              {lastBackupRecord
+                ? `Последняя успешная копия: ${new Date(lastBackupRecord.createdAt).toLocaleString("ru-RU")}`
+                : "Резервная копия ещё не создавалась."}
+            </Text>
+            <Text style={[styles.backupHint, { color: colors.muted }]}>
+              Через месяц после сохранения IronRise напомнит о новой копии
+              системным уведомлением.
+            </Text>
             <View style={styles.backupActions}>
               <Pressable
                 disabled={backupBusy}
@@ -3636,6 +3659,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   backupMeta: { fontSize: 10, lineHeight: 15 },
+  backupHint: { fontSize: 10, lineHeight: 15, marginTop: -5 },
   backupActions: { gap: 8 },
   backupPrimary: {
     minHeight: 48,

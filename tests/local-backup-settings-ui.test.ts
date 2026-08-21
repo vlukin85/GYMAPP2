@@ -14,6 +14,9 @@ describe("локальная резервная копия в настройка
     expect(settings).toContain("ВОССТАНОВИТЬ ИЗ ФАЙЛА");
     expect(settings).toContain("createAndShareLocalBackup");
     expect(settings).toContain("pickLocalBackup");
+    expect(settings).toContain("Последняя успешная копия:");
+    expect(settings).toContain("Резервная копия ещё не создавалась.");
+    expect(settings).toContain("системным уведомлением");
   });
 
   it("требует подтверждения перед заменой текущих локальных данных", () => {
