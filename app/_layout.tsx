@@ -28,6 +28,7 @@ import type { EdgeInsets, Metrics, Rect } from "react-native-safe-area-context";
 
 import { subscribeSafeAreaInsets } from "@/lib/_core/manus-runtime";
 import { beginLaunchDiagnostics, completeLaunchDiagnostics, recordStartupChecks } from "@/lib/launch-diagnostics";
+import { DEFAULT_LAUNCH_SPLASH_DURATION_MS, loadLaunchSplashDuration } from "@/lib/launch-splash-settings";
 
 void SplashScreen.preventAutoHideAsync();
 SplashScreen.setOptions({ duration: 250, fade: true });
@@ -46,6 +47,11 @@ export default function RootLayout() {
   const [insets, setInsets] = useState<EdgeInsets>(initialInsets);
   const [frame, setFrame] = useState<Rect>(initialFrame);
   const [showLaunchSplash, setShowLaunchSplash] = useState(true);
+  const [launchSplashDuration, setLaunchSplashDuration] = useState(DEFAULT_LAUNCH_SPLASH_DURATION_MS);
+
+  useEffect(() => {
+    void loadLaunchSplashDuration().then(setLaunchSplashDuration).catch(() => undefined);
+  }, []);
 
   useEffect(() => {
     const nativeSplashTimer = setTimeout(() => {
@@ -53,12 +59,12 @@ export default function RootLayout() {
     }, 180);
     const launchSplashTimer = setTimeout(() => {
       setShowLaunchSplash(false);
-    }, 1500);
+    }, launchSplashDuration);
     return () => {
       clearTimeout(nativeSplashTimer);
       clearTimeout(launchSplashTimer);
     };
-  }, []);
+  }, [launchSplashDuration]);
 
   useEffect(() => {
     let cancelled = false;

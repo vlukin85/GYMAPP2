@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
@@ -57,6 +57,9 @@ describe("таймер отдыха на заблокированном Android-
     expect(nativeModule).toContain('"rest_complete_male"');
     expect(nativeModule).toContain('"rest_complete_siren"');
     expect(nativeModule).toContain("completionSoundUri(context, completionSound)");
+    expect(existsSync(resolve(process.cwd(), "modules/ironrise-rest-timer/android/src/main/res/raw/rest_complete_female.wav"))).toBe(true);
+    expect(existsSync(resolve(process.cwd(), "modules/ironrise-rest-timer/android/src/main/res/raw/rest_complete_male.wav"))).toBe(true);
+    expect(existsSync(resolve(process.cwd(), "modules/ironrise-rest-timer/android/src/main/res/raw/rest_complete_siren.mp3"))).toBe(true);
     expect(receiver).toContain('"Начать подход"');
     expect(receiver).toContain("ACTION_START");
     expect(workoutScreen).toContain("restTimerCompletionSound");
