@@ -1,0 +1,71 @@
+name: Android APK
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_variant:
+        description: "Вариант Android-сборки"
+        required: true
+        default: "release"
+        type: choice
+        options:
+          - release
+          - debug
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-apk-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build-apk:
+    name: Build Android APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: gradle
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install JavaScript dependencies
+        run: |
+          corepack enable
+          pnpm install --frozen-lockfile
+
+      - name: Generate Android project
+        run: pnpm exec expo prebuild --platform android --non-interactive --no-install
+
+      - name: Assemble APK
+        working-directory: android
+        run: |
+          if [ "${{ inputs.build_variant }}" = "debug" ]; then
+            ./gradlew app:assembleDebug --no-daemon
+          else
+            ./gradlew app:assembleRelease --no-daemon
+          fi
+
+      - name: Upload installable APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: ironrise-${{ inputs.build_variant }}-apk
+          path: android/app/build/outputs/apk/${{ inputs.build_variant }}/*.apk
+          if-no-files-found: error
+          retention-days: 14
