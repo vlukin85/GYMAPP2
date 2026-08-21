@@ -273,6 +273,7 @@ export default function WorkoutScreen() {
     bodyweightVolumePercent,
     restTimerSoundEnabled,
     restTimerCompletionSound,
+    restTimerCompletionVolume,
     restTimerVibrationEnabled,
     hapticIntensity,
     exercisePreferences,
@@ -381,11 +382,11 @@ export default function WorkoutScreen() {
         toBpm: target.toBpm,
         currentBpm: lockScreenHeartRateVisible ? heartRate.currentBpm : undefined,
         zoneColor,
-      } : undefined, restTimerSoundEnabled ? restTimerCompletionSound : "silent");
+      } : undefined, restTimerSoundEnabled ? restTimerCompletionSound : "silent", restTimerCompletionVolume, restTimerVibrationEnabled);
       if (restEndRef.current === endTimestamp) restNotificationIdsRef.current = ids;
       else void clearRestTimerLockScreenNotification(ids);
     })();
-  }, [ageYears, clearRestLockScreenNotification, heartRate.currentBpm, lockScreenHeartRateVisible, restTimerCompletionSound, restTimerSoundEnabled, targetHeartRateZone]);
+  }, [ageYears, clearRestLockScreenNotification, heartRate.currentBpm, lockScreenHeartRateVisible, restTimerCompletionSound, restTimerCompletionVolume, restTimerSoundEnabled, restTimerVibrationEnabled, targetHeartRateZone]);
 
   const startRestTimer = useCallback((durationSeconds: number) => {
     const seconds = Math.max(0, Math.round(durationSeconds));
@@ -493,6 +494,7 @@ export default function WorkoutScreen() {
     if (previousRestRef.current > 0 && rest === 0 && !skippedRestRef.current) {
       if (restTimerSoundEnabled) {
         const player = restTimerCompletionSound === "female" ? femaleRestSignalPlayer : restTimerCompletionSound === "male" ? maleRestSignalPlayer : sirenRestSignalPlayer;
+        player.volume = restTimerCompletionVolume;
         player.seekTo(0);
         player.play();
       }
@@ -509,7 +511,7 @@ export default function WorkoutScreen() {
     }
     if (rest === 0) skippedRestRef.current = false;
     previousRestRef.current = rest;
-  }, [clearRestLockScreenNotification, femaleRestSignalPlayer, maleRestSignalPlayer, rest, restTimerCompletionSound, restTimerSoundEnabled, restTimerVibrationEnabled, sirenRestSignalPlayer]);
+  }, [clearRestLockScreenNotification, femaleRestSignalPlayer, maleRestSignalPlayer, rest, restTimerCompletionSound, restTimerCompletionVolume, restTimerSoundEnabled, restTimerVibrationEnabled, sirenRestSignalPlayer]);
 
   useEffect(() => {
     if (Platform.OS === "android") UIManager.setLayoutAnimationEnabledExperimental?.(true);

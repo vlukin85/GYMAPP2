@@ -10,7 +10,7 @@ const workoutScreen = readFileSync(resolve(process.cwd(), "app/workout.tsx"), "u
 
 describe("таймер отдыха на заблокированном Android-экране", () => {
   it("передаёт обратный отсчёт нативному модулю и не дублирует Expo-уведомление", () => {
-    expect(notificationService).toContain("showNativeRestCountdown(restEndAt, target, completionSound)");
+    expect(notificationService).toContain("showNativeRestCountdown(restEndAt, target, completionSound, completionVolume, completionVibrationEnabled)");
     expect(notificationService).toContain("nativeCountdownStarted ? undefined");
     expect(notificationService).toContain("clearNativeRestCountdown()");
   });
@@ -19,7 +19,7 @@ describe("таймер отдыха на заблокированном Android-
     expect(nativeModule).toContain("setUsesChronometer(true)");
     expect(nativeModule).toContain("setChronometerCountDown(true)");
     expect(nativeModule).toContain("setExactAndAllowWhileIdle");
-    expect(receiver).toContain("enableVibration(true)");
+    expect(receiver).toContain("enableVibration(vibrationEnabled)");
     expect(receiver).toContain("vibrationPattern");
     expect(receiver).toContain("COMPLETION_ACCENT_COLOR");
     expect(receiver).toContain("setColor(android.graphics.Color.parseColor(COMPLETION_ACCENT_COLOR))");
@@ -69,5 +69,16 @@ describe("таймер отдыха на заблокированном Android-
     expect(receiver).toContain('"+30 секунд"');
     expect(receiver).toContain("ACTION_EXTEND");
     expect(receiver).toContain("EXTRA_REST_END_AT");
+  });
+
+  it("сохраняет громкость сигнала и настройку вибрации для завершения и продления отдыха", () => {
+    expect(nativeModule).toContain("EXTRA_COMPLETION_VOLUME");
+    expect(nativeModule).toContain("EXTRA_COMPLETION_VIBRATION");
+    expect(nativeModule).toContain("completionVolume.toFloat()");
+    expect(actionReceiver).toContain("completionVolume");
+    expect(actionReceiver).toContain("completionVibrationEnabled");
+    expect(receiver).toContain("volume = completionVolume");
+    expect(receiver).toContain("completionVibrationEnabled");
+    expect(workoutScreen).toContain("restTimerCompletionVolume");
   });
 });

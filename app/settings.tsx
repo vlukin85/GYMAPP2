@@ -42,6 +42,26 @@ const restCompletionSoundOptions: { id: RestCompletionSound; title: string; desc
   { id: "male", title: "Мужской голос", description: "Уверенная голосовая команда о следующем подходе" },
   { id: "siren", title: "Сирена", description: "Короткий заметный электронный сигнал" },
 ];
+
+function CompletionVolumeSlider({ value, onChange, colors }: { value: number; onChange: (value: number) => void; colors: ReturnType<typeof useColors> }) {
+  const [width, setWidth] = useState(1);
+  const updateVolume = (locationX: number) => onChange(Math.round((0.1 + Math.max(0, Math.min(1, locationX / width)) * 0.9) * 10) / 10);
+  const panResponder = PanResponder.create({
+    onStartShouldSetPanResponder: () => true,
+    onMoveShouldSetPanResponder: () => true,
+    onPanResponderGrant: (event) => updateVolume(event.nativeEvent.locationX),
+    onPanResponderMove: (event) => updateVolume(event.nativeEvent.locationX),
+  });
+  const ratio = (value - 0.1) / 0.9;
+  return <View style={styles.volumeWrap}>
+    <View style={styles.volumeHeader}><Text style={[styles.vibrationTitle, { color: colors.foreground }]}>Громкость сигнала</Text><Text style={[styles.volumeValue, { color: colors.primary }]}>{Math.round(value * 100)}%</Text></View>
+    <View onLayout={(event) => setWidth(Math.max(1, event.nativeEvent.layout.width))} {...panResponder.panHandlers} style={[styles.volumeTrack, { backgroundColor: colors.border }]} accessibilityLabel={`Громкость сигнала ${Math.round(value * 100)} процентов`}>
+      <View style={[styles.volumeFill, { width: `${ratio * 100}%`, backgroundColor: colors.primary }]} />
+      <View style={[styles.volumeThumb, { left: `${ratio * 100}%`, borderColor: colors.primary, backgroundColor: colors.background }]} />
+    </View>
+    <Text style={[styles.vibrationHint, { color: colors.muted }]}>Регулирует громкость IronRise внутри доступного системного уровня Android.</Text>
+  </View>;
+}
 const primaryThemeChoices = APP_COLOR_THEMES.filter((theme) => theme.id === "editorial" || theme.id === "orchid");
 type SettingsCategoryId = "training" | "home" | "appearance" | "body" | "reminders" | "data";
 const SETTINGS_CATEGORIES: { id: SettingsCategoryId; title: string; keywords: string[] }[] = [
@@ -62,7 +82,7 @@ export default function SettingsScreen() {
   const { dailyCalorieGoal, dailyMacroGoals, setDailyCalorieGoal, setDailyMacroGoals } = useNutritionStore();
   const { visibility: homeWidgets, order: homeWidgetOrder, compact: compactWidgets, dragHapticsEnabled, setWidgetVisible, setWidgetCompact, setWidgetDragHapticsEnabled, moveWidget, resetWidgets } = useHomeWidgets();
   const { profile: bodyProfile, heightCm, ageYears, goals: bodyGoals, measurements: bodyMeasurements, activityLevel, setProfile: setBodyProfile, setProfileDetails, setGoals: setBodyGoals, setActivityLevel } = useBodyStore();
-  const { oneRmFormula, setOneRmFormula, plateStepKg, setPlateStepKg, bodyWeightKg, bodyweightVolumePercent, setBodyweightVolumeSettings, hapticIntensity, setHapticIntensity, restTimerSoundEnabled, setRestTimerSoundEnabled, restTimerCompletionSound, setRestTimerCompletionSound, restTimerVibrationEnabled, setRestTimerVibrationEnabled, notificationsEnabled, defaultWorkoutTime, defaultReminderMinutes, setNotificationPreferences } = store;
+  const { oneRmFormula, setOneRmFormula, plateStepKg, setPlateStepKg, bodyWeightKg, bodyweightVolumePercent, setBodyweightVolumeSettings, hapticIntensity, setHapticIntensity, restTimerSoundEnabled, setRestTimerSoundEnabled, restTimerCompletionSound, setRestTimerCompletionSound, restTimerCompletionVolume, setRestTimerCompletionVolume, restTimerVibrationEnabled, setRestTimerVibrationEnabled, notificationsEnabled, defaultWorkoutTime, defaultReminderMinutes, setNotificationPreferences } = store;
   const [bodyWeight, setBodyWeight] = useState(String(bodyWeightKg));
   const [bodyPercent, setBodyPercent] = useState(String(bodyweightVolumePercent));
   const [notificationTime, setNotificationTime] = useState(defaultWorkoutTime);
@@ -101,9 +121,10 @@ export default function SettingsScreen() {
     if (previewNativeRestCompletionSound(restTimerCompletionSound)) return;
     await setAudioModeAsync({ playsInSilentMode: true });
     const player = restTimerCompletionSound === "female" ? femaleRestSoundPreviewPlayer : restTimerCompletionSound === "male" ? maleRestSoundPreviewPlayer : sirenRestSoundPreviewPlayer;
+    player.volume = restTimerCompletionVolume;
     player.seekTo(0);
     player.play();
-  }, [femaleRestSoundPreviewPlayer, maleRestSoundPreviewPlayer, restTimerCompletionSound, sirenRestSoundPreviewPlayer]);
+  }, [femaleRestSoundPreviewPlayer, maleRestSoundPreviewPlayer, restTimerCompletionSound, restTimerCompletionVolume, sirenRestSoundPreviewPlayer]);
 
   const refreshStorageUsage = useCallback(async () => {
     setStorageLoading(true);
@@ -337,13 +358,14 @@ export default function SettingsScreen() {
               </Pressable>;
             })}
           </View>
+          <CompletionVolumeSlider value={restTimerCompletionVolume} onChange={setRestTimerCompletionVolume} colors={colors} />
           <Pressable onPress={() => void previewRestCompletionSound()} style={({ pressed }) => [styles.soundPreviewButton, { backgroundColor: colors.primary, opacity: pressed ? 0.76 : 1 }]}>
             <Text style={styles.soundPreviewButtonText}>Предпрослушать сигнал</Text>
           </Pressable>
         </View>}
         <View style={[styles.restSoundCard, { backgroundColor: colors.surface, borderColor: colors.border }]}> 
-          <View style={{ flex: 1 }}><Text style={[styles.vibrationTitle, { color: colors.foreground }]}>Вибрация окончания отдыха</Text><Text style={[styles.vibrationHint, { color: colors.muted }]}>{restTimerVibrationEnabled ? "Короткий тактильный сигнал дополнит окончание отсчёта." : "Окончание отдыха будет без вибрации."}</Text></View>
-          <Switch value={restTimerVibrationEnabled} onValueChange={setRestTimerVibrationEnabled} trackColor={{ false: colors.border, true: `${colors.primary}88` }} thumbColor={restTimerVibrationEnabled ? colors.primary : colors.muted} />
+          <View style={{ flex: 1 }}><Text style={[styles.vibrationTitle, { color: colors.foreground }]}>Вибрация вместе со звуком</Text><Text style={[styles.vibrationHint, { color: colors.muted }]}>{restTimerSoundEnabled ? restTimerVibrationEnabled ? "Короткий тактильный сигнал дополнит звук окончания отдыха." : "Окончание отдыха пройдёт только со звуком." : "Сначала включите звуковой сигнал завершения отдыха."}</Text></View>
+          <Switch value={restTimerVibrationEnabled} disabled={!restTimerSoundEnabled} onValueChange={setRestTimerVibrationEnabled} trackColor={{ false: colors.border, true: `${colors.primary}88` }} thumbColor={restTimerVibrationEnabled && restTimerSoundEnabled ? colors.primary : colors.muted} />
         </View>
         <View style={[styles.vibrationCard, { backgroundColor: colors.surface, borderColor: colors.border }]}> 
           <Text style={[styles.vibrationTitle, { color: colors.foreground }]}>Вибрация при завершении подхода</Text>
@@ -553,6 +575,12 @@ const styles = StyleSheet.create({
   vibrationHint: { fontSize: 11, lineHeight: 16 },
   soundPreviewButton: { minHeight: 42, alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 8, paddingHorizontal: 14 },
   soundPreviewButtonText: { color: "#101412", fontSize: 12, fontWeight: "900" },
+  volumeWrap: { gap: 8, marginTop: 14 },
+  volumeHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  volumeValue: { fontSize: 13, fontWeight: "900", letterSpacing: 0.2 },
+  volumeTrack: { height: 20, borderRadius: 10, justifyContent: "center", overflow: "visible" },
+  volumeFill: { position: "absolute", left: 0, height: 4, borderRadius: 2 },
+  volumeThumb: { position: "absolute", width: 20, height: 20, borderRadius: 10, borderWidth: 3, marginLeft: -10 },
   vibrationOptions: { gap: 8 },
   vibrationOption: { minHeight: 54, borderWidth: 1, borderRadius: 0, paddingHorizontal: 11, flexDirection: "row", alignItems: "center", gap: 9 },
   vibrationRadio: { width: 18, height: 18, borderRadius: 9, borderWidth: 2, alignItems: "center", justifyContent: "center" },

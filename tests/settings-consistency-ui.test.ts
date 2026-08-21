@@ -45,4 +45,11 @@ describe("settings visual system", () => {
     expect(settings).toContain("previewRestCompletionSound");
     expect(settings).toContain("previewNativeRestCompletionSound");
   });
+
+  it("содержит ползунок громкости и явную настройку вибрации для сигнала завершения", () => {
+    expect(settings).toContain("Громкость сигнала");
+    expect(settings).toContain("CompletionVolumeSlider");
+    expect(settings).toContain("Вибрация вместе со звуком");
+    expect(settings).toContain("restTimerCompletionVolume");
+  });
 });

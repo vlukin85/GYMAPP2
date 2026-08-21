@@ -43,14 +43,14 @@ async function ensureLocalNotificationAccess(channelId: string, channelName: str
  * notification shows the remaining rest time and a second native alert fires exactly
  * at completion, even while the phone is locked.
  */
-export async function scheduleRestTimerLockScreenNotification(restEndAt: number, target?: LockScreenHeartRateTarget, completionSound: NativeRestCompletionSound = "female"): Promise<RestTimerNotificationIds | undefined> {
+export async function scheduleRestTimerLockScreenNotification(restEndAt: number, target?: LockScreenHeartRateTarget, completionSound: NativeRestCompletionSound = "female", completionVolume = 0.8, completionVibrationEnabled = true): Promise<RestTimerNotificationIds | undefined> {
   if (Platform.OS === "web") return undefined;
   const seconds = Math.max(1, Math.ceil((restEndAt - Date.now()) / 1000));
   if (!(await ensureLocalNotificationAccess(REST_TIMER_CHANNEL, "Таймер отдыха", [0, 90]))) return undefined;
   const completionChannelId = `${REST_TIMER_COMPLETION_CHANNEL}-${completionSound}`;
-  await ensureLocalNotificationAccess(completionChannelId, "Отдых завершён", [0, 350, 130, 700], completionSound !== "silent");
+  await ensureLocalNotificationAccess(completionChannelId, "Отдых завершён", completionVibrationEnabled ? [0, 350, 130, 700] : [], completionSound !== "silent");
 
-  const nativeCountdownStarted = showNativeRestCountdown(restEndAt, target, completionSound);
+  const nativeCountdownStarted = showNativeRestCountdown(restEndAt, target, completionSound, completionVolume, completionVibrationEnabled);
   const activeId = nativeCountdownStarted ? undefined : await Notifications.scheduleNotificationAsync({
     content: {
       title: "Отдых между подходами",
@@ -66,6 +66,7 @@ export async function scheduleRestTimerLockScreenNotification(restEndAt: number,
       title: "Отдых завершён",
       body: "Время следующего подхода.",
       sound: completionSound !== "silent",
+      vibrate: completionVibrationEnabled ? [0, 350, 130, 700] : undefined,
       data: { kind: "rest-timer-complete", restEndAt },
     },
     trigger: {
