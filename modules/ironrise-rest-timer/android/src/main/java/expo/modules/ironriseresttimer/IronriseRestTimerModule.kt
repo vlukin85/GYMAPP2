@@ -7,7 +7,6 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.os.Build
-import android.os.SystemClock
 import android.media.RingtoneManager
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
@@ -87,7 +86,7 @@ internal fun showCountdownNotification(context: Context, restEndAt: Long, target
       currentHeartRateBpm > 0 -> "ЧСС $currentHeartRateBpm · цель $targetLabel $targetFromBpm–$targetToBpm"
       else -> "Цель пульса: $targetLabel · $targetFromBpm–$targetToBpm уд/мин"
     })
-    .setWhen(SystemClock.elapsedRealtime() + remaining)
+    .setWhen(restEndAt)
     .setShowWhen(true)
     .setUsesChronometer(true)
     .setChronometerCountDown(true)

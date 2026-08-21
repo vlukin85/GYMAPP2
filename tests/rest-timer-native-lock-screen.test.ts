@@ -50,6 +50,10 @@ describe("таймер отдыха на заблокированном Android-
   });
 
   it("использует системный хронометр и отдельный виброканал завершения", () => {
+    expect(nativeModule).toContain(".setWhen(restEndAt)");
+    expect(nativeModule).not.toContain(
+      "SystemClock.elapsedRealtime() + remaining",
+    );
     expect(nativeModule).toContain("setUsesChronometer(true)");
     expect(nativeModule).toContain("setChronometerCountDown(true)");
     expect(nativeModule).toContain("setExactAndAllowWhileIdle");
