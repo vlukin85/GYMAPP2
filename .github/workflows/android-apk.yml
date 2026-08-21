@@ -34,6 +34,14 @@ on:
           - apk
           - aab
           - both
+      debug_architecture:
+        description: "Архитектура debug APK"
+        required: true
+        default: "arm64-v8a"
+        type: choice
+        options:
+          - arm64-v8a
+          - universal
 
 permissions:
   contents: read
@@ -82,6 +90,7 @@ jobs:
     env:
       BUILD_VARIANT: ${{ github.event_name == 'workflow_dispatch' && inputs.build_variant || 'debug' }}
       ARTIFACT_TYPE: ${{ github.event_name == 'workflow_dispatch' && inputs.artifact_type || 'apk' }}
+      DEBUG_ARCHITECTURE: ${{ github.event_name == 'workflow_dispatch' && inputs.debug_architecture || 'arm64-v8a' }}
 
     steps:
       - name: Checkout source
@@ -178,7 +187,11 @@ jobs:
         working-directory: android
         run: |
           if [ "${BUILD_VARIANT}" = "debug" ]; then
-            ./gradlew :app:assembleDebug --no-daemon
+            if [ "${DEBUG_ARCHITECTURE}" = "universal" ]; then
+              ./gradlew :app:assembleDebug --no-daemon
+            else
+              ./gradlew :app:assembleDebug -PreactNativeArchitectures="${DEBUG_ARCHITECTURE}" --no-daemon
+            fi
           elif [ "${ARTIFACT_TYPE}" = "aab" ]; then
             ./gradlew :app:bundleRelease --no-daemon
           elif [ "${ARTIFACT_TYPE}" = "both" ]; then

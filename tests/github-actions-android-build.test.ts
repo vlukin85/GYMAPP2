@@ -23,6 +23,11 @@ describe("GitHub Android build route", () => {
     expect(workflow).toContain(
       "ARTIFACT_TYPE: ${{ github.event_name == 'workflow_dispatch' && inputs.artifact_type || 'apk' }}",
     );
+    expect(workflow).toContain("debug_architecture:");
+    expect(workflow).toContain('default: "arm64-v8a"');
+    expect(workflow).toContain(
+      'assembleDebug -PreactNativeArchitectures="${DEBUG_ARCHITECTURE}" --no-daemon',
+    );
     expect(workflow).toContain("name: ironrise-${{ env.BUILD_VARIANT }}-apk");
   });
 
@@ -32,5 +37,6 @@ describe("GitHub Android build route", () => {
     expect(workflow).toContain("Configure production signing");
     expect(documentation).toContain("push в ветку `main`");
     expect(documentation).toContain("Системная кнопка **Publish**");
+    expect(documentation).toContain("`arm64-v8a`");
   });
 });

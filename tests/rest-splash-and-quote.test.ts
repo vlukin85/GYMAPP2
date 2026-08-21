@@ -40,8 +40,10 @@ describe("rest feedback, launch screen and daily quote", () => {
   it("uses the configurable startup visual duration and renders the quote card", () => {
     expect(DEFAULT_LAUNCH_SPLASH_DURATION_MS).toBe(1500);
     expect(rootLayout).toContain("loadLaunchSplashDuration");
+    expect(rootLayout).toContain('Platform.OS === "web"');
     expect(rootLayout).toContain("}, launchSplashDuration)");
     expect(rootLayout).toContain("IronRiseLaunchSplash");
+    expect(rootLayout).not.toContain("preventAutoHideAsync");
     expect(home).toContain("ЦИТАТА ДНЯ");
     expect(home).toContain("getDailyAthleteQuote");
   });

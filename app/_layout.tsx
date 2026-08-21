@@ -1,6 +1,5 @@
 import "@/global.css";
 import { Stack } from "expo-router";
-import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
@@ -38,9 +37,6 @@ import {
   loadLaunchSplashDuration,
 } from "@/lib/launch-splash-settings";
 
-void SplashScreen.preventAutoHideAsync();
-SplashScreen.setOptions({ duration: 250, fade: true });
-
 const DEFAULT_WEB_INSETS: EdgeInsets = { top: 0, right: 0, bottom: 0, left: 0 };
 const DEFAULT_WEB_FRAME: Rect = { x: 0, y: 0, width: 0, height: 0 };
 
@@ -54,26 +50,26 @@ export default function RootLayout() {
 
   const [insets, setInsets] = useState<EdgeInsets>(initialInsets);
   const [frame, setFrame] = useState<Rect>(initialFrame);
-  const [showLaunchSplash, setShowLaunchSplash] = useState(true);
+  const [showLaunchSplash, setShowLaunchSplash] = useState(
+    Platform.OS === "web",
+  );
   const [launchSplashDuration, setLaunchSplashDuration] = useState(
     DEFAULT_LAUNCH_SPLASH_DURATION_MS,
   );
 
   useEffect(() => {
+    if (Platform.OS !== "web") return;
     void loadLaunchSplashDuration()
       .then(setLaunchSplashDuration)
       .catch(() => undefined);
   }, []);
 
   useEffect(() => {
-    const nativeSplashTimer = setTimeout(() => {
-      void SplashScreen.hideAsync().catch(() => undefined);
-    }, 180);
+    if (Platform.OS !== "web") return;
     const launchSplashTimer = setTimeout(() => {
       setShowLaunchSplash(false);
     }, launchSplashDuration);
     return () => {
-      clearTimeout(nativeSplashTimer);
       clearTimeout(launchSplashTimer);
     };
   }, [launchSplashDuration]);
