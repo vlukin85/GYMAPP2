@@ -1,6 +1,19 @@
 name: Android build
 
 on:
+  push:
+    branches:
+      - main
+    paths:
+      - "app/**"
+      - "assets/**"
+      - "components/**"
+      - "lib/**"
+      - "modules/**"
+      - "app.config.ts"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - ".github/workflows/android-apk.yml"
   workflow_dispatch:
     inputs:
       build_variant:
@@ -56,10 +69,13 @@ jobs:
         run: pnpm vitest run --pool=forks --poolOptions.forks.singleFork
 
   build-android:
-    name: Build Android ${{ inputs.artifact_type }}
+    name: Build Android artifacts
     needs: verify
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    env:
+      BUILD_VARIANT: ${{ github.event_name == 'workflow_dispatch' && inputs.build_variant || 'debug' }}
+      ARTIFACT_TYPE: ${{ github.event_name == 'workflow_dispatch' && inputs.artifact_type || 'apk' }}
 
     steps:
       - name: Checkout source
@@ -88,7 +104,7 @@ jobs:
 
       - name: Validate build selection
         run: |
-          if [ "${{ inputs.build_variant }}" = "debug" ] && [ "${{ inputs.artifact_type }}" != "apk" ]; then
+          if [ "${BUILD_VARIANT}" = "debug" ] && [ "${ARTIFACT_TYPE}" != "apk" ]; then
             echo "AAB для Google Play собирается только в варианте release."
             exit 1
           fi
@@ -97,7 +113,7 @@ jobs:
         run: pnpm exec expo prebuild --platform android --non-interactive --no-install
 
       - name: Configure production signing
-        if: ${{ inputs.artifact_type == 'aab' || inputs.artifact_type == 'both' }}
+        if: ${{ env.ARTIFACT_TYPE == 'aab' || env.ARTIFACT_TYPE == 'both' }}
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
@@ -150,27 +166,27 @@ jobs:
       - name: Build Android artifacts
         working-directory: android
         run: |
-          if [ "${{ inputs.build_variant }}" = "debug" ]; then
+          if [ "${BUILD_VARIANT}" = "debug" ]; then
             ./gradlew :app:assembleDebug --no-daemon
-          elif [ "${{ inputs.artifact_type }}" = "aab" ]; then
+          elif [ "${ARTIFACT_TYPE}" = "aab" ]; then
             ./gradlew :app:bundleRelease --no-daemon
-          elif [ "${{ inputs.artifact_type }}" = "both" ]; then
+          elif [ "${ARTIFACT_TYPE}" = "both" ]; then
             ./gradlew :app:assembleRelease :app:bundleRelease --no-daemon
           else
             ./gradlew :app:assembleRelease --no-daemon
           fi
 
       - name: Upload installable APK
-        if: ${{ inputs.artifact_type == 'apk' || inputs.artifact_type == 'both' }}
+        if: ${{ env.ARTIFACT_TYPE == 'apk' || env.ARTIFACT_TYPE == 'both' }}
         uses: actions/upload-artifact@v4
         with:
-          name: ironrise-${{ inputs.build_variant }}-apk
-          path: android/app/build/outputs/apk/${{ inputs.build_variant }}/*.apk
+          name: ironrise-${{ env.BUILD_VARIANT }}-apk
+          path: android/app/build/outputs/apk/${{ env.BUILD_VARIANT }}/*.apk
           if-no-files-found: error
           retention-days: 14
 
       - name: Upload signed Android App Bundle
-        if: ${{ inputs.artifact_type == 'aab' || inputs.artifact_type == 'both' }}
+        if: ${{ env.ARTIFACT_TYPE == 'aab' || env.ARTIFACT_TYPE == 'both' }}
         uses: actions/upload-artifact@v4
         with:
           name: ironrise-release-aab

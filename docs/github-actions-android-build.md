@@ -1,10 +1,12 @@
 # Android-сборка IronRise через GitHub Actions
 
-Workflow **Android build** собирает APK для тестирования и подписанный Android App Bundle (`.aab`) для Google Play без EAS Build. Он запускается вручную из репозитория GitHub и до Android-сборки всегда проверяет TypeScript и запускает unit-тесты.
+Workflow **Android build** — основной маршрут Android-сборки IronRise без EAS Build. Каждый push в ветку `main` с изменениями приложения автоматически запускает проверку TypeScript, unit-тесты и debug APK. Ручной запуск в GitHub остаётся для выбора release APK или подписанного Android App Bundle (`.aab`) для Google Play.
+
+> Системная кнопка **Publish** в панели Manus управляется платформой и не может быть переназначена на сторонний CI. Для Android используйте Git-маршрут: изменения попадают в `main` → GitHub Actions создаёт APK → файл доступен в Artifacts.
 
 ## Тестовый APK
 
-Откройте **Actions** → **Android build** → **Run workflow**. Для установки на личное устройство выберите `debug` или `release` в поле **Вариант Android-сборки**, а в поле **Выходной артефакт** — `apk`. Готовый файл будет доступен в блоке **Artifacts** 14 дней.
+После push в `main` откройте **Actions** → **Android build** и скачайте `ironrise-debug-apk` из блока **Artifacts**. Он создаётся автоматически и хранится 14 дней. Для ручной сборки откройте **Actions** → **Android build** → **Run workflow**; выберите `debug` или `release` в поле **Вариант Android-сборки**, а в поле **Выходной артефакт** — `apk`.
 
 > Тестовый APK использует стандартную тестовую подпись Android. Он подходит для проверки на устройстве, но не для публикации в Google Play.
 
@@ -40,4 +42,4 @@ keytool -genkeypair -v \
 
 ## Что проверяет workflow
 
-Workflow устанавливает зависимости строго по `pnpm-lock.yaml`, выполняет `pnpm check`, запускает unit-тесты в однопоточном fork-пуле, генерирует Android-проект из Expo-конфигурации и только после этих шагов запускает Gradle. Если TypeScript, тесты или обязательные secrets не проходят проверку, сборка AAB не начинается.
+Workflow устанавливает зависимости строго по `pnpm-lock.yaml`, выполняет `pnpm check`, запускает unit-тесты в однопоточном fork-пуле, генерирует Android-проект из Expo-конфигурации и только после этих шагов запускает Gradle. Если TypeScript, тесты или обязательные secrets не проходят проверку, сборка не начинается. Автоматический push-маршрут создаёт только debug APK и не использует secrets; AAB всегда требует ручного `release` запуска и production keystore.
