@@ -15,9 +15,23 @@ describe("редактирование завершённого подхода",
     expect(workout).toContain("styles.completedSetField");
   });
 
-  it("сохраняет отдельную явную кнопку для изменения зафиксированного подхода", () => {
-    expect(workout).toContain("ПОДХОД ЗАФИКСИРОВАН");
+  it("запрашивает подтверждение перед включением режима изменения", () => {
+    expect(workout).toContain("ТОЛЬКО ПРОСМОТР");
     expect(workout).toContain("ИЗМЕНИТЬ");
-    expect(workout).toContain("onPress={() => openSetEditor(index)}");
+    expect(workout).toContain("requestCompletedSetEditing(index)");
+    expect(workout).toContain("Изменить завершённый подход?");
+    expect(workout).toContain("Время подхода и отдых останутся сохранёнными");
+    expect(workout).toContain("editableCompletedSetKeys");
+  });
+
+  it("после подтверждения возвращает редактируемость всем полям дроп-сета", () => {
+    expect(workout).toContain("РЕЖИМ ИЗМЕНЕНИЯ");
+    expect(workout).toContain("finishCompletedSetEditing(index)");
+    expect(workout).toContain("dropSubsets");
+    expect(workout).toContain("editable={!isSetCompleted(index)}");
+    expect(workout).toContain("disabled={isSetCompleted(index)}");
+    expect(workout).toMatch(
+      /const isSetCompleted[\s\S]*?!editableCompletedSetKeys\.includes/,
+    );
   });
 });

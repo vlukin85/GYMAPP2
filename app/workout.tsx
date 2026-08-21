@@ -820,6 +820,9 @@ export default function WorkoutScreen() {
   const [setTimings, setSetTimings] = useState<
     Record<string, RecordedSetTiming>
   >({});
+  const [editableCompletedSetKeys, setEditableCompletedSetKeys] = useState<
+    string[]
+  >([]);
   const [setsByExercise, setSetsByExercise] = useState<
     Record<string, ActualSet[]>
   >({});
@@ -1646,7 +1649,36 @@ export default function WorkoutScreen() {
   const setTimingKey = (exerciseId: string, setIndex: number) =>
     `${exerciseId}:${setIndex}`;
   const isSetCompleted = (setIndex: number) =>
-    Boolean(activeId && setTimings[setTimingKey(activeId, setIndex)]);
+    Boolean(activeId && setTimings[setTimingKey(activeId, setIndex)]) &&
+    !editableCompletedSetKeys.includes(setTimingKey(activeId ?? "", setIndex));
+  const isSetReadOnly = (setIndex: number) =>
+    isSetCompleted(setIndex) &&
+    !editableCompletedSetKeys.includes(setTimingKey(activeId ?? "", setIndex));
+  const requestCompletedSetEditing = (setIndex: number) => {
+    if (!activeId) return;
+    const key = setTimingKey(activeId, setIndex);
+    Alert.alert(
+      "Изменить завершённый подход?",
+      "Поля станут доступны для корректировки. Время подхода и отдых останутся сохранёнными.",
+      [
+        { text: "Отмена", style: "cancel" },
+        {
+          text: "Изменить",
+          onPress: () =>
+            setEditableCompletedSetKeys((current) =>
+              current.includes(key) ? current : [...current, key],
+            ),
+        },
+      ],
+    );
+  };
+  const finishCompletedSetEditing = (setIndex: number) => {
+    if (!activeId) return;
+    const key = setTimingKey(activeId, setIndex);
+    setEditableCompletedSetKeys((current) =>
+      current.filter((currentKey) => currentKey !== key),
+    );
+  };
   const startSet = (setIndex: number) => {
     if (!activeId || activeSet) return;
     setActiveSet({ exerciseId: activeId, setIndex, startedAt: Date.now() });
@@ -1701,8 +1733,14 @@ export default function WorkoutScreen() {
       }));
       setActiveSet(null);
     }
-    if (activeId)
+    if (activeId) {
       setSetsByExercise((current) => ({ ...current, [activeId]: draft }));
+      setEditableCompletedSetKeys((current) =>
+        current.filter(
+          (key) => key !== setTimingKey(activeId, focusedSetIndex),
+        ),
+      );
+    }
     startRestAfterSetInput(focusedSetIndex);
     if (Platform.OS !== "web") {
       const style =
@@ -2109,6 +2147,11 @@ export default function WorkoutScreen() {
       backgroundColor: value.trim() ? colors.background : `${colors.muted}1A`,
     },
   ];
+  const readOnlyCompletedSetFieldStyle = {
+    color: colors.muted,
+    borderColor: `${colors.muted}88`,
+    backgroundColor: `${colors.muted}1C`,
+  };
   const totalPlannedSetCount = sessionExercises.reduce((totalSets, item) => {
     const actualSets = setsByExercise[item.exerciseId];
     return (
@@ -3195,23 +3238,39 @@ export default function WorkoutScreen() {
                         <Text
                           style={[
                             styles.setActionTimer,
-                            { color: colors.success },
+                            {
+                              color: isSetReadOnly(index)
+                                ? colors.success
+                                : colors.primary,
+                            },
                           ]}
                         >
-                          ПОДХОД ЗАФИКСИРОВАН ·{" "}
+                          {isSetReadOnly(index)
+                            ? "ТОЛЬКО ПРОСМОТР · "
+                            : "РЕЖИМ ИЗМЕНЕНИЯ · "}
                           {formatTrackedSeconds(
                             setTimings[setTimingKey(activeId, index)]
                               .activeSeconds,
                           )}
                         </Text>
-                        <Pressable onPress={() => openSetEditor(index)}>
+                        <Pressable
+                          onPress={() =>
+                            isSetReadOnly(index)
+                              ? requestCompletedSetEditing(index)
+                              : finishCompletedSetEditing(index)
+                          }
+                        >
                           <Text
                             style={[
                               styles.setEditLink,
-                              { color: colors.primary },
+                              {
+                                color: isSetReadOnly(index)
+                                  ? colors.primary
+                                  : colors.success,
+                              },
                             ]}
                           >
-                            ИЗМЕНИТЬ
+                            {isSetReadOnly(index) ? "ИЗМЕНИТЬ" : "ГОТОВО"}
                           </Text>
                         </Pressable>
                       </View>
@@ -3619,7 +3678,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 9,
   },
-  completedSetField: { opacity: 0.62 },
+  completedSetField: {
+    opacity: 0.78,
+    color: "#71717A",
+    backgroundColor: "rgba(113, 113, 122, 0.16)",
+    borderColor: "#71717A",
+  },
   targetZoneEyebrow: { fontSize: 8, fontWeight: "900", letterSpacing: 0.65 },
   targetZoneCopy: { fontSize: 11, fontWeight: "800", marginTop: 3 },
   targetZoneStatus: {
