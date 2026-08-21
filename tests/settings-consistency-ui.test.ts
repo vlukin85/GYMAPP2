@@ -2,7 +2,10 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
-const settings = readFileSync(resolve(process.cwd(), "app/settings.tsx"), "utf8");
+const settings = readFileSync(
+  resolve(process.cwd(), "app/settings.tsx"),
+  "utf8",
+);
 
 describe("settings visual system", () => {
   it("keeps drag feedback controllable from widget settings", () => {
@@ -12,12 +15,24 @@ describe("settings visual system", () => {
   });
 
   it("uses a unified editorial grid and type scale across settings cards", () => {
-    expect(settings).toContain('sectionTitle: { fontSize: 15, fontWeight: "900"');
-    expect(settings).toContain('iconThemeCard: { borderWidth: 1, borderRadius: 0, borderLeftWidth: 5');
-    expect(settings).toContain('restSoundCard: { borderWidth: 1, borderRadius: 0, borderLeftWidth: 5');
-    expect(settings).toContain('notificationCard: { borderWidth: 1, borderRadius: 0, borderLeftWidth: 5');
-    expect(settings).toContain('storageCard: { borderWidth: 1, borderRadius: 0, borderLeftWidth: 5');
-    expect(settings).toContain('offlineCard: { borderWidth: 1, borderRadius: 0, borderLeftWidth: 5');
+    expect(settings).toMatch(
+      /sectionTitle:\s*{\s*fontSize:\s*15,\s*fontWeight:\s*"900"/,
+    );
+    expect(settings).toMatch(
+      /iconThemeCard:\s*{\s*borderWidth:\s*1,\s*borderRadius:\s*0,\s*borderLeftWidth:\s*5/,
+    );
+    expect(settings).toMatch(
+      /restSoundCard:\s*{\s*borderWidth:\s*1,\s*borderRadius:\s*0,\s*borderLeftWidth:\s*5/,
+    );
+    expect(settings).toMatch(
+      /notificationCard:\s*{\s*borderWidth:\s*1,\s*borderRadius:\s*0,\s*borderLeftWidth:\s*5/,
+    );
+    expect(settings).toMatch(
+      /storageCard:\s*{\s*borderWidth:\s*1,\s*borderRadius:\s*0,\s*borderLeftWidth:\s*5/,
+    );
+    expect(settings).toMatch(
+      /offlineCard:\s*{\s*borderWidth:\s*1,\s*borderRadius:\s*0,\s*borderLeftWidth:\s*5/,
+    );
   });
 
   it("groups settings into navigable categories and exposes a focused parameter search", () => {
