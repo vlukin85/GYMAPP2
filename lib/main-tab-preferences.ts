@@ -77,6 +77,11 @@ export const MAIN_TABS = [
 
 export type MainTabId = (typeof MAIN_TABS)[number]["id"];
 export type MainTabVisibility = Record<MainTabId, boolean>;
+export type MainTabPreferences = {
+  visibility: MainTabVisibility;
+  order: MainTabId[];
+  compact: boolean;
+};
 
 export const DEFAULT_MAIN_TAB_VISIBILITY: MainTabVisibility = {
   today: true,
@@ -89,28 +94,56 @@ export const DEFAULT_MAIN_TAB_VISIBILITY: MainTabVisibility = {
   settings: true,
 };
 
-const STORAGE_KEY = "ironrise.main-tab-visibility.v1";
+export const DEFAULT_MAIN_TAB_PREFERENCES: MainTabPreferences = {
+  visibility: DEFAULT_MAIN_TAB_VISIBILITY,
+  order: MAIN_TABS.map((tab) => tab.id),
+  compact: false,
+};
 
-export function normalizeMainTabVisibility(raw: unknown): MainTabVisibility {
+const STORAGE_KEY = "ironrise.main-tab-preferences.v2";
+
+export function normalizeMainTabPreferences(raw: unknown): MainTabPreferences {
   const saved =
     raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
-  return MAIN_TABS.reduce<MainTabVisibility>(
+  const visibilitySource =
+    saved.visibility && typeof saved.visibility === "object"
+      ? (saved.visibility as Record<string, unknown>)
+      : saved;
+  const visibility = MAIN_TABS.reduce<MainTabVisibility>(
     (visibility, tab) => {
       visibility[tab.id] = tab.required
         ? true
-        : typeof saved[tab.id] === "boolean"
-          ? (saved[tab.id] as boolean)
+        : typeof visibilitySource[tab.id] === "boolean"
+          ? (visibilitySource[tab.id] as boolean)
           : DEFAULT_MAIN_TAB_VISIBILITY[tab.id];
       return visibility;
     },
     { ...DEFAULT_MAIN_TAB_VISIBILITY },
   );
+  const candidateOrder = Array.isArray(saved.order)
+    ? saved.order.filter(
+        (id): id is MainTabId =>
+          typeof id === "string" && MAIN_TABS.some((tab) => tab.id === id),
+      )
+    : [];
+  const order = [
+    ...new Set([...candidateOrder, ...DEFAULT_MAIN_TAB_PREFERENCES.order]),
+  ];
+  return { visibility, order, compact: saved.compact === true };
+}
+
+export function normalizeMainTabVisibility(raw: unknown): MainTabVisibility {
+  return normalizeMainTabPreferences(raw).visibility;
 }
 
 type MainTabPreferencesContextValue = {
   ready: boolean;
   visibility: MainTabVisibility;
+  order: MainTabId[];
+  compact: boolean;
   setTabVisible: (id: MainTabId, visible: boolean) => void;
+  moveTab: (id: MainTabId, destination: number) => void;
+  setTabCompact: (compact: boolean) => void;
   resetTabs: () => void;
 };
 
@@ -121,16 +154,16 @@ export function MainTabPreferencesProvider({
 }: {
   children: React.ReactNode;
 }) {
-  const [visibility, setVisibility] = useState<MainTabVisibility>(
-    DEFAULT_MAIN_TAB_VISIBILITY,
+  const [preferences, setPreferences] = useState<MainTabPreferences>(
+    DEFAULT_MAIN_TAB_PREFERENCES,
   );
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
     AsyncStorage.getItem(STORAGE_KEY)
       .then((raw) =>
-        setVisibility(
-          normalizeMainTabVisibility(raw ? JSON.parse(raw) : undefined),
+        setPreferences(
+          normalizeMainTabPreferences(raw ? JSON.parse(raw) : undefined),
         ),
       )
       .catch(() => undefined)
@@ -139,20 +172,33 @@ export function MainTabPreferencesProvider({
 
   useEffect(() => {
     if (ready)
-      void AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(visibility));
-  }, [ready, visibility]);
+      void AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(preferences));
+  }, [preferences, ready]);
 
   const value = useMemo(
     () => ({
       ready,
-      visibility,
+      ...preferences,
       setTabVisible: (id: MainTabId, visible: boolean) => {
         if (MAIN_TABS.find((tab) => tab.id === id)?.required) return;
-        setVisibility((current) => ({ ...current, [id]: visible }));
+        setPreferences((current) => ({
+          ...current,
+          visibility: { ...current.visibility, [id]: visible },
+        }));
       },
-      resetTabs: () => setVisibility(DEFAULT_MAIN_TAB_VISIBILITY),
+      moveTab: (id: MainTabId, destination: number) =>
+        setPreferences((current) => {
+          const from = current.order.indexOf(id);
+          if (from === -1) return current;
+          const order = current.order.filter((tabId) => tabId !== id);
+          order.splice(Math.max(0, Math.min(order.length, destination)), 0, id);
+          return { ...current, order };
+        }),
+      setTabCompact: (compact: boolean) =>
+        setPreferences((current) => ({ ...current, compact })),
+      resetTabs: () => setPreferences(DEFAULT_MAIN_TAB_PREFERENCES),
     }),
-    [ready, visibility],
+    [preferences, ready],
   );
 
   return createElement(Context.Provider, { value }, children);

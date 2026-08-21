@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Alert,
   KeyboardAvoidingView,
+  LayoutAnimation,
   Modal,
   PanResponder,
   Platform,
@@ -11,6 +12,7 @@ import {
   Switch,
   Text,
   TextInput,
+  UIManager,
   View,
 } from "react-native";
 import { setAudioModeAsync, useAudioPlayer } from "expo-audio";
@@ -342,7 +344,11 @@ export default function SettingsScreen() {
   } = useHomeWidgets();
   const {
     visibility: tabVisibility,
+    order: tabOrder,
+    compact: tabCompact,
     setTabVisible,
+    moveTab,
+    setTabCompact,
     resetTabs,
   } = useMainTabPreferences();
   const {
@@ -1394,18 +1400,52 @@ export default function SettingsScreen() {
               Вкладки в нижней панели
             </Text>
             <Text style={[styles.iconThemeHint, { color: colors.muted }]}>
-              Скрывайте ненужные разделы из нижней навигации. Они также не будут
-              появляться при свайпах. «Главное», «План» и «Настройки» остаются
-              доступными всегда.
+              Тяните маркер ⠿, чтобы менять порядок. Скрытые разделы исчезают из
+              нижней навигации и свайпов. «Главное», «План» и «Настройки»
+              остаются доступными всегда.
             </Text>
+            <View
+              style={[
+                styles.widgetFeedbackRow,
+                {
+                  borderColor: colors.border,
+                  backgroundColor: colors.background,
+                },
+              ]}
+            >
+              <View style={{ flex: 1 }}>
+                <Text
+                  style={[styles.widgetTitle, { color: colors.foreground }]}
+                >
+                  Компактный режим
+                </Text>
+                <Text style={[styles.widgetHint, { color: colors.muted }]}>
+                  {tabCompact
+                    ? "Только иконки — больше места для экранов."
+                    : "Иконки и короткие названия вкладок."}
+                </Text>
+              </View>
+              <Switch
+                value={tabCompact}
+                onValueChange={setTabCompact}
+                trackColor={{
+                  false: colors.border,
+                  true: `${colors.primary}88`,
+                }}
+                thumbColor={tabCompact ? colors.primary : colors.muted}
+              />
+            </View>
             <View style={styles.widgetOptions}>
-              {MAIN_TABS.map((tab) => (
+              {tabOrder.map((id, index) => (
                 <TabVisibilityRow
-                  key={tab.id}
-                  tab={tab}
-                  visible={tabVisibility[tab.id]}
+                  key={id}
+                  tab={MAIN_TABS.find((tab) => tab.id === id)!}
+                  index={index}
+                  total={tabOrder.length}
+                  visible={tabVisibility[id]}
                   colors={colors}
                   onVisible={setTabVisible}
+                  onMove={moveTab}
                 />
               ))}
             </View>
@@ -1413,7 +1453,7 @@ export default function SettingsScreen() {
               onPress={() =>
                 Alert.alert(
                   "Вернуть все вкладки?",
-                  "Все необязательные разделы снова появятся в нижней панели.",
+                  "Вернутся исходный порядок, подписи, а все необязательные разделы снова появятся в нижней панели.",
                   [
                     { text: "Отмена", style: "cancel" },
                     { text: "Вернуть", onPress: resetTabs },
@@ -2890,22 +2930,62 @@ function WidgetSettingsRow({
 
 function TabVisibilityRow({
   tab,
+  index,
+  total,
   visible,
   colors,
   onVisible,
+  onMove,
 }: {
   tab: (typeof MAIN_TABS)[number];
+  index: number;
+  total: number;
   visible: boolean;
   colors: any;
   onVisible: (id: MainTabId, value: boolean) => void;
+  onMove: (id: MainTabId, position: number) => void;
 }) {
+  const [dragging, setDragging] = useState(false);
+  const pan = PanResponder.create({
+    onStartShouldSetPanResponder: () => true,
+    onMoveShouldSetPanResponder: (_, gesture) => Math.abs(gesture.dy) > 4,
+    onPanResponderGrant: () => setDragging(true),
+    onPanResponderRelease: (_, gesture) => {
+      setDragging(false);
+      if (Platform.OS === "android")
+        UIManager.setLayoutAnimationEnabledExperimental?.(true);
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+      onMove(
+        tab.id,
+        Math.max(0, Math.min(total - 1, index + Math.round(gesture.dy / 68))),
+      );
+    },
+    onPanResponderTerminate: () => setDragging(false),
+  });
   return (
     <View
       style={[
         styles.widgetOption,
-        { borderColor: colors.border, backgroundColor: colors.background },
+        {
+          borderColor: dragging ? colors.primary : colors.border,
+          backgroundColor: colors.background,
+        },
       ]}
     >
+      <View
+        {...pan.panHandlers}
+        style={[
+          widgetControlStyles.dragHandle,
+          {
+            borderColor: colors.border,
+            backgroundColor: dragging ? `${colors.primary}14` : colors.surface,
+          },
+        ]}
+      >
+        <Text style={[widgetControlStyles.dragMark, { color: colors.primary }]}>
+          ⠿
+        </Text>
+      </View>
       <View style={{ flex: 1 }}>
         <Text style={[styles.widgetTitle, { color: colors.foreground }]}>
           {tab.settingsTitle}

@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { HapticTab } from "@/components/haptic-tab";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { MainTabSwipe } from "@/components/main-tab-swipe";
+import { OrderedMainTabBar } from "@/components/ordered-main-tab-bar";
 import { useColors } from "@/hooks/use-colors";
 import { getMainTabIdFromPathname } from "@/lib/main-tab-navigation";
 import { MAIN_TABS, useMainTabPreferences } from "@/lib/main-tab-preferences";
@@ -13,11 +14,8 @@ export default function TabLayout() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const pathname = usePathname();
-  const { visibility } = useMainTabPreferences();
-  const bottom = Platform.OS === "web" ? 10 : Math.max(insets.bottom, 8);
-  const visibleTabs = MAIN_TABS.filter((tab) => visibility[tab.id]).map(
-    (tab) => tab.id,
-  );
+  const { visibility, order, compact } = useMainTabPreferences();
+  const visibleTabs = order.filter((id) => visibility[id]);
   const showTab = (id: (typeof MAIN_TABS)[number]["id"]) => visibility[id];
   return (
     <MainTabSwipe
@@ -41,17 +39,15 @@ export default function TabLayout() {
             borderRightWidth: 1,
             borderRightColor: colors.border,
           },
-          tabBarStyle: {
-            height: 54 + bottom,
-            paddingTop: 6,
-            paddingBottom: bottom,
-            backgroundColor: colors.surface,
-            borderTopColor: colors.border,
-            borderTopWidth: 1,
-            elevation: 0,
-            shadowOpacity: 0,
-          },
+          tabBarStyle: { display: "none" },
         }}
+        tabBar={(props) => (
+          <OrderedMainTabBar
+            {...props}
+            visibleTabs={visibleTabs}
+            compact={compact}
+          />
+        )}
       >
         <Tabs.Screen
           name="index"
