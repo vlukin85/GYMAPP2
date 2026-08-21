@@ -32,6 +32,15 @@ import { getLocalStorageUsage } from "@/lib/local-storage-usage";
 import { formatStorageBytes, getUsagePercent } from "@/lib/storage-usage-utils";
 import type { LocalStorageUsage } from "@/lib/local-storage-usage";
 import {
+  createAndShareLocalBackup,
+  pickLocalBackup,
+  restoreLocalBackup,
+} from "@/lib/local-backup-device";
+import type {
+  LocalBackupPayload,
+  LocalBackupPreview,
+} from "@/lib/local-backup";
+import {
   clearGroqApiKey,
   getGroqApiKey,
   saveGroqApiKey,
@@ -446,6 +455,9 @@ export default function SettingsScreen() {
   );
   const [storageLoading, setStorageLoading] = useState(true);
   const [storageError, setStorageError] = useState(false);
+  const [backupBusy, setBackupBusy] = useState(false);
+  const [lastBackupPreview, setLastBackupPreview] =
+    useState<LocalBackupPreview | null>(null);
   const [hasGroqKey, setHasGroqKey] = useState(false);
   const [keySheetVisible, setKeySheetVisible] = useState(false);
   const [keyDraft, setKeyDraft] = useState("");
@@ -653,6 +665,76 @@ export default function SettingsScreen() {
       message: result.message,
     });
     refreshStorageUsage();
+  };
+  const createBackup = async () => {
+    setBackupBusy(true);
+    try {
+      const backup = await createAndShareLocalBackup();
+      setLastBackupPreview(backup);
+      Alert.alert(
+        "Резервная копия подготовлена",
+        "В системном меню выберите «Сохранить на устройство» или папку «Загрузки». Такой файл сохранится после удаления IronRise.",
+      );
+    } catch (error) {
+      Alert.alert(
+        "Не удалось создать копию",
+        error instanceof Error ? error.message : "Попробуйте ещё раз.",
+      );
+    } finally {
+      setBackupBusy(false);
+    }
+  };
+  const applyBackup = async (backup: LocalBackupPayload) => {
+    setBackupBusy(true);
+    try {
+      await restoreLocalBackup(backup);
+      setLastBackupPreview({
+        exportedAt: backup.exportedAt,
+        storageEntryCount: backup.storageEntryCount,
+        mediaFileCount: backup.mediaFileCount,
+      });
+      Alert.alert(
+        "Данные восстановлены",
+        "Полностью закройте и снова откройте IronRise, чтобы все экраны загрузили восстановленные данные.",
+      );
+    } catch (error) {
+      Alert.alert(
+        "Не удалось восстановить данные",
+        error instanceof Error
+          ? error.message
+          : "Исходные данные не были изменены.",
+      );
+    } finally {
+      setBackupBusy(false);
+    }
+  };
+  const chooseBackup = async () => {
+    setBackupBusy(true);
+    try {
+      const backup = await pickLocalBackup();
+      if (!backup) return;
+      Alert.alert(
+        "Восстановить эту копию?",
+        `Копия от ${new Date(backup.exportedAt).toLocaleString("ru-RU")}: ${backup.storageEntryCount} записей и ${backup.mediaFileCount} фото. Текущие локальные данные будут заменены.`,
+        [
+          { text: "Отмена", style: "cancel" },
+          {
+            text: "Восстановить",
+            style: "destructive",
+            onPress: () => void applyBackup(backup),
+          },
+        ],
+      );
+    } catch (error) {
+      Alert.alert(
+        "Файл не подходит",
+        error instanceof Error
+          ? error.message
+          : "Выберите ZIP-файл резервной копии IronRise.",
+      );
+    } finally {
+      setBackupBusy(false);
+    }
   };
 
   const photoProgress = bulkState.total
@@ -2647,6 +2729,91 @@ export default function SettingsScreen() {
           </View>
 
           <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
+            Резервная копия
+          </Text>
+          <View
+            style={[
+              styles.backupCard,
+              { backgroundColor: colors.surface, borderColor: colors.border },
+            ]}
+          >
+            <View style={styles.storageHeader}>
+              <View
+                style={[
+                  styles.storageIcon,
+                  { backgroundColor: `${colors.primary}17` },
+                ]}
+              >
+                <SafeMaterialIcon
+                  name="backup"
+                  size={22}
+                  color={colors.primary}
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text
+                  style={[styles.storageTitle, { color: colors.foreground }]}
+                >
+                  Файл для переноса данных
+                </Text>
+                <Text style={[styles.storageSubtitle, { color: colors.muted }]}>
+                  Сохраните ZIP через системное меню в «Загрузки» или другую
+                  папку телефона. Файл не удаляется вместе с приложением.
+                </Text>
+              </View>
+            </View>
+            {lastBackupPreview && (
+              <Text style={[styles.backupMeta, { color: colors.muted }]}>
+                Последняя выбранная копия: {lastBackupPreview.storageEntryCount}{" "}
+                записей · {lastBackupPreview.mediaFileCount} фото
+              </Text>
+            )}
+            <View style={styles.backupActions}>
+              <Pressable
+                disabled={backupBusy}
+                onPress={() => void createBackup()}
+                style={({ pressed }) => [
+                  styles.backupPrimary,
+                  {
+                    backgroundColor: colors.primary,
+                    opacity: backupBusy || pressed ? 0.68 : 1,
+                  },
+                ]}
+              >
+                <SafeMaterialIcon name="save-alt" size={18} color="#FFFDF8" />
+                <Text style={styles.backupPrimaryText}>
+                  {backupBusy ? "ПОДГОТОВКА…" : "СОЗДАТЬ КОПИЮ"}
+                </Text>
+              </Pressable>
+              <Pressable
+                disabled={backupBusy}
+                onPress={() => void chooseBackup()}
+                style={({ pressed }) => [
+                  styles.backupSecondary,
+                  {
+                    borderColor: colors.border,
+                    opacity: backupBusy || pressed ? 0.68 : 1,
+                  },
+                ]}
+              >
+                <SafeMaterialIcon
+                  name="restore"
+                  size={18}
+                  color={colors.foreground}
+                />
+                <Text
+                  style={[
+                    styles.backupSecondaryText,
+                    { color: colors.foreground },
+                  ]}
+                >
+                  ВОССТАНОВИТЬ ИЗ ФАЙЛА
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+
+          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
             Офлайн-фотографии
           </Text>
           <View
@@ -3461,6 +3628,37 @@ const styles = StyleSheet.create({
   legendText: { fontSize: 10, lineHeight: 14, textAlign: "right" },
   storageBreakdown: { borderTopWidth: 1, paddingTop: 9, gap: 3 },
   breakdownText: { fontSize: 10, lineHeight: 15 },
+  backupCard: {
+    borderWidth: 1,
+    borderRadius: 0,
+    borderLeftWidth: 5,
+    padding: 14,
+    gap: 12,
+  },
+  backupMeta: { fontSize: 10, lineHeight: 15 },
+  backupActions: { gap: 8 },
+  backupPrimary: {
+    minHeight: 48,
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    gap: 8,
+  },
+  backupPrimaryText: {
+    color: "#FFFDF8",
+    fontSize: 11,
+    fontWeight: "900",
+    letterSpacing: 0.5,
+  },
+  backupSecondary: {
+    minHeight: 46,
+    borderWidth: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    gap: 8,
+  },
+  backupSecondaryText: { fontSize: 11, fontWeight: "900", letterSpacing: 0.5 },
   offlineCard: {
     borderWidth: 1,
     borderRadius: 0,

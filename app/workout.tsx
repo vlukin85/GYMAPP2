@@ -2716,6 +2716,7 @@ export default function WorkoutScreen() {
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
+            style={styles.groupFiltersScroller}
             contentContainerStyle={styles.groupFilters}
             keyboardShouldPersistTaps="handled"
           >
@@ -4160,19 +4161,24 @@ const styles = StyleSheet.create({
   },
   catalogFilterTitle: { fontSize: 10, fontWeight: "900", letterSpacing: 0.85 },
   catalogFilterCount: { fontSize: 12, fontWeight: "900" },
+  groupFiltersScroller: { flexGrow: 0, maxHeight: 58 },
   groupFilters: {
     gap: 8,
     paddingHorizontal: 20,
     paddingTop: 9,
     paddingBottom: 14,
+    alignItems: "flex-start",
   },
   groupFilter: {
-    minHeight: 36,
-    paddingHorizontal: 14,
+    height: 36,
+    paddingHorizontal: 12,
     borderRadius: 18,
     borderWidth: 1,
     alignItems: "center",
     justifyContent: "center",
+    alignSelf: "flex-start",
+    flexGrow: 0,
+    flexShrink: 0,
   },
   groupFilterText: { fontSize: 12, fontWeight: "800" },
   catalogList: { paddingHorizontal: 20, paddingBottom: 32, gap: 9 },
