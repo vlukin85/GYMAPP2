@@ -38,8 +38,20 @@ class IronriseRestTimerModule : Module() {
   override fun definition() = ModuleDefinition {
     Name("IronriseRestTimer")
 
-    Function("showCountdown") { restEndAt: Double, targetLabel: String, targetFromBpm: Double, targetToBpm: Double, currentHeartRateBpm: Double, heartRateZoneColor: String, completionSound: String, completionVolume: Double, completionVibrationEnabled: Boolean, completionVibrationPattern: String ->
-      showCountdownNotification(context, restEndAt.toLong(), targetLabel, targetFromBpm.toInt(), targetToBpm.toInt(), currentHeartRateBpm.toInt(), heartRateZoneColor, completionSound, completionVolume.toFloat(), completionVibrationEnabled, completionVibrationPattern)
+    Function("showCountdown") { payload: Map<String, Any?> ->
+      showCountdownNotification(
+        context,
+        (payload["restEndAt"] as? Number)?.toLong() ?: 0L,
+        payload["targetLabel"] as? String ?: "",
+        (payload["targetFromBpm"] as? Number)?.toInt() ?: 0,
+        (payload["targetToBpm"] as? Number)?.toInt() ?: 0,
+        (payload["currentHeartRateBpm"] as? Number)?.toInt() ?: 0,
+        payload["heartRateZoneColor"] as? String ?: "",
+        payload["completionSound"] as? String ?: "female",
+        ((payload["completionVolume"] as? Number)?.toFloat() ?: 0.8f).coerceIn(0.1f, 1f),
+        payload["completionVibrationEnabled"] as? Boolean ?: true,
+        payload["completionVibrationPattern"] as? String ?: "short"
+      )
     }
 
     Function("previewCompletionSound") { completionSound: String ->

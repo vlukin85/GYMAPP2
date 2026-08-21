@@ -2,17 +2,51 @@ import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
-const notificationService = readFileSync(resolve(process.cwd(), "lib/workout-notifications.ts"), "utf8");
-const nativeModule = readFileSync(resolve(process.cwd(), "modules/ironrise-rest-timer/android/src/main/java/expo/modules/ironriseresttimer/IronriseRestTimerModule.kt"), "utf8");
-const receiver = readFileSync(resolve(process.cwd(), "modules/ironrise-rest-timer/android/src/main/java/expo/modules/ironriseresttimer/RestTimerCompletionReceiver.kt"), "utf8");
-const actionReceiver = readFileSync(resolve(process.cwd(), "modules/ironrise-rest-timer/android/src/main/java/expo/modules/ironriseresttimer/RestTimerActionReceiver.kt"), "utf8");
-const workoutScreen = readFileSync(resolve(process.cwd(), "app/workout.tsx"), "utf8");
+const notificationService = readFileSync(
+  resolve(process.cwd(), "lib/workout-notifications.ts"),
+  "utf8",
+);
+const nativeModule = readFileSync(
+  resolve(
+    process.cwd(),
+    "modules/ironrise-rest-timer/android/src/main/java/expo/modules/ironriseresttimer/IronriseRestTimerModule.kt",
+  ),
+  "utf8",
+);
+const nativeBridge = readFileSync(
+  resolve(process.cwd(), "modules/ironrise-rest-timer/src/index.ts"),
+  "utf8",
+);
+const receiver = readFileSync(
+  resolve(
+    process.cwd(),
+    "modules/ironrise-rest-timer/android/src/main/java/expo/modules/ironriseresttimer/RestTimerCompletionReceiver.kt",
+  ),
+  "utf8",
+);
+const actionReceiver = readFileSync(
+  resolve(
+    process.cwd(),
+    "modules/ironrise-rest-timer/android/src/main/java/expo/modules/ironriseresttimer/RestTimerActionReceiver.kt",
+  ),
+  "utf8",
+);
+const workoutScreen = readFileSync(
+  resolve(process.cwd(), "app/workout.tsx"),
+  "utf8",
+);
 
 describe("таймер отдыха на заблокированном Android-экране", () => {
   it("передаёт обратный отсчёт нативному модулю и не дублирует Expo-уведомление", () => {
-    expect(notificationService).toContain("showNativeRestCountdown(restEndAt, target, completionSound, completionVolume, completionVibrationEnabled, completionVibrationPattern)");
+    expect(notificationService).toContain(
+      "showNativeRestCountdown(restEndAt, target, completionSound, completionVolume, completionVibrationEnabled, completionVibrationPattern)",
+    );
     expect(notificationService).toContain("nativeCountdownStarted ? undefined");
     expect(notificationService).toContain("clearNativeRestCountdown()");
+    expect(nativeModule).toContain(
+      'Function("showCountdown") { payload: Map<String, Any?>',
+    );
+    expect(nativeBridge).toContain("module.showCountdown({");
   });
 
   it("использует системный хронометр и отдельный виброканал завершения", () => {
@@ -22,7 +56,9 @@ describe("таймер отдыха на заблокированном Android-
     expect(receiver).toContain("enableVibration(vibrationEnabled)");
     expect(receiver).toContain("vibrationPattern");
     expect(receiver).toContain("COMPLETION_ACCENT_COLOR");
-    expect(receiver).toContain("setColor(android.graphics.Color.parseColor(COMPLETION_ACCENT_COLOR))");
+    expect(receiver).toContain(
+      "setColor(android.graphics.Color.parseColor(COMPLETION_ACCENT_COLOR))",
+    );
   });
 
   it("даёт управлять отдыхом и видеть целевую зону на экране блокировки", () => {
@@ -33,7 +69,9 @@ describe("таймер отдыха на заблокированном Android-
     expect(actionReceiver).toContain("ACTION_EXTEND");
     expect(actionReceiver).toContain("savePendingAction");
     expect(workoutScreen).toContain("consumeNativeRestTimerAction()");
-    expect(workoutScreen).toContain("scheduleRestTimerLockScreenNotification(endTimestamp");
+    expect(workoutScreen).toContain(
+      "scheduleRestTimerLockScreenNotification(endTimestamp",
+    );
   });
 
   it("добавляет приватную текущую ЧСС и действие начала подхода", () => {
@@ -56,10 +94,33 @@ describe("таймер отдыха на заблокированном Android-
     expect(nativeModule).toContain('"rest_complete_female"');
     expect(nativeModule).toContain('"rest_complete_male"');
     expect(nativeModule).toContain('"rest_complete_siren"');
-    expect(nativeModule).toContain("completionSoundUri(context, completionSound)");
-    expect(existsSync(resolve(process.cwd(), "modules/ironrise-rest-timer/android/src/main/res/raw/rest_complete_female.wav"))).toBe(true);
-    expect(existsSync(resolve(process.cwd(), "modules/ironrise-rest-timer/android/src/main/res/raw/rest_complete_male.wav"))).toBe(true);
-    expect(existsSync(resolve(process.cwd(), "modules/ironrise-rest-timer/android/src/main/res/raw/rest_complete_siren.mp3"))).toBe(true);
+    expect(nativeModule).toContain(
+      "completionSoundUri(context, completionSound)",
+    );
+    expect(
+      existsSync(
+        resolve(
+          process.cwd(),
+          "modules/ironrise-rest-timer/android/src/main/res/raw/rest_complete_female.wav",
+        ),
+      ),
+    ).toBe(true);
+    expect(
+      existsSync(
+        resolve(
+          process.cwd(),
+          "modules/ironrise-rest-timer/android/src/main/res/raw/rest_complete_male.wav",
+        ),
+      ),
+    ).toBe(true);
+    expect(
+      existsSync(
+        resolve(
+          process.cwd(),
+          "modules/ironrise-rest-timer/android/src/main/res/raw/rest_complete_siren.mp3",
+        ),
+      ),
+    ).toBe(true);
     expect(receiver).toContain('"Начать подход"');
     expect(receiver).toContain("ACTION_START");
     expect(workoutScreen).toContain("restTimerCompletionSound");
@@ -74,7 +135,7 @@ describe("таймер отдыха на заблокированном Android-
   it("сохраняет громкость сигнала и настройку вибрации для завершения и продления отдыха", () => {
     expect(nativeModule).toContain("EXTRA_COMPLETION_VOLUME");
     expect(nativeModule).toContain("EXTRA_COMPLETION_VIBRATION");
-    expect(nativeModule).toContain("completionVolume.toFloat()");
+    expect(nativeModule).toContain('payload["completionVolume"]');
     expect(actionReceiver).toContain("completionVolume");
     expect(actionReceiver).toContain("completionVibrationEnabled");
     expect(receiver).toContain("volume = completionVolume");
@@ -87,7 +148,9 @@ describe("таймер отдыха на заблокированном Android-
     expect(nativeModule).toContain("completionVibrationPattern");
     expect(actionReceiver).toContain("completionVibrationPattern");
     expect(receiver).toContain('"pulse"');
-    expect(receiver).toContain("completionVibrationPattern(vibrationPatternId)");
+    expect(receiver).toContain(
+      "completionVibrationPattern(vibrationPatternId)",
+    );
     expect(workoutScreen).toContain("restTimerVibrationPattern");
   });
 });
