@@ -12,13 +12,13 @@ const documentation = readFileSync(
 );
 
 describe("GitHub Android build route", () => {
-  it("builds a debug APK after relevant application changes reach main", () => {
+  it("builds a release APK after relevant application changes reach main", () => {
     expect(workflow).toContain("push:");
     expect(workflow).toContain("- main");
     expect(workflow).toContain('- "tests/**"');
     expect(workflow).toContain("pnpm/action-setup@v4");
     expect(workflow).toContain(
-      "BUILD_VARIANT: ${{ github.event_name == 'workflow_dispatch' && inputs.build_variant || 'debug' }}",
+      "BUILD_VARIANT: ${{ github.event_name == 'workflow_dispatch' && inputs.build_variant || 'release' }}",
     );
     expect(workflow).toContain(
       "ARTIFACT_TYPE: ${{ github.event_name == 'workflow_dispatch' && inputs.artifact_type || 'apk' }}",
@@ -28,6 +28,7 @@ describe("GitHub Android build route", () => {
     expect(workflow).toContain(
       'assembleDebug -PreactNativeArchitectures="${DEBUG_ARCHITECTURE}" --no-daemon',
     );
+    expect(workflow).toContain("./gradlew :app:assembleRelease --no-daemon");
     expect(workflow).toContain("name: ironrise-${{ env.BUILD_VARIANT }}-apk");
   });
 

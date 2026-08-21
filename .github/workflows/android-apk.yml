@@ -88,7 +88,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:
-      BUILD_VARIANT: ${{ github.event_name == 'workflow_dispatch' && inputs.build_variant || 'debug' }}
+      BUILD_VARIANT: ${{ github.event_name == 'workflow_dispatch' && inputs.build_variant || 'release' }}
       ARTIFACT_TYPE: ${{ github.event_name == 'workflow_dispatch' && inputs.artifact_type || 'apk' }}
       DEBUG_ARCHITECTURE: ${{ github.event_name == 'workflow_dispatch' && inputs.debug_architecture || 'arm64-v8a' }}
 
