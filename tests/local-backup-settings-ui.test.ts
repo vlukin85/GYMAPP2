@@ -20,6 +20,10 @@ describe("локальная резервная копия в настройка
     expect(settings).toContain("Напоминать о копии");
     expect(settings).toContain("Раз в неделю");
     expect(settings).toContain("Раз в месяц");
+    expect(settings).toContain("ПОДЕЛИТЬСЯ ПОСЛЕДНЕЙ КОПИЕЙ");
+    expect(settings).toContain("Доступные локальные копии");
+    expect(settings).toContain("ВЫБРАТЬ ПАПКУ С КОПИЯМИ");
+    expect(settings).toContain("backupProgress");
   });
 
   it("требует подтверждения перед заменой текущих локальных данных", () => {

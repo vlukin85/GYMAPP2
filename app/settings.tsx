@@ -32,9 +32,15 @@ import { getLocalStorageUsage } from "@/lib/local-storage-usage";
 import { formatStorageBytes, getUsagePercent } from "@/lib/storage-usage-utils";
 import type { LocalStorageUsage } from "@/lib/local-storage-usage";
 import {
+  chooseLocalBackupFolder,
   createAndShareLocalBackup,
+  listAvailableLocalBackups,
   pickLocalBackup,
   restoreLocalBackup,
+  shareLocalBackupFile,
+  type AvailableLocalBackup,
+  type LocalBackupFile,
+  type LocalBackupProgress,
 } from "@/lib/local-backup-device";
 import type {
   LocalBackupPayload,
@@ -465,8 +471,16 @@ export default function SettingsScreen() {
   const [storageLoading, setStorageLoading] = useState(true);
   const [storageError, setStorageError] = useState(false);
   const [backupBusy, setBackupBusy] = useState(false);
+  const [backupProgress, setBackupProgress] =
+    useState<LocalBackupProgress | null>(null);
   const [lastBackupPreview, setLastBackupPreview] =
     useState<LocalBackupPreview | null>(null);
+  const [lastCreatedBackup, setLastCreatedBackup] =
+    useState<LocalBackupFile | null>(null);
+  const [availableBackups, setAvailableBackups] = useState<
+    AvailableLocalBackup[]
+  >([]);
+  const [backupListBusy, setBackupListBusy] = useState(false);
   const [lastBackupRecord, setLastBackupRecord] =
     useState<LocalBackupRecord | null>(null);
   const [backupReminderPreferences, setBackupReminderPreferences] =
@@ -576,6 +590,7 @@ export default function SettingsScreen() {
     void loadLocalBackupReminderPreferences().then(
       setBackupReminderPreferences,
     );
+    void listAvailableLocalBackups().then(setAvailableBackups);
     void getGroqApiKey()
       .then((key) => setHasGroqKey(Boolean(key)))
       .catch(() => setHasGroqKey(false));
@@ -688,15 +703,18 @@ export default function SettingsScreen() {
   };
   const createBackup = async () => {
     setBackupBusy(true);
+    setBackupProgress({ value: 4, label: "Подготавливаем резервную копию…" });
     try {
-      const backup = await createAndShareLocalBackup();
+      const backup = await createAndShareLocalBackup(setBackupProgress);
       const result = await recordSuccessfulLocalBackup({
         createdAt: backup.exportedAt,
         storageEntryCount: backup.storageEntryCount,
         mediaFileCount: backup.mediaFileCount,
       });
       setLastBackupPreview(backup);
+      setLastCreatedBackup(backup);
       setLastBackupRecord(result.record);
+      setAvailableBackups(await listAvailableLocalBackups());
       Alert.alert(
         "Резервная копия подготовлена",
         "В системном меню выберите «Сохранить на устройство» или папку «Загрузки». Такой файл сохранится после удаления IronRise.",
@@ -708,6 +726,7 @@ export default function SettingsScreen() {
       );
     } finally {
       setBackupBusy(false);
+      setBackupProgress(null);
     }
   };
   const updateBackupReminderPreferences = async (
@@ -730,8 +749,9 @@ export default function SettingsScreen() {
   };
   const applyBackup = async (backup: LocalBackupPayload) => {
     setBackupBusy(true);
+    setBackupProgress({ value: 4, label: "Подготавливаем восстановление…" });
     try {
-      await restoreLocalBackup(backup);
+      await restoreLocalBackup(backup, setBackupProgress);
       setLastBackupPreview({
         exportedAt: backup.exportedAt,
         storageEntryCount: backup.storageEntryCount,
@@ -750,6 +770,7 @@ export default function SettingsScreen() {
       );
     } finally {
       setBackupBusy(false);
+      setBackupProgress(null);
     }
   };
   const chooseBackup = async () => {
@@ -778,6 +799,61 @@ export default function SettingsScreen() {
       );
     } finally {
       setBackupBusy(false);
+    }
+  };
+  const confirmBackupRestore = (backup: LocalBackupPayload) => {
+    Alert.alert(
+      "Восстановить эту копию?",
+      `Копия от ${new Date(backup.exportedAt).toLocaleString("ru-RU")}: ${backup.storageEntryCount} записей и ${backup.mediaFileCount} фото. Текущие локальные данные будут заменены.`,
+      [
+        { text: "Отмена", style: "cancel" },
+        {
+          text: "Восстановить",
+          style: "destructive",
+          onPress: () => void applyBackup(backup),
+        },
+      ],
+    );
+  };
+  const chooseBackupFolder = async () => {
+    setBackupListBusy(true);
+    try {
+      setAvailableBackups(await chooseLocalBackupFolder());
+    } catch {
+      Alert.alert(
+        "Не удалось открыть папку",
+        "Выберите папку с ZIP-копиями IronRise и повторите попытку.",
+      );
+    } finally {
+      setBackupListBusy(false);
+    }
+  };
+  const refreshBackupList = async () => {
+    setBackupListBusy(true);
+    try {
+      setAvailableBackups(await listAvailableLocalBackups());
+    } finally {
+      setBackupListBusy(false);
+    }
+  };
+  const shareLatestBackup = async () => {
+    const backup =
+      lastCreatedBackup ??
+      availableBackups.find((item) => item.source === "app");
+    if (!backup) {
+      Alert.alert(
+        "Нет созданной копии",
+        "Сначала создайте резервную копию, затем её можно будет отправить в мессенджер или на почту.",
+      );
+      return;
+    }
+    try {
+      await shareLocalBackupFile(backup);
+    } catch (error) {
+      Alert.alert(
+        "Не удалось открыть меню «Поделиться»",
+        error instanceof Error ? error.message : "Повторите попытку.",
+      );
     }
   };
 
@@ -2908,6 +2984,52 @@ export default function SettingsScreen() {
                 })}
               </View>
             )}
+            {backupBusy && backupProgress && (
+              <View
+                style={[
+                  styles.backupProgressCard,
+                  {
+                    borderColor: colors.border,
+                    backgroundColor: colors.background,
+                  },
+                ]}
+              >
+                <View style={styles.backupProgressHeading}>
+                  <Text
+                    style={[
+                      styles.backupProgressLabel,
+                      { color: colors.foreground },
+                    ]}
+                  >
+                    {backupProgress.label}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.backupProgressPercent,
+                      { color: colors.primary },
+                    ]}
+                  >
+                    {Math.round(backupProgress.value)}%
+                  </Text>
+                </View>
+                <View
+                  style={[
+                    styles.backupProgressTrack,
+                    { backgroundColor: colors.border },
+                  ]}
+                >
+                  <View
+                    style={[
+                      styles.backupProgressFill,
+                      {
+                        width: `${Math.max(3, backupProgress.value)}%`,
+                        backgroundColor: colors.primary,
+                      },
+                    ]}
+                  />
+                </View>
+              </View>
+            )}
             <View style={styles.backupActions}>
               <Pressable
                 disabled={backupBusy}
@@ -2950,7 +3072,147 @@ export default function SettingsScreen() {
                   ВОССТАНОВИТЬ ИЗ ФАЙЛА
                 </Text>
               </Pressable>
+              <Pressable
+                disabled={backupBusy}
+                onPress={() => void shareLatestBackup()}
+                style={({ pressed }) => [
+                  styles.backupSecondary,
+                  {
+                    borderColor: colors.border,
+                    opacity: backupBusy || pressed ? 0.68 : 1,
+                  },
+                ]}
+              >
+                <SafeMaterialIcon
+                  name="share"
+                  size={18}
+                  color={colors.foreground}
+                />
+                <Text
+                  style={[
+                    styles.backupSecondaryText,
+                    { color: colors.foreground },
+                  ]}
+                >
+                  ПОДЕЛИТЬСЯ ПОСЛЕДНЕЙ КОПИЕЙ
+                </Text>
+              </Pressable>
             </View>
+            <View
+              style={[
+                styles.backupFilesHeader,
+                { borderTopColor: colors.border },
+              ]}
+            >
+              <View style={{ flex: 1 }}>
+                <Text
+                  style={[
+                    styles.backupFilesTitle,
+                    { color: colors.foreground },
+                  ]}
+                >
+                  Доступные локальные копии
+                </Text>
+                <Text style={[styles.backupFilesHint, { color: colors.muted }]}>
+                  Выберите папку «Загрузки» или другую папку с ZIP-файлами
+                  IronRise.
+                </Text>
+              </View>
+              <Pressable
+                disabled={backupListBusy}
+                onPress={() => void refreshBackupList()}
+                style={({ pressed }) => [
+                  styles.backupRefreshButton,
+                  {
+                    borderColor: colors.border,
+                    opacity: backupListBusy || pressed ? 0.66 : 1,
+                  },
+                ]}
+              >
+                <SafeMaterialIcon
+                  name="refresh"
+                  size={18}
+                  color={colors.foreground}
+                />
+              </Pressable>
+            </View>
+            <Pressable
+              disabled={backupListBusy}
+              onPress={() => void chooseBackupFolder()}
+              style={({ pressed }) => [
+                styles.backupFolderButton,
+                {
+                  borderColor: colors.border,
+                  opacity: backupListBusy || pressed ? 0.66 : 1,
+                },
+              ]}
+            >
+              <SafeMaterialIcon
+                name="folder-open"
+                size={18}
+                color={colors.foreground}
+              />
+              <Text
+                style={[
+                  styles.backupSecondaryText,
+                  { color: colors.foreground },
+                ]}
+              >
+                {backupListBusy
+                  ? "ПРОВЕРЯЕМ ПАПКУ…"
+                  : "ВЫБРАТЬ ПАПКУ С КОПИЯМИ"}
+              </Text>
+            </Pressable>
+            {availableBackups.length === 0 ? (
+              <Text style={[styles.backupFilesEmpty, { color: colors.muted }]}>
+                В доступных папках пока нет совместимых ZIP-копий.
+              </Text>
+            ) : (
+              <View style={styles.backupFilesList}>
+                {availableBackups.map((backup) => (
+                  <Pressable
+                    key={backup.uri}
+                    disabled={backupBusy}
+                    onPress={() => confirmBackupRestore(backup.payload)}
+                    style={({ pressed }) => [
+                      styles.backupFileRow,
+                      {
+                        borderColor: colors.border,
+                        backgroundColor: colors.background,
+                        opacity: backupBusy || pressed ? 0.68 : 1,
+                      },
+                    ]}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <Text
+                        numberOfLines={1}
+                        style={[
+                          styles.backupFileName,
+                          { color: colors.foreground },
+                        ]}
+                      >
+                        {new Date(backup.exportedAt).toLocaleString("ru-RU")}
+                      </Text>
+                      <Text
+                        style={[styles.backupFileMeta, { color: colors.muted }]}
+                      >
+                        {backup.storageEntryCount} записей ·{" "}
+                        {backup.mediaFileCount} фото ·{" "}
+                        {formatStorageBytes(backup.sizeBytes)}
+                      </Text>
+                    </View>
+                    <Text
+                      style={[
+                        styles.backupFileSource,
+                        { color: colors.primary },
+                      ]}
+                    >
+                      {backup.source === "folder" ? "ПАПКА" : "В ПРИЛОЖЕНИИ"}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            )}
           </View>
 
           <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
@@ -3796,7 +4058,59 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   backupFrequencyText: { fontSize: 10, fontWeight: "900" },
+  backupProgressCard: { borderWidth: 1, padding: 10, gap: 8 },
+  backupProgressHeading: {
+    flexDirection: "row",
+    gap: 10,
+    alignItems: "center",
+  },
+  backupProgressLabel: { flex: 1, fontSize: 11, fontWeight: "800" },
+  backupProgressPercent: { fontSize: 12, fontWeight: "900" },
+  backupProgressTrack: { height: 6, overflow: "hidden" },
+  backupProgressFill: { height: "100%" },
   backupActions: { gap: 8 },
+  backupFilesHeader: {
+    borderTopWidth: 1,
+    paddingTop: 12,
+    flexDirection: "row",
+    gap: 10,
+    alignItems: "center",
+  },
+  backupFilesTitle: { fontSize: 12, fontWeight: "900" },
+  backupFilesHint: { fontSize: 10, lineHeight: 14, marginTop: 3 },
+  backupRefreshButton: {
+    width: 38,
+    height: 38,
+    borderWidth: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  backupFolderButton: {
+    minHeight: 42,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: 8,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  backupFilesEmpty: { fontSize: 10, lineHeight: 15, textAlign: "center" },
+  backupFilesList: { gap: 7 },
+  backupFileRow: {
+    minHeight: 60,
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  backupFileName: { fontSize: 11, fontWeight: "900" },
+  backupFileMeta: { fontSize: 9, marginTop: 4 },
+  backupFileSource: {
+    fontSize: 8,
+    fontWeight: "900",
+    maxWidth: 58,
+    textAlign: "right",
+  },
   backupPrimary: {
     minHeight: 48,
     alignItems: "center",
