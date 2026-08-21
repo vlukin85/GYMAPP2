@@ -1,9 +1,19 @@
 import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
-const aiScreen = readFileSync("/home/ubuntu/gym-training-diary/app/program/ai.tsx", "utf8");
-const settingsScreen = readFileSync("/home/ubuntu/gym-training-diary/app/settings.tsx", "utf8");
-const skeleton = readFileSync("/home/ubuntu/gym-training-diary/components/groq-program-skeleton.tsx", "utf8");
+const aiScreen = readFileSync(
+  resolve(process.cwd(), "app/program/ai.tsx"),
+  "utf8",
+);
+const settingsScreen = readFileSync(
+  resolve(process.cwd(), "app/settings.tsx"),
+  "utf8",
+);
+const skeleton = readFileSync(
+  resolve(process.cwd(), "components/groq-program-skeleton.tsx"),
+  "utf8",
+);
 
 describe("Groq program UX", () => {
   it("offers Groq key update and deletion from settings", () => {

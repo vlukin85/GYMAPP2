@@ -1,7 +1,11 @@
 import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
-const calendarScreen = readFileSync("/home/ubuntu/gym-training-diary/app/(tabs)/calendar.tsx", "utf8");
+const calendarScreen = readFileSync(
+  resolve(process.cwd(), "app/(tabs)/calendar.tsx"),
+  "utf8",
+);
 
 describe("calendar result achievements", () => {
   it("shows records earned in the selected workout and provides a share action", () => {

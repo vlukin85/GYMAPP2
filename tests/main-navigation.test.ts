@@ -1,15 +1,32 @@
 import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { getAdjacentMainTab, getMainTabIdFromPathname } from "../lib/main-tab-navigation";
+import {
+  getAdjacentMainTab,
+  getMainTabIdFromPathname,
+} from "../lib/main-tab-navigation";
 
-const tabs = readFileSync("/home/ubuntu/gym-training-diary/app/(tabs)/_layout.tsx", "utf8");
-const home = readFileSync("/home/ubuntu/gym-training-diary/app/(tabs)/index.tsx", "utf8");
-const swipe = readFileSync("/home/ubuntu/gym-training-diary/components/main-tab-swipe.tsx", "utf8");
+const tabs = readFileSync(
+  resolve(process.cwd(), "app/(tabs)/_layout.tsx"),
+  "utf8",
+);
+const home = readFileSync(
+  resolve(process.cwd(), "app/(tabs)/index.tsx"),
+  "utf8",
+);
+const swipe = readFileSync(
+  resolve(process.cwd(), "components/main-tab-swipe.tsx"),
+  "utf8",
+);
 
 describe("main navigation", () => {
   it("places the calendar between today and exercises", () => {
-    expect(tabs.indexOf('name="index"')).toBeLessThan(tabs.indexOf('name="calendar"'));
-    expect(tabs.indexOf('name="calendar"')).toBeLessThan(tabs.indexOf('name="exercises"'));
+    expect(tabs.indexOf('name="index"')).toBeLessThan(
+      tabs.indexOf('name="calendar"'),
+    );
+    expect(tabs.indexOf('name="calendar"')).toBeLessThan(
+      tabs.indexOf('name="exercises"'),
+    );
   });
 
   it("removes the repeat-last-workout quick action", () => {

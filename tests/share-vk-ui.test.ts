@@ -1,8 +1,15 @@
 import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
-const studio = readFileSync("/home/ubuntu/gym-training-diary/app/share-workout.tsx", "utf8");
-const card = readFileSync("/home/ubuntu/gym-training-diary/components/workout-share-card.tsx", "utf8");
+const studio = readFileSync(
+  resolve(process.cwd(), "app/share-workout.tsx"),
+  "utf8",
+);
+const card = readFileSync(
+  resolve(process.cwd(), "components/workout-share-card.tsx"),
+  "utf8",
+);
 
 describe("workout sharing studio", () => {
   it("allows a user to select a photo and embeds it into the share card", () => {

@@ -1,7 +1,11 @@
 import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
-const screen = readFileSync("/home/ubuntu/gym-training-diary/app/(tabs)/stats.tsx", "utf8");
+const screen = readFileSync(
+  resolve(process.cwd(), "app/(tabs)/stats.tsx"),
+  "utf8",
+);
 
 describe("advanced statistics UI", () => {
   it("shows an interactive 1RM history chart after an exercise is selected", () => {

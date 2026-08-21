@@ -1,7 +1,11 @@
 import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
-const screen = readFileSync("/home/ubuntu/gym-training-diary/app/program/new.tsx", "utf8");
+const screen = readFileSync(
+  resolve(process.cwd(), "app/program/new.tsx"),
+  "utf8",
+);
 
 describe("program builder selected exercises", () => {
   it("pins selected exercises above the catalog and removes their duplicates from catalog results", () => {

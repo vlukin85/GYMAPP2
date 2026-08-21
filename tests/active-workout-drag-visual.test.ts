@@ -1,7 +1,11 @@
 import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
-const workoutScreen = readFileSync("/home/ubuntu/gym-training-diary/app/workout.tsx", "utf8");
+const workoutScreen = readFileSync(
+  resolve(process.cwd(), "app/workout.tsx"),
+  "utf8",
+);
 
 describe("active workout drag visualization", () => {
   it("tracks a captured card and a target insertion position", () => {

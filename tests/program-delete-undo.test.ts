@@ -1,7 +1,11 @@
 import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
-const programsScreen = readFileSync("/home/ubuntu/gym-training-diary/app/(tabs)/programs.tsx", "utf8");
+const programsScreen = readFileSync(
+  resolve(process.cwd(), "app/(tabs)/programs.tsx"),
+  "utf8",
+);
 
 describe("program delete undo", () => {
   it("stages deletion before it becomes irreversible and exposes an undo action", () => {
