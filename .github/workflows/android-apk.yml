@@ -51,6 +51,11 @@ jobs:
       - name: Checkout source
         uses: actions/checkout@v4
 
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.12.0
+
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
@@ -80,6 +85,11 @@ jobs:
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.12.0
 
       - name: Set up Node.js
         uses: actions/setup-node@v4

@@ -15,6 +15,7 @@ describe("GitHub Android build route", () => {
   it("builds a debug APK after relevant application changes reach main", () => {
     expect(workflow).toContain("push:");
     expect(workflow).toContain("- main");
+    expect(workflow).toContain("pnpm/action-setup@v4");
     expect(workflow).toContain(
       "BUILD_VARIANT: ${{ github.event_name == 'workflow_dispatch' && inputs.build_variant || 'debug' }}",
     );
