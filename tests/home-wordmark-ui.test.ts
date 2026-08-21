@@ -9,11 +9,11 @@ const screen = readFileSync(
 
 describe("home wordmark layout", () => {
   it("keeps the IronRise wordmark on one adaptive line", () => {
-    expect(screen).toContain(
-      "numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.76}",
+    expect(screen).toMatch(
+      /numberOfLines=\{1\}\s+adjustsFontSizeToFit\s+minimumFontScale=\{0\.76\}/,
     );
-    expect(screen).toContain(
-      'wordmark: { alignSelf: "stretch", flexShrink: 1, fontSize: 34',
+    expect(screen).toMatch(
+      /wordmark:\s*\{\s*alignSelf:\s*"stretch",\s*flexShrink:\s*1,\s*fontSize:\s*34/,
     );
   });
 });

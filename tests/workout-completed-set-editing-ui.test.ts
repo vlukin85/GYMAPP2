@@ -20,7 +20,7 @@ describe("редактирование завершённого подхода",
     expect(workout).toContain("ИЗМЕНИТЬ");
     expect(workout).toContain("requestCompletedSetEditing(index)");
     expect(workout).toContain("Изменить завершённый подход?");
-    expect(workout).toContain("Время подхода и отдых останутся сохранёнными");
+    expect(workout).toMatch(/Время подхода и отдых останутся\s+сохранёнными/);
     expect(workout).toContain("editableCompletedSetKeys");
   });
 

@@ -53,6 +53,7 @@ import {
   roundToWeightIncrement,
   supportsDistanceTracking,
   type Exercise,
+  type MuscleGroup,
   type ProgramExercise,
   type SetType,
 } from "@/lib/workout-data";
@@ -155,6 +156,9 @@ const setTypes: { id: SetType; label: string }[] = [
   { id: "drop", label: "Дроп" },
   { id: "failure", label: "Отказ" },
 ];
+const selectableMuscleGroups = muscleGroups.filter(
+  (group): group is MuscleGroup => group !== "Все",
+);
 const setTypeLabel: Record<SetType, string> = {
   warmup: "Разминка",
   working: "Рабочий",
@@ -806,6 +810,8 @@ export default function WorkoutScreen() {
     exercisePreferences,
     setExercisePreference,
     discardActiveWorkout,
+    customExercises,
+    addCustomExercise,
   } = store;
   const program = programs.find(
     (item) => item.id === (programId ?? "upper-strength"),
@@ -823,6 +829,10 @@ export default function WorkoutScreen() {
   const [editableCompletedSetKeys, setEditableCompletedSetKeys] = useState<
     string[]
   >([]);
+  const [editingConfirmationSetIndex, setEditingConfirmationSetIndex] =
+    useState<number | null>(null);
+  const editingConfirmationOpacity = useSharedValue(0);
+  const editingConfirmationOffset = useSharedValue(18);
   const [setsByExercise, setSetsByExercise] = useState<
     Record<string, ActualSet[]>
   >({});
@@ -868,6 +878,15 @@ export default function WorkoutScreen() {
   const [catalogVisible, setCatalogVisible] = useState(false);
   const [catalogSearch, setCatalogSearch] = useState("");
   const [catalogGroup, setCatalogGroup] = useState("Все");
+  const [customExerciseCreatorVisible, setCustomExerciseCreatorVisible] =
+    useState(false);
+  const [customExerciseName, setCustomExerciseName] = useState("");
+  const [customExerciseGroup, setCustomExerciseGroup] =
+    useState<MuscleGroup>("Грудь");
+  const [customExerciseEquipment, setCustomExerciseEquipment] =
+    useState("Тренажёр");
+  const [customExerciseDescription, setCustomExerciseDescription] =
+    useState("");
   const [sessionOrder, setSessionOrder] = useState<string[]>([]);
   const [dragState, setDragState] = useState<{
     sourceId: string;
@@ -911,6 +930,28 @@ export default function WorkoutScreen() {
   );
   const autoScrollDirectionRef = useRef<-1 | 0 | 1>(0);
   const autoScrollTickRef = useRef(0);
+
+  useEffect(() => {
+    if (editingConfirmationSetIndex === null) return;
+    editingConfirmationOpacity.value = 0;
+    editingConfirmationOffset.value = 18;
+    editingConfirmationOpacity.value = withTiming(1, {
+      duration: 220,
+      easing: Easing.out(Easing.cubic),
+    });
+    editingConfirmationOffset.value = withTiming(0, {
+      duration: 260,
+      easing: Easing.out(Easing.cubic),
+    });
+  }, [
+    editingConfirmationOffset,
+    editingConfirmationOpacity,
+    editingConfirmationSetIndex,
+  ]);
+  const editingConfirmationAnimatedStyle = useAnimatedStyle(() => ({
+    opacity: editingConfirmationOpacity.value,
+    transform: [{ translateY: editingConfirmationOffset.value }],
+  }));
 
   const refreshHeartRate = useCallback(async () => {
     const status = await getHealthConnectStatus();
@@ -1434,8 +1475,13 @@ export default function WorkoutScreen() {
     );
   }, [dragState, sessionExercises]);
   const filteredCatalog = useMemo(
-    () => filterActiveWorkoutCatalog(exercises, catalogGroup, catalogSearch),
-    [catalogGroup, catalogSearch],
+    () =>
+      filterActiveWorkoutCatalog(
+        [...exercises, ...customExercises],
+        catalogGroup,
+        catalogSearch,
+      ),
+    [catalogGroup, catalogSearch, customExercises],
   );
   const effectiveVolume = (
     set: ActualSet,
@@ -1655,22 +1701,15 @@ export default function WorkoutScreen() {
     isSetCompleted(setIndex) &&
     !editableCompletedSetKeys.includes(setTimingKey(activeId ?? "", setIndex));
   const requestCompletedSetEditing = (setIndex: number) => {
-    if (!activeId) return;
-    const key = setTimingKey(activeId, setIndex);
-    Alert.alert(
-      "Изменить завершённый подход?",
-      "Поля станут доступны для корректировки. Время подхода и отдых останутся сохранёнными.",
-      [
-        { text: "Отмена", style: "cancel" },
-        {
-          text: "Изменить",
-          onPress: () =>
-            setEditableCompletedSetKeys((current) =>
-              current.includes(key) ? current : [...current, key],
-            ),
-        },
-      ],
+    if (activeId) setEditingConfirmationSetIndex(setIndex);
+  };
+  const confirmCompletedSetEditing = () => {
+    if (!activeId || editingConfirmationSetIndex === null) return;
+    const key = setTimingKey(activeId, editingConfirmationSetIndex);
+    setEditableCompletedSetKeys((current) =>
+      current.includes(key) ? current : [...current, key],
     );
+    setEditingConfirmationSetIndex(null);
   };
   const finishCompletedSetEditing = (setIndex: number) => {
     if (!activeId) return;
@@ -1853,6 +1892,36 @@ export default function WorkoutScreen() {
     setCatalogVisible(false);
     setCatalogSearch("");
   };
+  const openCustomExerciseCreator = () => {
+    setCustomExerciseName(catalogSearch.trim());
+    setCustomExerciseGroup(
+      catalogGroup === "Все" ? "Грудь" : (catalogGroup as MuscleGroup),
+    );
+    setCustomExerciseEquipment("Тренажёр");
+    setCustomExerciseDescription("");
+    setCustomExerciseCreatorVisible(true);
+  };
+  const createAndAddCustomExercise = () => {
+    const exerciseId = addCustomExercise({
+      name: customExerciseName,
+      group: customExerciseGroup,
+      equipment: customExerciseEquipment,
+      description: customExerciseDescription,
+    });
+    if (!exerciseId) {
+      Alert.alert(
+        "Не удалось добавить",
+        customExerciseName.trim()
+          ? "Упражнение с таким названием уже есть в личном каталоге."
+          : "Укажите название упражнения.",
+      );
+      return;
+    }
+    const exercise = getExercise(exerciseId);
+    if (!exercise) return;
+    setCustomExerciseCreatorVisible(false);
+    addExerciseToSession(exercise);
+  };
   const moveSessionExercise = (fromIndex: number, toIndex: number) => {
     const reordered = reorderActiveWorkoutExercises(
       sessionExercises,
@@ -1864,12 +1933,15 @@ export default function WorkoutScreen() {
   };
   const animateDragLayout = () =>
     LayoutAnimation.configureNext({
-      duration: 210,
+      duration: 300,
       create: {
         type: LayoutAnimation.Types.easeInEaseOut,
         property: LayoutAnimation.Properties.opacity,
       },
-      update: { type: LayoutAnimation.Types.easeInEaseOut },
+      update: {
+        type: LayoutAnimation.Types.easeInEaseOut,
+        property: LayoutAnimation.Properties.opacity,
+      },
     });
   const setDragPreview = (
     next: {
@@ -2528,6 +2600,72 @@ export default function WorkoutScreen() {
       )}
 
       <Modal
+        visible={editingConfirmationSetIndex !== null}
+        transparent
+        animationType="fade"
+        statusBarTranslucent
+        onRequestClose={() => setEditingConfirmationSetIndex(null)}
+      >
+        <View style={styles.editConfirmBackdrop}>
+          <Animated.View
+            style={[
+              styles.editConfirmCard,
+              editingConfirmationAnimatedStyle,
+              {
+                backgroundColor: colors.background,
+                borderColor: colors.primary,
+              },
+            ]}
+          >
+            <Text
+              style={[styles.editConfirmEyebrow, { color: colors.primary }]}
+            >
+              ПОДТВЕРЖДЕНИЕ
+            </Text>
+            <Text
+              style={[styles.editConfirmTitle, { color: colors.foreground }]}
+            >
+              Изменить завершённый подход?
+            </Text>
+            <Text style={[styles.editConfirmText, { color: colors.muted }]}>
+              Поля снова станут редактируемыми. Время подхода и отдых останутся
+              сохранёнными.
+            </Text>
+            <View style={styles.editConfirmActions}>
+              <Pressable
+                onPress={() => setEditingConfirmationSetIndex(null)}
+                style={({ pressed }) => [
+                  styles.editConfirmCancel,
+                  { borderColor: colors.border, opacity: pressed ? 0.7 : 1 },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.editConfirmCancelText,
+                    { color: colors.foreground },
+                  ]}
+                >
+                  ОТМЕНА
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={confirmCompletedSetEditing}
+                style={({ pressed }) => [
+                  styles.editConfirmAccept,
+                  {
+                    backgroundColor: colors.primary,
+                    opacity: pressed ? 0.76 : 1,
+                  },
+                ]}
+              >
+                <Text style={styles.editConfirmAcceptText}>ИЗМЕНИТЬ</Text>
+              </Pressable>
+            </View>
+          </Animated.View>
+        </View>
+      </Modal>
+
+      <Modal
         visible={catalogVisible}
         animationType="slide"
         presentationStyle="fullScreen"
@@ -2616,9 +2754,30 @@ export default function WorkoutScreen() {
             keyboardShouldPersistTaps="handled"
             contentContainerStyle={styles.catalogList}
             ListEmptyComponent={
-              <Text style={[styles.catalogEmpty, { color: colors.muted }]}>
-                Ничего не найдено. Измените поиск или группу мышц.
-              </Text>
+              <View style={styles.catalogEmptyState}>
+                <Text style={[styles.catalogEmpty, { color: colors.muted }]}>
+                  {catalogSearch.trim()
+                    ? `«${catalogSearch.trim()}» не найдено в каталоге.`
+                    : "Ничего не найдено. Измените поиск или группу мышц."}
+                </Text>
+                {catalogSearch.trim().length > 0 && (
+                  <Pressable
+                    onPress={openCustomExerciseCreator}
+                    style={({ pressed }) => [
+                      styles.catalogCreateExercise,
+                      {
+                        backgroundColor: colors.primary,
+                        opacity: pressed ? 0.76 : 1,
+                      },
+                    ]}
+                  >
+                    <SafeMaterialIcon name="add" size={19} color="#FFFDF8" />
+                    <Text style={styles.catalogCreateExerciseText}>
+                      ДОБАВИТЬ НОВОЕ УПРАЖНЕНИЕ
+                    </Text>
+                  </Pressable>
+                )}
+              </View>
             }
             renderItem={({ item }) => (
               <Pressable
@@ -2670,6 +2829,156 @@ export default function WorkoutScreen() {
               </Pressable>
             )}
           />
+        </View>
+      </Modal>
+
+      <Modal
+        visible={customExerciseCreatorVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setCustomExerciseCreatorVisible(false)}
+      >
+        <View style={styles.catalogCreateBackdrop}>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === "ios" ? "padding" : "height"}
+            style={[
+              styles.catalogCreateSheet,
+              {
+                backgroundColor: colors.background,
+                borderColor: colors.primary,
+              },
+            ]}
+          >
+            <Text
+              style={[styles.catalogCreateEyebrow, { color: colors.primary }]}
+            >
+              ЛИЧНЫЙ КАТАЛОГ
+            </Text>
+            <Text
+              style={[styles.catalogCreateTitle, { color: colors.foreground }]}
+            >
+              НОВОЕ УПРАЖНЕНИЕ
+            </Text>
+            <Text style={[styles.catalogCreateHint, { color: colors.muted }]}>
+              Оно сохранится в базе упражнений и сразу появится в этой
+              тренировке.
+            </Text>
+            <TextInput
+              value={customExerciseName}
+              onChangeText={setCustomExerciseName}
+              autoFocus
+              placeholder="Название упражнения"
+              placeholderTextColor={colors.muted}
+              style={[
+                styles.catalogCreateInput,
+                {
+                  color: colors.foreground,
+                  borderColor: colors.border,
+                  backgroundColor: colors.surface,
+                },
+              ]}
+            />
+            <Text style={[styles.catalogCreateLabel, { color: colors.muted }]}>
+              ГРУППА МЫШЦ
+            </Text>
+            <View style={styles.catalogCreateGroups}>
+              {selectableMuscleGroups.map((group) => (
+                <Pressable
+                  key={group}
+                  onPress={() => setCustomExerciseGroup(group)}
+                  style={({ pressed }) => [
+                    styles.catalogCreateGroup,
+                    {
+                      backgroundColor:
+                        customExerciseGroup === group
+                          ? colors.primary
+                          : colors.surface,
+                      borderColor:
+                        customExerciseGroup === group
+                          ? colors.primary
+                          : colors.border,
+                      opacity: pressed ? 0.76 : 1,
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.catalogCreateGroupText,
+                      {
+                        color:
+                          customExerciseGroup === group
+                            ? "#FFFDF8"
+                            : colors.foreground,
+                      },
+                    ]}
+                  >
+                    {group}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+            <TextInput
+              value={customExerciseEquipment}
+              onChangeText={setCustomExerciseEquipment}
+              placeholder="Оборудование"
+              placeholderTextColor={colors.muted}
+              style={[
+                styles.catalogCreateInput,
+                {
+                  color: colors.foreground,
+                  borderColor: colors.border,
+                  backgroundColor: colors.surface,
+                },
+              ]}
+            />
+            <TextInput
+              value={customExerciseDescription}
+              onChangeText={setCustomExerciseDescription}
+              placeholder="Подсказка по технике (необязательно)"
+              placeholderTextColor={colors.muted}
+              multiline
+              style={[
+                styles.catalogCreateDescription,
+                {
+                  color: colors.foreground,
+                  borderColor: colors.border,
+                  backgroundColor: colors.surface,
+                },
+              ]}
+            />
+            <View style={styles.catalogCreateActions}>
+              <Pressable
+                onPress={() => setCustomExerciseCreatorVisible(false)}
+                style={({ pressed }) => [
+                  styles.catalogCreateCancel,
+                  { borderColor: colors.border, opacity: pressed ? 0.7 : 1 },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.catalogCreateCancelText,
+                    { color: colors.foreground },
+                  ]}
+                >
+                  ОТМЕНА
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={createAndAddCustomExercise}
+                style={({ pressed }) => [
+                  styles.catalogCreateSave,
+                  {
+                    backgroundColor: colors.primary,
+                    opacity: pressed ? 0.76 : 1,
+                  },
+                ]}
+              >
+                <Text style={styles.catalogCreateSaveText}>
+                  СОЗДАТЬ И ДОБАВИТЬ
+                </Text>
+              </Pressable>
+            </View>
+          </KeyboardAvoidingView>
         </View>
       </Modal>
 
@@ -3684,6 +3993,41 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(113, 113, 122, 0.16)",
     borderColor: "#71717A",
   },
+  editConfirmBackdrop: {
+    flex: 1,
+    backgroundColor: "#10141299",
+    justifyContent: "center",
+    padding: 24,
+  },
+  editConfirmCard: { borderWidth: 1, borderTopWidth: 8, padding: 20, gap: 11 },
+  editConfirmEyebrow: { fontSize: 10, fontWeight: "900", letterSpacing: 1 },
+  editConfirmTitle: { fontSize: 23, fontWeight: "900", letterSpacing: -0.5 },
+  editConfirmText: { fontSize: 13, lineHeight: 19 },
+  editConfirmActions: { flexDirection: "row", gap: 10, marginTop: 5 },
+  editConfirmCancel: {
+    flex: 1,
+    minHeight: 48,
+    borderWidth: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  editConfirmCancelText: {
+    fontSize: 11,
+    fontWeight: "900",
+    letterSpacing: 0.55,
+  },
+  editConfirmAccept: {
+    flex: 1,
+    minHeight: 48,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  editConfirmAcceptText: {
+    color: "#FFFDF8",
+    fontSize: 11,
+    fontWeight: "900",
+    letterSpacing: 0.55,
+  },
   targetZoneEyebrow: { fontSize: 8, fontWeight: "900", letterSpacing: 0.65 },
   targetZoneCopy: { fontSize: 11, fontWeight: "800", marginTop: 3 },
   targetZoneStatus: {
@@ -3873,6 +4217,85 @@ const styles = StyleSheet.create({
   catalogItemName: { fontSize: 14, fontWeight: "900" },
   catalogItemMeta: { fontSize: 11 },
   catalogEmpty: { textAlign: "center", marginTop: 56, fontSize: 13 },
+  catalogEmptyState: { paddingTop: 52, alignItems: "center", gap: 14 },
+  catalogCreateExercise: {
+    minHeight: 48,
+    paddingHorizontal: 15,
+    borderRadius: 0,
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    gap: 7,
+  },
+  catalogCreateExerciseText: {
+    color: "#FFFDF8",
+    fontSize: 11,
+    fontWeight: "900",
+    letterSpacing: 0.45,
+  },
+  catalogCreateBackdrop: {
+    flex: 1,
+    backgroundColor: "#151515B8",
+    justifyContent: "flex-end",
+  },
+  catalogCreateSheet: {
+    borderTopWidth: 8,
+    padding: 20,
+    gap: 11,
+  },
+  catalogCreateEyebrow: { fontSize: 10, fontWeight: "900", letterSpacing: 0.9 },
+  catalogCreateTitle: { fontSize: 24, fontWeight: "900", letterSpacing: -0.6 },
+  catalogCreateHint: { fontSize: 12, lineHeight: 17 },
+  catalogCreateInput: {
+    minHeight: 48,
+    borderWidth: 1,
+    paddingHorizontal: 13,
+    fontSize: 14,
+    fontWeight: "700",
+  },
+  catalogCreateLabel: { fontSize: 10, fontWeight: "900", letterSpacing: 0.7 },
+  catalogCreateGroups: { flexDirection: "row", flexWrap: "wrap", gap: 7 },
+  catalogCreateGroup: {
+    minHeight: 34,
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  catalogCreateGroupText: { fontSize: 10, fontWeight: "900" },
+  catalogCreateDescription: {
+    minHeight: 70,
+    borderWidth: 1,
+    padding: 12,
+    fontSize: 13,
+    textAlignVertical: "top",
+  },
+  catalogCreateActions: { flexDirection: "row", gap: 10, marginTop: 2 },
+  catalogCreateCancel: {
+    flex: 1,
+    minHeight: 48,
+    borderWidth: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  catalogCreateCancelText: {
+    fontSize: 11,
+    fontWeight: "900",
+    letterSpacing: 0.5,
+  },
+  catalogCreateSave: {
+    flex: 1.35,
+    minHeight: 48,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 7,
+  },
+  catalogCreateSaveText: {
+    color: "#FFFDF8",
+    fontSize: 10,
+    fontWeight: "900",
+    letterSpacing: 0.35,
+  },
   emptySession: { borderRadius: 17, borderWidth: 1, padding: 15, gap: 5 },
   emptySessionTitle: { fontSize: 14, fontWeight: "900" },
   emptySessionText: { fontSize: 11, lineHeight: 16 },
