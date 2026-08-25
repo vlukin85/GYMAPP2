@@ -110,7 +110,9 @@ internal fun clearCountdownNotification(context: Context) {
   NotificationManagerCompat.from(context).cancel(COUNTDOWN_NOTIFICATION_ID)
   NotificationManagerCompat.from(context).cancel(COMPLETION_NOTIFICATION_ID)
   val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
-  alarmManager.cancel(completionPendingIntent(context, PendingIntent.FLAG_NO_CREATE))
+  completionPendingIntent(context, PendingIntent.FLAG_NO_CREATE)?.let {
+    alarmManager.cancel(it)
+  }
 }
 
 private fun ensureCountdownChannel(context: Context) {

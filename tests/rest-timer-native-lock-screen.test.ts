@@ -49,6 +49,18 @@ describe("таймер отдыха на заблокированном Android-
     expect(nativeBridge).toContain("module.showCountdown({");
   });
 
+  it("публикует и обновляет постоянное уведомление в момент запуска и продления отдыха", () => {
+    expect(workoutScreen).toMatch(
+      /const startRestTimer[\s\S]*?showRestLockScreenNotification\(endTimestamp\)/,
+    );
+    expect(workoutScreen).toMatch(
+      /const extendRestTimer[\s\S]*?showRestLockScreenNotification\(updatedEnd\)/,
+    );
+    expect(nativeModule).toContain(
+      "completionPendingIntent(context, PendingIntent.FLAG_NO_CREATE)?.let",
+    );
+  });
+
   it("использует системный хронометр и отдельный виброканал завершения", () => {
     expect(nativeModule).toContain(".setWhen(restEndAt)");
     expect(nativeModule).not.toContain(

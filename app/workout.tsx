@@ -1074,7 +1074,10 @@ export default function WorkoutScreen() {
     setRestEndAt(endTimestamp);
     setRestTotal(seconds);
     setRest(seconds);
-  }, []);
+    // Создаём нативное уведомление сразу: ожидание AppState может быть пропущено,
+    // если пользователь успел заблокировать экран или приложение уже в фоне.
+    showRestLockScreenNotification(endTimestamp);
+  }, [showRestLockScreenNotification]);
 
   const extendRestTimer = useCallback(() => {
     const currentEnd = restEndRef.current ?? Date.now();
@@ -1085,8 +1088,8 @@ export default function WorkoutScreen() {
       Math.max(current, getRemainingRestSeconds(updatedEnd)),
     );
     setRest(getRemainingRestSeconds(updatedEnd));
-    if (AppState.currentState !== "active")
-      showRestLockScreenNotification(updatedEnd);
+    // Синхронизируем закреплённое уведомление независимо от состояния приложения.
+    showRestLockScreenNotification(updatedEnd);
   }, [showRestLockScreenNotification]);
 
   const skipRest = useCallback(() => {
