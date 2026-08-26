@@ -12,11 +12,13 @@ const documentation = readFileSync(
 );
 
 describe("GitHub Android build route", () => {
-  it("builds a release APK after relevant application changes reach main", () => {
+  it("builds a release APK after every push reaches main", () => {
     expect(workflow).toContain("push:");
     expect(workflow).toContain("- main");
-    expect(workflow).toContain('- "tests/**"');
+    expect(workflow).not.toContain("paths:");
     expect(workflow).toContain("pnpm/action-setup@v4");
+    expect(workflow).toContain('java-version: "21"');
+    expect(workflow).toContain('sdkmanager "platforms;android-36"');
     expect(workflow).toContain(
       "BUILD_VARIANT: ${{ github.event_name == 'workflow_dispatch' && inputs.build_variant || 'release' }}",
     );
