@@ -27,4 +27,11 @@ describe("операции переносимой резервной копии"
     expect(device).toContain("FileSystem.deleteAsync(uri)");
     expect(device).toContain("await cleanupOldInternalBackups()");
   });
+
+  it("не вызывает нативный файловый каталог при открытии настроек в Expo web", () => {
+    expect(device).toContain('if (Platform.OS === "web") return [];');
+    expect(device).toMatch(
+      /export async function listAvailableLocalBackups\(\) \{[\s\S]*?if \(Platform\.OS === "web"\) return \[\];[\s\S]*?listAppBackups\(\)/,
+    );
+  });
 });

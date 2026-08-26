@@ -172,6 +172,9 @@ async function listAppBackups() {
 }
 
 export async function listAvailableLocalBackups() {
+  // Expo web has no app document directory. Calling the native directory API
+  // here crashes the Settings screen during its initial backup list refresh.
+  if (Platform.OS === "web") return [];
   const [appBackups, selectedDirectoryUri] = await Promise.all([
     listAppBackups(),
     AsyncStorage.getItem(BACKUP_DIRECTORY_URI_KEY),
