@@ -6,20 +6,29 @@ type IronriseRestTimerNativeModule = {
   previewCompletionSound(completionSound: string): void;
   clearCountdown(): void;
   consumePendingAction(): {
-    kind: "skip" | "extend" | "start" | "finish-exercise";
+    kind: "skip" | "extend" | "start" | "finish-exercise" | "update-set";
     restEndAt: number;
     exerciseId?: string;
+    setIndex?: number;
+    weight?: string;
+    reps?: string;
   } | null;
 };
 
 export type NativeRestTimerAction = {
-  kind: "skip" | "extend" | "start" | "finish-exercise";
+  kind: "skip" | "extend" | "start" | "finish-exercise" | "update-set";
   restEndAt: number;
   exerciseId?: string;
+  setIndex?: number;
+  weight?: string;
+  reps?: string;
 };
 export type NativeRestNextAction = {
   kind: "start" | "finish-exercise";
   exerciseId?: string;
+  setIndex?: number;
+  weight?: string;
+  reps?: string;
 };
 export type LockScreenHeartRateTarget = {
   label: string;
@@ -43,6 +52,9 @@ type NativeRestCountdownPayload = {
   completionVibrationPattern: string;
   nextActionKind: NativeRestNextAction["kind"];
   exerciseId: string;
+  nextSetIndex: number;
+  nextSetWeight: string;
+  nextSetReps: string;
 };
 
 function getModule(): IronriseRestTimerNativeModule | null {
@@ -76,6 +88,9 @@ export function showNativeRestCountdown(
     completionVibrationPattern,
     nextActionKind: nextAction.kind,
     exerciseId: nextAction.exerciseId ?? "",
+    nextSetIndex: nextAction.setIndex ?? -1,
+    nextSetWeight: nextAction.weight ?? "",
+    nextSetReps: nextAction.reps ?? "",
   });
   return true;
 }

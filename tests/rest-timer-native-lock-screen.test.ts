@@ -103,6 +103,29 @@ describe("таймер отдыха на заблокированном Android-
     expect(workoutScreen).toContain("loadLockScreenHeartRateVisible()");
   });
 
+  it("позволяет изменить вес и повторения следующего подхода через Android RemoteInput", () => {
+    expect(nativeModule).toContain("ACTION_EDIT_SET");
+    expect(nativeModule).toContain(
+      "RemoteInput.Builder(REMOTE_INPUT_SET_VALUES)",
+    );
+    expect(nativeModule).toContain('"Вес × повторы"');
+    expect(nativeBridge).toContain(
+      'kind: "skip" | "extend" | "start" | "finish-exercise" | "update-set"',
+    );
+    expect(actionReceiver).toContain(
+      "RemoteInput.getResultsFromIntent(intent)",
+    );
+    expect(actionReceiver).toContain('savePendingAction(context, "update-set"');
+    expect(receiver).toContain("buildEditSetAction(");
+    expect(workoutScreen).toContain(
+      "applySetUpdateFromNativeRestAction(action)",
+    );
+    expect(workoutScreen).toContain("native-set-updated");
+    expect(workoutScreen).toContain(
+      "setIndex: activeIsTimed ? undefined : setIndex + 1",
+    );
+  });
+
   it("показывает завершение упражнения после последнего подхода в обоих Android-уведомлениях", () => {
     expect(nativeBridge).toContain('kind: "start" | "finish-exercise"');
     expect(nativeModule).toContain('nextActionKind == "finish-exercise"');
@@ -110,7 +133,10 @@ describe("таймер отдыха на заблокированном Android-
     expect(receiver).toContain('nextActionKind == "finish-exercise"');
     expect(receiver).toContain('"Последний подход завершён."');
     expect(workoutScreen).toContain(
-      'kind: setIndex === draft.length - 1 ? "finish-exercise" : "start"',
+      "const isLastSet = setIndex === draft.length - 1",
+    );
+    expect(workoutScreen).toContain(
+      '? { kind: "finish-exercise", exerciseId: activeId }',
     );
   });
 

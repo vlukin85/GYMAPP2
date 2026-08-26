@@ -25,28 +25,41 @@ class RestTimerCompletionReceiver : BroadcastReceiver() {
     val restEndAt = intent.getLongExtra(EXTRA_REST_END_AT, System.currentTimeMillis())
     val nextActionKind = intent.getStringExtra(EXTRA_NEXT_ACTION_KIND) ?: "start"
     val exerciseId = intent.getStringExtra(EXTRA_EXERCISE_ID) ?: ""
+    val nextSetIndex = intent.getIntExtra(EXTRA_NEXT_SET_INDEX, -1)
+    val nextSetWeight = intent.getStringExtra(EXTRA_NEXT_SET_WEIGHT) ?: ""
+    val nextSetReps = intent.getStringExtra(EXTRA_NEXT_SET_REPS) ?: ""
     val finishExercise = nextActionKind == "finish-exercise"
     val primaryActionLabel = if (finishExercise) "Завершить упражнение" else "Начать подход"
     val primaryActionIcon = if (finishExercise) android.R.drawable.ic_menu_save else android.R.drawable.ic_media_play
-    Log.d(REST_TIMER_LOG_TAG, "rest completed: action=$nextActionKind exerciseId=$exerciseId")
+    Log.d(REST_TIMER_LOG_TAG, "rest completed: action=$nextActionKind exerciseId=$exerciseId nextSetIndex=$nextSetIndex")
     val soundUri = completionSoundUri(context, completionSound)
     val channelId = ensureCompletionChannel(context, completionSound, completionVibrationEnabled, completionVibrationPattern, soundUri)
-    val notification = NotificationCompat.Builder(context, channelId)
+    val builder = NotificationCompat.Builder(context, channelId)
       .setSmallIcon(context.applicationInfo.icon)
       .setContentTitle("Отдых завершён")
-      .setContentText(if (finishExercise) "Последний подход завершён." else "Время следующего подхода.")
+      .setContentText((if (finishExercise) "Последний подход завершён." else "Время следующего подхода.") + nextSetSummary(nextSetIndex, nextSetWeight, nextSetReps))
       .setAutoCancel(true)
       .setCategory(NotificationCompat.CATEGORY_ALARM)
       .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
       .setPriority(NotificationCompat.PRIORITY_MAX)
       .setColor(android.graphics.Color.parseColor(COMPLETION_ACCENT_COLOR))
-      .addAction(primaryActionIcon, primaryActionLabel, restActionPendingIntent(context, ACTION_START, System.currentTimeMillis(), "", 0, 0, START_REQUEST_CODE, completionSound, completionVolume, completionVibrationEnabled, completionVibrationPattern, nextActionKind, exerciseId))
-      .addAction(android.R.drawable.ic_input_add, "+30 секунд", restActionPendingIntent(context, ACTION_EXTEND, restEndAt, "", 0, 0, EXTEND_REQUEST_CODE, completionSound, completionVolume, completionVibrationEnabled, completionVibrationPattern, nextActionKind, exerciseId))
-      .apply {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) soundUri?.let { setSound(it) }
-      }
-      .build()
-    NotificationManagerCompat.from(context).notify(COMPLETION_NOTIFICATION_ID, notification)
+    builder.addAction(
+      primaryActionIcon,
+      primaryActionLabel,
+      restActionPendingIntent(context, ACTION_START, System.currentTimeMillis(), "", 0, 0, START_REQUEST_CODE, completionSound, completionVolume, completionVibrationEnabled, completionVibrationPattern, nextActionKind, exerciseId, nextSetIndex, nextSetWeight, nextSetReps)
+    )
+    if (!finishExercise && nextSetIndex >= 0) {
+      builder.addAction(
+        buildEditSetAction(context, restEndAt, "", 0, 0, completionSound, completionVolume, completionVibrationEnabled, completionVibrationPattern, nextActionKind, exerciseId, nextSetIndex, nextSetWeight, nextSetReps)
+      )
+    }
+    builder.addAction(
+      android.R.drawable.ic_input_add,
+      "+30 секунд",
+      restActionPendingIntent(context, ACTION_EXTEND, restEndAt, "", 0, 0, EXTEND_REQUEST_CODE, completionSound, completionVolume, completionVibrationEnabled, completionVibrationPattern, nextActionKind, exerciseId, nextSetIndex, nextSetWeight, nextSetReps)
+    )
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) soundUri?.let { builder.setSound(it) }
+    NotificationManagerCompat.from(context).notify(COMPLETION_NOTIFICATION_ID, builder.build())
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) soundUri?.let { uri ->
       RingtoneManager.getRingtone(context, uri)?.apply {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) volume = completionVolume

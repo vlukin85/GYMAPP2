@@ -24,6 +24,9 @@ describe("черновик активной тренировки", () => {
     completedRestSeconds: 48,
     restNotificationAction: "finish-exercise" as const,
     restNotificationExerciseId: "bench-press",
+    restNotificationSetIndex: 0,
+    restNotificationWeight: "80",
+    restNotificationReps: "8",
     savedAt: 1_700_000_000_120,
     machineSetup: "Скамья 2",
     note: "Контроль паузы",
@@ -48,6 +51,9 @@ describe("черновик активной тренировки", () => {
     expect(restored?.completedRestSeconds).toBe(48);
     expect(restored?.restNotificationAction).toBe("finish-exercise");
     expect(restored?.restNotificationExerciseId).toBe("bench-press");
+    expect(restored?.restNotificationSetIndex).toBe(0);
+    expect(restored?.restNotificationWeight).toBe("80");
+    expect(restored?.restNotificationReps).toBe("8");
     expect(restored?.activeSet).toEqual(snapshot.activeSet);
     expect(restored?.setTimings["bench-press:0"].activeSeconds).toBe(30);
     expect(isDraftForProgram(restored, "upper-strength")).toBe(true);
@@ -59,6 +65,9 @@ describe("черновик активной тренировки", () => {
     delete legacySnapshot.completedRestSeconds;
     delete legacySnapshot.restNotificationAction;
     delete legacySnapshot.restNotificationExerciseId;
+    delete legacySnapshot.restNotificationSetIndex;
+    delete legacySnapshot.restNotificationWeight;
+    delete legacySnapshot.restNotificationReps;
     delete legacySnapshot.activeSet;
     delete legacySnapshot.setTimings;
     const restored = normalizeActiveWorkoutDraft(legacySnapshot);
@@ -67,6 +76,9 @@ describe("черновик активной тренировки", () => {
     expect(restored?.completedRestSeconds).toBe(0);
     expect(restored?.restNotificationAction).toBe("start");
     expect(restored?.restNotificationExerciseId).toBe("");
+    expect(restored?.restNotificationSetIndex).toBeNull();
+    expect(restored?.restNotificationWeight).toBe("");
+    expect(restored?.restNotificationReps).toBe("");
     expect(restored?.activeSet).toBeNull();
     expect(restored?.setTimings).toEqual({});
   });

@@ -40,6 +40,9 @@ export type ActiveWorkoutDraftSnapshot = {
   completedRestSeconds: number;
   restNotificationAction: "start" | "finish-exercise";
   restNotificationExerciseId: string;
+  restNotificationSetIndex: number | null;
+  restNotificationWeight: string;
+  restNotificationReps: string;
   savedAt: number | null;
   machineSetup: string;
   note: string;
@@ -104,6 +107,19 @@ export function normalizeActiveWorkoutDraft(
     restNotificationExerciseId:
       typeof draft.restNotificationExerciseId === "string"
         ? draft.restNotificationExerciseId
+        : "",
+    restNotificationSetIndex:
+      Number.isInteger(draft.restNotificationSetIndex) &&
+      (draft.restNotificationSetIndex as number) >= 0
+        ? (draft.restNotificationSetIndex as number)
+        : null,
+    restNotificationWeight:
+      typeof draft.restNotificationWeight === "string"
+        ? draft.restNotificationWeight
+        : "",
+    restNotificationReps:
+      typeof draft.restNotificationReps === "string"
+        ? draft.restNotificationReps
         : "",
     savedAt: isFiniteNumber(draft.savedAt) ? draft.savedAt : null,
     machineSetup:

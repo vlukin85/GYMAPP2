@@ -1181,6 +1181,36 @@ export default function WorkoutScreen() {
     [activeId, activeSet, draft, setTimings],
   );
 
+  const applySetUpdateFromNativeRestAction = useCallback(
+    (action: ReturnType<typeof consumeNativeRestTimerAction>) => {
+      if (
+        !action ||
+        !action.exerciseId ||
+        activeId !== action.exerciseId ||
+        !Number.isInteger(action.setIndex) ||
+        action.setIndex === undefined ||
+        action.setIndex < 0 ||
+        !action.weight ||
+        !action.reps
+      )
+        return;
+      setDraft((current) =>
+        current.map((set, index) =>
+          index === action.setIndex
+            ? { ...set, weight: action.weight!, reps: action.reps! }
+            : set,
+        ),
+      );
+      console.info(`${REST_TIMER_LOG_TAG} native-set-updated`, {
+        exerciseId: action.exerciseId,
+        setIndex: action.setIndex,
+        weight: action.weight,
+        reps: action.reps,
+      });
+    },
+    [activeId],
+  );
+
   const syncNativeRestTimerAction = useCallback(() => {
     const action = consumeNativeRestTimerAction();
     if (!action) return;
@@ -1188,6 +1218,10 @@ export default function WorkoutScreen() {
     if (action.kind === "skip") {
       setActiveSet(null);
       skipRest(action.restEndAt);
+      return;
+    }
+    if (action.kind === "update-set") {
+      applySetUpdateFromNativeRestAction(action);
       return;
     }
     if (action.kind === "start") {
@@ -1209,6 +1243,7 @@ export default function WorkoutScreen() {
     );
     setRest(getRemainingRestSeconds(action.restEndAt));
   }, [
+    applySetUpdateFromNativeRestAction,
     finishExerciseFromNativeRestAction,
     skipRest,
     startNextSetFromNativeRestAction,
@@ -1262,10 +1297,14 @@ export default function WorkoutScreen() {
 
   useEffect(() => {
     if (!restEndAt) return;
-    syncRestTimer();
-    const timer = setInterval(syncRestTimer, 300);
+    const synchronize = () => {
+      syncNativeRestTimerAction();
+      syncRestTimer();
+    };
+    synchronize();
+    const timer = setInterval(synchronize, 300);
     return () => clearInterval(timer);
-  }, [restEndAt, syncRestTimer]);
+  }, [restEndAt, syncNativeRestTimerAction, syncRestTimer]);
 
   useEffect(() => {
     const subscription = AppState.addEventListener("change", (status) => {
@@ -1381,6 +1420,9 @@ export default function WorkoutScreen() {
           setRestNotificationAction({
             kind: snapshot.restNotificationAction,
             exerciseId: snapshot.restNotificationExerciseId || undefined,
+            setIndex: snapshot.restNotificationSetIndex ?? undefined,
+            weight: snapshot.restNotificationWeight || undefined,
+            reps: snapshot.restNotificationReps || undefined,
           });
           setRest(
             snapshot.restEndAt
@@ -1446,6 +1488,9 @@ export default function WorkoutScreen() {
       completedRestSeconds,
       restNotificationAction: restNotificationAction.kind,
       restNotificationExerciseId: restNotificationAction.exerciseId ?? "",
+      restNotificationSetIndex: restNotificationAction.setIndex ?? null,
+      restNotificationWeight: restNotificationAction.weight ?? "",
+      restNotificationReps: restNotificationAction.reps ?? "",
       savedAt: Date.now(),
       machineSetup,
       note,
@@ -1507,6 +1552,9 @@ export default function WorkoutScreen() {
         completedRestSeconds,
         restNotificationAction: restNotificationAction.kind,
         restNotificationExerciseId: restNotificationAction.exerciseId ?? "",
+        restNotificationSetIndex: restNotificationAction.setIndex ?? null,
+        restNotificationWeight: restNotificationAction.weight ?? "",
+        restNotificationReps: restNotificationAction.reps ?? "",
         savedAt,
         machineSetup,
         note,
@@ -1845,10 +1893,20 @@ export default function WorkoutScreen() {
     const signature = JSON.stringify(set);
     if (restedSetSignatures.current[key] === signature) return;
     restedSetSignatures.current[key] = signature;
-    startRestTimer(activePlan.rest ?? 90, {
-      kind: setIndex === draft.length - 1 ? "finish-exercise" : "start",
-      exerciseId: activeId,
-    });
+    const isLastSet = setIndex === draft.length - 1;
+    const nextSet = draft[setIndex + 1];
+    startRestTimer(
+      activePlan.rest ?? 90,
+      isLastSet
+        ? { kind: "finish-exercise", exerciseId: activeId }
+        : {
+            kind: "start",
+            exerciseId: activeId,
+            setIndex: activeIsTimed ? undefined : setIndex + 1,
+            weight: activeIsTimed ? undefined : nextSet?.weight,
+            reps: activeIsTimed ? undefined : nextSet?.reps,
+          },
+    );
   };
   const finishFocusedSet = () => {
     if (focusedSetIndex === null) return;

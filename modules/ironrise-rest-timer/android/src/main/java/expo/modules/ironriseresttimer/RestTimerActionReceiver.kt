@@ -4,6 +4,9 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.util.Log
+import androidx.core.app.RemoteInput
+
+private val SET_VALUES_PATTERN = Regex("""^(\d+(?:[.,]\d+)?)\s*(?:[xх×*;,: ]+)\s*(\d+)$""")
 
 class RestTimerActionReceiver : BroadcastReceiver() {
   override fun onReceive(context: Context, intent: Intent) {
@@ -23,6 +26,24 @@ class RestTimerActionReceiver : BroadcastReceiver() {
       savePendingAction(context, nextActionKind, System.currentTimeMillis(), exerciseId)
       return
     }
+    if (action == ACTION_EDIT_SET) {
+      val exerciseId = intent.getStringExtra(EXTRA_EXERCISE_ID) ?: ""
+      val setIndex = intent.getIntExtra(EXTRA_NEXT_SET_INDEX, -1)
+      val input = RemoteInput.getResultsFromIntent(intent)
+        ?.getCharSequence(REMOTE_INPUT_SET_VALUES)
+        ?.toString()
+        ?.trim()
+        .orEmpty()
+      val parsed = parseSetValues(input)
+      if (exerciseId.isBlank() || setIndex < 0 || parsed == null) {
+        Log.d(REST_TIMER_LOG_TAG, "set edit ignored: invalid input=$input exerciseId=$exerciseId setIndex=$setIndex")
+        return
+      }
+      val (weight, reps) = parsed
+      Log.d(REST_TIMER_LOG_TAG, "set edit received: exerciseId=$exerciseId setIndex=$setIndex weight=$weight reps=$reps")
+      savePendingAction(context, "update-set", restEndAt, exerciseId, setIndex, weight, reps)
+      return
+    }
     if (action == ACTION_EXTEND) {
       val extendedEndAt = maxOf(restEndAt, System.currentTimeMillis()) + 30_000
       val targetLabel = intent.getStringExtra(EXTRA_TARGET_LABEL) ?: ""
@@ -34,9 +55,21 @@ class RestTimerActionReceiver : BroadcastReceiver() {
       val completionVibrationPattern = intent.getStringExtra(EXTRA_COMPLETION_VIBRATION_PATTERN) ?: "short"
       val nextActionKind = intent.getStringExtra(EXTRA_NEXT_ACTION_KIND) ?: "start"
       val exerciseId = intent.getStringExtra(EXTRA_EXERCISE_ID) ?: ""
+      val nextSetIndex = intent.getIntExtra(EXTRA_NEXT_SET_INDEX, -1)
+      val nextSetWeight = intent.getStringExtra(EXTRA_NEXT_SET_WEIGHT) ?: ""
+      val nextSetReps = intent.getStringExtra(EXTRA_NEXT_SET_REPS) ?: ""
       Log.d(REST_TIMER_LOG_TAG, "rest extended: endAt=$extendedEndAt action=$nextActionKind exerciseId=$exerciseId")
-      showCountdownNotification(context, extendedEndAt, targetLabel, targetFrom, targetTo, 0, "", completionSound, completionVolume, completionVibrationEnabled, completionVibrationPattern, nextActionKind, exerciseId)
+      showCountdownNotification(context, extendedEndAt, targetLabel, targetFrom, targetTo, 0, "", completionSound, completionVolume, completionVibrationEnabled, completionVibrationPattern, nextActionKind, exerciseId, nextSetIndex, nextSetWeight, nextSetReps)
       savePendingAction(context, "extend", extendedEndAt)
     }
   }
+}
+
+internal fun parseSetValues(raw: String): Pair<String, String>? {
+  val match = SET_VALUES_PATTERN.matchEntire(raw) ?: return null
+  val weight = match.groupValues[1].replace(',', '.')
+  val reps = match.groupValues[2]
+  val validWeight = weight.toDoubleOrNull()?.let { it >= 0 && it <= 2_000 } == true
+  val validReps = reps.toIntOrNull()?.let { it in 1..1_000 } == true
+  return if (validWeight && validReps) weight to reps else null
 }
