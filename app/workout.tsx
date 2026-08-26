@@ -1090,16 +1090,16 @@ export default function WorkoutScreen() {
       setRestStartedAt(startedAt);
       restEndRef.current = endTimestamp;
       setRestEndAt(endTimestamp);
-    setRestTotal(seconds);
-    setRest(seconds);
-    setRestNotificationAction(nextAction);
-    console.info(`${REST_TIMER_LOG_TAG} rest-started`, {
-      startedAt,
-      restEndAt: endTimestamp,
-      durationSeconds: seconds,
-      nextAction: nextAction.kind,
-      exerciseId: nextAction.exerciseId,
-    });
+      setRestTotal(seconds);
+      setRest(seconds);
+      setRestNotificationAction(nextAction);
+      console.info(`${REST_TIMER_LOG_TAG} rest-started`, {
+        startedAt,
+        restEndAt: endTimestamp,
+        durationSeconds: seconds,
+        nextAction: nextAction.kind,
+        exerciseId: nextAction.exerciseId,
+      });
       // Создаём нативное уведомление сразу: ожидание AppState может быть пропущено,
       // если пользователь успел заблокировать экран или приложение уже в фоне.
       showRestLockScreenNotification(endTimestamp, nextAction);
@@ -1129,21 +1129,19 @@ export default function WorkoutScreen() {
         ? Math.max(0, Math.round((restFinishedAt - startedAt) / 1000))
         : 0;
       if (startedAt)
-        setCompletedRestSeconds(
-          (current) => current + completedSeconds,
-        );
+        setCompletedRestSeconds((current) => current + completedSeconds);
       restStartedRef.current = null;
       setRestStartedAt(null);
       restEndRef.current = null;
       setRestEndAt(null);
       setRestTotal(0);
-    setRest(0);
-    setRestNotificationAction({ kind: "start" });
+      setRest(0);
+      setRestNotificationAction({ kind: "start" });
       console.info(`${REST_TIMER_LOG_TAG} rest-finished`, {
         finishedAt: restFinishedAt,
         completedSeconds,
       });
-    clearRestLockScreenNotification();
+      clearRestLockScreenNotification();
     },
     [clearRestLockScreenNotification],
   );
@@ -1162,13 +1160,39 @@ export default function WorkoutScreen() {
     [activeId, draft, machineSetup, note, replacements, setExercisePreference],
   );
 
+  const startNextSetFromNativeRestAction = useCallback(
+    (exerciseId: string | undefined, startedAt: number) => {
+      if (!exerciseId || activeId !== exerciseId || activeSet) return;
+      const nextSetIndex = draft.findIndex(
+        (_, index) => !setTimings[`${exerciseId}:${index}`],
+      );
+      if (nextSetIndex < 0) return;
+      setActiveSet({
+        exerciseId,
+        setIndex: nextSetIndex,
+        startedAt: Math.min(startedAt, Date.now()),
+      });
+      console.info(`${REST_TIMER_LOG_TAG} native-next-set-started`, {
+        exerciseId,
+        setIndex: nextSetIndex,
+        startedAt,
+      });
+    },
+    [activeId, activeSet, draft, setTimings],
+  );
+
   const syncNativeRestTimerAction = useCallback(() => {
     const action = consumeNativeRestTimerAction();
     if (!action) return;
     console.info(`${REST_TIMER_LOG_TAG} native-action-received`, action);
-    if (action.kind === "skip" || action.kind === "start") {
+    if (action.kind === "skip") {
       setActiveSet(null);
       skipRest(action.restEndAt);
+      return;
+    }
+    if (action.kind === "start") {
+      skipRest(action.restEndAt);
+      startNextSetFromNativeRestAction(action.exerciseId, action.restEndAt);
       return;
     }
     if (action.kind === "finish-exercise") {
@@ -1184,7 +1208,11 @@ export default function WorkoutScreen() {
       Math.max(current, getRemainingRestSeconds(action.restEndAt)),
     );
     setRest(getRemainingRestSeconds(action.restEndAt));
-  }, [finishExerciseFromNativeRestAction, skipRest]);
+  }, [
+    finishExerciseFromNativeRestAction,
+    skipRest,
+    startNextSetFromNativeRestAction,
+  ]);
 
   useEffect(() => {
     const timer = setInterval(

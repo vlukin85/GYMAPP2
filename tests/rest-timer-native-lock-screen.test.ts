@@ -41,7 +41,9 @@ describe("таймер отдыха на заблокированном Android-
     expect(notificationService).toMatch(
       /showNativeRestCountdown\(\s*restEndAt,\s*target,\s*completionSound,\s*completionVolume,\s*completionVibrationEnabled,\s*completionVibrationPattern,\s*nextAction,?\s*\)/,
     );
-    expect(notificationService).toMatch(/nativeCountdownStarted\s*\?\s*undefined/);
+    expect(notificationService).toMatch(
+      /nativeCountdownStarted\s*\?\s*undefined/,
+    );
     expect(notificationService).toContain("clearNativeRestCountdown()");
     expect(nativeModule).toContain(
       'Function("showCountdown") { payload: Map<String, Any?>',
@@ -112,21 +114,24 @@ describe("таймер отдыха на заблокированном Android-
     );
   });
 
-  it("фиксирует отдых по времени нажатия и не запускает секундомер упражнения из уведомления", () => {
+  it("фиксирует отдых по времени нажатия и активирует следующий подход из уведомления", () => {
     expect(actionReceiver).toContain(
       "savePendingAction(context, nextActionKind, System.currentTimeMillis(), exerciseId)",
     );
     expect(workoutScreen).toContain("skipRest(action.restEndAt)");
     expect(workoutScreen).toMatch(
-      /action\.kind === "skip" \|\| action\.kind === "start"[\s\S]*?setActiveSet\(null\)[\s\S]*?skipRest\(action\.restEndAt\)/,
+      /action\.kind === "start"[\s\S]*?skipRest\(action\.restEndAt\)[\s\S]*?startNextSetFromNativeRestAction\(action\.exerciseId, action\.restEndAt\)/,
     );
-    expect(workoutScreen).not.toMatch(
-      /action\.kind === "start"[\s\S]{0,220}setActiveSet\(\{[^}]*startedAt/,
+    expect(workoutScreen).toMatch(
+      /const startNextSetFromNativeRestAction[\s\S]*?setActiveSet\(\{[\s\S]*?exerciseId,[\s\S]*?setIndex: nextSetIndex,[\s\S]*?startedAt:/,
     );
+    expect(workoutScreen).toContain("native-next-set-started");
   });
 
   it("пишет диагностические точки таймера в JavaScript- и Android-консоли", () => {
-    expect(workoutScreen).toContain('REST_TIMER_LOG_TAG = "[IronRiseRestTimer]"');
+    expect(workoutScreen).toContain(
+      'REST_TIMER_LOG_TAG = "[IronRiseRestTimer]"',
+    );
     expect(workoutScreen).toContain("native-action-received");
     expect(workoutScreen).toContain("rest-finished");
     expect(nativeModule).toContain('REST_TIMER_LOG_TAG = "IronRiseRestTimer"');
