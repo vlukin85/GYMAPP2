@@ -19,6 +19,7 @@ import { HomeWidgetsProvider } from "@/lib/home-widgets";
 import { MainTabPreferencesProvider } from "@/lib/main-tab-preferences";
 import { BodyProvider } from "@/lib/body-store";
 import { IronRiseLaunchSplash } from "@/components/ironrise-launch-splash";
+import { ExpoWebPhoneFrame } from "@/components/expo-web-phone-frame";
 import {
   SafeAreaFrameContext,
   SafeAreaInsetsContext,
@@ -129,7 +130,7 @@ export default function RootLayout() {
     };
   }, [initialInsets, initialFrame]);
 
-  const content = (
+  const appContent = (
     <GestureHandlerRootView style={{ flex: 1 }}>
       {/* Default to hiding native headers so raw route segments don't appear (e.g. "(tabs)", "products/[id]"). */}
       {/* If a screen needs the native header, explicitly enable it and set a human title via Stack.Screen options. */}
@@ -188,6 +189,14 @@ export default function RootLayout() {
       <IronRiseLaunchSplash visible={showLaunchSplash} />
       <StatusBar style="auto" />
     </GestureHandlerRootView>
+  );
+
+  // On a wide browser canvas, keep the live Expo app inside a phone shell.
+  // The component returns native full-screen content on physical mobile widths.
+  const content = Platform.OS === "web" ? (
+    <ExpoWebPhoneFrame>{appContent}</ExpoWebPhoneFrame>
+  ) : (
+    appContent
   );
 
   const shouldOverrideSafeArea = Platform.OS === "web";
