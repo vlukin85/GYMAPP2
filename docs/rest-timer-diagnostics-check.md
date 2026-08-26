@@ -14,3 +14,9 @@
 | Android native | `IronRiseRestTimer` | Публикация и очистка countdown-уведомления, действие пользователя, продление отдыха, завершение отдыха и запись/чтение pending action. |
 
 Для устройства с Android нужно отфильтровать Logcat по тегам `IronRiseRestTimer` и `ReactNativeJS` либо выполнить `adb logcat -v time IronRiseRestTimer:D ReactNativeJS:I *:S`.
+
+## Результат локальной Android-сборки
+
+26 августа 2026 года debug APK успешно собран локальным Gradle-проектом после установки Android SDK 36, build-tools 36.0.0, NDK 27.1.12297006 и JDK 21. Артефакт для ручного тестирования имеет имя `IronRise-1.0.3-debug.apk`, размер около 104 МБ и SHA-256 `89dcd08798024f97271d3c2481e9a57168f713c62389702b7984c9fdeef7e258`.
+
+Kotlin-код с записями `Log.d` успешно прошёл компиляцию в составе APK. Физическое Android-устройство или эмулятор к среде сборки не подключены, поэтому фактический вывод Logcat действий уведомления пока не снят. После установки APK на телефон его можно получить командой `adb logcat -v time IronRiseRestTimer:D ReactNativeJS:I *:S`.
