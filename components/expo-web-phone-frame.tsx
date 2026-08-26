@@ -14,8 +14,15 @@ export function ExpoWebPhoneFrame({ children }: ExpoWebPhoneFrameProps) {
 
   if (!showDeviceChrome) return <>{children}</>;
 
-  const deviceHeight = Math.min(900, Math.max(640, height - 44));
-  const deviceWidth = Math.min(430, Math.max(280, width - 48));
+  // Keep the entire handset within the browser viewport. Width follows the
+  // available height, preserving a tall phone ratio instead of introducing a
+  // page scrollbar on short desktop windows.
+  const stageInset = 28;
+  const phoneAspectRatio = 1.94;
+  const availableWidth = Math.max(1, width - 48);
+  const availableHeight = Math.max(1, height - stageInset);
+  const deviceWidth = Math.min(430, availableWidth, availableHeight / phoneAspectRatio);
+  const deviceHeight = deviceWidth * phoneAspectRatio;
 
   return (
     <View style={styles.stage}>
@@ -33,7 +40,7 @@ const styles = StyleSheet.create<Record<"stage" | "device" | "screen" | "notch" 
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 22,
+    paddingVertical: 14,
     backgroundColor: "#191713",
   },
   device: {
