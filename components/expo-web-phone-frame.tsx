@@ -26,19 +26,27 @@ export function ExpoWebPhoneFrame({ children }: ExpoWebPhoneFrameProps) {
   // The preview sits inside a browser canvas, not in a user's hand. A compact
   // desktop-only scale keeps text and controls closer to physical phone size.
   const previewScale = 0.8;
+  // Scale the app canvas independently from the device shell. The compensated
+  // dimensions keep the full screen filled while the app's type is smaller.
+  const contentScale = 0.78;
+  const contentCompensation = `${100 / contentScale}%` as `${number}%`;
 
   return (
     <View style={styles.stage}>
       <View style={[styles.device, { height: deviceHeight, width: deviceWidth, transform: [{ scale: previewScale }] }]}>
         <View style={styles.notch} />
-        <View style={styles.screen}>{children}</View>
+        <View style={styles.screen}>
+          <View style={[styles.previewContent, { width: contentCompensation, height: contentCompensation, transform: [{ scale: contentScale }] }]}>
+            {children}
+          </View>
+        </View>
         <View style={styles.homeIndicator} />
       </View>
     </View>
   );
 }
 
-const styles = StyleSheet.create<Record<"stage" | "device" | "screen" | "notch" | "homeIndicator", ViewStyle>>({
+const styles = StyleSheet.create<Record<"stage" | "device" | "screen" | "previewContent" | "notch" | "homeIndicator", ViewStyle>>({
   stage: {
     flex: 1,
     alignItems: "center",
@@ -64,6 +72,9 @@ const styles = StyleSheet.create<Record<"stage" | "device" | "screen" | "notch" 
     overflow: "hidden",
     borderRadius: 37,
     backgroundColor: "#f5f1e8",
+  },
+  previewContent: {
+    transformOrigin: "top left",
   },
   notch: {
     position: "absolute",
