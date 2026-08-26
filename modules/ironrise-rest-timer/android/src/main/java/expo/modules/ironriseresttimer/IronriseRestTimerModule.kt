@@ -6,8 +6,8 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
-import android.os.Build
 import android.media.RingtoneManager
+import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import expo.modules.kotlin.modules.Module
@@ -31,6 +31,8 @@ internal const val EXTRA_COMPLETION_SOUND = "completionSound"
 internal const val EXTRA_COMPLETION_VOLUME = "completionVolume"
 internal const val EXTRA_COMPLETION_VIBRATION = "completionVibration"
 internal const val EXTRA_COMPLETION_VIBRATION_PATTERN = "completionVibrationPattern"
+internal const val EXTRA_NEXT_ACTION_KIND = "nextActionKind"
+internal const val EXTRA_EXERCISE_ID = "exerciseId"
 private const val ACTION_PREFERENCES = "ironrise.rest.timer.actions"
 
 class IronriseRestTimerModule : Module() {
@@ -49,7 +51,9 @@ class IronriseRestTimerModule : Module() {
         payload["completionSound"] as? String ?: "female",
         ((payload["completionVolume"] as? Number)?.toFloat() ?: 0.8f).coerceIn(0.1f, 1f),
         payload["completionVibrationEnabled"] as? Boolean ?: true,
-        payload["completionVibrationPattern"] as? String ?: "short"
+        payload["completionVibrationPattern"] as? String ?: "short",
+        payload["nextActionKind"] as? String ?: "start",
+        payload["exerciseId"] as? String ?: ""
       )
     }
 
@@ -68,16 +72,18 @@ class IronriseRestTimerModule : Module() {
 
   private val context: Context
     get() = requireNotNull(appContext.reactContext)
-
 }
 
-internal fun showCountdownNotification(context: Context, restEndAt: Long, targetLabel: String, targetFromBpm: Int, targetToBpm: Int, currentHeartRateBpm: Int, heartRateZoneColor: String, completionSound: String, completionVolume: Float = 0.8f, completionVibrationEnabled: Boolean = true, completionVibrationPattern: String = "short") {
+internal fun showCountdownNotification(context: Context, restEndAt: Long, targetLabel: String, targetFromBpm: Int, targetToBpm: Int, currentHeartRateBpm: Int, heartRateZoneColor: String, completionSound: String, completionVolume: Float = 0.8f, completionVibrationEnabled: Boolean = true, completionVibrationPattern: String = "short", nextActionKind: String = "start", exerciseId: String = "") {
   val remaining = restEndAt - System.currentTimeMillis()
   if (remaining <= 0) {
     clearCountdownNotification(context)
     return
   }
   ensureCountdownChannel(context)
+  val finishExercise = nextActionKind == "finish-exercise"
+  val primaryActionLabel = if (finishExercise) "Завершить упражнение" else "Начать подход"
+  val primaryActionIcon = if (finishExercise) android.R.drawable.ic_menu_save else android.R.drawable.ic_media_play
   val notification = NotificationCompat.Builder(context, COUNTDOWN_CHANNEL)
     .setSmallIcon(context.applicationInfo.icon)
     .setContentTitle("Отдых между подходами")
@@ -98,12 +104,12 @@ internal fun showCountdownNotification(context: Context, restEndAt: Long, target
     .apply {
       if (heartRateZoneColor.isNotBlank()) runCatching { setColor(android.graphics.Color.parseColor(heartRateZoneColor)) }
     }
-    .addAction(android.R.drawable.ic_menu_close_clear_cancel, "Пропустить", restActionPendingIntent(context, ACTION_SKIP, restEndAt, targetLabel, targetFromBpm, targetToBpm, SKIP_REQUEST_CODE, completionSound, completionVolume, completionVibrationEnabled, completionVibrationPattern))
-    .addAction(android.R.drawable.ic_input_add, "+30 секунд", restActionPendingIntent(context, ACTION_EXTEND, restEndAt, targetLabel, targetFromBpm, targetToBpm, EXTEND_REQUEST_CODE, completionSound, completionVolume, completionVibrationEnabled, completionVibrationPattern))
-    .addAction(android.R.drawable.ic_media_play, "Начать подход", restActionPendingIntent(context, ACTION_START, restEndAt, targetLabel, targetFromBpm, targetToBpm, START_REQUEST_CODE, completionSound, completionVolume, completionVibrationEnabled, completionVibrationPattern))
+    .addAction(android.R.drawable.ic_menu_close_clear_cancel, "Пропустить", restActionPendingIntent(context, ACTION_SKIP, restEndAt, targetLabel, targetFromBpm, targetToBpm, SKIP_REQUEST_CODE, completionSound, completionVolume, completionVibrationEnabled, completionVibrationPattern, nextActionKind, exerciseId))
+    .addAction(android.R.drawable.ic_input_add, "+30 секунд", restActionPendingIntent(context, ACTION_EXTEND, restEndAt, targetLabel, targetFromBpm, targetToBpm, EXTEND_REQUEST_CODE, completionSound, completionVolume, completionVibrationEnabled, completionVibrationPattern, nextActionKind, exerciseId))
+    .addAction(primaryActionIcon, primaryActionLabel, restActionPendingIntent(context, ACTION_START, restEndAt, targetLabel, targetFromBpm, targetToBpm, START_REQUEST_CODE, completionSound, completionVolume, completionVibrationEnabled, completionVibrationPattern, nextActionKind, exerciseId))
     .build()
   NotificationManagerCompat.from(context).notify(COUNTDOWN_NOTIFICATION_ID, notification)
-  scheduleCompletionAlarm(context, restEndAt, completionSound, completionVolume, completionVibrationEnabled, completionVibrationPattern)
+  scheduleCompletionAlarm(context, restEndAt, completionSound, completionVolume, completionVibrationEnabled, completionVibrationPattern, nextActionKind, exerciseId)
 }
 
 internal fun clearCountdownNotification(context: Context) {
@@ -126,7 +132,7 @@ private fun ensureCountdownChannel(context: Context) {
   manager.createNotificationChannel(channel)
 }
 
-internal fun restActionPendingIntent(context: Context, action: String, restEndAt: Long, targetLabel: String, targetFromBpm: Int, targetToBpm: Int, requestCode: Int, completionSound: String = "female", completionVolume: Float = 0.8f, completionVibrationEnabled: Boolean = true, completionVibrationPattern: String = "short"): PendingIntent {
+internal fun restActionPendingIntent(context: Context, action: String, restEndAt: Long, targetLabel: String, targetFromBpm: Int, targetToBpm: Int, requestCode: Int, completionSound: String = "female", completionVolume: Float = 0.8f, completionVibrationEnabled: Boolean = true, completionVibrationPattern: String = "short", nextActionKind: String = "start", exerciseId: String = ""): PendingIntent {
   val intent = Intent(context, RestTimerActionReceiver::class.java).apply {
     this.action = action
     putExtra(EXTRA_REST_END_AT, restEndAt)
@@ -137,23 +143,26 @@ internal fun restActionPendingIntent(context: Context, action: String, restEndAt
     putExtra(EXTRA_COMPLETION_VOLUME, completionVolume)
     putExtra(EXTRA_COMPLETION_VIBRATION, completionVibrationEnabled)
     putExtra(EXTRA_COMPLETION_VIBRATION_PATTERN, completionVibrationPattern)
+    putExtra(EXTRA_NEXT_ACTION_KIND, nextActionKind)
+    putExtra(EXTRA_EXERCISE_ID, exerciseId)
   }
   return PendingIntent.getBroadcast(context, requestCode, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
 }
 
-internal fun savePendingAction(context: Context, kind: String, restEndAt: Long) {
-  context.getSharedPreferences(ACTION_PREFERENCES, Context.MODE_PRIVATE).edit().putString("kind", kind).putLong("restEndAt", restEndAt).apply()
+internal fun savePendingAction(context: Context, kind: String, restEndAt: Long, exerciseId: String = "") {
+  context.getSharedPreferences(ACTION_PREFERENCES, Context.MODE_PRIVATE).edit().putString("kind", kind).putLong("restEndAt", restEndAt).putString("exerciseId", exerciseId).apply()
 }
 
 internal fun consumePendingAction(context: Context): Map<String, Any>? {
   val preferences = context.getSharedPreferences(ACTION_PREFERENCES, Context.MODE_PRIVATE)
   val kind = preferences.getString("kind", null) ?: return null
   val restEndAt = preferences.getLong("restEndAt", 0)
+  val exerciseId = preferences.getString("exerciseId", "") ?: ""
   preferences.edit().clear().apply()
-  return mapOf("kind" to kind, "restEndAt" to restEndAt)
+  return mapOf("kind" to kind, "restEndAt" to restEndAt, "exerciseId" to exerciseId)
 }
 
-internal fun completionPendingIntent(context: Context, flags: Int, completionSound: String = "female", restEndAt: Long = 0, completionVolume: Float = 0.8f, completionVibrationEnabled: Boolean = true, completionVibrationPattern: String = "short"): PendingIntent {
+internal fun completionPendingIntent(context: Context, flags: Int, completionSound: String = "female", restEndAt: Long = 0, completionVolume: Float = 0.8f, completionVibrationEnabled: Boolean = true, completionVibrationPattern: String = "short", nextActionKind: String = "start", exerciseId: String = ""): PendingIntent {
   val intent = Intent(context, RestTimerCompletionReceiver::class.java).apply {
     action = "expo.modules.ironriseresttimer.COMPLETE"
     putExtra(EXTRA_COMPLETION_SOUND, completionSound)
@@ -161,13 +170,15 @@ internal fun completionPendingIntent(context: Context, flags: Int, completionSou
     putExtra(EXTRA_COMPLETION_VOLUME, completionVolume)
     putExtra(EXTRA_COMPLETION_VIBRATION, completionVibrationEnabled)
     putExtra(EXTRA_COMPLETION_VIBRATION_PATTERN, completionVibrationPattern)
+    putExtra(EXTRA_NEXT_ACTION_KIND, nextActionKind)
+    putExtra(EXTRA_EXERCISE_ID, exerciseId)
   }
   return PendingIntent.getBroadcast(context, ALARM_REQUEST_CODE, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE or flags)
 }
 
-internal fun scheduleCompletionAlarm(context: Context, restEndAt: Long, completionSound: String, completionVolume: Float, completionVibrationEnabled: Boolean, completionVibrationPattern: String) {
+internal fun scheduleCompletionAlarm(context: Context, restEndAt: Long, completionSound: String, completionVolume: Float, completionVibrationEnabled: Boolean, completionVibrationPattern: String, nextActionKind: String, exerciseId: String) {
   val manager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
-  val pendingIntent = completionPendingIntent(context, 0, completionSound, restEndAt, completionVolume, completionVibrationEnabled, completionVibrationPattern)
+  val pendingIntent = completionPendingIntent(context, 0, completionSound, restEndAt, completionVolume, completionVibrationEnabled, completionVibrationPattern, nextActionKind, exerciseId)
   if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && manager.canScheduleExactAlarms()) {
     manager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, restEndAt, pendingIntent)
   } else if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {

@@ -15,7 +15,9 @@ class RestTimerActionReceiver : BroadcastReceiver() {
     }
     if (action == ACTION_START) {
       clearCountdownNotification(context)
-      savePendingAction(context, "start", System.currentTimeMillis())
+      val nextActionKind = intent.getStringExtra(EXTRA_NEXT_ACTION_KIND) ?: "start"
+      val exerciseId = intent.getStringExtra(EXTRA_EXERCISE_ID) ?: ""
+      savePendingAction(context, nextActionKind, System.currentTimeMillis(), exerciseId)
       return
     }
     if (action == ACTION_EXTEND) {
@@ -27,7 +29,9 @@ class RestTimerActionReceiver : BroadcastReceiver() {
       val completionVolume = intent.getFloatExtra(EXTRA_COMPLETION_VOLUME, 0.8f)
       val completionVibrationEnabled = intent.getBooleanExtra(EXTRA_COMPLETION_VIBRATION, true)
       val completionVibrationPattern = intent.getStringExtra(EXTRA_COMPLETION_VIBRATION_PATTERN) ?: "short"
-      showCountdownNotification(context, extendedEndAt, targetLabel, targetFrom, targetTo, 0, "", completionSound, completionVolume, completionVibrationEnabled, completionVibrationPattern)
+      val nextActionKind = intent.getStringExtra(EXTRA_NEXT_ACTION_KIND) ?: "start"
+      val exerciseId = intent.getStringExtra(EXTRA_EXERCISE_ID) ?: ""
+      showCountdownNotification(context, extendedEndAt, targetLabel, targetFrom, targetTo, 0, "", completionSound, completionVolume, completionVibrationEnabled, completionVibrationPattern, nextActionKind, exerciseId)
       savePendingAction(context, "extend", extendedEndAt)
     }
   }

@@ -22,19 +22,24 @@ class RestTimerCompletionReceiver : BroadcastReceiver() {
     val completionVibrationEnabled = intent.getBooleanExtra(EXTRA_COMPLETION_VIBRATION, true)
     val completionVibrationPattern = intent.getStringExtra(EXTRA_COMPLETION_VIBRATION_PATTERN) ?: "short"
     val restEndAt = intent.getLongExtra(EXTRA_REST_END_AT, System.currentTimeMillis())
+    val nextActionKind = intent.getStringExtra(EXTRA_NEXT_ACTION_KIND) ?: "start"
+    val exerciseId = intent.getStringExtra(EXTRA_EXERCISE_ID) ?: ""
+    val finishExercise = nextActionKind == "finish-exercise"
+    val primaryActionLabel = if (finishExercise) "Завершить упражнение" else "Начать подход"
+    val primaryActionIcon = if (finishExercise) android.R.drawable.ic_menu_save else android.R.drawable.ic_media_play
     val soundUri = completionSoundUri(context, completionSound)
     val channelId = ensureCompletionChannel(context, completionSound, completionVibrationEnabled, completionVibrationPattern, soundUri)
     val notification = NotificationCompat.Builder(context, channelId)
       .setSmallIcon(context.applicationInfo.icon)
       .setContentTitle("Отдых завершён")
-      .setContentText("Время следующего подхода.")
+      .setContentText(if (finishExercise) "Последний подход завершён." else "Время следующего подхода.")
       .setAutoCancel(true)
       .setCategory(NotificationCompat.CATEGORY_ALARM)
       .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
       .setPriority(NotificationCompat.PRIORITY_MAX)
       .setColor(android.graphics.Color.parseColor(COMPLETION_ACCENT_COLOR))
-      .addAction(android.R.drawable.ic_media_play, "Начать подход", restActionPendingIntent(context, ACTION_START, System.currentTimeMillis(), "", 0, 0, START_REQUEST_CODE, completionSound, completionVolume, completionVibrationEnabled, completionVibrationPattern))
-      .addAction(android.R.drawable.ic_input_add, "+30 секунд", restActionPendingIntent(context, ACTION_EXTEND, restEndAt, "", 0, 0, EXTEND_REQUEST_CODE, completionSound, completionVolume, completionVibrationEnabled, completionVibrationPattern))
+      .addAction(primaryActionIcon, primaryActionLabel, restActionPendingIntent(context, ACTION_START, System.currentTimeMillis(), "", 0, 0, START_REQUEST_CODE, completionSound, completionVolume, completionVibrationEnabled, completionVibrationPattern, nextActionKind, exerciseId))
+      .addAction(android.R.drawable.ic_input_add, "+30 секунд", restActionPendingIntent(context, ACTION_EXTEND, restEndAt, "", 0, 0, EXTEND_REQUEST_CODE, completionSound, completionVolume, completionVibrationEnabled, completionVibrationPattern, nextActionKind, exerciseId))
       .apply {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) soundUri?.let { setSound(it) }
       }

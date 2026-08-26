@@ -39,7 +39,7 @@ const workoutScreen = readFileSync(
 describe("таймер отдыха на заблокированном Android-экране", () => {
   it("передаёт обратный отсчёт нативному модулю и не дублирует Expo-уведомление", () => {
     expect(notificationService).toContain(
-      "showNativeRestCountdown(restEndAt, target, completionSound, completionVolume, completionVibrationEnabled, completionVibrationPattern)",
+      "showNativeRestCountdown(restEndAt, target, completionSound, completionVolume, completionVibrationEnabled, completionVibrationPattern, nextAction)",
     );
     expect(notificationService).toContain("nativeCountdownStarted ? undefined");
     expect(notificationService).toContain("clearNativeRestCountdown()");
@@ -51,7 +51,7 @@ describe("таймер отдыха на заблокированном Android-
 
   it("публикует и обновляет постоянное уведомление в момент запуска и продления отдыха", () => {
     expect(workoutScreen).toMatch(
-      /const startRestTimer[\s\S]*?showRestLockScreenNotification\(endTimestamp\)/,
+      /const startRestTimer[\s\S]*?showRestLockScreenNotification\(endTimestamp, nextAction\)/,
     );
     expect(workoutScreen).toMatch(
       /const extendRestTimer[\s\S]*?showRestLockScreenNotification\(updatedEnd\)/,
@@ -94,9 +94,35 @@ describe("таймер отдыха на заблокированном Android-
     expect(nativeModule).toContain('"Начать подход"');
     expect(nativeModule).toContain("currentHeartRateBpm");
     expect(actionReceiver).toContain("ACTION_START");
-    expect(actionReceiver).toContain('savePendingAction(context, "start"');
+    expect(actionReceiver).toContain(
+      "savePendingAction(context, nextActionKind, System.currentTimeMillis(), exerciseId)",
+    );
     expect(workoutScreen).toContain("lockScreenHeartRateVisible");
     expect(workoutScreen).toContain("loadLockScreenHeartRateVisible()");
+  });
+
+  it("показывает завершение упражнения после последнего подхода в обоих Android-уведомлениях", () => {
+    expect(nativeBridge).toContain('kind: "start" | "finish-exercise"');
+    expect(nativeModule).toContain('nextActionKind == "finish-exercise"');
+    expect(nativeModule).toContain('"Завершить упражнение"');
+    expect(receiver).toContain('nextActionKind == "finish-exercise"');
+    expect(receiver).toContain('"Последний подход завершён."');
+    expect(workoutScreen).toContain(
+      'kind: setIndex === draft.length - 1 ? "finish-exercise" : "start"',
+    );
+  });
+
+  it("фиксирует отдых по времени нажатия и не запускает секундомер упражнения из уведомления", () => {
+    expect(actionReceiver).toContain(
+      "savePendingAction(context, nextActionKind, System.currentTimeMillis(), exerciseId)",
+    );
+    expect(workoutScreen).toContain("skipRest(action.restEndAt)");
+    expect(workoutScreen).toMatch(
+      /action\.kind === "skip" \|\| action\.kind === "start"[\s\S]*?setActiveSet\(null\)[\s\S]*?skipRest\(action\.restEndAt\)/,
+    );
+    expect(workoutScreen).not.toMatch(
+      /action\.kind === "start"[\s\S]{0,220}setActiveSet\(\{[^}]*startedAt/,
+    );
   });
 
   it("применяет цвет фактической зоны пульса к уведомлению", () => {

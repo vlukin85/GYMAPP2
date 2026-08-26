@@ -38,6 +38,8 @@ export type ActiveWorkoutDraftSnapshot = {
   restTotal: number;
   restStartedAt: number | null;
   completedRestSeconds: number;
+  restNotificationAction: "start" | "finish-exercise";
+  restNotificationExerciseId: string;
   savedAt: number | null;
   machineSetup: string;
   note: string;
@@ -50,43 +52,104 @@ function isFiniteNumber(value: unknown): value is number {
 }
 
 /** Guards persisted data so an old or malformed cache never blocks workout startup. */
-export function normalizeActiveWorkoutDraft(value: unknown): ActiveWorkoutDraftSnapshot | null {
+export function normalizeActiveWorkoutDraft(
+  value: unknown,
+): ActiveWorkoutDraftSnapshot | null {
   if (!value || typeof value !== "object") return null;
   const draft = value as Partial<ActiveWorkoutDraftSnapshot>;
-  if (typeof draft.programId !== "string" || !isFiniteNumber(draft.startedAt)) return null;
+  if (typeof draft.programId !== "string" || !isFiniteNumber(draft.startedAt))
+    return null;
   return {
     programId: draft.programId,
     startedAt: draft.startedAt,
     activeId: typeof draft.activeId === "string" ? draft.activeId : null,
-    draft: Array.isArray(draft.draft) ? draft.draft as WorkoutDraftSet[] : [],
-    setsByExercise: draft.setsByExercise && typeof draft.setsByExercise === "object" ? draft.setsByExercise as Record<string, WorkoutDraftSet[]> : {},
-    replacements: draft.replacements && typeof draft.replacements === "object" ? draft.replacements as Record<string, string> : {},
-    removedExerciseIds: Array.isArray(draft.removedExerciseIds) ? draft.removedExerciseIds.filter((id): id is string => typeof id === "string") : [],
-    done: draft.done && typeof draft.done === "object" ? draft.done as Record<string, boolean> : {},
-    addedSessionExercises: Array.isArray(draft.addedSessionExercises) ? draft.addedSessionExercises as ProgramExercise[] : [],
-    sessionOrder: Array.isArray(draft.sessionOrder) ? draft.sessionOrder.filter((id): id is string => typeof id === "string") : [],
+    draft: Array.isArray(draft.draft) ? (draft.draft as WorkoutDraftSet[]) : [],
+    setsByExercise:
+      draft.setsByExercise && typeof draft.setsByExercise === "object"
+        ? (draft.setsByExercise as Record<string, WorkoutDraftSet[]>)
+        : {},
+    replacements:
+      draft.replacements && typeof draft.replacements === "object"
+        ? (draft.replacements as Record<string, string>)
+        : {},
+    removedExerciseIds: Array.isArray(draft.removedExerciseIds)
+      ? draft.removedExerciseIds.filter(
+          (id): id is string => typeof id === "string",
+        )
+      : [],
+    done:
+      draft.done && typeof draft.done === "object"
+        ? (draft.done as Record<string, boolean>)
+        : {},
+    addedSessionExercises: Array.isArray(draft.addedSessionExercises)
+      ? (draft.addedSessionExercises as ProgramExercise[])
+      : [],
+    sessionOrder: Array.isArray(draft.sessionOrder)
+      ? draft.sessionOrder.filter((id): id is string => typeof id === "string")
+      : [],
     restEndAt: isFiniteNumber(draft.restEndAt) ? draft.restEndAt : null,
-    restTotal: isFiniteNumber(draft.restTotal) ? Math.max(0, draft.restTotal) : 0,
-    restStartedAt: isFiniteNumber(draft.restStartedAt) ? draft.restStartedAt : null,
-    completedRestSeconds: isFiniteNumber(draft.completedRestSeconds) ? Math.max(0, draft.completedRestSeconds) : 0,
-    savedAt: isFiniteNumber(draft.savedAt) ? draft.savedAt : null,
-    machineSetup: typeof draft.machineSetup === "string" ? draft.machineSetup : "",
-    note: typeof draft.note === "string" ? draft.note : "",
-    activeSet: draft.activeSet && typeof draft.activeSet === "object" && typeof draft.activeSet.exerciseId === "string" && Number.isInteger(draft.activeSet.setIndex) && isFiniteNumber(draft.activeSet.startedAt)
-      ? { exerciseId: draft.activeSet.exerciseId, setIndex: Math.max(0, draft.activeSet.setIndex), startedAt: draft.activeSet.startedAt }
+    restTotal: isFiniteNumber(draft.restTotal)
+      ? Math.max(0, draft.restTotal)
+      : 0,
+    restStartedAt: isFiniteNumber(draft.restStartedAt)
+      ? draft.restStartedAt
       : null,
-    setTimings: draft.setTimings && typeof draft.setTimings === "object"
-      ? Object.fromEntries(Object.entries(draft.setTimings).flatMap(([key, timing]) => {
-          const candidate = timing as Partial<CompletedSetDraftTiming>;
-          return isFiniteNumber(candidate.startedAt) && isFiniteNumber(candidate.finishedAt) && isFiniteNumber(candidate.activeSeconds)
-            ? [[key, { startedAt: candidate.startedAt, finishedAt: candidate.finishedAt, activeSeconds: Math.max(0, candidate.activeSeconds) }]]
-            : [];
-        }))
-      : {},
+    completedRestSeconds: isFiniteNumber(draft.completedRestSeconds)
+      ? Math.max(0, draft.completedRestSeconds)
+      : 0,
+    restNotificationAction:
+      draft.restNotificationAction === "finish-exercise"
+        ? "finish-exercise"
+        : "start",
+    restNotificationExerciseId:
+      typeof draft.restNotificationExerciseId === "string"
+        ? draft.restNotificationExerciseId
+        : "",
+    savedAt: isFiniteNumber(draft.savedAt) ? draft.savedAt : null,
+    machineSetup:
+      typeof draft.machineSetup === "string" ? draft.machineSetup : "",
+    note: typeof draft.note === "string" ? draft.note : "",
+    activeSet:
+      draft.activeSet &&
+      typeof draft.activeSet === "object" &&
+      typeof draft.activeSet.exerciseId === "string" &&
+      Number.isInteger(draft.activeSet.setIndex) &&
+      isFiniteNumber(draft.activeSet.startedAt)
+        ? {
+            exerciseId: draft.activeSet.exerciseId,
+            setIndex: Math.max(0, draft.activeSet.setIndex),
+            startedAt: draft.activeSet.startedAt,
+          }
+        : null,
+    setTimings:
+      draft.setTimings && typeof draft.setTimings === "object"
+        ? Object.fromEntries(
+            Object.entries(draft.setTimings).flatMap(([key, timing]) => {
+              const candidate = timing as Partial<CompletedSetDraftTiming>;
+              return isFiniteNumber(candidate.startedAt) &&
+                isFiniteNumber(candidate.finishedAt) &&
+                isFiniteNumber(candidate.activeSeconds)
+                ? [
+                    [
+                      key,
+                      {
+                        startedAt: candidate.startedAt,
+                        finishedAt: candidate.finishedAt,
+                        activeSeconds: Math.max(0, candidate.activeSeconds),
+                      },
+                    ],
+                  ]
+                : [];
+            }),
+          )
+        : {},
   };
 }
 
-export function isDraftForProgram(snapshot: ActiveWorkoutDraftSnapshot | null, programId: string) {
+export function isDraftForProgram(
+  snapshot: ActiveWorkoutDraftSnapshot | null,
+  programId: string,
+) {
   return snapshot?.programId === programId;
 }
 
@@ -100,8 +163,13 @@ export async function loadActiveWorkoutDraft() {
   }
 }
 
-export async function saveActiveWorkoutDraft(snapshot: ActiveWorkoutDraftSnapshot) {
-  await AsyncStorage.setItem(ACTIVE_WORKOUT_DRAFT_KEY, JSON.stringify(snapshot));
+export async function saveActiveWorkoutDraft(
+  snapshot: ActiveWorkoutDraftSnapshot,
+) {
+  await AsyncStorage.setItem(
+    ACTIVE_WORKOUT_DRAFT_KEY,
+    JSON.stringify(snapshot),
+  );
 }
 
 export async function clearActiveWorkoutDraft() {

@@ -111,7 +111,10 @@ import {
   scheduleRestTimerLockScreenNotification,
   type RestTimerNotificationIds,
 } from "@/lib/workout-notifications";
-import { consumeNativeRestTimerAction } from "@/modules/ironrise-rest-timer";
+import {
+  consumeNativeRestTimerAction,
+  type NativeRestNextAction,
+} from "@/modules/ironrise-rest-timer";
 import { loadLockScreenHeartRateVisible } from "@/lib/lock-screen-heart-rate-privacy";
 
 type DropDraft = { reps: string; weight: string };
@@ -851,6 +854,8 @@ export default function WorkoutScreen() {
   const [restEndAt, setRestEndAt] = useState<number | null>(null);
   const [restStartedAt, setRestStartedAt] = useState<number | null>(null);
   const [completedRestSeconds, setCompletedRestSeconds] = useState(0);
+  const [restNotificationAction, setRestNotificationAction] =
+    useState<NativeRestNextAction>({ kind: "start" });
   const previousRestRef = useRef(0);
   const restEndRef = useRef<number | null>(null);
   const restStartedRef = useRef<number | null>(null);
@@ -1004,6 +1009,7 @@ export default function WorkoutScreen() {
       restEndRef.current = null;
       setRestEndAt(null);
       setRestTotal(0);
+      setRestNotificationAction({ kind: "start" });
     }
   }, []);
 
@@ -1014,7 +1020,10 @@ export default function WorkoutScreen() {
   }, []);
 
   const showRestLockScreenNotification = useCallback(
-    (endTimestamp: number) => {
+    (
+      endTimestamp: number,
+      nextAction: NativeRestNextAction = restNotificationAction,
+    ) => {
       void (async () => {
         clearRestLockScreenNotification();
         const target = getHeartRateTargetStatus(
@@ -1042,6 +1051,7 @@ export default function WorkoutScreen() {
           restTimerCompletionVolume,
           restTimerVibrationEnabled,
           restTimerVibrationPattern,
+          nextAction,
         );
         if (restEndRef.current === endTimestamp)
           restNotificationIdsRef.current = ids;
@@ -1058,26 +1068,31 @@ export default function WorkoutScreen() {
       restTimerSoundEnabled,
       restTimerVibrationEnabled,
       restTimerVibrationPattern,
+      restNotificationAction,
       targetHeartRateZone,
     ],
   );
 
-  const startRestTimer = useCallback((durationSeconds: number) => {
-    const seconds = Math.max(0, Math.round(durationSeconds));
-    if (!seconds) return;
-    skippedRestRef.current = false;
-    const startedAt = Date.now();
-    const endTimestamp = startedAt + seconds * 1000;
-    restStartedRef.current = startedAt;
-    setRestStartedAt(startedAt);
-    restEndRef.current = endTimestamp;
-    setRestEndAt(endTimestamp);
-    setRestTotal(seconds);
-    setRest(seconds);
-    // Создаём нативное уведомление сразу: ожидание AppState может быть пропущено,
-    // если пользователь успел заблокировать экран или приложение уже в фоне.
-    showRestLockScreenNotification(endTimestamp);
-  }, [showRestLockScreenNotification]);
+  const startRestTimer = useCallback(
+    (durationSeconds: number, nextAction: NativeRestNextAction) => {
+      const seconds = Math.max(0, Math.round(durationSeconds));
+      if (!seconds) return;
+      skippedRestRef.current = false;
+      const startedAt = Date.now();
+      const endTimestamp = startedAt + seconds * 1000;
+      restStartedRef.current = startedAt;
+      setRestStartedAt(startedAt);
+      restEndRef.current = endTimestamp;
+      setRestEndAt(endTimestamp);
+      setRestTotal(seconds);
+      setRest(seconds);
+      setRestNotificationAction(nextAction);
+      // Создаём нативное уведомление сразу: ожидание AppState может быть пропущено,
+      // если пользователь успел заблокировать экран или приложение уже в фоне.
+      showRestLockScreenNotification(endTimestamp, nextAction);
+    },
+    [showRestLockScreenNotification],
+  );
 
   const extendRestTimer = useCallback(() => {
     const currentEnd = restEndRef.current ?? Date.now();
@@ -1092,31 +1107,60 @@ export default function WorkoutScreen() {
     showRestLockScreenNotification(updatedEnd);
   }, [showRestLockScreenNotification]);
 
-  const skipRest = useCallback(() => {
-    skippedRestRef.current = true;
-    if (restStartedRef.current)
-      setCompletedRestSeconds(
-        (current) =>
-          current +
-          Math.max(
-            0,
-            Math.round((Date.now() - restStartedRef.current!) / 1000),
-          ),
+  const skipRest = useCallback(
+    (finishedAt = Date.now()) => {
+      skippedRestRef.current = true;
+      const restFinishedAt = Math.max(
+        restStartedRef.current ?? finishedAt,
+        finishedAt,
       );
-    restStartedRef.current = null;
-    setRestStartedAt(null);
-    restEndRef.current = null;
-    setRestEndAt(null);
-    setRestTotal(0);
-    setRest(0);
-    clearRestLockScreenNotification();
-  }, [clearRestLockScreenNotification]);
+      if (restStartedRef.current)
+        setCompletedRestSeconds(
+          (current) =>
+            current +
+            Math.max(
+              0,
+              Math.round((restFinishedAt - restStartedRef.current!) / 1000),
+            ),
+        );
+      restStartedRef.current = null;
+      setRestStartedAt(null);
+      restEndRef.current = null;
+      setRestEndAt(null);
+      setRestTotal(0);
+      setRest(0);
+      setRestNotificationAction({ kind: "start" });
+      clearRestLockScreenNotification();
+    },
+    [clearRestLockScreenNotification],
+  );
+
+  const finishExerciseFromNativeRestAction = useCallback(
+    (exerciseId?: string) => {
+      if (!exerciseId || activeId !== exerciseId) return;
+      setSetsByExercise((current) => ({ ...current, [exerciseId]: draft }));
+      setDone((current) => ({ ...current, [exerciseId]: true }));
+      setExercisePreference(replacements[exerciseId] ?? exerciseId, {
+        machineSetup,
+        note,
+      });
+      setActiveId(null);
+    },
+    [activeId, draft, machineSetup, note, replacements, setExercisePreference],
+  );
 
   const syncNativeRestTimerAction = useCallback(() => {
     const action = consumeNativeRestTimerAction();
     if (!action) return;
     if (action.kind === "skip" || action.kind === "start") {
-      skipRest();
+      setActiveSet(null);
+      skipRest(action.restEndAt);
+      return;
+    }
+    if (action.kind === "finish-exercise") {
+      setActiveSet(null);
+      skipRest(action.restEndAt);
+      finishExerciseFromNativeRestAction(action.exerciseId);
       return;
     }
     if (action.restEndAt <= Date.now()) return;
@@ -1126,7 +1170,7 @@ export default function WorkoutScreen() {
       Math.max(current, getRemainingRestSeconds(action.restEndAt)),
     );
     setRest(getRemainingRestSeconds(action.restEndAt));
-  }, [skipRest]);
+  }, [finishExerciseFromNativeRestAction, skipRest]);
 
   useEffect(() => {
     const timer = setInterval(
@@ -1292,6 +1336,10 @@ export default function WorkoutScreen() {
           restStartedRef.current = snapshot.restStartedAt;
           setRestTotal(snapshot.restTotal);
           setCompletedRestSeconds(snapshot.completedRestSeconds);
+          setRestNotificationAction({
+            kind: snapshot.restNotificationAction,
+            exerciseId: snapshot.restNotificationExerciseId || undefined,
+          });
           setRest(
             snapshot.restEndAt
               ? getRemainingRestSeconds(snapshot.restEndAt)
@@ -1354,6 +1402,8 @@ export default function WorkoutScreen() {
       restTotal,
       restStartedAt,
       completedRestSeconds,
+      restNotificationAction: restNotificationAction.kind,
+      restNotificationExerciseId: restNotificationAction.exerciseId ?? "",
       savedAt: Date.now(),
       machineSetup,
       note,
@@ -1413,6 +1463,8 @@ export default function WorkoutScreen() {
         restTotal,
         restStartedAt,
         completedRestSeconds,
+        restNotificationAction: restNotificationAction.kind,
+        restNotificationExerciseId: restNotificationAction.exerciseId ?? "",
         savedAt,
         machineSetup,
         note,
@@ -1751,7 +1803,10 @@ export default function WorkoutScreen() {
     const signature = JSON.stringify(set);
     if (restedSetSignatures.current[key] === signature) return;
     restedSetSignatures.current[key] = signature;
-    startRestTimer(activePlan.rest ?? 90);
+    startRestTimer(activePlan.rest ?? 90, {
+      kind: setIndex === draft.length - 1 ? "finish-exercise" : "start",
+      exerciseId: activeId,
+    });
   };
   const finishFocusedSet = () => {
     if (focusedSetIndex === null) return;
