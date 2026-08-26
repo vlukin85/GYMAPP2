@@ -23,9 +23,9 @@ export function ExpoWebPhoneFrame({ children }: ExpoWebPhoneFrameProps) {
   const availableHeight = Math.max(1, height - stageInset);
   const deviceWidth = Math.min(430, availableWidth, availableHeight / phoneAspectRatio);
   const deviceHeight = deviceWidth * phoneAspectRatio;
-  // The preview sits inside a browser canvas, not in a user's hand. A slight
-  // desktop-only reduction keeps text and controls visually closer to phone scale.
-  const previewScale = 0.9;
+  // The preview sits inside a browser canvas, not in a user's hand. A compact
+  // desktop-only scale keeps text and controls closer to physical phone size.
+  const previewScale = 0.8;
 
   return (
     <View style={styles.stage}>
