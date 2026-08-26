@@ -38,10 +38,10 @@ const workoutScreen = readFileSync(
 
 describe("таймер отдыха на заблокированном Android-экране", () => {
   it("передаёт обратный отсчёт нативному модулю и не дублирует Expo-уведомление", () => {
-    expect(notificationService).toContain(
-      "showNativeRestCountdown(restEndAt, target, completionSound, completionVolume, completionVibrationEnabled, completionVibrationPattern, nextAction)",
+    expect(notificationService).toMatch(
+      /showNativeRestCountdown\(\s*restEndAt,\s*target,\s*completionSound,\s*completionVolume,\s*completionVibrationEnabled,\s*completionVibrationPattern,\s*nextAction,?\s*\)/,
     );
-    expect(notificationService).toContain("nativeCountdownStarted ? undefined");
+    expect(notificationService).toMatch(/nativeCountdownStarted\s*\?\s*undefined/);
     expect(notificationService).toContain("clearNativeRestCountdown()");
     expect(nativeModule).toContain(
       'Function("showCountdown") { payload: Map<String, Any?>',
@@ -123,6 +123,16 @@ describe("таймер отдыха на заблокированном Android-
     expect(workoutScreen).not.toMatch(
       /action\.kind === "start"[\s\S]{0,220}setActiveSet\(\{[^}]*startedAt/,
     );
+  });
+
+  it("пишет диагностические точки таймера в JavaScript- и Android-консоли", () => {
+    expect(workoutScreen).toContain('REST_TIMER_LOG_TAG = "[IronRiseRestTimer]"');
+    expect(workoutScreen).toContain("native-action-received");
+    expect(workoutScreen).toContain("rest-finished");
+    expect(nativeModule).toContain('REST_TIMER_LOG_TAG = "IronRiseRestTimer"');
+    expect(nativeModule).toContain("pending action saved");
+    expect(actionReceiver).toContain("notification action received");
+    expect(receiver).toContain("rest completed");
   });
 
   it("применяет цвет фактической зоны пульса к уведомлению", () => {

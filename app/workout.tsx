@@ -145,6 +145,7 @@ type RecordedSetTiming = {
 const REST_CIRCLE_RADIUS = 108;
 const REST_CIRCLE_SIZE = 252;
 const REST_CIRCUMFERENCE = 2 * Math.PI * REST_CIRCLE_RADIUS;
+const REST_TIMER_LOG_TAG = "[IronRiseRestTimer]";
 const EDITORIAL_BLUE = "#1746D2";
 const WORKOUT_PROGRESS_CIRCLE_SIZE = 64;
 const WORKOUT_PROGRESS_CIRCLE_RADIUS = 27;
@@ -1025,6 +1026,11 @@ export default function WorkoutScreen() {
       nextAction: NativeRestNextAction = restNotificationAction,
     ) => {
       void (async () => {
+        console.info(`${REST_TIMER_LOG_TAG} scheduling-native-notification`, {
+          restEndAt: endTimestamp,
+          nextAction: nextAction.kind,
+          exerciseId: nextAction.exerciseId,
+        });
         clearRestLockScreenNotification();
         const target = getHeartRateTargetStatus(
           heartRate.currentBpm,
@@ -1084,9 +1090,16 @@ export default function WorkoutScreen() {
       setRestStartedAt(startedAt);
       restEndRef.current = endTimestamp;
       setRestEndAt(endTimestamp);
-      setRestTotal(seconds);
-      setRest(seconds);
-      setRestNotificationAction(nextAction);
+    setRestTotal(seconds);
+    setRest(seconds);
+    setRestNotificationAction(nextAction);
+    console.info(`${REST_TIMER_LOG_TAG} rest-started`, {
+      startedAt,
+      restEndAt: endTimestamp,
+      durationSeconds: seconds,
+      nextAction: nextAction.kind,
+      exerciseId: nextAction.exerciseId,
+    });
       // Создаём нативное уведомление сразу: ожидание AppState может быть пропущено,
       // если пользователь успел заблокировать экран или приложение уже в фоне.
       showRestLockScreenNotification(endTimestamp, nextAction);
@@ -1110,27 +1123,27 @@ export default function WorkoutScreen() {
   const skipRest = useCallback(
     (finishedAt = Date.now()) => {
       skippedRestRef.current = true;
-      const restFinishedAt = Math.max(
-        restStartedRef.current ?? finishedAt,
-        finishedAt,
-      );
-      if (restStartedRef.current)
+      const startedAt = restStartedRef.current;
+      const restFinishedAt = Math.max(startedAt ?? finishedAt, finishedAt);
+      const completedSeconds = startedAt
+        ? Math.max(0, Math.round((restFinishedAt - startedAt) / 1000))
+        : 0;
+      if (startedAt)
         setCompletedRestSeconds(
-          (current) =>
-            current +
-            Math.max(
-              0,
-              Math.round((restFinishedAt - restStartedRef.current!) / 1000),
-            ),
+          (current) => current + completedSeconds,
         );
       restStartedRef.current = null;
       setRestStartedAt(null);
       restEndRef.current = null;
       setRestEndAt(null);
       setRestTotal(0);
-      setRest(0);
-      setRestNotificationAction({ kind: "start" });
-      clearRestLockScreenNotification();
+    setRest(0);
+    setRestNotificationAction({ kind: "start" });
+      console.info(`${REST_TIMER_LOG_TAG} rest-finished`, {
+        finishedAt: restFinishedAt,
+        completedSeconds,
+      });
+    clearRestLockScreenNotification();
     },
     [clearRestLockScreenNotification],
   );
@@ -1152,6 +1165,7 @@ export default function WorkoutScreen() {
   const syncNativeRestTimerAction = useCallback(() => {
     const action = consumeNativeRestTimerAction();
     if (!action) return;
+    console.info(`${REST_TIMER_LOG_TAG} native-action-received`, action);
     if (action.kind === "skip" || action.kind === "start") {
       setActiveSet(null);
       skipRest(action.restEndAt);

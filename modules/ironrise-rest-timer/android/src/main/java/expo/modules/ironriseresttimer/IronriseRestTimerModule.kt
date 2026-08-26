@@ -8,6 +8,7 @@ import android.content.Context
 import android.content.Intent
 import android.media.RingtoneManager
 import android.os.Build
+import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import expo.modules.kotlin.modules.Module
@@ -34,6 +35,7 @@ internal const val EXTRA_COMPLETION_VIBRATION_PATTERN = "completionVibrationPatt
 internal const val EXTRA_NEXT_ACTION_KIND = "nextActionKind"
 internal const val EXTRA_EXERCISE_ID = "exerciseId"
 private const val ACTION_PREFERENCES = "ironrise.rest.timer.actions"
+internal const val REST_TIMER_LOG_TAG = "IronRiseRestTimer"
 
 class IronriseRestTimerModule : Module() {
   override fun definition() = ModuleDefinition {
@@ -77,6 +79,7 @@ class IronriseRestTimerModule : Module() {
 internal fun showCountdownNotification(context: Context, restEndAt: Long, targetLabel: String, targetFromBpm: Int, targetToBpm: Int, currentHeartRateBpm: Int, heartRateZoneColor: String, completionSound: String, completionVolume: Float = 0.8f, completionVibrationEnabled: Boolean = true, completionVibrationPattern: String = "short", nextActionKind: String = "start", exerciseId: String = "") {
   val remaining = restEndAt - System.currentTimeMillis()
   if (remaining <= 0) {
+    Log.d(REST_TIMER_LOG_TAG, "countdown ignored: rest already finished")
     clearCountdownNotification(context)
     return
   }
@@ -84,6 +87,7 @@ internal fun showCountdownNotification(context: Context, restEndAt: Long, target
   val finishExercise = nextActionKind == "finish-exercise"
   val primaryActionLabel = if (finishExercise) "Завершить упражнение" else "Начать подход"
   val primaryActionIcon = if (finishExercise) android.R.drawable.ic_menu_save else android.R.drawable.ic_media_play
+  Log.d(REST_TIMER_LOG_TAG, "countdown shown: endAt=$restEndAt action=$nextActionKind exerciseId=$exerciseId")
   val notification = NotificationCompat.Builder(context, COUNTDOWN_CHANNEL)
     .setSmallIcon(context.applicationInfo.icon)
     .setContentTitle("Отдых между подходами")
@@ -113,6 +117,7 @@ internal fun showCountdownNotification(context: Context, restEndAt: Long, target
 }
 
 internal fun clearCountdownNotification(context: Context) {
+  Log.d(REST_TIMER_LOG_TAG, "countdown cleared")
   NotificationManagerCompat.from(context).cancel(COUNTDOWN_NOTIFICATION_ID)
   NotificationManagerCompat.from(context).cancel(COMPLETION_NOTIFICATION_ID)
   val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
@@ -150,6 +155,7 @@ internal fun restActionPendingIntent(context: Context, action: String, restEndAt
 }
 
 internal fun savePendingAction(context: Context, kind: String, restEndAt: Long, exerciseId: String = "") {
+  Log.d(REST_TIMER_LOG_TAG, "pending action saved: kind=$kind at=$restEndAt exerciseId=$exerciseId")
   context.getSharedPreferences(ACTION_PREFERENCES, Context.MODE_PRIVATE).edit().putString("kind", kind).putLong("restEndAt", restEndAt).putString("exerciseId", exerciseId).apply()
 }
 
@@ -159,6 +165,7 @@ internal fun consumePendingAction(context: Context): Map<String, Any>? {
   val restEndAt = preferences.getLong("restEndAt", 0)
   val exerciseId = preferences.getString("exerciseId", "") ?: ""
   preferences.edit().clear().apply()
+  Log.d(REST_TIMER_LOG_TAG, "pending action consumed: kind=$kind at=$restEndAt exerciseId=$exerciseId")
   return mapOf("kind" to kind, "restEndAt" to restEndAt, "exerciseId" to exerciseId)
 }
 

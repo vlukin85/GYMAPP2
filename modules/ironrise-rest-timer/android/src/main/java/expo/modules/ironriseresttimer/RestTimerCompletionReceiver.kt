@@ -8,6 +8,7 @@ import android.content.Intent
 import android.media.AudioAttributes
 import android.media.RingtoneManager
 import android.os.Build
+import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 
@@ -27,6 +28,7 @@ class RestTimerCompletionReceiver : BroadcastReceiver() {
     val finishExercise = nextActionKind == "finish-exercise"
     val primaryActionLabel = if (finishExercise) "Завершить упражнение" else "Начать подход"
     val primaryActionIcon = if (finishExercise) android.R.drawable.ic_menu_save else android.R.drawable.ic_media_play
+    Log.d(REST_TIMER_LOG_TAG, "rest completed: action=$nextActionKind exerciseId=$exerciseId")
     val soundUri = completionSoundUri(context, completionSound)
     val channelId = ensureCompletionChannel(context, completionSound, completionVibrationEnabled, completionVibrationPattern, soundUri)
     val notification = NotificationCompat.Builder(context, channelId)

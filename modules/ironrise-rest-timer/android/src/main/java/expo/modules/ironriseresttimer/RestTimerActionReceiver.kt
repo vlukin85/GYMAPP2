@@ -3,11 +3,13 @@ package expo.modules.ironriseresttimer
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.util.Log
 
 class RestTimerActionReceiver : BroadcastReceiver() {
   override fun onReceive(context: Context, intent: Intent) {
     val action = intent.action ?: return
     val restEndAt = intent.getLongExtra(EXTRA_REST_END_AT, 0)
+    Log.d(REST_TIMER_LOG_TAG, "notification action received: action=$action restEndAt=$restEndAt")
     if (action == ACTION_SKIP) {
       clearCountdownNotification(context)
       savePendingAction(context, "skip", System.currentTimeMillis())
@@ -17,6 +19,7 @@ class RestTimerActionReceiver : BroadcastReceiver() {
       clearCountdownNotification(context)
       val nextActionKind = intent.getStringExtra(EXTRA_NEXT_ACTION_KIND) ?: "start"
       val exerciseId = intent.getStringExtra(EXTRA_EXERCISE_ID) ?: ""
+      Log.d(REST_TIMER_LOG_TAG, "primary action selected: kind=$nextActionKind exerciseId=$exerciseId")
       savePendingAction(context, nextActionKind, System.currentTimeMillis(), exerciseId)
       return
     }
@@ -31,6 +34,7 @@ class RestTimerActionReceiver : BroadcastReceiver() {
       val completionVibrationPattern = intent.getStringExtra(EXTRA_COMPLETION_VIBRATION_PATTERN) ?: "short"
       val nextActionKind = intent.getStringExtra(EXTRA_NEXT_ACTION_KIND) ?: "start"
       val exerciseId = intent.getStringExtra(EXTRA_EXERCISE_ID) ?: ""
+      Log.d(REST_TIMER_LOG_TAG, "rest extended: endAt=$extendedEndAt action=$nextActionKind exerciseId=$exerciseId")
       showCountdownNotification(context, extendedEndAt, targetLabel, targetFrom, targetTo, 0, "", completionSound, completionVolume, completionVibrationEnabled, completionVibrationPattern, nextActionKind, exerciseId)
       savePendingAction(context, "extend", extendedEndAt)
     }
