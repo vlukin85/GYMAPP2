@@ -97,11 +97,75 @@ export type ProgramExercise = {
   supersetGroup?: string;
 };
 
+export type ProgramRestBlock = {
+  id: string;
+  afterExerciseId: string;
+  durationSeconds: number;
+};
+
+export const DEFAULT_PROGRAM_REST_BLOCK_SECONDS = 120;
+export const MIN_PROGRAM_REST_BLOCK_SECONDS = 15;
+export const MAX_PROGRAM_REST_BLOCK_SECONDS = 1_800;
+
+/**
+ * Keeps optional rest blocks safe when a program is restored from local storage
+ * or imported from another device. Blocks may only follow an exercise in that
+ * specific program and never appear after the final exercise.
+ */
+export function normalizeProgramRestBlocks(
+  value: unknown,
+  exerciseIds: Iterable<string>,
+): ProgramRestBlock[] {
+  if (!Array.isArray(value)) return [];
+  const validExerciseIds = new Set(exerciseIds);
+  const seenExerciseIds = new Set<string>();
+  return value.flatMap((candidate, index) => {
+    if (!candidate || typeof candidate !== "object") return [];
+    const block = candidate as Partial<ProgramRestBlock>;
+    if (
+      typeof block.afterExerciseId !== "string" ||
+      !validExerciseIds.has(block.afterExerciseId) ||
+      seenExerciseIds.has(block.afterExerciseId) ||
+      typeof block.durationSeconds !== "number" ||
+      !Number.isFinite(block.durationSeconds)
+    )
+      return [];
+    seenExerciseIds.add(block.afterExerciseId);
+    return [
+      {
+        id:
+          typeof block.id === "string" && block.id.trim()
+            ? block.id
+            : `rest-${block.afterExerciseId}-${index}`,
+        afterExerciseId: block.afterExerciseId,
+        durationSeconds: Math.max(
+          MIN_PROGRAM_REST_BLOCK_SECONDS,
+          Math.min(
+            MAX_PROGRAM_REST_BLOCK_SECONDS,
+            Math.round(block.durationSeconds),
+          ),
+        ),
+      },
+    ];
+  });
+}
+
+export function getProgramRestBlockAfterExercise(
+  program: Pick<WorkoutProgram, "exercises" | "restBlocks">,
+  exerciseId: string,
+) {
+  return normalizeProgramRestBlocks(
+    program.restBlocks,
+    program.exercises.map((exercise) => exercise.exerciseId),
+  ).find((block) => block.afterExerciseId === exerciseId);
+}
+
 export type WorkoutProgram = {
   id: string;
   name: string;
   description: string;
   exercises: ProgramExercise[];
+  restBlocks?: ProgramRestBlock[];
   coverImage?: string;
   createdAt?: string;
   archivedAt?: string;
@@ -413,10 +477,17 @@ export const defaultPrograms: WorkoutProgram[] = [
 ];
 
 export function mergeStoredPrograms(storedPrograms: WorkoutProgram[] | undefined) {
-  const storedById = new Map((storedPrograms ?? []).map((program) => [program.id, program]));
+  const normalizeProgramRestBlocksForStorage = (program: WorkoutProgram): WorkoutProgram => ({
+    ...program,
+    restBlocks: normalizeProgramRestBlocks(
+      program.restBlocks,
+      program.exercises.map((exercise) => exercise.exerciseId),
+    ),
+  });
+  const storedById = new Map((storedPrograms ?? []).map((program) => [program.id, normalizeProgramRestBlocksForStorage(program)]));
   const defaultIds = new Set(defaultPrograms.map((program) => program.id));
-  const customPrograms = (storedPrograms ?? []).filter((program) => !defaultIds.has(program.id));
-  return [...defaultPrograms.map((program) => storedById.get(program.id) ?? program), ...customPrograms];
+  const customPrograms = (storedPrograms ?? []).filter((program) => !defaultIds.has(program.id)).map(normalizeProgramRestBlocksForStorage);
+  return [...defaultPrograms.map((program) => storedById.get(program.id) ?? normalizeProgramRestBlocksForStorage(program)), ...customPrograms];
 }
 
 export const completedWorkouts: CompletedWorkout[] = [

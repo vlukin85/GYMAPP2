@@ -103,24 +103,17 @@ describe("таймер отдыха на заблокированном Android-
     expect(workoutScreen).toContain("loadLockScreenHeartRateVisible()");
   });
 
-  it("позволяет изменить вес и повторения следующего подхода через Android RemoteInput", () => {
-    expect(nativeModule).toContain("ACTION_EDIT_SET");
-    expect(nativeModule).toContain(
-      "RemoteInput.Builder(REMOTE_INPUT_SET_VALUES)",
-    );
-    expect(nativeModule).toContain('"Вес × повторы"');
-    expect(nativeBridge).toContain(
-      'kind: "skip" | "extend" | "start" | "finish-exercise" | "update-set"',
-    );
-    expect(actionReceiver).toContain(
-      "RemoteInput.getResultsFromIntent(intent)",
-    );
-    expect(actionReceiver).toContain('savePendingAction(context, "update-set"');
-    expect(receiver).toContain("buildEditSetAction(");
-    expect(workoutScreen).toContain(
-      "applySetUpdateFromNativeRestAction(action)",
-    );
-    expect(workoutScreen).toContain("native-set-updated");
+  it("оставляет только управление таймером и действие продления отдыха", () => {
+    expect(nativeModule).not.toContain("ACTION_EDIT_SET");
+    expect(nativeModule).not.toContain("RemoteInput");
+    expect(nativeModule).not.toContain('"Вес × повторы"');
+    expect(nativeBridge).not.toContain('"update-set"');
+    expect(actionReceiver).not.toContain("RemoteInput");
+    expect(actionReceiver).not.toContain('"update-set"');
+    expect(receiver).not.toContain("buildEditSetAction(");
+    expect(workoutScreen).not.toContain("applySetUpdateFromNativeRestAction");
+    expect(nativeModule).toContain('"+30 секунд"');
+    expect(receiver).toContain('"+30 секунд"');
     expect(workoutScreen).toContain(
       "setIndex: activeIsTimed ? undefined : setIndex + 1",
     );
@@ -133,7 +126,7 @@ describe("таймер отдыха на заблокированном Android-
     expect(receiver).toContain('nextActionKind == "finish-exercise"');
     expect(receiver).toContain('"Последний подход завершён."');
     expect(workoutScreen).toContain(
-      "const isLastSet = setIndex === draft.length - 1",
+      "const isLastSet = setIndex === sourceDraft.length - 1",
     );
     expect(workoutScreen).toContain(
       '? { kind: "finish-exercise", exerciseId: activeId }',

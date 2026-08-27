@@ -18,6 +18,7 @@ import {
   View,
 } from "react-native";
 import { setAudioModeAsync, useAudioPlayer } from "expo-audio";
+import * as Linking from "expo-linking";
 import * as Haptics from "expo-haptics";
 import Svg, { Circle } from "react-native-svg";
 import { router, useLocalSearchParams } from "expo-router";
@@ -47,6 +48,7 @@ import {
   getExercise,
   getExerciseHistory,
   getLoadZones,
+  getProgramRestBlockAfterExercise,
   getSetVolumeWithDropSubsets,
   isTimeBasedExercise,
   muscleGroups,
@@ -112,7 +114,9 @@ import {
   type RestTimerNotificationIds,
 } from "@/lib/workout-notifications";
 import {
+  consumeActiveWorkoutWidgetAction,
   consumeNativeRestTimerAction,
+  updateActiveWorkoutWidget,
   type NativeRestNextAction,
 } from "@/modules/ironrise-rest-timer";
 import { loadLockScreenHeartRateVisible } from "@/lib/lock-screen-heart-rate-privacy";
@@ -228,6 +232,7 @@ function RestTimerOverlay({
   totalRest,
   onAddTime,
   onSkip,
+  message,
   soundEnabled,
   soundVolume,
   vibrationEnabled,
@@ -238,6 +243,7 @@ function RestTimerOverlay({
   totalRest: number;
   onAddTime: () => void;
   onSkip: () => void;
+  message: string;
   soundEnabled: boolean;
   soundVolume: number;
   vibrationEnabled: boolean;
@@ -323,7 +329,7 @@ function RestTimerOverlay({
           </View>
           <View style={styles.restCopy}>
             <Text style={[styles.restTitle, { color: colors.foreground }]}>
-              Следующий подход — после сигнала
+              {message}
             </Text>
             <Text style={[styles.restHint, { color: colors.muted }]}>
               Отсчёт продолжится после блокировки экрана.
@@ -855,8 +861,14 @@ export default function WorkoutScreen() {
   const [restEndAt, setRestEndAt] = useState<number | null>(null);
   const [restStartedAt, setRestStartedAt] = useState<number | null>(null);
   const [completedRestSeconds, setCompletedRestSeconds] = useState(0);
+  const [restMessage, setRestMessage] = useState(
+    "Следующий подход — после сигнала",
+  );
   const [restNotificationAction, setRestNotificationAction] =
     useState<NativeRestNextAction>({ kind: "start" });
+  const [pendingWidgetAction, setPendingWidgetAction] = useState<
+    ReturnType<typeof consumeActiveWorkoutWidgetAction> | null
+  >(null);
   const previousRestRef = useRef(0);
   const restEndRef = useRef<number | null>(null);
   const restStartedRef = useRef<number | null>(null);
@@ -1010,6 +1022,7 @@ export default function WorkoutScreen() {
       restEndRef.current = null;
       setRestEndAt(null);
       setRestTotal(0);
+      setRestMessage("Следующий подход — после сигнала");
       setRestNotificationAction({ kind: "start" });
     }
   }, []);
@@ -1080,7 +1093,11 @@ export default function WorkoutScreen() {
   );
 
   const startRestTimer = useCallback(
-    (durationSeconds: number, nextAction: NativeRestNextAction) => {
+    (
+      durationSeconds: number,
+      nextAction: NativeRestNextAction,
+      message = "Следующий подход — после сигнала",
+    ) => {
       const seconds = Math.max(0, Math.round(durationSeconds));
       if (!seconds) return;
       skippedRestRef.current = false;
@@ -1092,6 +1109,7 @@ export default function WorkoutScreen() {
       setRestEndAt(endTimestamp);
       setRestTotal(seconds);
       setRest(seconds);
+      setRestMessage(message);
       setRestNotificationAction(nextAction);
       console.info(`${REST_TIMER_LOG_TAG} rest-started`, {
         startedAt,
@@ -1136,6 +1154,7 @@ export default function WorkoutScreen() {
       setRestEndAt(null);
       setRestTotal(0);
       setRest(0);
+      setRestMessage("Следующий подход — после сигнала");
       setRestNotificationAction({ kind: "start" });
       console.info(`${REST_TIMER_LOG_TAG} rest-finished`, {
         finishedAt: restFinishedAt,
@@ -1181,36 +1200,6 @@ export default function WorkoutScreen() {
     [activeId, activeSet, draft, setTimings],
   );
 
-  const applySetUpdateFromNativeRestAction = useCallback(
-    (action: ReturnType<typeof consumeNativeRestTimerAction>) => {
-      if (
-        !action ||
-        !action.exerciseId ||
-        activeId !== action.exerciseId ||
-        !Number.isInteger(action.setIndex) ||
-        action.setIndex === undefined ||
-        action.setIndex < 0 ||
-        !action.weight ||
-        !action.reps
-      )
-        return;
-      setDraft((current) =>
-        current.map((set, index) =>
-          index === action.setIndex
-            ? { ...set, weight: action.weight!, reps: action.reps! }
-            : set,
-        ),
-      );
-      console.info(`${REST_TIMER_LOG_TAG} native-set-updated`, {
-        exerciseId: action.exerciseId,
-        setIndex: action.setIndex,
-        weight: action.weight,
-        reps: action.reps,
-      });
-    },
-    [activeId],
-  );
-
   const syncNativeRestTimerAction = useCallback(() => {
     const action = consumeNativeRestTimerAction();
     if (!action) return;
@@ -1218,10 +1207,6 @@ export default function WorkoutScreen() {
     if (action.kind === "skip") {
       setActiveSet(null);
       skipRest(action.restEndAt);
-      return;
-    }
-    if (action.kind === "update-set") {
-      applySetUpdateFromNativeRestAction(action);
       return;
     }
     if (action.kind === "start") {
@@ -1243,11 +1228,15 @@ export default function WorkoutScreen() {
     );
     setRest(getRemainingRestSeconds(action.restEndAt));
   }, [
-    applySetUpdateFromNativeRestAction,
     finishExerciseFromNativeRestAction,
     skipRest,
     startNextSetFromNativeRestAction,
   ]);
+
+  const syncActiveWorkoutWidgetAction = useCallback(() => {
+    const action = consumeActiveWorkoutWidgetAction();
+    if (action) setPendingWidgetAction(action);
+  }, []);
 
   useEffect(() => {
     const timer = setInterval(
@@ -1299,17 +1288,25 @@ export default function WorkoutScreen() {
     if (!restEndAt) return;
     const synchronize = () => {
       syncNativeRestTimerAction();
+      syncActiveWorkoutWidgetAction();
       syncRestTimer();
     };
     synchronize();
     const timer = setInterval(synchronize, 300);
     return () => clearInterval(timer);
-  }, [restEndAt, syncNativeRestTimerAction, syncRestTimer]);
+  }, [
+    restEndAt,
+    syncActiveWorkoutWidgetAction,
+    syncNativeRestTimerAction,
+    syncRestTimer,
+  ]);
 
   useEffect(() => {
+    syncActiveWorkoutWidgetAction();
     const subscription = AppState.addEventListener("change", (status) => {
       if (status === "active") {
         syncNativeRestTimerAction();
+        syncActiveWorkoutWidgetAction();
         clearRestLockScreenNotification();
         syncRestTimer();
       } else if (restEndRef.current) {
@@ -1320,6 +1317,7 @@ export default function WorkoutScreen() {
   }, [
     clearRestLockScreenNotification,
     showRestLockScreenNotification,
+    syncActiveWorkoutWidgetAction,
     syncNativeRestTimerAction,
     syncRestTimer,
   ]);
@@ -1885,18 +1883,22 @@ export default function WorkoutScreen() {
     setFocusedSetIndex(null);
     setFocusedSubsetIndex(null);
   };
-  const startRestAfterSetInput = (setIndex: number) => {
+  const startRestAfterSetInput = (setIndex: number, sourceDraft = draft) => {
     if (!activeId || !activePlan) return;
-    const set = draft[setIndex];
+    const set = sourceDraft[setIndex];
     if (!set || !setParts(set, activeIsTimed).length) return;
     const key = `${activeId}:${setIndex}`;
     const signature = JSON.stringify(set);
     if (restedSetSignatures.current[key] === signature) return;
     restedSetSignatures.current[key] = signature;
-    const isLastSet = setIndex === draft.length - 1;
-    const nextSet = draft[setIndex + 1];
+    const isLastSet = setIndex === sourceDraft.length - 1;
+    const nextSet = sourceDraft[setIndex + 1];
+    const programRestBlock =
+      isLastSet && program
+        ? getProgramRestBlockAfterExercise(program, activeId)
+        : undefined;
     startRestTimer(
-      activePlan.rest ?? 90,
+      programRestBlock?.durationSeconds ?? activePlan.rest ?? 90,
       isLastSet
         ? { kind: "finish-exercise", exerciseId: activeId }
         : {
@@ -1906,6 +1908,9 @@ export default function WorkoutScreen() {
             weight: activeIsTimed ? undefined : nextSet?.weight,
             reps: activeIsTimed ? undefined : nextSet?.reps,
           },
+      programRestBlock
+        ? "Переход к следующему упражнению — после сигнала"
+        : undefined,
     );
   };
   const finishFocusedSet = () => {
@@ -1950,6 +1955,78 @@ export default function WorkoutScreen() {
     }
     closeSetEditor();
   };
+  const finishSetFromWidget = (setIndex: number) => {
+    if (
+      !activeId ||
+      !activePlan ||
+      activeSet?.exerciseId !== activeId ||
+      activeSet.setIndex !== setIndex
+    )
+      return;
+    const sourceSet = draft[setIndex];
+    if (!sourceSet) return;
+    const completedDraft = draft.map((set, index) =>
+      index === setIndex
+        ? {
+            ...set,
+            reps: set.reps.trim() || String(activePlan.reps),
+            weight: activeIsTimed
+              ? set.weight
+              : set.weight.trim() || String(activePlan.weight),
+          }
+        : set,
+    );
+    const completedSet = completedDraft[setIndex];
+    if (!completedSet || !setParts(completedSet, activeIsTimed).length) return;
+    const finishedAt = Date.now();
+    const timingKey = setTimingKey(activeId, setIndex);
+    setDraft(completedDraft);
+    setSetsByExercise((current) => ({ ...current, [activeId]: completedDraft }));
+    setSetTimings((current) => ({
+      ...current,
+      [timingKey]: {
+        startedAt: activeSet.startedAt,
+        finishedAt,
+        activeSeconds: Math.max(
+          0,
+          Math.round((finishedAt - activeSet.startedAt) / 1000),
+        ),
+      },
+    }));
+    setActiveSet(null);
+    startRestAfterSetInput(setIndex, completedDraft);
+    if (Platform.OS !== "web")
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(
+        () => undefined,
+      );
+  };
+  useEffect(() => {
+    const action = pendingWidgetAction;
+    if (!action) return;
+    setPendingWidgetAction(null);
+    if (action.kind === "extend-rest") {
+      extendRestTimer();
+      return;
+    }
+    if (action.kind === "skip-rest") {
+      skipRest();
+      return;
+    }
+    if (!activeId || !activePlan || action.exerciseId !== activeId) return;
+    if (action.kind === "start-set" && Number.isInteger(action.setIndex)) {
+      startSet(action.setIndex!);
+      return;
+    }
+    if (action.kind === "finish-set" && Number.isInteger(action.setIndex))
+      finishSetFromWidget(action.setIndex!);
+  }, [
+    activeId,
+    activePlan,
+    extendRestTimer,
+    finishSetFromWidget,
+    pendingWidgetAction,
+    skipRest,
+  ]);
   const focusedSet =
     focusedSetIndex === null ? undefined : draft[focusedSetIndex];
   const focusedPart =
@@ -2425,6 +2502,49 @@ export default function WorkoutScreen() {
       ? Math.max(0, Math.floor((Date.now() - restStartedAt) / 1000))
       : 0);
 
+  const widgetNextSetIndex =
+    activeSet?.exerciseId === activeId
+      ? activeSet.setIndex
+      : activeId
+        ? draft.findIndex(
+            (_set, index) => !setTimings[setTimingKey(activeId, index)],
+          )
+        : -1;
+  const widgetCompletedSets = activeId
+    ? draft.filter(
+        (_set, index) => Boolean(setTimings[setTimingKey(activeId, index)]),
+      ).length
+    : 0;
+  useEffect(() => {
+    const widgetExercise = activeId
+      ? getExercise(actualExerciseId(activeId))
+      : undefined;
+    updateActiveWorkoutWidget({
+      active: true,
+      programName: program.name,
+      exerciseName: widgetExercise?.name ?? "Выберите упражнение в приложении",
+      completedSets: widgetCompletedSets,
+      totalSets: draft.length || activePlan?.sets || 0,
+      exerciseId: activeId ?? "",
+      setIndex: widgetNextSetIndex,
+      activeSet: Boolean(activeSet && activeSet.exerciseId === activeId),
+      restEndAt,
+      openUrl: Linking.createURL("/workout", {
+        queryParams: { programId: program.id },
+      }),
+    });
+  }, [
+    activeId,
+    activePlan,
+    activeSet,
+    draft.length,
+    program.name,
+    restEndAt,
+    setTimings,
+    widgetCompletedSets,
+    widgetNextSetIndex,
+  ]);
+
   return (
     <ScreenContainer
       edges={["top", "left", "right", "bottom"]}
@@ -2750,6 +2870,7 @@ export default function WorkoutScreen() {
           totalRest={restTotal}
           onAddTime={extendRestTimer}
           onSkip={skipRest}
+          message={restMessage}
           soundEnabled={restTimerSoundEnabled}
           soundVolume={restTimerCompletionVolume}
           vibrationEnabled={restTimerVibrationEnabled}
@@ -3779,6 +3900,7 @@ export default function WorkoutScreen() {
             totalRest={restTotal}
             onAddTime={extendRestTimer}
             onSkip={skipRest}
+            message={restMessage}
             soundEnabled={restTimerSoundEnabled}
             soundVolume={restTimerCompletionVolume}
             vibrationEnabled={restTimerVibrationEnabled}

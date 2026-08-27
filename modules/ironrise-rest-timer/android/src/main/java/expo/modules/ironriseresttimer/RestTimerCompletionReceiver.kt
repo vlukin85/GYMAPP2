@@ -35,7 +35,7 @@ class RestTimerCompletionReceiver : BroadcastReceiver() {
     val soundUri = completionSoundUri(context, completionSound)
     val channelId = ensureCompletionChannel(context, completionSound, completionVibrationEnabled, completionVibrationPattern, soundUri)
     val builder = NotificationCompat.Builder(context, channelId)
-      .setSmallIcon(context.applicationInfo.icon)
+      .setSmallIcon(R.drawable.ironrise_notification)
       .setContentTitle("Отдых завершён")
       .setContentText((if (finishExercise) "Последний подход завершён." else "Время следующего подхода.") + nextSetSummary(nextSetIndex, nextSetWeight, nextSetReps))
       .setAutoCancel(true)
@@ -48,11 +48,6 @@ class RestTimerCompletionReceiver : BroadcastReceiver() {
       primaryActionLabel,
       restActionPendingIntent(context, ACTION_START, System.currentTimeMillis(), "", 0, 0, START_REQUEST_CODE, completionSound, completionVolume, completionVibrationEnabled, completionVibrationPattern, nextActionKind, exerciseId, nextSetIndex, nextSetWeight, nextSetReps)
     )
-    if (!finishExercise && nextSetIndex >= 0) {
-      builder.addAction(
-        buildEditSetAction(context, restEndAt, "", 0, 0, completionSound, completionVolume, completionVibrationEnabled, completionVibrationPattern, nextActionKind, exerciseId, nextSetIndex, nextSetWeight, nextSetReps)
-      )
-    }
     builder.addAction(
       android.R.drawable.ic_input_add,
       "+30 секунд",

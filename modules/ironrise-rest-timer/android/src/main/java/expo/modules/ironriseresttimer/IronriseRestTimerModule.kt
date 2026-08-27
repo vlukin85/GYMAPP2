@@ -11,7 +11,6 @@ import android.os.Build
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
-import androidx.core.app.RemoteInput
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
 
@@ -22,12 +21,9 @@ internal const val ALARM_REQUEST_CODE = 40103
 internal const val SKIP_REQUEST_CODE = 40104
 internal const val EXTEND_REQUEST_CODE = 40105
 internal const val START_REQUEST_CODE = 40106
-internal const val EDIT_SET_REQUEST_CODE = 40107
 internal const val ACTION_SKIP = "expo.modules.ironriseresttimer.SKIP"
 internal const val ACTION_EXTEND = "expo.modules.ironriseresttimer.EXTEND"
 internal const val ACTION_START = "expo.modules.ironriseresttimer.START"
-internal const val ACTION_EDIT_SET = "expo.modules.ironriseresttimer.EDIT_SET"
-internal const val REMOTE_INPUT_SET_VALUES = "expo.modules.ironriseresttimer.SET_VALUES"
 internal const val EXTRA_REST_END_AT = "restEndAt"
 internal const val EXTRA_TARGET_LABEL = "targetLabel"
 internal const val EXTRA_TARGET_FROM = "targetFrom"
@@ -77,6 +73,14 @@ class IronriseRestTimerModule : Module() {
       clearCountdownNotification(context)
     }
 
+    Function("updateActiveWorkoutWidget") { payload: Map<String, Any?> ->
+      updateActiveWorkoutWidget(context, payload)
+    }
+
+    Function("consumeActiveWorkoutWidgetAction") {
+      consumeActiveWorkoutWidgetAction(context)
+    }
+
     Function("consumePendingAction") {
       consumePendingAction(context)
     }
@@ -123,7 +127,7 @@ internal fun showCountdownNotification(
   } + nextSetSummary(nextSetIndex, nextSetWeight, nextSetReps)
 
   val builder = NotificationCompat.Builder(context, COUNTDOWN_CHANNEL)
-    .setSmallIcon(context.applicationInfo.icon)
+    .setSmallIcon(R.drawable.ironrise_notification)
     .setContentTitle("Отдых между подходами")
     .setContentText(content)
     .setWhen(restEndAt)
@@ -144,17 +148,11 @@ internal fun showCountdownNotification(
     "Пропустить",
     restActionPendingIntent(context, ACTION_SKIP, restEndAt, targetLabel, targetFromBpm, targetToBpm, SKIP_REQUEST_CODE, completionSound, completionVolume, completionVibrationEnabled, completionVibrationPattern, nextActionKind, exerciseId, nextSetIndex, nextSetWeight, nextSetReps)
   )
-  if (!finishExercise && nextSetIndex >= 0) {
-    builder.addAction(
-      buildEditSetAction(context, restEndAt, targetLabel, targetFromBpm, targetToBpm, completionSound, completionVolume, completionVibrationEnabled, completionVibrationPattern, nextActionKind, exerciseId, nextSetIndex, nextSetWeight, nextSetReps)
-    )
-  } else {
-    builder.addAction(
-      android.R.drawable.ic_input_add,
-      "+30 секунд",
-      restActionPendingIntent(context, ACTION_EXTEND, restEndAt, targetLabel, targetFromBpm, targetToBpm, EXTEND_REQUEST_CODE, completionSound, completionVolume, completionVibrationEnabled, completionVibrationPattern, nextActionKind, exerciseId, nextSetIndex, nextSetWeight, nextSetReps)
-    )
-  }
+  builder.addAction(
+    android.R.drawable.ic_input_add,
+    "+30 секунд",
+    restActionPendingIntent(context, ACTION_EXTEND, restEndAt, targetLabel, targetFromBpm, targetToBpm, EXTEND_REQUEST_CODE, completionSound, completionVolume, completionVibrationEnabled, completionVibrationPattern, nextActionKind, exerciseId, nextSetIndex, nextSetWeight, nextSetReps)
+  )
   builder.addAction(
     primaryActionIcon,
     primaryActionLabel,
@@ -162,32 +160,6 @@ internal fun showCountdownNotification(
   )
   NotificationManagerCompat.from(context).notify(COUNTDOWN_NOTIFICATION_ID, builder.build())
   scheduleCompletionAlarm(context, restEndAt, completionSound, completionVolume, completionVibrationEnabled, completionVibrationPattern, nextActionKind, exerciseId, nextSetIndex, nextSetWeight, nextSetReps)
-}
-
-internal fun buildEditSetAction(
-  context: Context,
-  restEndAt: Long,
-  targetLabel: String,
-  targetFromBpm: Int,
-  targetToBpm: Int,
-  completionSound: String,
-  completionVolume: Float,
-  completionVibrationEnabled: Boolean,
-  completionVibrationPattern: String,
-  nextActionKind: String,
-  exerciseId: String,
-  nextSetIndex: Int,
-  nextSetWeight: String,
-  nextSetReps: String
-): NotificationCompat.Action {
-  val remoteInput = RemoteInput.Builder(REMOTE_INPUT_SET_VALUES)
-    .setLabel("Вес × повторы, например 80 × 10")
-    .build()
-  return NotificationCompat.Action.Builder(
-    android.R.drawable.ic_menu_edit,
-    "Вес × повторы",
-    restActionPendingIntent(context, ACTION_EDIT_SET, restEndAt, targetLabel, targetFromBpm, targetToBpm, EDIT_SET_REQUEST_CODE, completionSound, completionVolume, completionVibrationEnabled, completionVibrationPattern, nextActionKind, exerciseId, nextSetIndex, nextSetWeight, nextSetReps, allowRemoteInput = true)
-  ).addRemoteInput(remoteInput).build()
 }
 
 internal fun nextSetSummary(nextSetIndex: Int, weight: String, reps: String): String =
@@ -228,8 +200,7 @@ internal fun restActionPendingIntent(
   exerciseId: String = "",
   nextSetIndex: Int = -1,
   nextSetWeight: String = "",
-  nextSetReps: String = "",
-  allowRemoteInput: Boolean = false
+  nextSetReps: String = ""
 ): PendingIntent {
   val intent = Intent(context, RestTimerActionReceiver::class.java).apply {
     this.action = action
@@ -248,9 +219,7 @@ internal fun restActionPendingIntent(
     putExtra(EXTRA_NEXT_SET_REPS, nextSetReps)
   }
   val mutabilityFlag =
-    if (allowRemoteInput && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) PendingIntent.FLAG_MUTABLE
-    else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) PendingIntent.FLAG_IMMUTABLE
-    else 0
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) PendingIntent.FLAG_IMMUTABLE else 0
   return PendingIntent.getBroadcast(context, requestCode, intent, PendingIntent.FLAG_UPDATE_CURRENT or mutabilityFlag)
 }
 

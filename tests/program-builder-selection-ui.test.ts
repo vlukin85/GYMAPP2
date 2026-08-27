@@ -12,7 +12,8 @@ describe("program builder selected exercises", () => {
     expect(screen).toContain("В ПРОГРАММЕ · {selectedExercises.length}");
     expect(screen).toContain("!selectedIds.has(exercise.id)");
     expect(screen).toContain("Добавить из каталога");
-    expect(screen).toContain("current.filter((id) => id !== exercise.id)");
+    expect(screen).toContain("removeExerciseFromProgram(exercise.id)");
+    expect(screen).toContain("current.filter((id) => id !== exerciseId)");
   });
 
   it("starts a brand-new program without selected exercises while preserving route and edit selections", () => {

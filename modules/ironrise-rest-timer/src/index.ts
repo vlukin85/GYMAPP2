@@ -5,8 +5,10 @@ type IronriseRestTimerNativeModule = {
   showCountdown(payload: NativeRestCountdownPayload): void;
   previewCompletionSound(completionSound: string): void;
   clearCountdown(): void;
+  updateActiveWorkoutWidget(payload: ActiveWorkoutWidgetPayload): void;
+  consumeActiveWorkoutWidgetAction(): ActiveWorkoutWidgetAction | null;
   consumePendingAction(): {
-    kind: "skip" | "extend" | "start" | "finish-exercise" | "update-set";
+    kind: "skip" | "extend" | "start" | "finish-exercise";
     restEndAt: number;
     exerciseId?: string;
     setIndex?: number;
@@ -15,8 +17,28 @@ type IronriseRestTimerNativeModule = {
   } | null;
 };
 
+export type ActiveWorkoutWidgetAction = {
+  kind: "start-set" | "finish-set" | "extend-rest" | "skip-rest" | "open";
+  exerciseId?: string;
+  setIndex?: number;
+  restEndAt?: number;
+};
+
+export type ActiveWorkoutWidgetPayload = {
+  active: boolean;
+  programName: string;
+  exerciseName: string;
+  completedSets: number;
+  totalSets: number;
+  exerciseId: string;
+  setIndex: number;
+  activeSet: boolean;
+  restEndAt?: number | null;
+  openUrl: string;
+};
+
 export type NativeRestTimerAction = {
-  kind: "skip" | "extend" | "start" | "finish-exercise" | "update-set";
+  kind: "skip" | "extend" | "start" | "finish-exercise";
   restEndAt: number;
   exerciseId?: string;
   setIndex?: number;
@@ -100,6 +122,18 @@ export function clearNativeRestCountdown() {
   if (!module) return false;
   module.clearCountdown();
   return true;
+}
+
+export function updateActiveWorkoutWidget(payload: ActiveWorkoutWidgetPayload) {
+  const module = getModule();
+  if (!module) return false;
+  module.updateActiveWorkoutWidget(payload);
+  return true;
+}
+
+export function consumeActiveWorkoutWidgetAction(): ActiveWorkoutWidgetAction | null {
+  const module = getModule();
+  return module?.consumeActiveWorkoutWidgetAction() ?? null;
 }
 
 export function previewNativeRestCompletionSound(

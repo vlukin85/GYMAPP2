@@ -1,4 +1,4 @@
-import { exercises, type ProgramExercise, type WorkoutProgram } from "./workout-data";
+import { exercises, normalizeProgramRestBlocks, type ProgramExercise, type WorkoutProgram } from "./workout-data";
 
 export type ProgramExchangeFile = {
   format: "gym-training-diary.programs";
@@ -35,6 +35,10 @@ function normalizeProgram(value: unknown, validExerciseIds: Set<string>): Workou
     name: program.name.trim().slice(0, 60),
     description: program.description.trim().slice(0, 260),
     exercises: exercisesValue as ProgramExercise[],
+    restBlocks: normalizeProgramRestBlocks(
+      program.restBlocks,
+      (exercisesValue as ProgramExercise[]).map((exercise) => exercise.exerciseId),
+    ),
     coverImage: typeof program.coverImage === "string" ? program.coverImage : undefined,
     createdAt: typeof program.createdAt === "string" ? program.createdAt : new Date().toISOString(),
   };

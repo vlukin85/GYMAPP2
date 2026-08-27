@@ -3,7 +3,7 @@ import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 
 import { router, useLocalSearchParams } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
-import { exercises, muscleGroups, type MuscleGroup, type ProgramExercise, type SetType } from "@/lib/workout-data";
+import { DEFAULT_PROGRAM_REST_BLOCK_SECONDS, MAX_PROGRAM_REST_BLOCK_SECONDS, MIN_PROGRAM_REST_BLOCK_SECONDS, exercises, muscleGroups, normalizeProgramRestBlocks, type MuscleGroup, type ProgramExercise, type ProgramRestBlock, type SetType } from "@/lib/workout-data";
 import { useWorkoutStore } from "@/lib/workout-store";
 import { useColors } from "@/hooks/use-colors";
 
@@ -30,6 +30,7 @@ export default function NewProgramScreen() {
   const [rest, setRest] = useState("90");
   const [setType, setSetType] = useState<SetType>("working");
   const [supersetEnabled, setSupersetEnabled] = useState(false);
+  const [restBlocks, setRestBlocks] = useState<ProgramRestBlock[]>(() => normalizeProgramRestBlocks(editingProgram?.restBlocks, initialSelected));
 
   const catalog = useMemo(() => [...exercises, ...customExercises], [customExercises]);
   const selectedIds = useMemo(() => new Set(selected), [selected]);
@@ -38,6 +39,7 @@ export default function NewProgramScreen() {
     const exercise = catalog.find((item) => item.id === id);
     return exercise ? [exercise] : [];
   }), [catalog, selected]);
+  const restBlockByExerciseId = useMemo(() => new Map(restBlocks.map((block) => [block.afterExerciseId, block])), [restBlocks]);
   const matchingExercises = useMemo(() => {
     const query = search.trim().toLocaleLowerCase("ru");
     return catalog.filter((exercise) => {
@@ -64,10 +66,25 @@ export default function NewProgramScreen() {
         supersetGroup: supersetEnabled && index < 2 ? "A" : undefined,
       };
     });
-    const description = `${selected.length} упражнения · ${supersetEnabled ? "1 суперсет · " : ""}собственный план`;
-    if (editingProgram) updateProgram(editingProgram.id, { name, description, exercises: items });
-    else addProgram({ id: `custom-${Date.now()}`, name, description, exercises: items });
+    const savedRestBlocks = normalizeProgramRestBlocks(restBlocks, selected).filter((block) => block.afterExerciseId !== selected[selected.length - 1]);
+    const description = `${selected.length} упражнения · ${savedRestBlocks.length ? `${savedRestBlocks.length} блока отдыха · ` : ""}${supersetEnabled ? "1 суперсет · " : ""}собственный план`;
+    if (editingProgram) updateProgram(editingProgram.id, { name, description, exercises: items, restBlocks: savedRestBlocks });
+    else addProgram({ id: `custom-${Date.now()}`, name, description, exercises: items, restBlocks: savedRestBlocks });
     router.replace("/(tabs)/programs");
+  };
+
+  const removeExerciseFromProgram = (exerciseId: string) => {
+    setSelected((current) => current.filter((id) => id !== exerciseId));
+    setRestBlocks((current) => current.filter((block) => block.afterExerciseId !== exerciseId));
+  };
+  const addRestBlock = (exerciseId: string) => {
+    setRestBlocks((current) => current.some((block) => block.afterExerciseId === exerciseId) ? current : [...current, { id: `rest-${exerciseId}-${Date.now()}`, afterExerciseId: exerciseId, durationSeconds: DEFAULT_PROGRAM_REST_BLOCK_SECONDS }]);
+  };
+  const updateRestBlockDuration = (exerciseId: string, value: string) => {
+    const parsed = Number(value.replace(",", "."));
+    if (!Number.isFinite(parsed)) return;
+    const durationSeconds = Math.max(MIN_PROGRAM_REST_BLOCK_SECONDS, Math.min(MAX_PROGRAM_REST_BLOCK_SECONDS, Math.round(parsed)));
+    setRestBlocks((current) => current.map((block) => block.afterExerciseId === exerciseId ? { ...block, durationSeconds } : block));
   };
 
   return (
@@ -95,20 +112,28 @@ export default function NewProgramScreen() {
               </View>
               <View style={[styles.selectedCount, { backgroundColor: colors.primary }]}><Text style={styles.selectedCountText}>{selectedExercises.length}</Text></View>
             </View>
-            {selectedExercises.map((exercise, index) => (
-              <Pressable
-                key={exercise.id}
-                onPress={() => setSelected((current) => current.filter((id) => id !== exercise.id))}
-                style={({ pressed }) => [styles.selectedExercise, { backgroundColor: colors.background, borderColor: `${colors.primary}38`, opacity: pressed ? 0.72 : 1 }]}
-              >
-                <View style={[styles.order, { backgroundColor: colors.primary }]}><Text style={styles.orderText}>{index + 1}</Text></View>
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.exerciseName, { color: colors.foreground }]}>{exercise.name}{supersetEnabled && index < 2 ? " · SS A" : ""}</Text>
-                  <Text style={[styles.exerciseGroup, { color: colors.muted }]}>{exercise.group} · {exercise.equipment}{customExerciseIds.has(exercise.id) ? " · Моё" : ""}</Text>
-                </View>
-                <Text style={[styles.removeText, { color: colors.error }]}>Убрать</Text>
-              </Pressable>
-            ))}
+            {selectedExercises.map((exercise, index) => {
+              const restBlock = restBlockByExerciseId.get(exercise.id);
+              const canAddRestAfter = index < selectedExercises.length - 1;
+              return <View key={exercise.id} style={styles.programSequenceItem}>
+                <Pressable
+                  onPress={() => removeExerciseFromProgram(exercise.id)}
+                  style={({ pressed }) => [styles.selectedExercise, { backgroundColor: colors.background, borderColor: `${colors.primary}38`, opacity: pressed ? 0.72 : 1 }]}
+                >
+                  <View style={[styles.order, { backgroundColor: colors.primary }]}><Text style={styles.orderText}>{index + 1}</Text></View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.exerciseName, { color: colors.foreground }]}>{exercise.name}{supersetEnabled && index < 2 ? " · SS A" : ""}</Text>
+                    <Text style={[styles.exerciseGroup, { color: colors.muted }]}>{exercise.group} · {exercise.equipment}{customExerciseIds.has(exercise.id) ? " · Моё" : ""}</Text>
+                  </View>
+                  <Text style={[styles.removeText, { color: colors.error }]}>Убрать</Text>
+                </Pressable>
+                {canAddRestAfter && (restBlock ? <View style={[styles.restBlock, { backgroundColor: colors.surface, borderColor: `${colors.primary}66` }]}>
+                  <View style={styles.restBlockCopy}><Text style={[styles.restBlockTitle, { color: colors.foreground }]}>Блок отдыха</Text><Text style={[styles.restBlockHint, { color: colors.muted }]}>Автоматически после последнего подхода</Text></View>
+                  <TextInput value={String(restBlock.durationSeconds)} onChangeText={(value) => updateRestBlockDuration(exercise.id, value)} keyboardType="number-pad" returnKeyType="done" style={[styles.restBlockInput, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.background }]} /><Text style={[styles.restBlockUnit, { color: colors.muted }]}>сек</Text>
+                  <Pressable onPress={() => setRestBlocks((current) => current.filter((block) => block.id !== restBlock.id))} hitSlop={8}><Text style={[styles.restBlockRemove, { color: colors.error }]}>×</Text></Pressable>
+                </View> : <Pressable onPress={() => addRestBlock(exercise.id)} style={[styles.addRestBlock, { borderColor: colors.border }]}><Text style={[styles.addRestBlockText, { color: colors.primary }]}>＋ Добавить блок отдыха</Text></Pressable>)}
+              </View>;
+            })}
           </View>
         )}
 
@@ -192,12 +217,22 @@ const styles = StyleSheet.create({
   nameInput: { height: 51, borderRadius: 14, paddingHorizontal: 14, fontSize: 15, fontWeight: "700" },
   section: { fontSize: 19, fontWeight: "800", marginTop: 8 },
   selectedPanel: { borderWidth: 1, borderRadius: 18, padding: 11, gap: 8 },
+  programSequenceItem: { gap: 7 },
   selectedPanelHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10, paddingHorizontal: 2, paddingBottom: 2 },
   selectedEyebrow: { fontSize: 10, fontWeight: "900", letterSpacing: 0.7 },
   selectedHint: { fontSize: 10, lineHeight: 14, marginTop: 3 },
   selectedCount: { width: 28, height: 28, borderRadius: 14, alignItems: "center", justifyContent: "center" },
   selectedCountText: { color: "#101412", fontSize: 12, fontWeight: "900" },
   selectedExercise: { minHeight: 58, borderRadius: 13, borderWidth: 1, paddingHorizontal: 10, paddingVertical: 9, flexDirection: "row", alignItems: "center", gap: 9 },
+  addRestBlock: { minHeight: 36, borderRadius: 11, borderWidth: 1, borderStyle: "dashed", justifyContent: "center", alignItems: "center" },
+  addRestBlockText: { fontSize: 11, fontWeight: "900" },
+  restBlock: { minHeight: 58, borderRadius: 13, borderWidth: 1, paddingHorizontal: 10, flexDirection: "row", alignItems: "center", gap: 8 },
+  restBlockCopy: { flex: 1 },
+  restBlockTitle: { fontSize: 12, fontWeight: "900" },
+  restBlockHint: { fontSize: 9, marginTop: 3 },
+  restBlockInput: { width: 54, height: 34, borderRadius: 9, borderWidth: 1, textAlign: "center", fontSize: 13, fontWeight: "900", paddingHorizontal: 4 },
+  restBlockUnit: { fontSize: 10, fontWeight: "800" },
+  restBlockRemove: { fontSize: 24, lineHeight: 28, fontWeight: "400" },
   order: { width: 25, height: 25, borderRadius: 8, alignItems: "center", justifyContent: "center" },
   orderText: { color: "#101412", fontSize: 11, fontWeight: "900" },
   removeText: { fontSize: 10, fontWeight: "900" },

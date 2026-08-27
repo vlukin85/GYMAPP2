@@ -8,5 +8,17 @@
     <receiver
       android:name=".RestTimerActionReceiver"
       android:exported="false" />
+    <receiver
+      android:name=".ActiveWorkoutWidgetProvider"
+      android:exported="true"
+      android:label="IronRise · Активная тренировка"
+      android:permission="android.permission.BIND_APPWIDGET">
+      <intent-filter>
+        <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+      </intent-filter>
+      <meta-data
+        android:name="android.appwidget.provider"
+        android:resource="@xml/ironrise_active_workout_widget_info" />
+    </receiver>
   </application>
 </manifest>
