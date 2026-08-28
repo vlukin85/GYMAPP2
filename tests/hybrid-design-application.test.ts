@@ -68,13 +68,16 @@ describe("IronRise editorial reference design", () => {
     );
   });
 
-  it("provides a dedicated two-style Editorial and Orchid selector in settings", () => {
+  it("provides an explicit light and dark mode selector in settings", () => {
     expect(settings).toContain(
-      "const primaryThemeChoices = APP_COLOR_THEMES.filter",
+      "const themeModeChoices = APP_COLOR_THEMES.filter",
     );
     expect(settings).toContain(
-      'theme.id === "editorial" || theme.id === "orchid"',
+      'theme.id === "editorial" || theme.id === "midnight"',
     );
-    expect(settings).toContain("Editorial или Orchid Voltage");
+    expect(settings).toContain("Светлая или тёмная тема");
+    expect(settings).toContain("СВЕТЛАЯ");
+    expect(settings).toContain("ТЁМНАЯ");
+    expect(themeProvider).toContain("APP_THEME_STORAGE_KEY");
   });
 });

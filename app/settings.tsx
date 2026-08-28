@@ -239,8 +239,8 @@ function CompletionVolumeSlider({
     </View>
   );
 }
-const primaryThemeChoices = APP_COLOR_THEMES.filter(
-  (theme) => theme.id === "editorial" || theme.id === "orchid",
+const themeModeChoices = APP_COLOR_THEMES.filter(
+  (theme) => theme.id === "editorial" || theme.id === "midnight",
 );
 
 function triggerTabDragHaptic(phase: "start" | "move") {
@@ -1169,14 +1169,14 @@ export default function SettingsScreen() {
             ]}
           >
             <Text style={[styles.iconThemeTitle, { color: colors.foreground }]}>
-              Editorial или Orchid Voltage
+              Светлая или тёмная тема
             </Text>
             <Text style={[styles.iconThemeHint, { color: colors.muted }]}>
-              Переключайте основной визуальный характер приложения одним
-              нажатием. Выбор сохранится на устройстве.
+              Выберите режим оформления приложения. Выбор сохранится на устройстве
+              и применится ко всем экранам.
             </Text>
             <View style={styles.appThemeGrid}>
-              {primaryThemeChoices.map((theme) => {
+              {themeModeChoices.map((theme) => {
                 const selected = theme.id === appThemeId;
                 return (
                   <Pressable
@@ -1214,9 +1214,7 @@ export default function SettingsScreen() {
                           },
                         ]}
                       >
-                        {theme.id === "editorial"
-                          ? "EDITORIAL"
-                          : "ORCHID VOLTAGE"}
+                        {theme.id === "editorial" ? "СВЕТЛАЯ" : "ТЁМНАЯ"}
                       </Text>
                       <Text
                         style={[
@@ -1229,8 +1227,8 @@ export default function SettingsScreen() {
                         ]}
                       >
                         {theme.id === "editorial"
-                          ? "Строгая редакционная сетка"
-                          : "Мягкие фиолетовые поверхности"}
+                          ? "Кремовый фон и контрастный текст"
+                          : "Графитовый фон и мягкий свет"}
                       </Text>
                     </View>
                     {selected && (
