@@ -17,22 +17,22 @@ const settings = readFileSync(
 );
 
 describe("native launch splash", () => {
-  it("configures Expo native splash with the bundled IronRise icon", () => {
+  it("configures Expo native splash with the bundled bodybuilder asset", () => {
     expect(appConfig).toContain('"expo-splash-screen"');
     expect(appConfig).toContain('image: "./assets/images/splash-icon.png"');
     expect(appConfig).toContain("backgroundColor");
+    expect(launchSplash).toContain('require("@/assets/images/splash-icon.png")');
   });
 
-  it("lets Android auto-hide the native splash and keeps the branded bodybuilder screen as a web-only visual", () => {
-    expect(rootLayout).not.toContain("preventAutoHideAsync");
-    expect(rootLayout).toContain('Platform.OS === "web",');
-    expect(rootLayout).toContain('if (Platform.OS !== "web") return;');
+  it("shows the branded bodybuilder overlay on Android and web", () => {
+    expect(rootLayout).toContain(
+      'const [showLaunchSplash, setShowLaunchSplash] = useState(true);',
+    );
+    expect(rootLayout).toContain("void loadLaunchSplashDuration()");
     expect(rootLayout).toContain("launchSplashTimer");
     expect(rootLayout).toContain("launchSplashDuration");
-    expect(launchSplash).toContain(
-      "user_upload_by_module/session_file/310519663890171987",
-    );
-    expect(launchSplash).toContain("files.manuscdn.com");
+    expect(launchSplash).toContain('resizeMode="contain"');
+    expect(launchSplash).not.toContain("files.manuscdn.com");
   });
 
   it("сохраняет выбранную длительность фирменной заставки в настройках", () => {

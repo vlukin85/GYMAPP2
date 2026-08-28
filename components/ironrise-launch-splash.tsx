@@ -1,8 +1,6 @@
 import { Image, StyleSheet, Text, View } from "react-native";
 
-const IRONRISE_SPLASH_ART = {
-  uri: "https://files.manuscdn.com/user_upload_by_module/session_file/310519663890171987/TcMPDzXeAGxQKUhl.png",
-};
+const IRONRISE_SPLASH_ART = require("@/assets/images/splash-icon.png");
 
 export function IronRiseLaunchSplash({ visible }: { visible: boolean }) {
   if (!visible) return null;
@@ -14,7 +12,7 @@ export function IronRiseLaunchSplash({ visible }: { visible: boolean }) {
     >
       <Image
         source={IRONRISE_SPLASH_ART}
-        resizeMode="cover"
+        resizeMode="contain"
         style={styles.image}
       />
       <View style={styles.scrim} />
@@ -45,7 +43,7 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     width: "100%",
     height: "100%",
-    opacity: 0.86,
+    opacity: 0.96,
   },
   scrim: { ...StyleSheet.absoluteFillObject, backgroundColor: "#160E2478" },
   wordmark: { alignItems: "center", marginTop: 4 },

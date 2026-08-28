@@ -61,22 +61,18 @@ export default function RootLayout() {
 
   const [insets, setInsets] = useState<EdgeInsets>(initialInsets);
   const [frame, setFrame] = useState<Rect>(initialFrame);
-  const [showLaunchSplash, setShowLaunchSplash] = useState(
-    Platform.OS === "web",
-  );
+  const [showLaunchSplash, setShowLaunchSplash] = useState(true);
   const [launchSplashDuration, setLaunchSplashDuration] = useState(
     DEFAULT_LAUNCH_SPLASH_DURATION_MS,
   );
 
   useEffect(() => {
-    if (Platform.OS !== "web") return;
     void loadLaunchSplashDuration()
       .then(setLaunchSplashDuration)
       .catch(() => undefined);
   }, []);
 
   useEffect(() => {
-    if (Platform.OS !== "web") return;
     const launchSplashTimer = setTimeout(() => {
       setShowLaunchSplash(false);
     }, launchSplashDuration);
