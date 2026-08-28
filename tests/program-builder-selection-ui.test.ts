@@ -13,6 +13,11 @@ describe("program builder selected exercises", () => {
     expect(screen).toContain("!selectedIds.has(exercise.id)");
     expect(screen).toContain("Добавить из каталога");
     expect(screen).toContain("removeExerciseFromProgram(exercise.id)");
+    expect(screen).toContain("Параметры упражнений");
+    expect(screen).toContain("Сеты");
+    expect(screen).toContain("Повторы");
+    expect(screen).toContain("Отдых, сек");
+    expect(screen).toContain("restBetweenSets");
     expect(screen).toContain("current.filter((id) => id !== exerciseId)");
   });
 

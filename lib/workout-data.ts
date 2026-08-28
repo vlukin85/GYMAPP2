@@ -87,12 +87,25 @@ export function getSetVolumeWithDropSubsets(input: { weightKg: number; reps: num
 import { expandedExercises } from "./catalog-expansion";
 import { getExerciseIllustration } from "./exercise-art";
 
+export const DEFAULT_BETWEEN_SET_REST_SECONDS = 90;
+export const MIN_BETWEEN_SET_REST_SECONDS = 5;
+export const MAX_BETWEEN_SET_REST_SECONDS = 1_800;
+
+export function normalizeBetweenSetRestSeconds(value: unknown): number | undefined {
+  if (typeof value !== "number" || !Number.isFinite(value)) return undefined;
+  return Math.max(
+    MIN_BETWEEN_SET_REST_SECONDS,
+    Math.min(MAX_BETWEEN_SET_REST_SECONDS, Math.round(value)),
+  );
+}
+
 export type ProgramExercise = {
   exerciseId: string;
   sets: number;
   reps: number;
   weight: number;
   rest: number;
+  restBetweenSets?: number;
   setType?: SetType;
   supersetGroup?: string;
 };
@@ -479,6 +492,10 @@ export const defaultPrograms: WorkoutProgram[] = [
 export function mergeStoredPrograms(storedPrograms: WorkoutProgram[] | undefined) {
   const normalizeProgramRestBlocksForStorage = (program: WorkoutProgram): WorkoutProgram => ({
     ...program,
+    exercises: program.exercises.map((exercise) => ({
+      ...exercise,
+      restBetweenSets: normalizeBetweenSetRestSeconds(exercise.restBetweenSets),
+    })),
     restBlocks: normalizeProgramRestBlocks(
       program.restBlocks,
       program.exercises.map((exercise) => exercise.exerciseId),

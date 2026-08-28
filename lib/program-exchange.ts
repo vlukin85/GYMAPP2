@@ -1,4 +1,10 @@
-import { exercises, normalizeProgramRestBlocks, type ProgramExercise, type WorkoutProgram } from "./workout-data";
+import {
+  exercises,
+  normalizeBetweenSetRestSeconds,
+  normalizeProgramRestBlocks,
+  type ProgramExercise,
+  type WorkoutProgram,
+} from "./workout-data";
 
 export type ProgramExchangeFile = {
   format: "gym-training-diary.programs";
@@ -22,7 +28,7 @@ export function buildProgramExchange(programs: WorkoutProgram[], media?: Record<
 function isProgramExercise(value: unknown, validExerciseIds: Set<string>): value is ProgramExercise {
   if (!value || typeof value !== "object") return false;
   const item = value as Record<string, unknown>;
-  return typeof item.exerciseId === "string" && validExerciseIds.has(item.exerciseId) && [item.sets, item.reps, item.weight, item.rest].every((number) => typeof number === "number" && Number.isFinite(number) && number >= 0);
+  return typeof item.exerciseId === "string" && validExerciseIds.has(item.exerciseId) && [item.sets, item.reps, item.weight, item.rest].every((number) => typeof number === "number" && Number.isFinite(number) && number >= 0) && (item.restBetweenSets === undefined || (typeof item.restBetweenSets === "number" && Number.isFinite(item.restBetweenSets) && item.restBetweenSets >= 0));
 }
 
 function normalizeProgram(value: unknown, validExerciseIds: Set<string>): WorkoutProgram | null {
@@ -34,7 +40,10 @@ function normalizeProgram(value: unknown, validExerciseIds: Set<string>): Workou
     id: program.id,
     name: program.name.trim().slice(0, 60),
     description: program.description.trim().slice(0, 260),
-    exercises: exercisesValue as ProgramExercise[],
+    exercises: (exercisesValue as ProgramExercise[]).map((exercise) => ({
+      ...exercise,
+      restBetweenSets: normalizeBetweenSetRestSeconds(exercise.restBetweenSets),
+    })),
     restBlocks: normalizeProgramRestBlocks(
       program.restBlocks,
       (exercisesValue as ProgramExercise[]).map((exercise) => exercise.exerciseId),

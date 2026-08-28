@@ -1897,8 +1897,11 @@ export default function WorkoutScreen() {
       isLastSet && program
         ? getProgramRestBlockAfterExercise(program, activeId)
         : undefined;
+    const betweenSetRestSeconds = !isLastSet
+      ? activePlan.restBetweenSets
+      : undefined;
     startRestTimer(
-      programRestBlock?.durationSeconds ?? activePlan.rest ?? 90,
+      betweenSetRestSeconds ?? programRestBlock?.durationSeconds ?? activePlan.rest ?? 90,
       isLastSet
         ? { kind: "finish-exercise", exerciseId: activeId }
         : {

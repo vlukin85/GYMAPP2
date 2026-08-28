@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   getProgramRestBlockAfterExercise,
+  normalizeBetweenSetRestSeconds,
   normalizeProgramRestBlocks,
   type WorkoutProgram,
 } from "../lib/workout-data";
@@ -34,6 +35,13 @@ describe("блоки отдыха программы", () => {
       { id: "first", afterExerciseId: "squat", durationSeconds: 120 },
       { id: "short", afterExerciseId: "bench-press", durationSeconds: 15 },
     ]);
+  });
+
+  it("нормализует интервал отдыха между подходами и сохраняет отсутствие значения для старых программ", () => {
+    expect(normalizeBetweenSetRestSeconds(90)).toBe(90);
+    expect(normalizeBetweenSetRestSeconds(1)).toBe(5);
+    expect(normalizeBetweenSetRestSeconds(2_000)).toBe(1_800);
+    expect(normalizeBetweenSetRestSeconds(undefined)).toBeUndefined();
   });
 
   it("находит длительность переходного отдыха после завершённого упражнения", () => {
