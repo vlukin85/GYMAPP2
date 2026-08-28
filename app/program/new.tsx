@@ -3,7 +3,7 @@ import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 
 import { router, useLocalSearchParams } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
-import { DEFAULT_BETWEEN_SET_REST_SECONDS, DEFAULT_PROGRAM_REST_BLOCK_SECONDS, MAX_BETWEEN_SET_REST_SECONDS, MAX_PROGRAM_REST_BLOCK_SECONDS, MIN_BETWEEN_SET_REST_SECONDS, MIN_PROGRAM_REST_BLOCK_SECONDS, exercises, muscleGroups, normalizeBetweenSetRestSeconds, normalizeProgramRestBlocks, type MuscleGroup, type ProgramExercise, type ProgramRestBlock, type SetType } from "@/lib/workout-data";
+import { DEFAULT_PROGRAM_REST_BLOCK_SECONDS, MAX_PROGRAM_REST_BLOCK_SECONDS, MIN_PROGRAM_REST_BLOCK_SECONDS, exercises, muscleGroups, normalizeBetweenSetRestSeconds, normalizeProgramRestBlocks, type MuscleGroup, type ProgramExercise, type ProgramRestBlock, type SetType } from "@/lib/workout-data";
 import { useWorkoutStore } from "@/lib/workout-store";
 import { useColors } from "@/hooks/use-colors";
 
@@ -24,20 +24,16 @@ export default function NewProgramScreen() {
   const [selected, setSelected] = useState<string[]>(initialSelected);
   const [search, setSearch] = useState("");
   const [catalogGroup, setCatalogGroup] = useState<MuscleGroup | "Все">("Все");
-  const [sets, setSets] = useState("3");
-  const [reps, setReps] = useState("8");
-  const [weight, setWeight] = useState("40");
-  const [rest, setRest] = useState("90");
   const [setType, setSetType] = useState<SetType>("working");
   const [supersetEnabled, setSupersetEnabled] = useState(false);
   const [restBlocks, setRestBlocks] = useState<ProgramRestBlock[]>(() => normalizeProgramRestBlocks(editingProgram?.restBlocks, initialSelected));
   const [exerciseSettings, setExerciseSettings] = useState<Record<string, { sets: string; reps: string; weight: string; restBetweenSets: string }>>(() => Object.fromEntries(initialSelected.map((exerciseId) => {
     const existing = editingProgram?.exercises.find((item) => item.exerciseId === exerciseId);
     return [exerciseId, {
-      sets: String(existing?.sets ?? 3),
-      reps: String(existing?.reps ?? 8),
-      weight: String(existing?.weight ?? 0),
-      restBetweenSets: String(existing?.restBetweenSets ?? existing?.rest ?? 90),
+      sets: existing ? String(existing.sets) : "",
+      reps: existing ? String(existing.reps) : "",
+      weight: existing ? String(existing.weight) : "",
+      restBetweenSets: existing ? String(existing.restBetweenSets ?? existing.rest ?? "") : "",
     }];
   })));
 
@@ -63,17 +59,36 @@ export default function NewProgramScreen() {
       Alert.alert("Проверьте программу", "Укажите название и добавьте хотя бы одно упражнение.");
       return;
     }
+    const invalidExercise = selectedExercises.find((exercise) => {
+      const settings = exerciseSettings[exercise.id] ?? { sets: "", reps: "", weight: "", restBetweenSets: "" };
+      const setsValue = Number(settings.sets.replace(",", "."));
+      const repsValue = Number(settings.reps.replace(",", "."));
+      const weightValue = Number(settings.weight.replace(",", "."));
+      const restValue = Number(settings.restBetweenSets.replace(",", "."));
+      return !settings.sets.trim() || !Number.isInteger(setsValue) || setsValue < 1
+        || !settings.reps.trim() || !Number.isInteger(repsValue) || repsValue < 1
+        || !settings.weight.trim() || !Number.isFinite(weightValue) || weightValue < 0
+        || !settings.restBetweenSets.trim() || !Number.isInteger(restValue) || !Number.isFinite(normalizeBetweenSetRestSeconds(restValue));
+    });
+    if (invalidExercise) {
+      Alert.alert("Заполните параметры", `Укажите сеты, повторы, вес и отдых между подходами для упражнения «${invalidExercise.name}».`);
+      return;
+    }
     const items: ProgramExercise[] = selected.map((id, index) => {
       const existing = editingProgram?.exercises.find((item) => item.exerciseId === id);
-      const settings = exerciseSettings[id] ?? { sets, reps, weight, restBetweenSets: rest };
+      const settings = exerciseSettings[id] ?? { sets: "", reps: "", weight: "", restBetweenSets: "" };
+      const setsValue = Math.round(Number(settings.sets.replace(",", ".")));
+      const repsValue = Math.round(Number(settings.reps.replace(",", ".")));
+      const weightValue = Number(settings.weight.replace(",", "."));
+      const restValue = Math.round(Number(settings.restBetweenSets.replace(",", ".")));
       return {
         ...(existing ?? {}),
         exerciseId: id,
-        sets: Math.max(1, Math.round(Number(settings.sets.replace(",", ".")) || 3)),
-        reps: Math.max(1, Math.round(Number(settings.reps.replace(",", ".")) || 8)),
-        weight: Math.max(0, Number(settings.weight.replace(",", ".")) || 0),
-        rest: Math.max(0, Math.round(Number(settings.restBetweenSets.replace(",", ".")) || 90)),
-        restBetweenSets: normalizeBetweenSetRestSeconds(Number(settings.restBetweenSets.replace(",", "."))),
+        sets: setsValue,
+        reps: repsValue,
+        weight: weightValue,
+        rest: restValue,
+        restBetweenSets: normalizeBetweenSetRestSeconds(restValue),
         setType: existing?.setType ?? setType,
         supersetGroup: existing?.supersetGroup ?? (supersetEnabled && index < 2 ? "A" : undefined),
       };
@@ -101,7 +116,7 @@ export default function NewProgramScreen() {
     setExerciseSettings((current) => ({
       ...current,
       [exerciseId]: {
-        ...(current[exerciseId] ?? { sets: "3", reps: "8", weight: "0", restBetweenSets: String(DEFAULT_BETWEEN_SET_REST_SECONDS) }),
+        ...(current[exerciseId] ?? { sets: "", reps: "", weight: "", restBetweenSets: "" }),
         [field]: value,
       },
     }));
@@ -123,7 +138,7 @@ export default function NewProgramScreen() {
         </View>
 
         <Text style={[styles.title, { color: colors.foreground }]}>{editingProgram ? "Настрой программу" : "Собери свой план"}</Text>
-        <Text style={[styles.subtitle, { color: colors.muted }]}>Выбранные упражнения собраны сверху. Используйте каталог ниже, чтобы добавить новые движения.</Text>
+        <Text style={[styles.subtitle, { color: colors.muted }]}>Добавьте упражнения из каталога и заполните параметры прямо в каждой карточке.</Text>
 
         <Text style={[styles.label, { color: colors.muted }]}>НАЗВАНИЕ</Text>
         <TextInput value={name} onChangeText={setName} style={[styles.nameInput, { backgroundColor: colors.surface, color: colors.foreground }]} maxLength={60} returnKeyType="done" />
@@ -131,9 +146,9 @@ export default function NewProgramScreen() {
         <Text style={[styles.section, { color: colors.foreground }]}>Упражнения · {selected.length}</Text>
         {selectedExercises.length > 0 && (
           <View style={[styles.selectedPanel, { backgroundColor: `${colors.primary}0E`, borderColor: `${colors.primary}5C` }]}>
-            <Text style={[styles.selectedHint, { color: colors.muted }]}>Каждое упражнение содержит свои параметры. Нажмите ×, чтобы убрать его из программы.</Text>
+            <Text style={[styles.selectedHint, { color: colors.muted }]}>Заполните все поля в карточках. Нажмите ×, чтобы убрать упражнение из программы.</Text>
             {selectedExercises.map((exercise, index) => {
-              const settings = exerciseSettings[exercise.id] ?? { sets, reps, weight, restBetweenSets: rest };
+                const settings = exerciseSettings[exercise.id] ?? { sets: "", reps: "", weight: "", restBetweenSets: "" };
               return <View key={exercise.id} style={styles.programSequenceItem}>
                 <View style={[styles.exerciseSettingsRow, { backgroundColor: colors.background, borderColor: `${colors.primary}38` }]}>
                   <View style={styles.exerciseSettingsHeader}>
@@ -181,7 +196,7 @@ export default function NewProgramScreen() {
 
         <View style={styles.catalogHeader}>
           <Text style={[styles.catalogTitle, { color: colors.foreground }]}>Добавить из каталога</Text>
-          <Text style={[styles.catalogHint, { color: colors.muted }]}>В списке только ещё не выбранные упражнения.</Text>
+          <Text style={[styles.catalogHint, { color: colors.muted }]}>В списке только ещё не выбранные упражнения. Параметры заполняются после добавления.</Text>
         </View>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.groupFilters} keyboardShouldPersistTaps="handled">
           {muscleGroups.map((group) => (
@@ -208,21 +223,6 @@ export default function NewProgramScreen() {
           </Pressable>
         ))}
         {!matchingExercises.length && <Text style={[styles.empty, { color: colors.muted }]}>{search.trim() ? "Ничего не найдено. Измените запрос или добавьте упражнение в каталоге." : "Все доступные упражнения уже добавлены в программу."}</Text>}
-
-        <Text style={[styles.section, { color: colors.foreground, marginTop: 5 }]}>План по умолчанию</Text>
-        <View style={styles.fields}>
-          {([
-            { label: "Подходы", value: sets, setter: setSets },
-            { label: "Повторы", value: reps, setter: setReps },
-            { label: "Вес, кг", value: weight, setter: setWeight },
-            { label: "Отдых, сек", value: rest, setter: setRest },
-          ]).map((field) => (
-            <View key={field.label} style={{ flex: 1 }}>
-              <Text style={[styles.fieldLabel, { color: colors.muted }]}>{field.label}</Text>
-              <TextInput keyboardType="decimal-pad" value={field.value} onChangeText={field.setter} style={[styles.field, { backgroundColor: colors.surface, color: colors.foreground, borderColor: colors.border }]} />
-            </View>
-          ))}
-        </View>
 
         <Text style={[styles.label, { color: colors.muted }]}>ТИП НОВЫХ ПОДХОДОВ</Text>
         <View style={styles.typeRow}>
@@ -286,9 +286,6 @@ const styles = StyleSheet.create({
   exerciseName: { fontSize: 13, fontWeight: "800" },
   exerciseGroup: { fontSize: 11, marginTop: 4 },
   empty: { fontSize: 12, paddingVertical: 8 },
-  fields: { flexDirection: "row", gap: 8 },
-  fieldLabel: { fontSize: 10, fontWeight: "700", marginBottom: 5 },
-  field: { height: 48, borderRadius: 12, borderWidth: 1, paddingHorizontal: 10, fontSize: 15, fontWeight: "800" },
   typeRow: { flexWrap: "wrap", flexDirection: "row", gap: 7 },
   type: { borderRadius: 11, borderWidth: 1, paddingHorizontal: 11, minHeight: 37, alignItems: "center", justifyContent: "center" },
   typeText: { fontSize: 11, fontWeight: "800" },

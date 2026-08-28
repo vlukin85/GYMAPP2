@@ -26,6 +26,21 @@ describe("program builder selected exercises", () => {
     expect(screen).not.toContain("exerciseSettingsPanel");
   });
 
+  it("keeps new exercise parameters empty and validates every required field before save", () => {
+    expect(screen).toContain('sets: existing ? String(existing.sets) : ""');
+    expect(screen).toContain('reps: existing ? String(existing.reps) : ""');
+    expect(screen).toContain('weight: existing ? String(existing.weight) : ""');
+    expect(screen).toContain('restBetweenSets: existing ? String(existing.restBetweenSets ?? existing.rest ?? "") : ""');
+    expect(screen).toContain('const invalidExercise = selectedExercises.find');
+    expect(screen).toContain('if (invalidExercise)');
+    expect(screen).toContain('Заполните параметры');
+    expect(screen).toContain('!settings.sets.trim()');
+    expect(screen).toContain('!settings.reps.trim()');
+    expect(screen).toContain('!settings.weight.trim()');
+    expect(screen).toContain('!settings.restBetweenSets.trim()');
+    expect(screen).not.toContain('?? { sets, reps, weight, restBetweenSets: rest }');
+  });
+
   it("starts a brand-new program without selected exercises while preserving route and edit selections", () => {
     expect(screen).toContain("params.exerciseId ? [params.exerciseId] : []");
     expect(screen).toContain("editingProgram?.exercises.map");
