@@ -8,17 +8,22 @@ const screen = readFileSync(
 );
 
 describe("program builder selected exercises", () => {
-  it("pins selected exercises above the catalog and removes their duplicates from catalog results", () => {
-    expect(screen).toContain("В ПРОГРАММЕ · {selectedExercises.length}");
-    expect(screen).toContain("!selectedIds.has(exercise.id)");
-    expect(screen).toContain("Добавить из каталога");
+  it("renders each selected exercise as one card with its own parameters and no duplicate settings section", () => {
+    expect(screen).toContain("selectedExercises.map((exercise, index)");
+    expect(screen).toContain("exerciseSettingsRow");
+    expect(screen).toContain("exerciseSettingsHeader");
     expect(screen).toContain("removeExerciseFromProgram(exercise.id)");
-    expect(screen).toContain("Параметры упражнений");
+    expect(screen).toContain("Добавить из каталога");
     expect(screen).toContain("Сеты");
     expect(screen).toContain("Повторы");
     expect(screen).toContain("Отдых, сек");
     expect(screen).toContain("restBetweenSets");
-    expect(screen).toContain("current.filter((id) => id !== exerciseId)");
+    expect(screen).toContain("restBlockByExerciseId.get(exercise.id)");
+    expect(screen).toContain("Добавить отдых между упражнениями");
+    expect(screen).not.toContain("В ПРОГРАММЕ · {selectedExercises.length}");
+    expect(screen).not.toContain("Параметры упражнений");
+    expect(screen).not.toContain("selectedPanelHeader");
+    expect(screen).not.toContain("exerciseSettingsPanel");
   });
 
   it("starts a brand-new program without selected exercises while preserving route and edit selections", () => {

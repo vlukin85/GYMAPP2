@@ -131,26 +131,31 @@ export default function NewProgramScreen() {
         <Text style={[styles.section, { color: colors.foreground }]}>Упражнения · {selected.length}</Text>
         {selectedExercises.length > 0 && (
           <View style={[styles.selectedPanel, { backgroundColor: `${colors.primary}0E`, borderColor: `${colors.primary}5C` }]}>
-            <View style={styles.selectedPanelHeader}>
-              <View>
-                <Text style={[styles.selectedEyebrow, { color: colors.primary }]}>В ПРОГРАММЕ · {selectedExercises.length}</Text>
-                <Text style={[styles.selectedHint, { color: colors.muted }]}>Нажмите упражнение, чтобы убрать его из плана.</Text>
-              </View>
-              <View style={[styles.selectedCount, { backgroundColor: colors.primary }]}><Text style={styles.selectedCountText}>{selectedExercises.length}</Text></View>
-            </View>
+            <Text style={[styles.selectedHint, { color: colors.muted }]}>Каждое упражнение содержит свои параметры. Нажмите ×, чтобы убрать его из программы.</Text>
             {selectedExercises.map((exercise, index) => {
+              const settings = exerciseSettings[exercise.id] ?? { sets, reps, weight, restBetweenSets: rest };
               return <View key={exercise.id} style={styles.programSequenceItem}>
-                <Pressable
-                  onPress={() => removeExerciseFromProgram(exercise.id)}
-                  style={({ pressed }) => [styles.selectedExercise, { backgroundColor: colors.background, borderColor: `${colors.primary}38`, opacity: pressed ? 0.72 : 1 }]}
-                >
-                  <View style={[styles.order, { backgroundColor: colors.primary }]}><Text style={styles.orderText}>{index + 1}</Text></View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[styles.exerciseName, { color: colors.foreground }]}>{exercise.name}{supersetEnabled && index < 2 ? " · SS A" : ""}</Text>
-                    <Text style={[styles.exerciseGroup, { color: colors.muted }]}>{exercise.group} · {exercise.equipment}{customExerciseIds.has(exercise.id) ? " · Моё" : ""}</Text>
+                <View style={[styles.exerciseSettingsRow, { backgroundColor: colors.background, borderColor: `${colors.primary}38` }]}>
+                  <View style={styles.exerciseSettingsHeader}>
+                    <View style={[styles.order, { backgroundColor: colors.primary }]}><Text style={styles.orderText}>{index + 1}</Text></View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.exerciseSettingsName, { color: colors.foreground }]} numberOfLines={1}>{exercise.name}{supersetEnabled && index < 2 ? " · SS A" : ""}</Text>
+                      <Text style={[styles.exerciseGroup, { color: colors.muted }]}>{exercise.group} · {exercise.equipment}{customExerciseIds.has(exercise.id) ? " · Моё" : ""}</Text>
+                    </View>
+                    <Pressable onPress={() => removeExerciseFromProgram(exercise.id)} hitSlop={8}><Text style={[styles.restBlockRemove, { color: colors.error }]}>×</Text></Pressable>
                   </View>
-                  <Text style={[styles.removeText, { color: colors.error }]}>Убрать</Text>
-                </Pressable>
+                  <View style={styles.exerciseSettingsFields}>
+                    {([
+                      ["sets", "Сеты", settings.sets],
+                      ["reps", "Повторы", settings.reps],
+                      ["weight", "Вес, кг", settings.weight],
+                      ["restBetweenSets", "Отдых, сек", settings.restBetweenSets],
+                    ] as const).map(([field, label, value]) => <View key={field} style={styles.exerciseSettingField}>
+                      <Text style={[styles.exerciseSettingLabel, { color: colors.muted }]}>{label}</Text>
+                      <TextInput value={value} onChangeText={(nextValue) => updateExerciseSetting(exercise.id, field, nextValue)} keyboardType="decimal-pad" style={[styles.exerciseSettingInput, { color: colors.foreground, backgroundColor: colors.surface, borderColor: colors.border }]} />
+                    </View>)}
+                  </View>
+                </View>
                 {index < selectedExercises.length - 1 && (() => {
                   const restBlock = restBlockByExerciseId.get(exercise.id);
                   return restBlock ? <View style={[styles.restBlock, { backgroundColor: colors.surface, borderColor: `${colors.primary}66` }]}>
@@ -161,27 +166,6 @@ export default function NewProgramScreen() {
                 })()}
               </View>;
             })}
-            <View style={[styles.exerciseSettingsPanel, { borderTopColor: colors.border }]}>
-              <Text style={[styles.exerciseSettingsTitle, { color: colors.foreground }]}>Параметры упражнений</Text>
-              <Text style={[styles.exerciseSettingsHint, { color: colors.muted }]}>Задайте параметры отдельно для каждого упражнения в этой программе.</Text>
-              {selectedExercises.map((exercise) => {
-                const settings = exerciseSettings[exercise.id] ?? { sets, reps, weight, restBetweenSets: rest };
-                return <View key={`settings-${exercise.id}`} style={[styles.exerciseSettingsRow, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                  <Text style={[styles.exerciseSettingsName, { color: colors.foreground }]} numberOfLines={1}>{exercise.name}</Text>
-                  <View style={styles.exerciseSettingsFields}>
-                    {([
-                      ["sets", "Сеты", settings.sets],
-                      ["reps", "Повторы", settings.reps],
-                      ["weight", "Вес, кг", settings.weight],
-                      ["restBetweenSets", "Отдых, сек", settings.restBetweenSets],
-                    ] as const).map(([field, label, value]) => <View key={field} style={styles.exerciseSettingField}>
-                      <Text style={[styles.exerciseSettingLabel, { color: colors.muted }]}>{label}</Text>
-                      <TextInput value={value} onChangeText={(nextValue) => updateExerciseSetting(exercise.id, field, nextValue)} keyboardType="decimal-pad" style={[styles.exerciseSettingInput, { color: colors.foreground, backgroundColor: colors.background, borderColor: colors.border }]} />
-                    </View>)}
-                  </View>
-                </View>;
-              })}
-            </View>
           </View>
         )}
 
@@ -266,12 +250,7 @@ const styles = StyleSheet.create({
   section: { fontSize: 19, fontWeight: "800", marginTop: 8 },
   selectedPanel: { borderWidth: 1, borderRadius: 18, padding: 11, gap: 8 },
   programSequenceItem: { gap: 7 },
-  selectedPanelHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10, paddingHorizontal: 2, paddingBottom: 2 },
-  selectedEyebrow: { fontSize: 10, fontWeight: "900", letterSpacing: 0.7 },
-  selectedHint: { fontSize: 10, lineHeight: 14, marginTop: 3 },
-  selectedCount: { width: 28, height: 28, borderRadius: 14, alignItems: "center", justifyContent: "center" },
-  selectedCountText: { color: "#101412", fontSize: 12, fontWeight: "900" },
-  selectedExercise: { minHeight: 58, borderRadius: 13, borderWidth: 1, paddingHorizontal: 10, paddingVertical: 9, flexDirection: "row", alignItems: "center", gap: 9 },
+  selectedHint: { fontSize: 10, lineHeight: 14, marginBottom: 2 },
   addRestBlock: { minHeight: 36, borderRadius: 11, borderWidth: 1, borderStyle: "dashed", justifyContent: "center", alignItems: "center" },
   addRestBlockText: { fontSize: 11, fontWeight: "900" },
   restBlock: { minHeight: 58, borderRadius: 13, borderWidth: 1, paddingHorizontal: 10, flexDirection: "row", alignItems: "center", gap: 8 },
@@ -281,10 +260,8 @@ const styles = StyleSheet.create({
   restBlockInput: { width: 54, height: 34, borderRadius: 9, borderWidth: 1, textAlign: "center", fontSize: 13, fontWeight: "900", paddingHorizontal: 4 },
   restBlockUnit: { fontSize: 10, fontWeight: "800" },
   restBlockRemove: { fontSize: 24, lineHeight: 28, fontWeight: "400" },
-  exerciseSettingsPanel: { borderTopWidth: 1, marginTop: 13, paddingTop: 13, gap: 9 },
-  exerciseSettingsTitle: { fontSize: 14, fontWeight: "900" },
-  exerciseSettingsHint: { fontSize: 10, lineHeight: 14 },
-  exerciseSettingsRow: { borderWidth: 1, borderRadius: 13, padding: 10, gap: 8 },
+  exerciseSettingsRow: { borderWidth: 1, borderRadius: 13, padding: 10, gap: 9 },
+  exerciseSettingsHeader: { flexDirection: "row", alignItems: "center", gap: 9 },
   exerciseSettingsName: { fontSize: 12, fontWeight: "900" },
   exerciseSettingsFields: { flexDirection: "row", gap: 6 },
   exerciseSettingField: { flex: 1, gap: 4 },
