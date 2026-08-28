@@ -33,7 +33,7 @@ import { formatStorageBytes, getUsagePercent } from "@/lib/storage-usage-utils";
 import type { LocalStorageUsage } from "@/lib/local-storage-usage";
 import {
   chooseLocalBackupFolder,
-  createAndShareLocalBackup,
+  createLocalBackup,
   listAvailableLocalBackups,
   pickLocalBackup,
   restoreLocalBackup,
@@ -705,7 +705,7 @@ export default function SettingsScreen() {
     setBackupBusy(true);
     setBackupProgress({ value: 4, label: "Подготавливаем резервную копию…" });
     try {
-      const backup = await createAndShareLocalBackup(setBackupProgress);
+      const backup = await createLocalBackup(setBackupProgress);
       const result = await recordSuccessfulLocalBackup({
         createdAt: backup.exportedAt,
         storageEntryCount: backup.storageEntryCount,
@@ -716,8 +716,8 @@ export default function SettingsScreen() {
       setLastBackupRecord(result.record);
       setAvailableBackups(await listAvailableLocalBackups());
       Alert.alert(
-        "Резервная копия подготовлена",
-        `В системном меню выберите «Сохранить на устройство» или папку «Загрузки». Такой файл сохранится после удаления IronRise.${backup.deletedOldBackups ? ` Внутренняя папка очищена: удалено старых копий — ${backup.deletedOldBackups}.` : ""}`,
+        "Резервная копия сохранена",
+        `Файл автоматически сохранён в выбранной папке. Его можно найти в списке резервных копий.${backup.deletedOldBackups ? ` Внутренняя папка очищена: удалено старых копий — ${backup.deletedOldBackups}.` : ""}`,
       );
     } catch (error) {
       Alert.alert(
@@ -3109,11 +3109,11 @@ export default function SettingsScreen() {
                     { color: colors.foreground },
                   ]}
                 >
-                  Доступные локальные копии
+                  Три последние копии
                 </Text>
                 <Text style={[styles.backupFilesHint, { color: colors.muted }]}>
                   Выберите папку «Загрузки» или другую папку с ZIP-файлами
-                  IronRise.
+                  IronRise. В списке показываются только три самые новые копии.
                 </Text>
               </View>
               <Pressable

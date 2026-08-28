@@ -16,6 +16,7 @@ const MEDIA_DIRECTORY_NAME = "gym-diary-media";
 const BACKUP_DIRECTORY_NAME = "ironrise-backups";
 const BACKUP_DIRECTORY_URI_KEY = "ironrise.local-backup.directory-uri.v1";
 const MAX_INTERNAL_BACKUPS = 5;
+const MAX_VISIBLE_BACKUPS = 3;
 
 export type LocalBackupProgress = {
   value: number;
@@ -191,7 +192,8 @@ export async function listAvailableLocalBackups() {
       (first, second) =>
         new Date(second.exportedAt).getTime() -
         new Date(first.exportedAt).getTime(),
-    );
+    )
+    .slice(0, MAX_VISIBLE_BACKUPS);
 }
 
 export async function chooseLocalBackupFolder() {
@@ -229,7 +231,7 @@ export async function shareLocalBackupFile(backup: LocalBackupFile) {
   });
 }
 
-export async function createAndShareLocalBackup(
+export async function createLocalBackup(
   onProgress?: (progress: LocalBackupProgress) => void,
 ): Promise<LocalBackupFile> {
   onProgress?.({ value: 8, label: "Собираем данные тренировок…" });
@@ -256,21 +258,35 @@ export async function createAndShareLocalBackup(
     const blob = new Blob([archiveBuffer], { type: "application/zip" });
     uri = URL.createObjectURL(blob);
   } else {
-    const directory = await ensureAppBackupDirectory();
-    uri = `${directory}${fileName}`;
-    await FileSystem.writeAsStringAsync(uri, fromByteArray(archive), {
-      encoding: FileSystem.EncodingType.Base64,
-    });
+    const selectedDirectoryUri = await AsyncStorage.getItem(
+      BACKUP_DIRECTORY_URI_KEY,
+    );
+    if (!selectedDirectoryUri) {
+      throw new Error(
+        "Сначала выберите папку для резервных копий. Нажмите «Выбрать папку».",
+      );
+    }
+    const directory = new Directory(selectedDirectoryUri);
+    const file = directory.createFile(fileName, "application/zip");
+    file.write(archive);
+    uri = file.uri;
   }
   const preview = unpackLocalBackupArchive(archive);
-  const deletedOldBackups =
-    Platform.OS === "web" ? 0 : await cleanupOldInternalBackups();
+  const deletedOldBackups = 0;
   const backup: LocalBackupFile = {
     ...preview,
     uri,
     fileName,
     ...(deletedOldBackups ? { deletedOldBackups } : {}),
   };
+  onProgress?.({ value: 100, label: "Резервная копия сохранена в папке." });
+  return backup;
+}
+
+export async function createAndShareLocalBackup(
+  onProgress?: (progress: LocalBackupProgress) => void,
+): Promise<LocalBackupFile> {
+  const backup = await createLocalBackup(onProgress);
   onProgress?.({ value: 82, label: "Открываем меню «Поделиться»…" });
   await shareLocalBackupFile(backup);
   onProgress?.({ value: 100, label: "Резервная копия готова." });

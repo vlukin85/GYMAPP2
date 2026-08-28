@@ -8,24 +8,27 @@ const device = readFileSync(
 );
 
 describe("операции переносимой резервной копии", () => {
-  it("отправляет готовый ZIP через системное меню", () => {
-    expect(device).toContain("shareLocalBackupFile");
-    expect(device).toContain("Sharing.shareAsync");
-    expect(device).toContain("Поделиться резервной копией IronRise");
+  it("оставляет ручную передачу ZIP отдельной от прямого сохранения", () => {
+    expect(device).toContain("export async function createLocalBackup(");
+    expect(device).toContain('file.write(archive)');
+    expect(device).toContain("export async function createAndShareLocalBackup(");
+    expect(device).toContain("await shareLocalBackupFile(backup)");
   });
 
-  it("показывает прогресс и составляет список ZIP-файлов из выбранной папки", () => {
+  it("показывает только три самые новые ZIP-копии из выбранной папки", () => {
     expect(device).toContain("LocalBackupProgress");
     expect(device).toContain("Directory.pickDirectoryAsync");
     expect(device).toContain("listAvailableLocalBackups");
     expect(device).toContain("readBackupFromFile");
+    expect(device).toContain("const MAX_VISIBLE_BACKUPS = 3");
+    expect(device).toContain(".slice(0, MAX_VISIBLE_BACKUPS)");
   });
 
-  it("автоматически очищает только старые внутренние ZIP-копии", () => {
+  it("имеет отдельную очистку старых внутренних ZIP-копий", () => {
     expect(device).toContain("const MAX_INTERNAL_BACKUPS = 5");
     expect(device).toContain("cleanupOldInternalBackups");
     expect(device).toContain("FileSystem.deleteAsync(uri)");
-    expect(device).toContain("await cleanupOldInternalBackups()");
+    expect(device).not.toContain("const deletedOldBackups = await cleanupOldInternalBackups()");
   });
 
   it("не вызывает нативный файловый каталог при открытии настроек в Expo web", () => {

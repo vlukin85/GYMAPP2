@@ -12,7 +12,8 @@ describe("локальная резервная копия в настройка
     expect(settings).toContain("Резервная копия");
     expect(settings).toContain("СОЗДАТЬ КОПИЮ");
     expect(settings).toContain("ВОССТАНОВИТЬ ИЗ ФАЙЛА");
-    expect(settings).toContain("createAndShareLocalBackup");
+    expect(settings).toContain("createLocalBackup");
+    expect(settings).toContain("Файл автоматически сохранён в выбранной папке.");
     expect(settings).toContain("pickLocalBackup");
     expect(settings).toContain("Последняя успешная копия:");
     expect(settings).toContain("Резервная копия ещё не создавалась.");
@@ -21,7 +22,8 @@ describe("локальная резервная копия в настройка
     expect(settings).toContain("Раз в неделю");
     expect(settings).toContain("Раз в месяц");
     expect(settings).toContain("ПОДЕЛИТЬСЯ ПОСЛЕДНЕЙ КОПИЕЙ");
-    expect(settings).toContain("Доступные локальные копии");
+    expect(settings).toContain("Три последние копии");
+    expect(settings).toContain("Три последние копии");
     expect(settings).toContain("ВЫБРАТЬ ПАПКУ С КОПИЯМИ");
     expect(settings).toContain("backupProgress");
   });
