@@ -207,3 +207,88 @@ private fun formatWidgetRemaining(restEndAt: Long): String {
   val seconds = ((restEndAt - System.currentTimeMillis()).coerceAtLeast(0L) + 999L) / 1_000L
   return "%02d:%02d".format(seconds / 60L, seconds % 60L)
 }
+
+private const val WEEK_STATS_PREFERENCES = "ironrise.week.stats.widget"
+private const val WEEK_STATS_ACTION_OPEN = "expo.modules.ironriseresttimer.widget.OPEN_WEEK_STATS"
+
+private data class WeeklyStatsWidgetState(
+  val workoutCount: Int = 0,
+  val activeDays: Int = 0,
+  val durationMinutes: Int = 0,
+  val volume: Double = 0.0,
+  val openUrl: String = "",
+)
+
+internal fun updateWeeklyStatsWidget(context: Context, payload: Map<String, Any?>) {
+  val state = WeeklyStatsWidgetState(
+    workoutCount = ((payload["workoutCount"] as? Number)?.toInt() ?: 0).coerceAtLeast(0),
+    activeDays = ((payload["activeDays"] as? Number)?.toInt() ?: 0).coerceIn(0, 7),
+    durationMinutes = ((payload["durationMinutes"] as? Number)?.toInt() ?: 0).coerceAtLeast(0),
+    volume = ((payload["volume"] as? Number)?.toDouble() ?: 0.0).coerceAtLeast(0.0),
+    openUrl = payload["openUrl"] as? String ?: "",
+  )
+  context.getSharedPreferences(WEEK_STATS_PREFERENCES, Context.MODE_PRIVATE).edit()
+    .putInt("workoutCount", state.workoutCount)
+    .putInt("activeDays", state.activeDays)
+    .putInt("durationMinutes", state.durationMinutes)
+    .putString("volume", state.volume.toString())
+    .putString("openUrl", state.openUrl)
+    .apply()
+  refreshWeeklyStatsWidget(context)
+}
+
+class WeeklyStatsWidgetProvider : AppWidgetProvider() {
+  override fun onUpdate(context: Context, appWidgetManager: AppWidgetManager, appWidgetIds: IntArray) {
+    val state = readWeeklyStatsWidgetState(context)
+    appWidgetIds.forEach { appWidgetId ->
+      appWidgetManager.updateAppWidget(appWidgetId, createWeeklyStatsWidgetViews(context, state))
+    }
+  }
+
+  override fun onReceive(context: Context, intent: Intent) {
+    if (intent.action == WEEK_STATS_ACTION_OPEN) {
+      launchIronRise(context, readWeeklyStatsWidgetState(context).openUrl)
+    }
+    super.onReceive(context, intent)
+  }
+}
+
+private fun readWeeklyStatsWidgetState(context: Context): WeeklyStatsWidgetState {
+  val preferences = context.getSharedPreferences(WEEK_STATS_PREFERENCES, Context.MODE_PRIVATE)
+  return WeeklyStatsWidgetState(
+    workoutCount = preferences.getInt("workoutCount", 0),
+    activeDays = preferences.getInt("activeDays", 0),
+    durationMinutes = preferences.getInt("durationMinutes", 0),
+    volume = preferences.getString("volume", "0")?.toDoubleOrNull() ?: 0.0,
+    openUrl = preferences.getString("openUrl", "") ?: "",
+  )
+}
+
+private fun refreshWeeklyStatsWidget(context: Context) {
+  val manager = AppWidgetManager.getInstance(context)
+  val provider = ComponentName(context, WeeklyStatsWidgetProvider::class.java)
+  val state = readWeeklyStatsWidgetState(context)
+  manager.getAppWidgetIds(provider).forEach { widgetId ->
+    manager.updateAppWidget(widgetId, createWeeklyStatsWidgetViews(context, state))
+  }
+}
+
+private fun createWeeklyStatsWidgetViews(context: Context, state: WeeklyStatsWidgetState): RemoteViews {
+  val views = RemoteViews(context.packageName, R.layout.ironrise_week_stats_widget)
+  views.setTextViewText(R.id.ironrise_week_stats_title, "ПРОГРЕСС ЗА НЕДЕЛЮ")
+  views.setTextViewText(R.id.ironrise_week_stats_workouts, "${state.workoutCount} тренировок")
+  views.setTextViewText(R.id.ironrise_week_stats_days, "${state.activeDays}/7 активных дней")
+  views.setTextViewText(R.id.ironrise_week_stats_volume, "${Math.round(state.volume).toInt()} кг объёма")
+  views.setTextViewText(R.id.ironrise_week_stats_duration, "${state.durationMinutes} мин")
+  views.setProgressBar(R.id.ironrise_week_stats_progress, 7, state.activeDays, false)
+  views.setOnClickPendingIntent(
+    R.id.ironrise_week_stats_root,
+    PendingIntent.getBroadcast(
+      context,
+      6201,
+      Intent(context, WeeklyStatsWidgetProvider::class.java).setAction(WEEK_STATS_ACTION_OPEN),
+      PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+    ),
+  )
+  return views
+}

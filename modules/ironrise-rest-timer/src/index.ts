@@ -6,6 +6,7 @@ type IronriseRestTimerNativeModule = {
   previewCompletionSound(completionSound: string): void;
   clearCountdown(): void;
   updateActiveWorkoutWidget(payload: ActiveWorkoutWidgetPayload): void;
+  updateWeeklyStatsWidget(payload: WeeklyStatsWidgetPayload): void;
   consumeActiveWorkoutWidgetAction(): ActiveWorkoutWidgetAction | null;
   consumePendingAction(): {
     kind: "skip" | "extend" | "start" | "finish-exercise";
@@ -22,6 +23,14 @@ export type ActiveWorkoutWidgetAction = {
   exerciseId?: string;
   setIndex?: number;
   restEndAt?: number;
+};
+
+export type WeeklyStatsWidgetPayload = {
+  workoutCount: number;
+  activeDays: number;
+  durationMinutes: number;
+  volume: number;
+  openUrl: string;
 };
 
 export type ActiveWorkoutWidgetPayload = {
@@ -121,6 +130,13 @@ export function clearNativeRestCountdown() {
   const module = getModule();
   if (!module) return false;
   module.clearCountdown();
+  return true;
+}
+
+export function updateWeeklyStatsWidget(payload: WeeklyStatsWidgetPayload) {
+  const module = getModule();
+  if (!module) return false;
+  module.updateWeeklyStatsWidget(payload);
   return true;
 }
 

@@ -14,6 +14,7 @@ import {
   View,
 } from "react-native";
 import { router } from "expo-router";
+import * as Linking from "expo-linking";
 import * as Haptics from "expo-haptics";
 import Svg, { Line, Rect } from "react-native-svg";
 
@@ -24,7 +25,13 @@ import { entryCalories, sumEntryMacros } from "@/lib/nutrition-data";
 import { useNutritionStore } from "@/lib/nutrition-store";
 import { type HomeWidgetId, useHomeWidgets } from "@/lib/home-widgets";
 import { useWorkoutStore } from "@/lib/workout-store";
-import { formatDuration, getExercise, getProgram } from "@/lib/workout-data";
+import {
+  formatDuration,
+  getCurrentTrainingPeriodStats,
+  getExercise,
+  getProgram,
+} from "@/lib/workout-data";
+import { updateWeeklyStatsWidget } from "@/modules/ironrise-rest-timer";
 import {
   buildHomeWorkoutTrend,
   type HomeWorkoutTrendPoint,
@@ -106,6 +113,25 @@ export default function HomeScreen() {
     ageYears,
     activityLevel,
   });
+  const weeklyTrainingStats = getCurrentTrainingPeriodStats(completed, now).week;
+
+  useEffect(() => {
+    if (Platform.OS !== "android") return;
+    updateWeeklyStatsWidget({
+      workoutCount: weeklyTrainingStats.workoutCount,
+      activeDays: weeklyTrainingStats.activeDays,
+      durationMinutes: weeklyTrainingStats.durationMinutes,
+      volume: weeklyTrainingStats.totalVolume,
+      openUrl: Linking.createURL("/"),
+    });
+  }, [
+    completed,
+    today,
+    weeklyTrainingStats.workoutCount,
+    weeklyTrainingStats.activeDays,
+    weeklyTrainingStats.durationMinutes,
+    weeklyTrainingStats.totalVolume,
+  ]);
 
   return (
     <ScreenContainer className="px-0" containerClassName="bg-background">

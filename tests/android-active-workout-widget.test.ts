@@ -27,6 +27,38 @@ const widgetBridge = readFileSync(
   resolve(process.cwd(), "modules/ironrise-rest-timer/src/index.ts"),
   "utf8",
 );
+const timerModule = readFileSync(
+  resolve(
+    process.cwd(),
+    "modules/ironrise-rest-timer/android/src/main/java/expo/modules/ironriseresttimer/IronriseRestTimerModule.kt",
+  ),
+  "utf8",
+);
+const earlyWarningReceiver = readFileSync(
+  resolve(
+    process.cwd(),
+    "modules/ironrise-rest-timer/android/src/main/java/expo/modules/ironriseresttimer/RestTimerEarlyWarningReceiver.kt",
+  ),
+  "utf8",
+);
+const weeklyWidgetInfo = readFileSync(
+  resolve(
+    process.cwd(),
+    "modules/ironrise-rest-timer/android/src/main/res/xml/ironrise_week_stats_widget_info.xml",
+  ),
+  "utf8",
+);
+const weeklyWidgetLayout = readFileSync(
+  resolve(
+    process.cwd(),
+    "modules/ironrise-rest-timer/android/src/main/res/layout/ironrise_week_stats_widget.xml",
+  ),
+  "utf8",
+);
+const homeScreen = readFileSync(
+  resolve(process.cwd(), "app/(tabs)/index.tsx"),
+  "utf8",
+);
 const workoutScreen = readFileSync(
   resolve(process.cwd(), "app/workout.tsx"),
   "utf8",
@@ -62,6 +94,22 @@ describe("Android-виджет активной тренировки", () => {
     expect(workoutScreen).toContain("finishSetFromWidget");
     expect(workoutScreen).toContain("syncActiveWorkoutWidgetAction");
     expect(workoutScreen).toContain("startRestAfterSetInput(setIndex, completedDraft)");
+  });
+
+  it("планирует отдельный сигнал ровно за 10 секунд до завершения отдыха", () => {
+    expect(timerModule).toContain("val earlyWarningAt = restEndAt - 10_000L");
+    expect(timerModule).toContain("RestTimerEarlyWarningReceiver::class.java");
+    expect(earlyWarningReceiver).toContain("VibrationEffect.createWaveform");
+    expect(earlyWarningReceiver).toContain("completionSoundUri(context, sound)");
+  });
+
+  it("регистрирует виджет прогресса недели и передаёт ему реальные weekly-агрегаты", () => {
+    expect(widgetManifest).toContain(".WeeklyStatsWidgetProvider");
+    expect(weeklyWidgetInfo).toContain("@layout/ironrise_week_stats_widget");
+    expect(weeklyWidgetLayout).toContain("ironrise_week_stats_progress");
+    expect(widgetBridge).toContain("updateWeeklyStatsWidget");
+    expect(homeScreen).toContain("getCurrentTrainingPeriodStats(completed, now).week");
+    expect(homeScreen).toContain("weeklyTrainingStats.totalVolume");
   });
 
   it("сохраняет кнопку календарного sheet выше системной панели", () => {

@@ -3,11 +3,26 @@
   <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
   <application>
     <receiver
+      android:name=".RestTimerEarlyWarningReceiver"
+      android:exported="false" />
+    <receiver
       android:name=".RestTimerCompletionReceiver"
       android:exported="false" />
     <receiver
       android:name=".RestTimerActionReceiver"
       android:exported="false" />
+    <receiver
+      android:name=".WeeklyStatsWidgetProvider"
+      android:exported="true"
+      android:label="IronRise · Прогресс недели"
+      android:permission="android.permission.BIND_APPWIDGET">
+      <intent-filter>
+        <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+      </intent-filter>
+      <meta-data
+        android:name="android.appwidget.provider"
+        android:resource="@xml/ironrise_week_stats_widget_info" />
+    </receiver>
     <receiver
       android:name=".ActiveWorkoutWidgetProvider"
       android:exported="true"

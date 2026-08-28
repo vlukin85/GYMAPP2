@@ -21,6 +21,7 @@ internal const val ALARM_REQUEST_CODE = 40103
 internal const val SKIP_REQUEST_CODE = 40104
 internal const val EXTEND_REQUEST_CODE = 40105
 internal const val START_REQUEST_CODE = 40106
+internal const val EARLY_WARNING_REQUEST_CODE = 40107
 internal const val ACTION_SKIP = "expo.modules.ironriseresttimer.SKIP"
 internal const val ACTION_EXTEND = "expo.modules.ironriseresttimer.EXTEND"
 internal const val ACTION_START = "expo.modules.ironriseresttimer.START"
@@ -75,6 +76,10 @@ class IronriseRestTimerModule : Module() {
 
     Function("updateActiveWorkoutWidget") { payload: Map<String, Any?> ->
       updateActiveWorkoutWidget(context, payload)
+    }
+
+    Function("updateWeeklyStatsWidget") { payload: Map<String, Any?> ->
+      updateWeeklyStatsWidget(context, payload)
     }
 
     Function("consumeActiveWorkoutWidgetAction") {
@@ -171,6 +176,7 @@ internal fun clearCountdownNotification(context: Context) {
   NotificationManagerCompat.from(context).cancel(COMPLETION_NOTIFICATION_ID)
   val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
   completionPendingIntent(context, PendingIntent.FLAG_NO_CREATE)?.let { alarmManager.cancel(it) }
+  earlyWarningPendingIntent(context, PendingIntent.FLAG_NO_CREATE)?.let { alarmManager.cancel(it) }
 }
 
 private fun ensureCountdownChannel(context: Context) {
@@ -308,6 +314,17 @@ internal fun scheduleCompletionAlarm(
 ) {
   val manager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
   val pendingIntent = completionPendingIntent(context, 0, completionSound, restEndAt, completionVolume, completionVibrationEnabled, completionVibrationPattern, nextActionKind, exerciseId, nextSetIndex, nextSetWeight, nextSetReps)
+  val earlyWarningAt = restEndAt - 10_000L
+  if (earlyWarningAt > System.currentTimeMillis()) {
+    val earlyWarning = earlyWarningPendingIntent(context, 0, completionSound, completionVolume, completionVibrationEnabled, completionVibrationPattern)
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && manager.canScheduleExactAlarms()) {
+      manager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, earlyWarningAt, earlyWarning)
+    } else if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
+      manager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, earlyWarningAt, earlyWarning)
+    } else {
+      manager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, earlyWarningAt, earlyWarning)
+    }
+  }
   if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && manager.canScheduleExactAlarms()) {
     manager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, restEndAt, pendingIntent)
   } else if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
@@ -315,6 +332,29 @@ internal fun scheduleCompletionAlarm(
   } else {
     manager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, restEndAt, pendingIntent)
   }
+}
+
+internal fun earlyWarningPendingIntent(
+  context: Context,
+  flags: Int,
+  completionSound: String = "female",
+  completionVolume: Float = 0.8f,
+  completionVibrationEnabled: Boolean = true,
+  completionVibrationPattern: String = "short",
+): PendingIntent {
+  val intent = Intent(context, RestTimerEarlyWarningReceiver::class.java).apply {
+    action = "expo.modules.ironriseresttimer.EARLY_WARNING"
+    putExtra(EXTRA_COMPLETION_SOUND, completionSound)
+    putExtra(EXTRA_COMPLETION_VOLUME, completionVolume)
+    putExtra(EXTRA_COMPLETION_VIBRATION, completionVibrationEnabled)
+    putExtra(EXTRA_COMPLETION_VIBRATION_PATTERN, completionVibrationPattern)
+  }
+  return PendingIntent.getBroadcast(
+    context,
+    EARLY_WARNING_REQUEST_CODE,
+    intent,
+    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE or flags,
+  )
 }
 
 internal fun completionSoundUri(context: Context, completionSound: String) = when (completionSound) {
