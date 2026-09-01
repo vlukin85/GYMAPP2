@@ -3,9 +3,33 @@ import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 
 import { router, useLocalSearchParams } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
-import { DEFAULT_PROGRAM_REST_BLOCK_SECONDS, MAX_PROGRAM_REST_BLOCK_SECONDS, MIN_PROGRAM_REST_BLOCK_SECONDS, exercises, muscleGroups, normalizeBetweenSetRestSeconds, normalizeProgramRestBlocks, type MuscleGroup, type ProgramExercise, type ProgramRestBlock, type SetType } from "@/lib/workout-data";
+import { ESTIMATED_SECONDS_PER_REP, MAX_BETWEEN_SET_REST_SECONDS, MAX_PROGRAM_REST_BLOCK_SECONDS, MIN_BETWEEN_SET_REST_SECONDS, MIN_PROGRAM_REST_BLOCK_SECONDS, estimateProgramDurationSeconds, exercises, formatProgramDuration, muscleGroups, normalizeBetweenSetRestSeconds, normalizeProgramRestBlocks, type MuscleGroup, type ProgramExercise, type ProgramRestBlock, type SetType } from "@/lib/workout-data";
 import { useWorkoutStore } from "@/lib/workout-store";
 import { useColors } from "@/hooks/use-colors";
+
+const EMPTY_EXERCISE_SETTINGS = { sets: "", reps: "", weight: "", restBetweenSets: "" };
+
+function ensureProgramRestBlocks(value: unknown, exerciseIds: string[]) {
+  const validExerciseIds = new Set(exerciseIds);
+  const existingByExerciseId = new Map<string, ProgramRestBlock>();
+  if (Array.isArray(value)) {
+    value.forEach((candidate) => {
+      if (!candidate || typeof candidate !== "object") return;
+      const block = candidate as Partial<ProgramRestBlock>;
+      if (typeof block.afterExerciseId !== "string" || !validExerciseIds.has(block.afterExerciseId) || existingByExerciseId.has(block.afterExerciseId) || typeof block.durationSeconds !== "number" || !Number.isFinite(block.durationSeconds)) return;
+      existingByExerciseId.set(block.afterExerciseId, {
+        id: typeof block.id === "string" && block.id.trim() ? block.id : `rest-${block.afterExerciseId}`,
+        afterExerciseId: block.afterExerciseId,
+        durationSeconds: Math.max(0, Math.round(block.durationSeconds)),
+      });
+    });
+  }
+  return exerciseIds.slice(0, -1).map((exerciseId) => existingByExerciseId.get(exerciseId) ?? {
+    id: `rest-${exerciseId}`,
+    afterExerciseId: exerciseId,
+    durationSeconds: 0,
+  });
+}
 
 const types: { id: SetType; label: string }[] = [
   { id: "warmup", label: "Разминка" },
@@ -26,7 +50,7 @@ export default function NewProgramScreen() {
   const [catalogGroup, setCatalogGroup] = useState<MuscleGroup | "Все">("Все");
   const [setType, setSetType] = useState<SetType>("working");
   const [supersetEnabled, setSupersetEnabled] = useState(false);
-  const [restBlocks, setRestBlocks] = useState<ProgramRestBlock[]>(() => normalizeProgramRestBlocks(editingProgram?.restBlocks, initialSelected));
+  const [restBlocks, setRestBlocks] = useState<ProgramRestBlock[]>(() => ensureProgramRestBlocks(editingProgram?.restBlocks, initialSelected));
   const [exerciseSettings, setExerciseSettings] = useState<Record<string, { sets: string; reps: string; weight: string; restBetweenSets: string }>>(() => Object.fromEntries(initialSelected.map((exerciseId) => {
     const existing = editingProgram?.exercises.find((item) => item.exerciseId === exerciseId);
     return [exerciseId, {
@@ -68,10 +92,18 @@ export default function NewProgramScreen() {
       return !settings.sets.trim() || !Number.isInteger(setsValue) || setsValue < 1
         || !settings.reps.trim() || !Number.isInteger(repsValue) || repsValue < 1
         || !settings.weight.trim() || !Number.isFinite(weightValue) || weightValue < 0
-        || !settings.restBetweenSets.trim() || !Number.isInteger(restValue) || !Number.isFinite(normalizeBetweenSetRestSeconds(restValue));
+        || !settings.restBetweenSets.trim() || !Number.isInteger(restValue) || restValue < MIN_BETWEEN_SET_REST_SECONDS || restValue > MAX_BETWEEN_SET_REST_SECONDS;
     });
     if (invalidExercise) {
       Alert.alert("Заполните параметры", `Укажите сеты, повторы, вес и отдых между подходами для упражнения «${invalidExercise.name}».`);
+      return;
+    }
+    const missingTransitionRest = selectedExercises.slice(0, -1).find((exercise) => {
+      const duration = restBlockByExerciseId.get(exercise.id)?.durationSeconds ?? 0;
+      return !Number.isInteger(duration) || duration < MIN_PROGRAM_REST_BLOCK_SECONDS || duration > MAX_PROGRAM_REST_BLOCK_SECONDS;
+    });
+    if (missingTransitionRest) {
+      Alert.alert("Заполните интервалы отдыха", `Укажите отдых между «${missingTransitionRest.name}» и следующим упражнением.`);
       return;
     }
     const items: ProgramExercise[] = selected.map((id, index) => {
@@ -109,14 +141,17 @@ export default function NewProgramScreen() {
       return next;
     });
   };
-  const addRestBlock = (exerciseId: string) => {
-    setRestBlocks((current) => current.some((block) => block.afterExerciseId === exerciseId) ? current : [...current, { id: `rest-${exerciseId}-${Date.now()}`, afterExerciseId: exerciseId, durationSeconds: DEFAULT_PROGRAM_REST_BLOCK_SECONDS }]);
+  const addExerciseToProgram = (exerciseId: string) => {
+    const nextSelected = [...selected, exerciseId];
+    setSelected(nextSelected);
+    setExerciseSettings((current) => ({ ...current, [exerciseId]: current[exerciseId] ?? { ...EMPTY_EXERCISE_SETTINGS } }));
+    setRestBlocks((current) => ensureProgramRestBlocks(current, nextSelected));
   };
   const updateExerciseSetting = (exerciseId: string, field: "sets" | "reps" | "weight" | "restBetweenSets", value: string) => {
     setExerciseSettings((current) => ({
       ...current,
       [exerciseId]: {
-        ...(current[exerciseId] ?? { sets: "", reps: "", weight: "", restBetweenSets: "" }),
+        ...(current[exerciseId] ?? EMPTY_EXERCISE_SETTINGS),
         [field]: value,
       },
     }));
@@ -124,7 +159,7 @@ export default function NewProgramScreen() {
   const updateRestBlockDuration = (exerciseId: string, value: string) => {
     const parsed = Number(value.replace(",", "."));
     if (!Number.isFinite(parsed)) return;
-    const durationSeconds = Math.max(MIN_PROGRAM_REST_BLOCK_SECONDS, Math.min(MAX_PROGRAM_REST_BLOCK_SECONDS, Math.round(parsed)));
+    const durationSeconds = value.trim() === "" ? 0 : Math.round(parsed);
     setRestBlocks((current) => current.map((block) => block.afterExerciseId === exerciseId ? { ...block, durationSeconds } : block));
   };
 
@@ -144,6 +179,26 @@ export default function NewProgramScreen() {
         <TextInput value={name} onChangeText={setName} style={[styles.nameInput, { backgroundColor: colors.surface, color: colors.foreground }]} maxLength={60} returnKeyType="done" />
 
         <Text style={[styles.section, { color: colors.foreground }]}>Упражнения · {selected.length}</Text>
+        {selectedExercises.length > 0 && (() => {
+          const hasCompleteParameters = selectedExercises.every((exercise) => {
+            const settings = exerciseSettings[exercise.id] ?? EMPTY_EXERCISE_SETTINGS;
+            const setsValue = Number(settings.sets.replace(",", "."));
+            const repsValue = Number(settings.reps.replace(",", "."));
+            const weightValue = Number(settings.weight.replace(",", "."));
+            const restValue = Number(settings.restBetweenSets.replace(",", "."));
+            return settings.sets.trim() && Number.isInteger(setsValue) && setsValue > 0 && settings.reps.trim() && Number.isInteger(repsValue) && repsValue > 0 && settings.weight.trim() && Number.isFinite(weightValue) && weightValue >= 0 && settings.restBetweenSets.trim() && Number.isInteger(restValue) && restValue >= MIN_BETWEEN_SET_REST_SECONDS && restValue <= MAX_BETWEEN_SET_REST_SECONDS;
+          });
+          const hasCompleteTransitionRest = selectedExercises.slice(0, -1).every((exercise) => {
+            const duration = restBlockByExerciseId.get(exercise.id)?.durationSeconds ?? 0;
+            return Number.isInteger(duration) && duration >= MIN_PROGRAM_REST_BLOCK_SECONDS && duration <= MAX_PROGRAM_REST_BLOCK_SECONDS;
+          });
+          if (!hasCompleteParameters || !hasCompleteTransitionRest) return <View style={[styles.durationCard, { backgroundColor: colors.surface, borderColor: colors.border }]}><Text style={[styles.durationTitle, { color: colors.foreground }]}>Расчётное время тренировки</Text><Text style={[styles.durationHint, { color: colors.muted }]}>Заполните все параметры и интервалы отдыха, чтобы рассчитать длительность.</Text></View>;
+          const estimateItems = selectedExercises.map((exercise) => {
+            const settings = exerciseSettings[exercise.id];
+            return { sets: Number(settings.sets.replace(",", ".")), reps: Number(settings.reps.replace(",", ".")), rest: Number(settings.restBetweenSets.replace(",", ".")), restBetweenSets: Number(settings.restBetweenSets.replace(",", ".")) };
+          });
+          return <View style={[styles.durationCard, { backgroundColor: `${colors.primary}14`, borderColor: `${colors.primary}66` }]}><Text style={[styles.durationTitle, { color: colors.foreground }]}>Расчётное время тренировки</Text><Text style={[styles.durationValue, { color: colors.primary }]}>{formatProgramDuration(estimateProgramDurationSeconds(estimateItems, restBlocks))}</Text><Text style={[styles.durationHint, { color: colors.muted }]}>С учётом примерно {ESTIMATED_SECONDS_PER_REP} сек на повторение, отдыха между подходами и между упражнениями.</Text></View>;
+        })()}
         {selectedExercises.length > 0 && (
           <View style={[styles.selectedPanel, { backgroundColor: `${colors.primary}0E`, borderColor: `${colors.primary}5C` }]}>
             <Text style={[styles.selectedHint, { color: colors.muted }]}>Заполните все поля в карточках. Нажмите ×, чтобы убрать упражнение из программы.</Text>
@@ -173,11 +228,11 @@ export default function NewProgramScreen() {
                 </View>
                 {index < selectedExercises.length - 1 && (() => {
                   const restBlock = restBlockByExerciseId.get(exercise.id);
-                  return restBlock ? <View style={[styles.restBlock, { backgroundColor: colors.surface, borderColor: `${colors.primary}66` }]}>
-                    <View style={styles.restBlockCopy}><Text style={[styles.restBlockTitle, { color: colors.foreground }]}>Отдых между упражнениями</Text><Text style={[styles.restBlockHint, { color: colors.muted }]}>После последнего подхода</Text></View>
-                    <TextInput value={String(restBlock.durationSeconds)} onChangeText={(value) => updateRestBlockDuration(exercise.id, value)} keyboardType="number-pad" returnKeyType="done" style={[styles.restBlockInput, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.background }]} /><Text style={[styles.restBlockUnit, { color: colors.muted }]}>сек</Text>
-                    <Pressable onPress={() => setRestBlocks((current) => current.filter((block) => block.id !== restBlock.id))} hitSlop={8}><Text style={[styles.restBlockRemove, { color: colors.error }]}>×</Text></Pressable>
-                  </View> : <Pressable onPress={() => addRestBlock(exercise.id)} style={[styles.addRestBlock, { borderColor: colors.border }]}><Text style={[styles.addRestBlockText, { color: colors.primary }]}>＋ Добавить отдых между упражнениями</Text></Pressable>;
+                  if (!restBlock) return null;
+                  return <View style={[styles.restBlock, { backgroundColor: colors.surface, borderColor: `${colors.primary}66` }]}>
+                    <View style={styles.restBlockCopy}><Text style={[styles.restBlockTitle, { color: colors.foreground }]}>Отдых между упражнениями</Text><Text style={[styles.restBlockHint, { color: colors.muted }]}>Обязательный интервал после последнего подхода</Text></View>
+                    <TextInput value={restBlock.durationSeconds > 0 ? String(restBlock.durationSeconds) : ""} placeholder="сек" placeholderTextColor={colors.muted} onChangeText={(value) => updateRestBlockDuration(exercise.id, value)} keyboardType="number-pad" returnKeyType="done" style={[styles.restBlockInput, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.background }]} /><Text style={[styles.restBlockUnit, { color: colors.muted }]}>сек</Text>
+                  </View>;
                 })()}
               </View>;
             })}
@@ -212,7 +267,7 @@ export default function NewProgramScreen() {
         {matchingExercises.map((exercise) => (
           <Pressable
             key={exercise.id}
-            onPress={() => setSelected((current) => [...current, exercise.id])}
+            onPress={() => addExerciseToProgram(exercise.id)}
             style={({ pressed }) => [styles.exercise, { backgroundColor: colors.surface, borderColor: colors.border }, pressed && { opacity: 0.74 }]}
           >
             <View style={[styles.addMark, { backgroundColor: `${colors.primary}16` }]}><IconSymbol name="plus" size={18} color={colors.primary} /></View>
@@ -251,8 +306,6 @@ const styles = StyleSheet.create({
   selectedPanel: { borderWidth: 1, borderRadius: 18, padding: 11, gap: 8 },
   programSequenceItem: { gap: 7 },
   selectedHint: { fontSize: 10, lineHeight: 14, marginBottom: 2 },
-  addRestBlock: { minHeight: 36, borderRadius: 11, borderWidth: 1, borderStyle: "dashed", justifyContent: "center", alignItems: "center" },
-  addRestBlockText: { fontSize: 11, fontWeight: "900" },
   restBlock: { minHeight: 58, borderRadius: 13, borderWidth: 1, paddingHorizontal: 10, flexDirection: "row", alignItems: "center", gap: 8 },
   restBlockCopy: { flex: 1 },
   restBlockTitle: { fontSize: 12, fontWeight: "900" },
@@ -260,6 +313,10 @@ const styles = StyleSheet.create({
   restBlockInput: { width: 54, height: 34, borderRadius: 9, borderWidth: 1, textAlign: "center", fontSize: 13, fontWeight: "900", paddingHorizontal: 4 },
   restBlockUnit: { fontSize: 10, fontWeight: "800" },
   restBlockRemove: { fontSize: 24, lineHeight: 28, fontWeight: "400" },
+  durationCard: { borderWidth: 1, borderRadius: 15, padding: 12, gap: 4 },
+  durationTitle: { fontSize: 12, fontWeight: "900" },
+  durationValue: { fontSize: 24, fontWeight: "900", marginTop: 2 },
+  durationHint: { fontSize: 10, lineHeight: 14 },
   exerciseSettingsRow: { borderWidth: 1, borderRadius: 13, padding: 10, gap: 9 },
   exerciseSettingsHeader: { flexDirection: "row", alignItems: "center", gap: 9 },
   exerciseSettingsName: { fontSize: 12, fontWeight: "900" },

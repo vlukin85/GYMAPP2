@@ -119,6 +119,27 @@ export type ProgramRestBlock = {
 export const DEFAULT_PROGRAM_REST_BLOCK_SECONDS = 120;
 export const MIN_PROGRAM_REST_BLOCK_SECONDS = 15;
 export const MAX_PROGRAM_REST_BLOCK_SECONDS = 1_800;
+export const ESTIMATED_SECONDS_PER_REP = 3;
+
+/** Estimates a program duration from exercise work, between-set rest and transition rest. */
+export function estimateProgramDurationSeconds(programExercises: Pick<ProgramExercise, "sets" | "reps" | "restBetweenSets" | "rest">[], restBlocks: Pick<ProgramRestBlock, "durationSeconds">[] = []) {
+  const exerciseSeconds = programExercises.reduce((total, exercise) => {
+    const workSeconds = Math.max(0, exercise.sets) * Math.max(0, exercise.reps) * ESTIMATED_SECONDS_PER_REP;
+    const betweenSetRestSeconds = Math.max(0, exercise.sets - 1) * Math.max(0, exercise.restBetweenSets ?? exercise.rest ?? 0);
+    return total + workSeconds + betweenSetRestSeconds;
+  }, 0);
+  const transitionRestSeconds = restBlocks.reduce((total, block) => total + Math.max(0, block.durationSeconds), 0);
+  return Math.round(exerciseSeconds + transitionRestSeconds);
+}
+
+export function formatProgramDuration(seconds: number) {
+  const roundedSeconds = Math.max(0, Math.round(seconds));
+  const minutes = Math.floor(roundedSeconds / 60);
+  const remainingSeconds = roundedSeconds % 60;
+  if (!minutes) return `${remainingSeconds} сек`;
+  if (!remainingSeconds) return `${minutes} мин`;
+  return `${minutes} мин ${remainingSeconds} сек`;
+}
 
 /**
  * Keeps optional rest blocks safe when a program is restored from local storage

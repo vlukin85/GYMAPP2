@@ -19,7 +19,8 @@ describe("program builder selected exercises", () => {
     expect(screen).toContain("Отдых, сек");
     expect(screen).toContain("restBetweenSets");
     expect(screen).toContain("restBlockByExerciseId.get(exercise.id)");
-    expect(screen).toContain("Добавить отдых между упражнениями");
+    expect(screen).toContain("Обязательный интервал после последнего подхода");
+    expect(screen).toContain("ensureProgramRestBlocks");
     expect(screen).not.toContain("В ПРОГРАММЕ · {selectedExercises.length}");
     expect(screen).not.toContain("Параметры упражнений");
     expect(screen).not.toContain("selectedPanelHeader");
@@ -38,6 +39,13 @@ describe("program builder selected exercises", () => {
     expect(screen).toContain('!settings.reps.trim()');
     expect(screen).toContain('!settings.weight.trim()');
     expect(screen).toContain('!settings.restBetweenSets.trim()');
+    expect(screen).toContain('const missingTransitionRest = selectedExercises.slice(0, -1).find');
+    expect(screen).toContain('Заполните интервалы отдыха');
+    expect(screen).toContain('Расчётное время тренировки');
+    expect(screen).toContain('estimateProgramDurationSeconds');
+    expect(screen).toContain('durationSeconds: 0');
+    expect(screen).toContain('setRestBlocks((current) => ensureProgramRestBlocks(current, nextSelected))');
+    expect(screen).toContain('duration < MIN_PROGRAM_REST_BLOCK_SECONDS');
     expect(screen).not.toContain('?? { sets, reps, weight, restBetweenSets: rest }');
   });
 

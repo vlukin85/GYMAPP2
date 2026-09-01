@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   getProgramRestBlockAfterExercise,
+  estimateProgramDurationSeconds,
+  formatProgramDuration,
   normalizeBetweenSetRestSeconds,
   normalizeProgramRestBlocks,
   type WorkoutProgram,
@@ -42,6 +44,18 @@ describe("блоки отдыха программы", () => {
     expect(normalizeBetweenSetRestSeconds(1)).toBe(5);
     expect(normalizeBetweenSetRestSeconds(2_000)).toBe(1_800);
     expect(normalizeBetweenSetRestSeconds(undefined)).toBeUndefined();
+  });
+
+  it("считает суммарную длительность тренировки по упражнениям и интервалам", () => {
+    const seconds = estimateProgramDurationSeconds(
+      [
+        { sets: 3, reps: 8, rest: 90, restBetweenSets: 90 },
+        { sets: 2, reps: 10, rest: 60, restBetweenSets: 60 },
+      ],
+      [{ durationSeconds: 150 }],
+    );
+    expect(seconds).toBe(3 * 8 * 3 + 2 * 90 + 2 * 10 * 3 + 60 + 150);
+    expect(formatProgramDuration(seconds)).toBe("8 мин 42 сек");
   });
 
   it("находит длительность переходного отдыха после завершённого упражнения", () => {
