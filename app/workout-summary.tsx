@@ -39,14 +39,16 @@ function HeartRateInsights({ samples, zones, maximumBpm, colors }: { samples: { 
 export default function WorkoutSummaryScreen() {
   const colors = useColors();
   const { completed, personalRecords, programs } = useWorkoutStore();
-  const { workoutId, programId, volume = "0", minutes = "0", activeSeconds = "0", restSeconds = "0", calories = "0", averageHeartRateBpm = "", peakHeartRateBpm = "", records = "" } = useLocalSearchParams<{ workoutId?: string; programId: string; volume?: string; minutes?: string; activeSeconds?: string; restSeconds?: string; calories?: string; averageHeartRateBpm?: string; peakHeartRateBpm?: string; records?: string }>();
+  const { workoutId, programId, volume = "0", minutes = "0", durationSeconds = "0", activeSeconds = "0", restSeconds = "0", calories = "0", averageHeartRateBpm = "", peakHeartRateBpm = "", records = "" } = useLocalSearchParams<{ workoutId?: string; programId: string; volume?: string; minutes?: string; durationSeconds?: string; activeSeconds?: string; restSeconds?: string; calories?: string; averageHeartRateBpm?: string; peakHeartRateBpm?: string; records?: string }>();
   const [shareOpen, setShareOpen] = useState(false);
   const [shareTheme, setShareTheme] = useState<"dark" | "light">("dark");
   const [shareNote, setShareNote] = useState("");
   const shareCardRef = useRef<any>(null);
   const program = programs.find((item) => item.id === programId) ?? getProgram(programId);
   const completedWorkout = completed.find((item) => item.id === workoutId);
+  const exactDurationSeconds = completedWorkout?.durationSeconds ?? Math.max(0, Number(durationSeconds) || Math.max(0, Number(minutes) || 0) * 60);
   const energy = {
+    durationSeconds: exactDurationSeconds,
     activeSeconds: completedWorkout?.activeSeconds ?? Math.max(0, Number(activeSeconds) || 0),
     restSeconds: completedWorkout?.restSeconds ?? Math.max(0, Number(restSeconds) || 0),
     caloriesBurned: completedWorkout?.caloriesBurned ?? Math.max(0, Number(calories) || 0),
@@ -121,12 +123,13 @@ export default function WorkoutSummaryScreen() {
 
         <View style={[styles.metrics, { borderColor: colors.border }]}>
           <View style={[styles.metric, { borderRightColor: colors.border }]}><Text style={[styles.metricValue, { color: colors.foreground }]}>{Number(volume).toLocaleString("ru-RU")}</Text><Text style={[styles.metricLabel, { color: colors.muted }]}>ОБЪЁМ · КГ</Text></View>
-          <View style={[styles.metric, { borderRightColor: colors.border }]}><Text style={[styles.metricValue, { color: "#1746D2" }]}>{minutes}</Text><Text style={[styles.metricLabel, { color: colors.muted }]}>МИНУТ</Text></View>
+          <View style={[styles.metric, { borderRightColor: colors.border }]}><Text style={[styles.metricValue, { color: "#1746D2" }]}>{formatInterval(energy.durationSeconds)}</Text><Text style={[styles.metricLabel, { color: colors.muted }]}>ВРЕМЯ · ММ:СС</Text></View>
           <View style={[styles.metric, styles.metricLast]}><Text style={[styles.metricValue, { color: colors.primary }]}>{energy.caloriesBurned}</Text><Text style={[styles.metricLabel, { color: colors.muted }]}>ККАЛ</Text></View>
         </View>
 
         <View style={[styles.timingPanel, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <Text style={[styles.timingEyebrow, { color: colors.primary }]}>ИНТЕРВАЛЫ ПО ФАКТУ</Text>
+          <Text style={[styles.timingHint, { color: colors.muted }]}>Общее время {formatInterval(energy.durationSeconds)} · разбивка {formatInterval(energy.activeSeconds + energy.restSeconds)}</Text>
           <Text style={[styles.timingValue, { color: colors.foreground }]}>Работа {formatInterval(energy.activeSeconds)} · отдых {formatInterval(energy.restSeconds)}</Text>
           <Text style={[styles.timingHint, { color: colors.muted }]}>{completedWorkout?.caloriesMethod === "heart-rate" ? `Расход уточнён по пульсу часов; базовая оценка по интервалам — ${completedWorkout.metCalories ?? "—"} ккал.` : "Расход энергии рассчитан по измеренному времени подходов и пауз."}</Text>
         </View>

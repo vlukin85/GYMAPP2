@@ -250,6 +250,7 @@ export type CompletedWorkout = {
   programId: string;
   date: string;
   durationMinutes: number;
+  durationSeconds?: number;
   totalVolume: number;
   sets?: { exerciseId: string; weight: number; reps: number; distanceKm?: number }[];
   notes?: string;

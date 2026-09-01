@@ -2333,10 +2333,18 @@ export default function WorkoutScreen() {
           ),
         0,
       );
+    const workoutDurationSeconds = Math.max(
+      0,
+      Math.round((Date.now() - started) / 1000),
+    );
+    const totalRestSeconds = Math.max(
+      completedRestSeconds,
+      workoutDurationSeconds - totalActiveSeconds,
+    );
     const metEnergy = calculateWorkoutEnergy({
       weightKg: bodyWeightKg,
       activeSeconds: totalActiveSeconds,
-      restSeconds: completedRestSeconds,
+      restSeconds: totalRestSeconds,
     });
     const heartRateSummary = await readHealthConnectHeartRate(
       new Date(started).toISOString(),
@@ -2346,10 +2354,6 @@ export default function WorkoutScreen() {
       heartRateSummary.samples,
       ageYears,
       new Date().toISOString(),
-    );
-    const workoutDurationSeconds = Math.max(
-      0,
-      Math.round((Date.now() - started) / 1000),
     );
     const hasSufficientHeartRateCoverage =
       heartRateAnalysis.coveredSeconds >=
@@ -2366,8 +2370,9 @@ export default function WorkoutScreen() {
     });
     const caloriesBurned = heartRateCalories ?? metEnergy.totalCalories;
     const result = finishWorkout(program.id, total, recordSets, {
+      durationSeconds: workoutDurationSeconds,
       activeSeconds: totalActiveSeconds,
-      restSeconds: completedRestSeconds,
+      restSeconds: totalRestSeconds,
       caloriesBurned,
       averageHeartRateBpm: heartRateSummary.averageBpm,
       peakHeartRateBpm: heartRateSummary.peakBpm,
@@ -2389,6 +2394,7 @@ export default function WorkoutScreen() {
         minutes: String(result.minutes),
         activeSeconds: String(result.activeSeconds),
         restSeconds: String(result.restSeconds),
+        durationSeconds: String(result.durationSeconds),
         calories: String(result.caloriesBurned),
         averageHeartRateBpm: result.averageHeartRateBpm
           ? String(result.averageHeartRateBpm)

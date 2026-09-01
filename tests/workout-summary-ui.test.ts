@@ -13,6 +13,15 @@ describe("editorial workout completion interface", () => {
     expect(summary).toContain("ЛИЧНЫЕ РЕКОРДЫ");
   });
 
+  it("passes exact duration and measured rest into the completed workout record", () => {
+    expect(workout).toContain("durationSeconds: workoutDurationSeconds");
+    expect(workout).toContain("const totalRestSeconds = Math.max(");
+    expect(workout).toContain("restSeconds: totalRestSeconds");
+    expect(summary).toContain("completedWorkout?.durationSeconds");
+    expect(summary).toContain('ВРЕМЯ · ММ:СС');
+    expect(summary).toContain("energy.caloriesBurned");
+  });
+
   it("uses a strict editorial grid in the exercise catalog", () => {
     expect(catalog).toContain("cardAccent");
     expect(catalog).toContain("borderRadius: 0");
