@@ -7,37 +7,29 @@ const rootLayout = readFileSync(
   resolve(process.cwd(), "app/_layout.tsx"),
   "utf8",
 );
-const launchSplash = readFileSync(
-  resolve(process.cwd(), "components/ironrise-launch-splash.tsx"),
-  "utf8",
-);
 const settings = readFileSync(
   resolve(process.cwd(), "app/settings.tsx"),
   "utf8",
 );
 
 describe("native launch splash", () => {
-  it("configures Expo native splash with the bundled bodybuilder asset", () => {
-    expect(appConfig).toContain('"expo-splash-screen"');
+  it("configures one full-screen Expo splash with the bundled app mark", () => {
     expect(appConfig).toContain('image: "./assets/images/splash-icon.png"');
-    expect(appConfig).toContain("backgroundColor");
-    expect(launchSplash).toContain('require("@/assets/images/splash-icon.png")');
+    expect(appConfig).toContain('resizeMode: "cover"');
+    expect(appConfig).toContain('backgroundColor: "#0D0F14"');
+    expect(appConfig).toContain('imageWidth: 1024');
   });
 
-  it("shows the branded bodybuilder overlay on Android and web", () => {
-    expect(rootLayout).toContain(
-      'const [showLaunchSplash, setShowLaunchSplash] = useState(true);',
-    );
-    expect(rootLayout).toContain("void loadLaunchSplashDuration()");
-    expect(rootLayout).toContain("launchSplashTimer");
-    expect(rootLayout).toContain("launchSplashDuration");
-    expect(launchSplash).toContain('resizeMode="contain"');
-    expect(launchSplash).not.toContain("files.manuscdn.com");
+  it("does not mount a second custom splash layer", () => {
+    expect(rootLayout).not.toContain("IronRiseLaunchSplash");
+    expect(rootLayout).not.toContain("showLaunchSplash");
+    expect(rootLayout).not.toContain("launchSplashDuration");
+    expect(rootLayout).not.toContain("loadLaunchSplashDuration");
   });
 
-  it("сохраняет выбранную длительность фирменной заставки в настройках", () => {
-    expect(settings).toContain("Длительность заставки");
-    expect(settings).toContain("LAUNCH_SPLASH_DURATION_OPTIONS");
-    expect(settings).toContain("saveLaunchSplashDuration");
+  it("does not expose a stale second-splash duration setting", () => {
+    expect(settings).not.toContain("Длительность заставки");
+    expect(settings).not.toContain("LAUNCH_SPLASH_DURATION_OPTIONS");
+    expect(settings).not.toContain("saveLaunchSplashDuration");
   });
 });

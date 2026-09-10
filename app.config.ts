@@ -56,9 +56,8 @@ const config: ExpoConfig = {
   android: {
     versionCode: 4,
     adaptiveIcon: {
-      backgroundColor: "#F6F0E6",
+      backgroundColor: "#0D0F14",
       foregroundImage: "./assets/images/android-icon-foreground.png",
-      backgroundImage: "./assets/images/android-icon-background.png",
       monochromeImage: "./assets/images/android-icon-monochrome.png",
     },
     edgeToEdgeEnabled: true,
@@ -121,12 +120,9 @@ const config: ExpoConfig = {
       "expo-splash-screen",
       {
         image: "./assets/images/splash-icon.png",
-        imageWidth: 220,
-        resizeMode: "contain",
-        backgroundColor: "#FBF8FF",
-        dark: {
-          backgroundColor: "#160E24",
-        },
+        imageWidth: 1024,
+        resizeMode: "cover",
+        backgroundColor: "#0D0F14",
       },
     ],
     "react-native-health-connect",

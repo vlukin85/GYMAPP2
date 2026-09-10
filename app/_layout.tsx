@@ -18,7 +18,6 @@ import { NutritionProvider } from "@/lib/nutrition-store";
 import { HomeWidgetsProvider } from "@/lib/home-widgets";
 import { MainTabPreferencesProvider } from "@/lib/main-tab-preferences";
 import { BodyProvider } from "@/lib/body-store";
-import { IronRiseLaunchSplash } from "@/components/ironrise-launch-splash";
 import { ExpoWebPhoneFrame } from "@/components/expo-web-phone-frame";
 import {
   SafeAreaFrameContext,
@@ -34,10 +33,6 @@ import {
   completeLaunchDiagnostics,
   recordStartupChecks,
 } from "@/lib/launch-diagnostics";
-import {
-  DEFAULT_LAUNCH_SPLASH_DURATION_MS,
-  loadLaunchSplashDuration,
-} from "@/lib/launch-splash-settings";
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -61,26 +56,6 @@ export default function RootLayout() {
 
   const [insets, setInsets] = useState<EdgeInsets>(initialInsets);
   const [frame, setFrame] = useState<Rect>(initialFrame);
-  const [showLaunchSplash, setShowLaunchSplash] = useState(true);
-  const [launchSplashDuration, setLaunchSplashDuration] = useState(
-    DEFAULT_LAUNCH_SPLASH_DURATION_MS,
-  );
-
-  useEffect(() => {
-    void loadLaunchSplashDuration()
-      .then(setLaunchSplashDuration)
-      .catch(() => undefined);
-  }, []);
-
-  useEffect(() => {
-    const launchSplashTimer = setTimeout(() => {
-      setShowLaunchSplash(false);
-    }, launchSplashDuration);
-    return () => {
-      clearTimeout(launchSplashTimer);
-    };
-  }, [launchSplashDuration]);
-
   useEffect(() => {
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
@@ -182,7 +157,6 @@ export default function RootLayout() {
       </Stack>
       <WorkoutReplacementOverlay />
       <ReleaseNotesOverlay />
-      <IronRiseLaunchSplash visible={showLaunchSplash} />
       <StatusBar style="auto" />
     </GestureHandlerRootView>
   );

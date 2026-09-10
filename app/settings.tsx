@@ -93,13 +93,6 @@ import {
   loadLockScreenHeartRateVisible,
   saveLockScreenHeartRateVisible,
 } from "@/lib/lock-screen-heart-rate-privacy";
-import {
-  DEFAULT_LAUNCH_SPLASH_DURATION_MS,
-  LAUNCH_SPLASH_DURATION_OPTIONS,
-  loadLaunchSplashDuration,
-  saveLaunchSplashDuration,
-  type LaunchSplashDuration,
-} from "@/lib/launch-splash-settings";
 import { previewNativeRestCompletionSound } from "@/modules/ironrise-rest-timer";
 
 const formulas: {
@@ -503,8 +496,6 @@ export default function SettingsScreen() {
   const [settingsCategory, setSettingsCategory] =
     useState<SettingsCategoryId>("training");
   const [settingsQuery, setSettingsQuery] = useState("");
-  const [launchSplashDuration, setLaunchSplashDuration] =
-    useState<LaunchSplashDuration>(DEFAULT_LAUNCH_SPLASH_DURATION_MS);
   const femaleRestSoundPreviewPlayer = useAudioPlayer(
     require("@/assets/sounds/rest-complete-female.wav"),
   );
@@ -624,17 +615,6 @@ export default function SettingsScreen() {
       ),
     );
   }, [bodyGoals]);
-  useEffect(() => {
-    void loadLaunchSplashDuration()
-      .then(setLaunchSplashDuration)
-      .catch(() => undefined);
-  }, []);
-
-  const selectLaunchSplashDuration = (value: LaunchSplashDuration) => {
-    setLaunchSplashDuration(value);
-    void saveLaunchSplashDuration(value);
-  };
-
   const openGroqKeySheet = () => {
     setKeyDraft("");
     setKeySheetVisible(true);
@@ -1764,83 +1744,6 @@ export default function SettingsScreen() {
                         color={theme.color}
                       />
                     )}
-                  </Pressable>
-                );
-              })}
-            </View>
-          </View>
-        </View>
-
-        <View style={!isSectionVisible("appearance") && styles.hiddenSection}>
-          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
-            Стартовый экран
-          </Text>
-          <View
-            style={[
-              styles.vibrationCard,
-              { backgroundColor: colors.surface, borderColor: colors.border },
-            ]}
-          >
-            <Text style={[styles.vibrationTitle, { color: colors.foreground }]}>
-              Длительность заставки
-            </Text>
-            <Text style={[styles.vibrationHint, { color: colors.muted }]}>
-              Настройте время показа фирменного экрана IronRise после короткой
-              нативной заставки Android.
-            </Text>
-            <View style={styles.vibrationOptions}>
-              {LAUNCH_SPLASH_DURATION_OPTIONS.map((option) => {
-                const selected = option.value === launchSplashDuration;
-                return (
-                  <Pressable
-                    key={option.value}
-                    onPress={() => selectLaunchSplashDuration(option.value)}
-                    style={({ pressed }) => [
-                      styles.vibrationOption,
-                      {
-                        backgroundColor: selected
-                          ? `${colors.primary}18`
-                          : colors.background,
-                        borderColor: selected ? colors.primary : colors.border,
-                        opacity: pressed ? 0.72 : 1,
-                      },
-                    ]}
-                  >
-                    <View
-                      style={[
-                        styles.vibrationRadio,
-                        {
-                          borderColor: selected ? colors.primary : colors.muted,
-                        },
-                      ]}
-                    >
-                      {selected && (
-                        <View
-                          style={[
-                            styles.vibrationRadioDot,
-                            { backgroundColor: colors.primary },
-                          ]}
-                        />
-                      )}
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text
-                        style={[
-                          styles.vibrationOptionTitle,
-                          { color: colors.foreground },
-                        ]}
-                      >
-                        {option.title}
-                      </Text>
-                      <Text
-                        style={[
-                          styles.vibrationOptionHint,
-                          { color: colors.muted },
-                        ]}
-                      >
-                        {option.description}
-                      </Text>
-                    </View>
                   </Pressable>
                 );
               })}
