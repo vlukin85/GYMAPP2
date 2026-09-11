@@ -1,0 +1,16 @@
+{
+  "string": [
+    {
+      "name": "app_name",
+      "value": "IronRise Watch"
+    },
+    {
+      "name": "module_desc",
+      "value": "IronRise workout remote for Huawei wearable devices"
+    },
+    {
+      "name": "entry_desc",
+      "value": "IronRise watch companion entry ability"
+    }
+  ]
+}

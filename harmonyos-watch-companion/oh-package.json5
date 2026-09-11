@@ -1,0 +1,9 @@
+{
+  "modelVersion": "5.0.0",
+  "description": "IronRise companion remote for HarmonyOS wearables",
+  "license": "MIT",
+  "devDependencies": {
+    "@ohos/hvigor": "5.1.0",
+    "@ohos/hvigor-ohos-plugin": "5.1.0"
+  }
+}

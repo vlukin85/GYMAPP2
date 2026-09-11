@@ -1,0 +1,22 @@
+{
+  "app": {
+    "products": [
+      {
+        "name": "default",
+        "signingConfig": "default"
+      }
+    ],
+    "buildModeSet": [
+      {
+        "name": "debug",
+        "buildOption": {}
+      }
+    ]
+  },
+  "modules": [
+    {
+      "name": "entry",
+      "srcPath": "./entry"
+    }
+  ]
+}
