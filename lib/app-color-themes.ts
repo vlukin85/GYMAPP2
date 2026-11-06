@@ -36,6 +36,6 @@ export const APP_COLOR_THEMES: AppThemeDefinition[] = [
   { id: "bold-neon", title: "Bold Neon", hint: "Градиенты и неон для энергичных тренировок", swatch: "#7C3AED", dark: true, palette: palette({ primary: "#7C3AED", background: "#0D0B14", surface: "#241B33", foreground: "#F7F4FF", muted: "#B4A6C9", border: "#3A2C52", success: "#4ADE80", warning: "#FF6B35", error: "#FF2E97" }) },
 ];
 
-export const DEFAULT_APP_THEME_ID: AppThemeId = "editorial";
+export const DEFAULT_APP_THEME_ID: AppThemeId = "dark-energy";
 export const isAppThemeId = (value: unknown): value is AppThemeId => typeof value === "string" && APP_COLOR_THEMES.some((theme) => theme.id === value);
 export const getAppTheme = (id: AppThemeId) => APP_COLOR_THEMES.find((theme) => theme.id === id) ?? APP_COLOR_THEMES[0];

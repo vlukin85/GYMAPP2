@@ -21,7 +21,7 @@ async function toPortableMedia(uri: string): Promise<{ mimeType: "image/jpeg"; b
   return { mimeType: "image/jpeg", base64: await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 }) };
 }
 
-export async function buildPortableProgramMedia(programs: WorkoutProgram[], exerciseImageOverrides: Record<string, string>, exerciseGalleries: Record<string, { id: string; label: string; url: string }[]>) {
+export async function buildPortableProgramMedia(programs: WorkoutProgram[], exerciseImageOverrides: Record<string, string>, exerciseGalleries: Record<string, { id: string; label: string; url: string | number }[]>) {
   const media: PortableProgramMedia = {};
   const transformed = await Promise.all(programs.map(async (program) => {
     if (!program.coverImage) return program;
@@ -35,7 +35,12 @@ export async function buildPortableProgramMedia(programs: WorkoutProgram[], exer
   for (const exerciseId of exerciseIds) {
     const main = exerciseImageOverrides[exerciseId];
     if (main) { const key = `exercise-${exerciseId}-main`; const encoded = await toPortableMedia(main); if (encoded) media[key] = encoded; }
-    for (const [index, image] of (exerciseGalleries[exerciseId] ?? []).entries()) { const key = `exercise-${exerciseId}-extra-${index}`; const encoded = await toPortableMedia(image.url); if (encoded) media[key] = encoded; }
+    for (const [index, image] of (exerciseGalleries[exerciseId] ?? []).entries()) {
+      if (typeof image.url !== "string") continue;
+      const key = `exercise-${exerciseId}-extra-${index}`;
+      const encoded = await toPortableMedia(image.url);
+      if (encoded) media[key] = encoded;
+    }
   }
   return { programs: transformed, media };
 }

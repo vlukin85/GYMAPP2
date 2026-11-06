@@ -14,10 +14,10 @@ describe("app color themes", () => {
     expect(getAppTheme("midnight").dark).toBe(true);
   });
 
-  it("starts with the editorial IronRise palette from the approved reference", () => {
+  it("starts with the approved Dark Energy palette from the redesigned reference", () => {
     const theme = getAppTheme(DEFAULT_APP_THEME_ID);
-    expect(theme.id).toBe("editorial");
-    expect(theme.palette.background).toBe("#F4F0E8");
-    expect(theme.palette.primary).toBe("#E72B25");
+    expect(theme.id).toBe("dark-energy");
+    expect(theme.palette.background).toBe("#0B0F0D");
+    expect(theme.palette.primary).toBe("#C8F169");
   });
 });

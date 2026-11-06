@@ -1,9 +1,16 @@
 export type MuscleGroup = "Грудь" | "Спина" | "Ноги" | "Плечи" | "Бицепс" | "Трицепс" | "Корпус" | "Кардио";
 
 import { freeExerciseDbGroupFallbackPhotos, freeExerciseDbPhotos } from "./free-exercise-db-photos";
+import { bundledExerciseGroupFallbackPhotos, bundledExercisePhotos as bundledExercisePhotoAssets } from "./bundled-exercise-photos";
 import { aiArmsExerciseIllustration, aiGroupExerciseIllustrations, generatedTechniqueImages, individualAiExerciseIllustrations } from "./bundled-ai-exercise-images";
 
 export type ExerciseMeasure = "reps" | "minutes";
+
+/**
+ * Источник изображения упражнения: ссылка (web/тесты) или числовой идентификатор
+ * локального ассета (нативные сборки, офлайн-бандл).
+ */
+export type ExerciseImageSource = string | number;
 
 export type Exercise = {
 id: string;
@@ -11,8 +18,8 @@ name: string;
 group: MuscleGroup;
   equipment: string;
   description: string;
-  image: string;
-  photoAngles?: { id: string; label: string; url: string }[];
+  image: ExerciseImageSource;
+  photoAngles?: { id: string; label: string; url: ExerciseImageSource }[];
   videoUrl: string;
   recordKg: number;
   recordReps: number;
@@ -31,7 +38,7 @@ export function supportsDistanceTracking(exercise?: Pick<Exercise, "id">) {
   return exercise?.id === "treadmill" || exercise?.id === "rower";
 }
 
-export type ExerciseGalleryImage = { id: string; label: string; url: string };
+export type ExerciseGalleryImage = { id: string; label: string; url: ExerciseImageSource };
 
 export type AiExerciseArtStyle = "editorial" | "neon" | "minimal";
 
@@ -374,8 +381,11 @@ export const generatedExerciseIllustrationLibrary = [
   ...Object.entries(aiGroupExerciseIllustrations).map(([group, url]) => ({ exerciseId: `group-${group}`, url, label: `AI-иллюстрация группы: ${group}` })),
 ];
 
-function exerciseOpenPhoto(exercise: Exercise) {
-  return freeExerciseDbPhotos[exercise.id] ?? freeExerciseDbGroupFallbackPhotos[exercise.group];
+const bundledExercisePhotos: Record<string, ExerciseImageSource> = bundledExercisePhotoAssets;
+const bundledGroupFallbackPhotos: Record<string, ExerciseImageSource> = bundledExerciseGroupFallbackPhotos;
+
+function exerciseOpenPhoto(exercise: Exercise): ExerciseImageSource {
+  return bundledExercisePhotos[exercise.id] ?? bundledGroupFallbackPhotos[exercise.group] ?? freeExerciseDbPhotos[exercise.id] ?? freeExerciseDbGroupFallbackPhotos[exercise.group];
 }
 
 function exerciseTechniqueImage(exercise: Exercise) {
@@ -390,8 +400,8 @@ const individualAi = individualAiExerciseIllustrations[exercise.id];
   const openPhoto = exerciseOpenPhoto(exercise);
   const hasDedicatedOpenPhoto = Boolean(freeExerciseDbPhotos[exercise.id]);
 const defaultIllustration = exerciseTechniqueImage(exercise);
-const candidates: { id: string; label: string; url: string }[] = [];
-  const addCandidate = (id: string, label: string, url?: string) => {
+const candidates: { id: string; label: string; url: ExerciseImageSource }[] = [];
+  const addCandidate = (id: string, label: string, url?: ExerciseImageSource) => {
     if (url && !candidates.some((candidate) => candidate.url === url)) candidates.push({ id, label, url });
   };
   addCandidate(`ai-${exercise.id}`, "Отдельная AI-иллюстрация", individualAi);
@@ -401,6 +411,17 @@ const candidates: { id: string; label: string; url: string }[] = [];
   addCandidate("ai-arms", "AI-иллюстрация рук", aiArmsImage);
   addCandidate(`illustration-${exercise.id}`, "Иллюстрация упражнения", defaultIllustration);
   return candidates;
+}
+
+export type ExerciseLibraryCandidate = { id: string; label: string; url: string };
+
+/**
+ * Candidates that are safe to store as a user-selected image: only plain URLs.
+ * On native the open-photo candidate carries a local asset identifier, so it is
+ * excluded from the pickable library but stays available for rendering.
+ */
+export function getExerciseLibraryCandidates(exercise: Exercise): ExerciseLibraryCandidate[] {
+  return getExerciseIllustrationCandidates(exercise).filter((candidate): candidate is ExerciseLibraryCandidate => typeof candidate.url === "string");
 }
 
 const catalogExercises: Exercise[] = [

@@ -8,6 +8,7 @@ import { WorkoutShareCard } from "@/components/workout-share-card";
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
+import { minTouchTarget, pressedOpacity, radius, shadows, type as typeTokens } from "@/lib/design-tokens";
 import { formatWorkoutSocialTemplate, getWorkoutRecordAchievements } from "@/lib/workout-achievements";
 import { formatCardioPace, getCardioWorkoutSummary } from "@/lib/cardio-metrics";
 import { getExercise, getProgram } from "@/lib/workout-data";
@@ -112,19 +113,18 @@ export default function WorkoutSummaryScreen() {
   return (
     <ScreenContainer edges={["top", "left", "right", "bottom"]} containerClassName="bg-background">
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={[styles.redBar, { backgroundColor: colors.primary }]} />
         <View style={[styles.header, { borderBottomColor: colors.border }]}>
-          <Text style={[styles.headerIndex, { color: colors.foreground }]}>01</Text>
+          <Text style={[styles.headerIndex, { color: colors.primary, fontVariant: ["tabular-nums"] }]}>01</Text>
           <Text style={[styles.headerLabel, { color: colors.primary }]}>ТРЕНИРОВКА{`\n`}ЗАВЕРШЕНА</Text>
         </View>
-        <Text style={[styles.heroWord, { color: colors.foreground }]}>ГОТОВО.</Text>
+        <Text style={[styles.heroWord, { color: colors.foreground }]}>Готово.</Text>
         <Text style={[styles.programName, { color: colors.foreground }]}>{program?.name ?? "Тренировка"}</Text>
         <Text style={[styles.programCopy, { color: colors.muted }]}>Результаты сохранены в локальной истории. Данные сразу учтены в статистике и личных рекордах.</Text>
 
-        <View style={[styles.metrics, { borderColor: colors.border }]}>
-          <View style={[styles.metric, { borderRightColor: colors.border }]}><Text style={[styles.metricValue, { color: colors.foreground }]}>{Number(volume).toLocaleString("ru-RU")}</Text><Text style={[styles.metricLabel, { color: colors.muted }]}>ОБЪЁМ · КГ</Text></View>
-          <View style={[styles.metric, { borderRightColor: colors.border }]}><Text style={[styles.metricValue, { color: "#1746D2" }]}>{formatInterval(energy.durationSeconds)}</Text><Text style={[styles.metricLabel, { color: colors.muted }]}>ВРЕМЯ · ММ:СС</Text></View>
-          <View style={[styles.metric, styles.metricLast]}><Text style={[styles.metricValue, { color: colors.primary }]}>{energy.caloriesBurned}</Text><Text style={[styles.metricLabel, { color: colors.muted }]}>ККАЛ</Text></View>
+        <View style={styles.metrics}>
+          <View style={[styles.metric, { backgroundColor: colors.surface, borderColor: colors.border, borderRightColor: colors.border }]}><Text style={[styles.metricValue, { color: colors.foreground, fontVariant: ["tabular-nums"] }]}>{Number(volume).toLocaleString("ru-RU")}</Text><Text style={[styles.metricLabel, { color: colors.muted }]}>ОБЪЁМ · КГ</Text></View>
+          <View style={[styles.metric, { backgroundColor: colors.surface, borderColor: colors.border, borderRightColor: colors.border }]}><Text style={[styles.metricValue, { color: colors.primary, fontVariant: ["tabular-nums"] }]}>{formatInterval(energy.durationSeconds)}</Text><Text style={[styles.metricLabel, { color: colors.muted }]}>ВРЕМЯ · ММ:СС</Text></View>
+          <View style={[styles.metric, styles.metricLast, { backgroundColor: colors.surface, borderColor: colors.border }]}><Text style={[styles.metricValue, { color: colors.warning, fontVariant: ["tabular-nums"] }]}>{energy.caloriesBurned}</Text><Text style={[styles.metricLabel, { color: colors.muted }]}>ККАЛ</Text></View>
         </View>
 
         <View style={[styles.timingPanel, { backgroundColor: colors.surface, borderColor: colors.border }]}>
@@ -137,90 +137,89 @@ export default function WorkoutSummaryScreen() {
         {(heartRate.averageBpm || heartRate.peakBpm) && <View style={[styles.heartRatePanel, { backgroundColor: colors.surface, borderColor: colors.border }]}><View><Text style={[styles.timingEyebrow, { color: colors.primary }]}>ПУЛЬС · HEALTH CONNECT</Text><Text style={[styles.heartRateHint, { color: colors.muted }]}>Данные часов за время тренировки</Text></View><View style={styles.heartRateMetrics}><Text style={[styles.heartRateValue, { color: colors.foreground }]}>{heartRate.averageBpm ?? "—"}<Text style={[styles.heartRateUnit, { color: colors.muted }]}> СР.</Text></Text><Text style={[styles.heartRateValue, { color: colors.primary }]}>{heartRate.peakBpm ?? "—"}<Text style={[styles.heartRateUnit, { color: colors.muted }]}> ПИК</Text></Text></View></View>}
         {completedWorkout && <HeartRateInsights samples={completedWorkout.heartRateSamples ?? []} zones={completedWorkout.heartRateZones ?? []} maximumBpm={completedWorkout.estimatedMaxHeartRateBpm} colors={colors} />}
 
-        {cardio.minutes > 0 && <View style={[styles.cardioPanel, { backgroundColor: colors.surface, borderColor: colors.border }]}><View><Text style={[styles.cardioEyebrow, { color: colors.primary }]}>КАРДИО · РЕЗУЛЬТАТ</Text><Text style={[styles.cardioTitle, { color: colors.foreground }]}>{cardio.minutes} мин{cardio.distanceKm > 0 ? ` · ${cardio.distanceKm.toFixed(2)} км` : ""}</Text></View><View style={styles.cardioPace}><Text style={[styles.cardioPaceValue, { color: "#1746D2" }]}>{formatCardioPace(cardio.paceSecondsPerKm)}</Text><Text style={[styles.cardioPaceLabel, { color: colors.muted }]}>СРЕДНИЙ ТЕМП</Text></View></View>}
-        <View style={[styles.recordPanel, { backgroundColor: colors.surface, borderColor: colors.border }]}><View style={styles.recordPanelHeader}><IconSymbol name="trophy" size={23} color={colors.primary} /><Text style={[styles.recordPanelTitle, { color: colors.foreground }]}>ЛИЧНЫЕ РЕКОРДЫ</Text><Text style={[styles.recordCount, { color: colors.primary }]}>{recordIds.length}</Text></View>{recordIds.length ? recordIds.map((id, index) => <View key={id} style={[styles.recordRow, index > 0 && { borderTopColor: colors.border, borderTopWidth: StyleSheet.hairlineWidth }]}><Text style={[styles.recordNumber, { color: colors.primary }]}>{String(index + 1).padStart(2, "0")}</Text><Text style={[styles.recordName, { color: colors.foreground }]}>{getExercise(id)?.name ?? id}</Text><IconSymbol name="arrow.up.right" size={18} color="#1746D2" /></View>) : <Text style={[styles.noRecords, { color: colors.muted }]}>Сегодня без нового рекорда. Последовательность — уже прогресс.</Text>}</View>
-        <View style={styles.actions}><Pressable onPress={() => setShareOpen(true)} style={({ pressed }) => [styles.shareAction, { borderColor: colors.primary, opacity: pressed ? 0.68 : 1 }]}><Text style={[styles.shareActionText, { color: colors.primary }]}>ПОДЕЛИТЬСЯ РЕЗУЛЬТАТОМ</Text><IconSymbol name="square.and.arrow.up" size={19} color={colors.primary} /></Pressable><Pressable onPress={() => router.replace("/(tabs)/stats")} style={({ pressed }) => [styles.primaryAction, { backgroundColor: colors.primary, opacity: pressed ? 0.75 : 1 }]}><Text style={styles.primaryActionText}>ОТКРЫТЬ СТАТИСТИКУ</Text><IconSymbol name="chart.bar.fill" size={19} color="#FFFDF8" /></Pressable><Pressable onPress={() => router.replace("/(tabs)")} style={({ pressed }) => [styles.secondaryAction, { borderColor: colors.border, opacity: pressed ? 0.65 : 1 }]}><Text style={[styles.secondaryActionText, { color: colors.foreground }]}>К ПЛАНУ</Text><IconSymbol name="house.fill" size={19} color={colors.foreground} /></Pressable></View>
+        {cardio.minutes > 0 && <View style={[styles.cardioPanel, { backgroundColor: colors.surface, borderColor: colors.border }]}><View><Text style={[styles.cardioEyebrow, { color: colors.primary }]}>КАРДИО · РЕЗУЛЬТАТ</Text><Text style={[styles.cardioTitle, { color: colors.foreground, fontVariant: ["tabular-nums"] }]}>{cardio.minutes} мин{cardio.distanceKm > 0 ? ` · ${cardio.distanceKm.toFixed(2)} км` : ""}</Text></View><View style={styles.cardioPace}><Text style={[styles.cardioPaceValue, { color: colors.primary, fontVariant: ["tabular-nums"] }]}>{formatCardioPace(cardio.paceSecondsPerKm)}</Text><Text style={[styles.cardioPaceLabel, { color: colors.muted }]}>СРЕДНИЙ ТЕМП</Text></View></View>}
+        <View style={[styles.recordPanel, { backgroundColor: colors.surface, borderColor: colors.border }]}><View style={styles.recordPanelHeader}><IconSymbol name="trophy" size={23} color={colors.primary} /><Text style={[styles.recordPanelTitle, { color: colors.foreground }]}>ЛИЧНЫЕ РЕКОРДЫ</Text><Text style={[styles.recordCount, { color: colors.primary, fontVariant: ["tabular-nums"] }]}>{recordIds.length}</Text></View>{recordIds.length ? recordIds.map((id, index) => <View key={id} style={[styles.recordRow, index > 0 && { borderTopColor: colors.border, borderTopWidth: StyleSheet.hairlineWidth }]}><Text style={[styles.recordNumber, { color: colors.primary, fontVariant: ["tabular-nums"] }]}>{String(index + 1).padStart(2, "0")}</Text><Text style={[styles.recordName, { color: colors.foreground }]}>{getExercise(id)?.name ?? id}</Text><IconSymbol name="arrow.up.right" size={18} color={colors.primary} /></View>) : <Text style={[styles.noRecords, { color: colors.muted }]}>Сегодня без нового рекорда. Последовательность — уже прогресс.</Text>}</View>
+        <View style={styles.actions}><Pressable onPress={() => setShareOpen(true)} style={({ pressed }) => [styles.shareAction, { borderColor: colors.primary, opacity: pressed ? pressedOpacity : 1 }]}><Text style={[styles.shareActionText, { color: colors.primary }]}>ПОДЕЛИТЬСЯ РЕЗУЛЬТАТОМ</Text><IconSymbol name="square.and.arrow.up" size={19} color={colors.primary} /></Pressable><Pressable onPress={() => router.replace("/(tabs)/stats")} style={({ pressed }) => [styles.primaryAction, { backgroundColor: colors.primary, opacity: pressed ? pressedOpacity : 1 }, shadows.raised]}><Text style={[styles.primaryActionText, { color: colors.background }]}>ОТКРЫТЬ СТАТИСТИКУ</Text><IconSymbol name="chart.bar.fill" size={19} color={colors.background} /></Pressable><Pressable onPress={() => router.replace("/(tabs)")} style={({ pressed }) => [styles.secondaryAction, { borderColor: colors.border, opacity: pressed ? pressedOpacity : 1 }]}><Text style={[styles.secondaryActionText, { color: colors.foreground }]}>К ПЛАНУ</Text><IconSymbol name="house.fill" size={19} color={colors.foreground} /></Pressable></View>
       </ScrollView>
 
-      <Modal visible={shareOpen} transparent animationType="slide" onRequestClose={() => setShareOpen(false)}><View style={styles.backdrop}><View style={[styles.shareSheet, { backgroundColor: colors.background }]}><View style={styles.shareSheetHeader}><View><Text style={[styles.shareSheetTitle, { color: colors.foreground }]}>ПОДЕЛИТЬСЯ РЕЗУЛЬТАТОМ</Text><Text style={[styles.shareSheetHint, { color: colors.muted }]}>Карточка и текст готовы для публикации</Text></View><Pressable onPress={() => setShareOpen(false)} style={[styles.close, { backgroundColor: colors.surface }]}><Text style={[styles.closeText, { color: colors.foreground }]}>×</Text></Pressable></View>{completedWorkout ? <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.shareContent}><View style={[styles.themePicker, { backgroundColor: colors.surface, borderColor: colors.border }]}>{(["dark", "light"] as const).map((theme) => <Pressable key={theme} onPress={() => setShareTheme(theme)} style={[styles.themeOption, { backgroundColor: shareTheme === theme ? colors.primary : "transparent" }]}><Text style={[styles.themeText, { color: shareTheme === theme ? "#FFFDF8" : colors.muted }]}>{theme === "dark" ? "Тёмная" : "Светлая"}</Text></Pressable>)}</View><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.shareCardScroll}><WorkoutShareCard captureRef={shareCardRef} workout={completedWorkout} programName={program?.name ?? "Тренировка"} records={shareRecords} theme={shareTheme} note={shareNote} /></ScrollView><TextInput value={shareNote} onChangeText={setShareNote} maxLength={120} multiline placeholder="Личная заметка на карточке" placeholderTextColor={colors.muted} style={[styles.noteInput, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.surface }]} /><Text style={[styles.sharePreview, { color: colors.foreground, backgroundColor: colors.surface, borderColor: colors.border }]}>{shareText}</Text><Pressable onPress={shareVisualCard} style={[styles.shareImageButton, { backgroundColor: colors.primary }]}><Text style={styles.shareImageButtonText}>ПОДЕЛИТЬСЯ КАРТОЧКОЙ PNG</Text></Pressable><Pressable onPress={shareTextResult} style={[styles.shareTextButton, { borderColor: colors.border }]}><Text style={[styles.shareTextButtonText, { color: colors.foreground }]}>ПОДЕЛИТЬСЯ ТЕКСТОМ</Text></Pressable></ScrollView> : <View style={styles.shareUnavailable}><Text style={[styles.shareSheetHint, { color: colors.muted }]}>Результат всё ещё сохраняется. Нажмите «Поделиться» через секунду.</Text></View>}</View></View></Modal>
+      <Modal visible={shareOpen} transparent animationType="slide" onRequestClose={() => setShareOpen(false)}><View style={styles.backdrop}><View style={[styles.shareSheet, { backgroundColor: colors.background }]}><View style={styles.shareSheetHeader}><View><Text style={[styles.shareSheetTitle, { color: colors.foreground }]}>ПОДЕЛИТЬСЯ РЕЗУЛЬТАТОМ</Text><Text style={[styles.shareSheetHint, { color: colors.muted }]}>Карточка и текст готовы для публикации</Text></View><Pressable onPress={() => setShareOpen(false)} style={[styles.close, { backgroundColor: colors.surface }]}><Text style={[styles.closeText, { color: colors.foreground }]}>×</Text></Pressable></View>{completedWorkout ? <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.shareContent}><View style={[styles.themePicker, { backgroundColor: colors.surface, borderColor: colors.border }]}>{(["dark", "light"] as const).map((theme) => <Pressable key={theme} onPress={() => setShareTheme(theme)} style={[styles.themeOption, { backgroundColor: shareTheme === theme ? colors.primary : "transparent" }]}><Text style={[styles.themeText, { color: shareTheme === theme ? colors.background : colors.muted }]}>{theme === "dark" ? "Тёмная" : "Светлая"}</Text></Pressable>)}</View><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.shareCardScroll}><WorkoutShareCard captureRef={shareCardRef} workout={completedWorkout} programName={program?.name ?? "Тренировка"} records={shareRecords} theme={shareTheme} note={shareNote} /></ScrollView><TextInput value={shareNote} onChangeText={setShareNote} maxLength={120} multiline placeholder="Личная заметка на карточке" placeholderTextColor={colors.muted} style={[styles.noteInput, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.surface }]} /><Text style={[styles.sharePreview, { color: colors.foreground, backgroundColor: colors.surface, borderColor: colors.border }]}>{shareText}</Text><Pressable onPress={shareVisualCard} style={[styles.shareImageButton, { backgroundColor: colors.primary }]}><Text style={[styles.shareImageButtonText, { color: colors.background }]}>ПОДЕЛИТЬСЯ КАРТОЧКОЙ PNG</Text></Pressable><Pressable onPress={shareTextResult} style={[styles.shareTextButton, { borderColor: colors.border }]}><Text style={[styles.shareTextButtonText, { color: colors.foreground }]}>ПОДЕЛИТЬСЯ ТЕКСТОМ</Text></Pressable></ScrollView> : <View style={styles.shareUnavailable}><Text style={[styles.shareSheetHint, { color: colors.muted }]}>Результат всё ещё сохраняется. Нажмите «Поделиться» через секунду.</Text></View>}</View></View></Modal>
     </ScreenContainer>
   );
 }
 
 const styles = StyleSheet.create({
   content: { padding: 20, paddingBottom: 34, gap: 18 },
-  redBar: { height: 8, marginHorizontal: -20, marginTop: -20 },
-  header: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", borderBottomWidth: StyleSheet.hairlineWidth, paddingBottom: 15, marginTop: 8 },
-  headerIndex: { fontSize: 66, lineHeight: 57, fontWeight: "900", letterSpacing: -4 },
-  headerLabel: { textAlign: "right", fontSize: 14, lineHeight: 18, fontWeight: "900", letterSpacing: 1.2 },
-  heroWord: { fontSize: 58, fontWeight: "900", letterSpacing: -3.6, marginTop: 6 },
-  programName: { fontSize: 23, fontWeight: "900", textTransform: "uppercase", marginTop: -8 },
+  header: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", borderBottomWidth: StyleSheet.hairlineWidth, paddingBottom: 15, marginTop: 4 },
+  headerIndex: { fontSize: 44, lineHeight: 44, fontWeight: "900", letterSpacing: -2 },
+  headerLabel: { textAlign: "right", ...typeTokens.eyebrow, lineHeight: 18 },
+  heroWord: { ...typeTokens.display, fontSize: 40, marginTop: 6 },
+  programName: { ...typeTokens.title, fontSize: 21, marginTop: -6 },
   programCopy: { fontSize: 13, lineHeight: 19, maxWidth: 330 },
-  metrics: { flexDirection: "row", borderWidth: 1 },
-  metric: { flex: 1, minHeight: 104, padding: 12, justifyContent: "space-between", borderRightWidth: StyleSheet.hairlineWidth },
-  metricLast: { borderRightWidth: 0 },
-  metricValue: { fontSize: 27, fontWeight: "900", letterSpacing: -1.4 },
-  metricLabel: { fontSize: 9, fontWeight: "900", letterSpacing: 0.45 },
-  timingPanel: { borderWidth: 1, borderLeftWidth: 6, padding: 14, gap: 4 },
-  timingEyebrow: { fontSize: 9, fontWeight: "900", letterSpacing: 0.7 },
-  timingValue: { fontSize: 17, fontWeight: "900", letterSpacing: -0.4 },
+  metrics: { flexDirection: "row", gap: 10 },
+  metric: { flex: 1, minHeight: 104, padding: 13, justifyContent: "space-between", borderWidth: 1, borderRadius: radius.tile },
+  metricLast: { borderRightWidth: 1 },
+  metricValue: { fontSize: 24, fontWeight: "900", fontVariant: ["tabular-nums"] },
+  metricLabel: { ...typeTokens.eyebrow, fontSize: 9 },
+  timingPanel: { borderWidth: 1, borderRadius: radius.card, padding: 14, gap: 4 },
+  timingEyebrow: { ...typeTokens.eyebrow, fontSize: 9 },
+  timingValue: { fontSize: 17, fontWeight: "800", letterSpacing: -0.4, fontVariant: ["tabular-nums"] },
   timingHint: { fontSize: 10, lineHeight: 15 },
-  heartRatePanel: { borderWidth: 1, borderLeftWidth: 6, padding: 14, flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", gap: 10 },
+  heartRatePanel: { borderWidth: 1, borderRadius: radius.card, padding: 14, flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", gap: 10 },
   heartRateHint: { fontSize: 10, lineHeight: 15, marginTop: 4 },
   heartRateMetrics: { flexDirection: "row", gap: 10, alignItems: "baseline" },
-  heartRateValue: { fontSize: 21, fontWeight: "900", letterSpacing: -0.8 },
-  heartRateUnit: { fontSize: 8, fontWeight: "900", letterSpacing: 0.35 },
-  heartInsights: { borderWidth: 1, borderLeftWidth: 6, padding: 14, gap: 9 },
+  heartRateValue: { fontSize: 21, fontWeight: "900", letterSpacing: -0.8, fontVariant: ["tabular-nums"] },
+  heartRateUnit: { fontSize: 8, fontWeight: "800", letterSpacing: 0.35 },
+  heartInsights: { borderWidth: 1, borderRadius: radius.card, padding: 14, gap: 9 },
   heartInsightsHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", gap: 10 },
   heartInsightsHint: { fontSize: 10, lineHeight: 15, marginTop: 4, maxWidth: 230 },
-  heartSamplesCount: { fontSize: 19, fontWeight: "900", letterSpacing: -0.7 },
-  heartSamplesLabel: { fontSize: 8, fontWeight: "900", letterSpacing: 0.35 },
+  heartSamplesCount: { fontSize: 19, fontWeight: "900", letterSpacing: -0.7, fontVariant: ["tabular-nums"] },
+  heartSamplesLabel: { fontSize: 8, fontWeight: "800", letterSpacing: 0.35 },
   heartChartAxis: { flexDirection: "row", justifyContent: "space-between", marginTop: -5 },
-  heartAxisText: { fontSize: 8, fontWeight: "800" },
+  heartAxisText: { fontSize: 8, fontWeight: "600", fontVariant: ["tabular-nums"] },
   heartEmpty: { fontSize: 11, lineHeight: 16, paddingVertical: 14 },
   zoneList: { borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 8, gap: 6 },
   zoneRow: { minHeight: 20, flexDirection: "row", alignItems: "center", gap: 7 },
-  zoneMark: { width: 6, height: 16 },
-  zoneName: { flex: 1, fontSize: 10, fontWeight: "800" },
-  zoneDuration: { fontSize: 11, fontWeight: "900" },
-  cardioPanel: { borderWidth: 1, borderLeftWidth: 6, borderLeftColor: "#1746D2", padding: 14, flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", gap: 10 },
-  cardioEyebrow: { fontSize: 9, fontWeight: "900", letterSpacing: 0.7 },
-  cardioTitle: { fontSize: 20, fontWeight: "900", marginTop: 5, letterSpacing: -0.8 },
+  zoneMark: { width: 6, height: 16, borderRadius: 3 },
+  zoneName: { flex: 1, fontSize: 10, fontWeight: "700" },
+  zoneDuration: { fontSize: 11, fontWeight: "800", fontVariant: ["tabular-nums"] },
+  cardioPanel: { borderWidth: 1, borderRadius: radius.card, padding: 14, flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", gap: 10 },
+  cardioEyebrow: { ...typeTokens.eyebrow, fontSize: 9 },
+  cardioTitle: { fontSize: 20, fontWeight: "800", marginTop: 5, letterSpacing: -0.8 },
   cardioPace: { alignItems: "flex-end" },
-  cardioPaceValue: { fontSize: 17, fontWeight: "900" },
-  cardioPaceLabel: { fontSize: 8, fontWeight: "900", marginTop: 4, letterSpacing: 0.5 },
-  recordPanel: { borderWidth: 1, borderLeftWidth: 6, padding: 14, gap: 12 },
+  cardioPaceValue: { fontSize: 17, fontWeight: "800" },
+  cardioPaceLabel: { ...typeTokens.eyebrow, fontSize: 8, marginTop: 4 },
+  recordPanel: { borderWidth: 1, borderRadius: radius.card, padding: 14, gap: 12 },
   recordPanelHeader: { flexDirection: "row", alignItems: "center", gap: 8 },
-  recordPanelTitle: { flex: 1, fontSize: 13, fontWeight: "900", letterSpacing: 0.4 },
+  recordPanelTitle: { flex: 1, ...typeTokens.eyebrow, fontSize: 12 },
   recordCount: { fontSize: 25, fontWeight: "900" },
   recordRow: { minHeight: 48, flexDirection: "row", alignItems: "center", gap: 10 },
-  recordNumber: { width: 28, fontSize: 15, fontWeight: "900" },
-  recordName: { flex: 1, fontSize: 13, lineHeight: 17, fontWeight: "900", textTransform: "uppercase" },
+  recordNumber: { width: 28, fontSize: 14, fontWeight: "800" },
+  recordName: { flex: 1, fontSize: 13, lineHeight: 17, fontWeight: "700" },
   noRecords: { fontSize: 12, lineHeight: 18 },
-  actions: { gap: 9, marginTop: 4 },
-  shareAction: { minHeight: 53, borderWidth: 1, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 15 },
-  shareActionText: { fontSize: 12, fontWeight: "900", letterSpacing: 0.45 },
-  primaryAction: { minHeight: 57, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 15 },
-  primaryActionText: { color: "#FFFDF8", fontSize: 12, fontWeight: "900", letterSpacing: 0.5 },
-  secondaryAction: { minHeight: 52, borderWidth: 1, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 15 },
-  secondaryActionText: { fontSize: 12, fontWeight: "900", letterSpacing: 0.5 },
-  backdrop: { flex: 1, backgroundColor: "#151515A8", justifyContent: "flex-end" },
-  shareSheet: { maxHeight: "92%", borderTopWidth: 8, borderColor: "#E72B25", padding: 20, gap: 14 },
+  actions: { gap: 10, marginTop: 4 },
+  shareAction: { minHeight: minTouchTarget + 8, borderWidth: 1, borderRadius: radius.button, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16 },
+  shareActionText: { ...typeTokens.eyebrow, fontSize: 11 },
+  primaryAction: { minHeight: minTouchTarget + 12, borderRadius: radius.button, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16 },
+  primaryActionText: { ...typeTokens.eyebrow, fontSize: 12 },
+  secondaryAction: { minHeight: minTouchTarget + 8, borderWidth: 1, borderRadius: radius.button, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16 },
+  secondaryActionText: { ...typeTokens.eyebrow, fontSize: 12 },
+  backdrop: { flex: 1, backgroundColor: "#050806B8", justifyContent: "flex-end" },
+  shareSheet: { maxHeight: "92%", borderTopLeftRadius: radius.sheet, borderTopRightRadius: radius.sheet, padding: 20, gap: 14 },
   shareSheetHeader: { flexDirection: "row", justifyContent: "space-between", gap: 12 },
-  shareSheetTitle: { fontSize: 18, fontWeight: "900", letterSpacing: -0.4 },
+  shareSheetTitle: { ...typeTokens.heading, fontSize: 18 },
   shareSheetHint: { fontSize: 11, lineHeight: 16, marginTop: 4 },
-  close: { width: 38, height: 38, alignItems: "center", justifyContent: "center" },
-  closeText: { fontSize: 25, lineHeight: 27 },
+  close: { width: 38, height: 38, borderRadius: radius.chip, alignItems: "center", justifyContent: "center" },
+  closeText: { fontSize: 24, lineHeight: 27 },
   shareContent: { gap: 12, paddingBottom: 8 },
-  themePicker: { flexDirection: "row", borderWidth: 1, padding: 4, gap: 4 },
-  themeOption: { flex: 1, minHeight: 37, alignItems: "center", justifyContent: "center" },
-  themeText: { fontSize: 11, fontWeight: "900" },
+  themePicker: { flexDirection: "row", borderWidth: 1, borderRadius: radius.button, padding: 4, gap: 4 },
+  themeOption: { flex: 1, minHeight: 37, borderRadius: radius.chip, alignItems: "center", justifyContent: "center" },
+  themeText: { fontSize: 11, fontWeight: "700" },
   shareCardScroll: { paddingVertical: 2, paddingHorizontal: 2 },
-  noteInput: { minHeight: 68, borderWidth: 1, paddingHorizontal: 12, paddingTop: 10, fontSize: 12, lineHeight: 17, textAlignVertical: "top" },
-  sharePreview: { borderWidth: 1, padding: 12, fontSize: 12, lineHeight: 18 },
-  shareImageButton: { minHeight: 51, alignItems: "center", justifyContent: "center" },
-  shareImageButtonText: { color: "#FFFDF8", fontSize: 12, fontWeight: "900", letterSpacing: 0.35 },
-  shareTextButton: { minHeight: 48, borderWidth: 1, alignItems: "center", justifyContent: "center" },
-  shareTextButtonText: { fontSize: 12, fontWeight: "900", letterSpacing: 0.35 },
+  noteInput: { minHeight: 68, borderWidth: 1, borderRadius: radius.input, paddingHorizontal: 12, paddingTop: 10, fontSize: 12, lineHeight: 17, textAlignVertical: "top" },
+  sharePreview: { borderWidth: 1, borderRadius: radius.tile, padding: 12, fontSize: 12, lineHeight: 18 },
+  shareImageButton: { minHeight: minTouchTarget + 6, borderRadius: radius.button, alignItems: "center", justifyContent: "center" },
+  shareImageButtonText: { fontSize: 12, fontWeight: "800", letterSpacing: 0.35 },
+  shareTextButton: { minHeight: minTouchTarget + 2, borderWidth: 1, borderRadius: radius.button, alignItems: "center", justifyContent: "center" },
+  shareTextButtonText: { fontSize: 12, fontWeight: "800", letterSpacing: 0.35 },
   shareUnavailable: { paddingVertical: 18 },
 });

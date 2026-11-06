@@ -33,20 +33,19 @@ const settings = readFileSync(
 );
 
 describe("IronRise editorial reference design", () => {
-  it("makes the poster-style editorial palette the default selectable theme", () => {
+  it("keeps the legacy poster palette selectable and defaults to Dark Energy", () => {
     expect(theme).toContain('id: "editorial"');
-    expect(theme).toContain('DEFAULT_APP_THEME_ID: AppThemeId = "editorial"');
+    expect(theme).toContain('DEFAULT_APP_THEME_ID: AppThemeId = "dark-energy"');
     expect(themeProvider).toContain(
       'APP_THEME_STORAGE_KEY = "gym-diary-app-theme-v4"',
     );
   });
 
-  it("uses an editorial day, plan, weekly strip and volume layout on the home screen", () => {
-    expect(home).toContain('const REFERENCE_BLUE = "#1746D2"');
-    expect(home).toContain("heroGrid");
-    expect(home).toContain("planPanel");
-    expect(home).toContain("weekStrip");
-    expect(home).toContain("analytics");
+  it("uses the Dark Energy hero, week card and quote on the home screen", () => {
+    expect(home).toContain("heroEyebrow: { ...typeTokens.eyebrow }");
+    expect(home).toContain("weekCard");
+    expect(home).toContain("quoteCard");
+    expect(home).toContain("Начать тренировку");
   });
 
   it("uses compact text-led section names in the redesigned bottom navigation", () => {
@@ -55,17 +54,13 @@ describe("IronRise editorial reference design", () => {
     expect(tabLayout).toContain('title: "ПРОГРЕСС"');
   });
 
-  it("extends the editorial grid to workout surfaces, program cards and statistics", () => {
-    expect(workout).toContain('const EDITORIAL_BLUE = "#1746D2"');
-    expect(workout).toContain("restPosterHeader");
-    expect(workout).toMatch(
-      /workoutProgressCard:\s*\{\s*borderWidth:\s*1,\s*borderRadius:\s*0/,
-    );
-    expect(programs).toContain("cardAccent");
-    expect(programs).toContain("card: { borderRadius: 0");
-    expect(stats).toContain(
-      "bigCard, { backgroundColor: colors.surface, borderColor: colors.border, borderLeftColor: iconColor, borderLeftWidth: 4, borderRadius: 0",
-    );
+  it("extends the Dark Energy tokens to workout, programs and statistics", () => {
+    expect(workout).toContain("design-tokens");
+    expect(workout).toContain("radius.card");
+    expect(workout).toContain("radius.tile");
+    expect(workout).not.toContain('const EDITORIAL_BLUE = "#1746D2"');
+    expect(programs).toContain("design-tokens");
+    expect(stats).toContain("design-tokens");
   });
 
   it("provides an explicit light and dark mode selector in settings", () => {

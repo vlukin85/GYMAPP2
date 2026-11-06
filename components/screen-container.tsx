@@ -11,6 +11,8 @@ export interface ScreenContainerProps extends ViewProps {
   edges?: Edge[];
   /**
    * Tailwind className for the content area.
+   * Defaults to unified horizontal margins (px-5 = 20px по токенам IronRise).
+   * Передайте свой px-*, чтобы переопределить.
    */
   className?: string;
   /**
@@ -31,12 +33,16 @@ export interface ScreenContainerProps extends ViewProps {
  *
  * Usage:
  * ```tsx
- * <ScreenContainer className="p-4">
+ * <ScreenContainer>
  *   <Text className="text-2xl font-bold text-foreground">
  *     Welcome
  *   </Text>
  * </ScreenContainer>
  * ```
+ *
+ * Контент по умолчанию получает единые горизонтальные поля 20 (px-5)
+ * и фон по теме (bg-background). Дочерние прокрутки добавлять не нужно —
+ * контейнер не скроллит сам.
  */
 export function ScreenContainer({
   children,
@@ -61,7 +67,7 @@ export function ScreenContainer({
         className={cn("flex-1", safeAreaClassName)}
         style={style}
       >
-        <View className={cn("flex-1", className)}>{children}</View>
+        <View className={cn("flex-1 px-5", className)}>{children}</View>
       </SafeAreaView>
     </View>
   );

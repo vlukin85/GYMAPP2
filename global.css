@@ -1,3 +1,21 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/*
+ * Fallback-токены темы «Тёмный атлет / Dark Energy».
+ * ThemeProvider на web переопределяет их инлайн-стилями на :root,
+ * а эти значения нужны до первого применения темы (первый кадр без «вспышки»).
+ * Синхронизировано с lib/app-color-themes.ts → id: "dark-energy".
+ */
+:root {
+  --color-primary: #c8f169;
+  --color-background: #0b0f0d;
+  --color-surface: #161c18;
+  --color-foreground: #f4f7f2;
+  --color-muted: #a8b3aa;
+  --color-border: #303a33;
+  --color-success: #7be495;
+  --color-warning: #ff9f43;
+  --color-error: #ff6b6b;
+}

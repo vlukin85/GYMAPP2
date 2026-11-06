@@ -28,7 +28,7 @@ describe("catalog and program workflow", () => {
 
   it("keeps prior generated technique art available as an exercise image candidate", () => {
     const exercise: Exercise = { id: "bench-press", name: "Жим", group: "Грудь", equipment: "Штанга", description: "", image: "", videoUrl: "", recordKg: 0, recordReps: 0 };
-    expect(getExerciseIllustrationCandidates(exercise).some((candidate) => candidate.url.includes("bench-press-generated"))).toBe(true);
+    expect(getExerciseIllustrationCandidates(exercise).some((candidate) => String(candidate.url).includes("bench-press-generated"))).toBe(true);
   });
 
   it("offers an AI group illustration for every catalog exercise group", () => {

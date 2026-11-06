@@ -7,13 +7,16 @@ const screen = readFileSync(
   "utf8",
 );
 
-describe("home wordmark layout", () => {
-  it("keeps the IronRise wordmark on one adaptive line", () => {
-    expect(screen).toMatch(
-      /numberOfLines=\{1\}\s+adjustsFontSizeToFit\s+minimumFontScale=\{0\.76\}/,
-    );
-    expect(screen).toMatch(
-      /wordmark:\s*\{\s*alignSelf:\s*"stretch",\s*flexShrink:\s*1,\s*fontSize:\s*34/,
-    );
+describe("home hero layout (Dark Energy redesign)", () => {
+  it("opens with the diary eyebrow and time-aware greeting instead of a giant wordmark", () => {
+    expect(screen).toContain("Дневник тренировок");
+    expect(screen).toContain("heroEyebrow: { ...typeTokens.eyebrow }");
+    expect(screen).not.toMatch(/fontSize:\s*34/);
+  });
+
+  it("keeps the redesigned week and quote cards on the home screen", () => {
+    expect(screen).toContain("weekCard");
+    expect(screen).toContain("quoteCard");
+    expect(screen).toContain("Начать тренировку");
   });
 });

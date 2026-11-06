@@ -72,7 +72,7 @@ export default function ParallaxScrollView({
       >
         {headerImage}
       </Animated.View>
-      <View className="flex-1 p-8 gap-4 overflow-hidden bg-background">
+      <View className="flex-1 px-5 py-4 gap-4 overflow-hidden bg-background">
         {children}
       </View>
     </Animated.ScrollView>
