@@ -42,13 +42,26 @@ const addedRows: FoodRow[] = [
   ["gazpacho","Гаспачо","Супы",43],["noodle-soup","Суп-лапша","Супы",61],["minestrone","Минестроне","Супы",52],["cheese-soup","Сырный суп","Супы",71],["lentil-soup","Чечевичный суп","Супы",82],["fish-soup","Уха","Супы",55],["goat-cheese","Козий сыр","Молочные",364],["processed-cheese","Сыр плавленый","Молочные",257],["camembert","Камамбер","Молочные",300],["cream-cheese","Сливочный сыр","Молочные",342]
 ];
 
+const thirdRows: FoodRow[] = [
+  ["boiled-sausage","Колбаса варёная","Колбасные изделия",301],["sausages","Сосиски","Колбасные изделия",266],["sausages-thick","Сардельки","Колбасные изделия",297],["bacon","Бекон","Колбасные изделия",500],["ham","Ветчина","Колбасные изделия",270],["salami","Салями","Колбасные изделия",380],["salo","Сало солёное","Колбасные изделия",797],["hunter-sausage","Колбаски охотничьи","Колбасные изделия",340],["smoked-carbonad","Карбонад копчёный","Колбасные изделия",270],["shpik","Шпик","Колбасные изделия",650],
+  ["mandarin","Мандарин","Фрукты",53],["melon","Дыня","Фрукты",34],["water","Вода","Напитки",0],["garlic","Чеснок","Овощи",149],["sauerkraut","Капуста квашеная","Овощи",19],
+  ["pink-salmon","Горбуша","Мясо и рыба",152],["duck","Утка","Мясо и рыба",290],["chicken-wings","Куриные крылышки","Мясо и рыба",186],["salmon-steak","Стейк лосося","Мясо и рыба",208],["beef-steak","Стейк говяжий","Мясо и рыба",219],["pork-kebab","Шашлык свиной","Мясо и рыба",280],["quail-egg","Яйцо перепелиное","Мясо и рыба",158],
+  ["baked-milk","Молоко топлёное","Молочные",68],["snezhok","Снежок","Молочные",60],
+  ["pasta-cooked","Макароны отварные","Крупы",135],
+  ["shchi","Щи","Супы",38],["rassolnik","Рассольник","Супы",49],["meatball-soup","Суп с фрикадельками","Супы",60],
+  ["fish-cutlet","Котлета рыбная","Готовые блюда",176],
+  ["pastila","Пастила","Сладкое",310],
+  ["sausage-dough","Сосиска в тесте","Фастфуд",325],["battered-shrimp","Креветки в кляре","Фастфуд",240],["country-potato","Картофель по-деревенски","Фастфуд",245],
+  ["manti","Манты","Мировая кухня",217]
+];
+
 const macroProfiles: Record<string, NutritionMacros> = {
-  "Фрукты": { protein: 0.7, fat: 0.2, carbs: 14 }, "Ягоды": { protein: 0.8, fat: 0.4, carbs: 10 }, "Сухофрукты": { protein: 2, fat: 0.6, carbs: 65 }, "Овощи": { protein: 2, fat: 0.3, carbs: 5 }, "Мясо и рыба": { protein: 20, fat: 8, carbs: 0 }, "Молочные": { protein: 7, fat: 7, carbs: 5 }, "Крупы": { protein: 11, fat: 3, carbs: 70 }, "Хлеб": { protein: 8, fat: 3, carbs: 50 }, "Выпечка": { protein: 7, fat: 15, carbs: 55 }, "Орехи": { protein: 18, fat: 55, carbs: 18 }, "Масла": { protein: 0, fat: 100, carbs: 0 }, "Соусы": { protein: 2, fat: 20, carbs: 12 }, "Сладкое": { protein: 5, fat: 20, carbs: 60 }, "Спортпит": { protein: 55, fat: 6, carbs: 25 }, "Напитки": { protein: 0.5, fat: 0.2, carbs: 8 }, "Готовые блюда": { protein: 10, fat: 9, carbs: 17 }, "Бобовые": { protein: 17, fat: 5, carbs: 33 }, "Завтрак": { protein: 9, fat: 8, carbs: 45 }, "Фастфуд": { protein: 12, fat: 17, carbs: 25 }, "Салаты и роллы": { protein: 8, fat: 8, carbs: 14 }, "Мировая кухня": { protein: 10, fat: 12, carbs: 22 }, "Ингредиенты": { protein: 7, fat: 2, carbs: 72 }, "Супы": { protein: 4, fat: 3, carbs: 8 }
+  "Фрукты": { protein: 0.7, fat: 0.2, carbs: 14 }, "Ягоды": { protein: 0.8, fat: 0.4, carbs: 10 }, "Сухофрукты": { protein: 2, fat: 0.6, carbs: 65 }, "Овощи": { protein: 2, fat: 0.3, carbs: 5 }, "Мясо и рыба": { protein: 20, fat: 8, carbs: 0 }, "Молочные": { protein: 7, fat: 7, carbs: 5 }, "Крупы": { protein: 11, fat: 3, carbs: 70 }, "Хлеб": { protein: 8, fat: 3, carbs: 50 }, "Выпечка": { protein: 7, fat: 15, carbs: 55 }, "Орехи": { protein: 18, fat: 55, carbs: 18 }, "Масла": { protein: 0, fat: 100, carbs: 0 }, "Соусы": { protein: 2, fat: 20, carbs: 12 }, "Сладкое": { protein: 5, fat: 20, carbs: 60 }, "Спортпит": { protein: 55, fat: 6, carbs: 25 }, "Напитки": { protein: 0.5, fat: 0.2, carbs: 8 }, "Готовые блюда": { protein: 10, fat: 9, carbs: 17 }, "Бобовые": { protein: 17, fat: 5, carbs: 33 }, "Завтрак": { protein: 9, fat: 8, carbs: 45 }, "Фастфуд": { protein: 12, fat: 17, carbs: 25 }, "Салаты и роллы": { protein: 8, fat: 8, carbs: 14 }, "Мировая кухня": { protein: 10, fat: 12, carbs: 22 }, "Ингредиенты": { protein: 7, fat: 2, carbs: 72 }, "Супы": { protein: 4, fat: 3, carbs: 8 }, "Колбасные изделия": { protein: 13, fat: 30, carbs: 2 }
 };
 
 const toProduct = ([id, name, category, kcalPer100g]: FoodRow): FoodProduct => ({ id, name, category, kcalPer100g, ...(macroProfiles[category] ?? { protein: 0, fat: 0, carbs: 0 }), proteinPer100g: (macroProfiles[category] ?? { protein: 0 }).protein, fatPer100g: (macroProfiles[category] ?? { fat: 0 }).fat, carbsPer100g: (macroProfiles[category] ?? { carbs: 0 }).carbs });
 
-export const popularFoods: FoodProduct[] = [...baseRows, ...addedRows].map(toProduct);
+export const popularFoods: FoodProduct[] = [...baseRows, ...addedRows, ...thirdRows].map(toProduct);
 export const mealTypes: MealType[] = ["Завтрак", "Обед", "Ужин", "Перекус"];
 export const getFood = (id: string) => popularFoods.find((food) => food.id === id);
 export const getEntryFood = (entry: FoodEntry) => entry.customProduct ?? getFood(entry.productId);
