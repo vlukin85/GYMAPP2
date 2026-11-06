@@ -15,9 +15,16 @@ const settings = readFileSync(
 describe("native launch splash", () => {
   it("configures one full-screen Expo splash with the bundled app mark", () => {
     expect(appConfig).toContain('image: "./assets/images/splash-icon.png"');
-    expect(appConfig).toContain('resizeMode: "cover"');
+    // contain: логотип виден целиком, без обрезки портретного арта.
+    expect(appConfig).toContain('resizeMode: "contain"');
+    expect(appConfig).not.toContain('resizeMode: "cover"');
     expect(appConfig).toContain('backgroundColor: "#0D0F14"');
     expect(appConfig).toContain('imageWidth: 1024');
+    // Android 12+ обрезает иконку в круг: используем квадратную версию с полями.
+    expect(appConfig).toContain(
+      'icon: "./assets/images/splash-icon-android12.png"',
+    );
+    expect(appConfig).toContain('iconBackground: "#0D0F14"');
   });
 
   it("does not mount a second custom splash layer", () => {

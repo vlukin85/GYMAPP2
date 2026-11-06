@@ -119,10 +119,18 @@ const config: ExpoConfig = {
     [
       "expo-splash-screen",
       {
+        // Логотип показывается целиком: contain вместо cover не обрезает
+        // портретный арт 1024x1536 под экран, поля заливаются фоном.
         image: "./assets/images/splash-icon.png",
         imageWidth: 1024,
-        resizeMode: "cover",
+        resizeMode: "contain",
         backgroundColor: "#0D0F14",
+        // Android 12+ маскирует иконку в круг: отдельная квадратная версия
+        // с полями, чтобы маска резала только фон, а не логотип.
+        android12: {
+          icon: "./assets/images/splash-icon-android12.png",
+          iconBackground: "#0D0F14",
+        },
       },
     ],
     "react-native-health-connect",
