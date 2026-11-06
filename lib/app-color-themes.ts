@@ -1,4 +1,15 @@
-export type AppThemeId = "editorial" | "orchid" | "violet" | "rose" | "ocean" | "forest" | "sunset" | "midnight";
+export type AppThemeId =
+  | "editorial"
+  | "orchid"
+  | "violet"
+  | "rose"
+  | "ocean"
+  | "forest"
+  | "sunset"
+  | "midnight"
+  | "dark-energy"
+  | "light-minimal"
+  | "bold-neon";
 
 export type AppThemePalette = {
   primary: string; background: string; surface: string; foreground: string; muted: string; border: string; success: string; warning: string; error: string;
@@ -20,6 +31,9 @@ export const APP_COLOR_THEMES: AppThemeDefinition[] = [
   { id: "forest", title: "Лесной ритм", hint: "Спокойная сила", swatch: "#15803D", dark: false, palette: palette({ primary: "#15803D", background: "#F5FBF6", surface: "#FFFFFF", foreground: "#163225", muted: "#617467", border: "#DDEDE1", success: "#168B43", warning: "#D97918", error: "#C7404E" }) },
   { id: "sunset", title: "Закат", hint: "Тёплая энергия", swatch: "#EA580C", dark: false, palette: palette({ primary: "#EA580C", background: "#FFF9F2", surface: "#FFFFFF", foreground: "#3B2412", muted: "#866A52", border: "#F4E1CF", success: "#29935A", warning: "#D77A12", error: "#CD3B59" }) },
   { id: "midnight", title: "Полночь", hint: "Контрастная тёмная", swatch: "#A78BFA", dark: true, palette: palette({ primary: "#A78BFA", background: "#15111F", surface: "#211A2E", foreground: "#F5F1FB", muted: "#B4AABD", border: "#3C314D", success: "#4ADE80", warning: "#FDBA45", error: "#FB7185" }) },
+  { id: "dark-energy", title: "Тёмный атлет", hint: "Графит и лайм — фирменная энергия", swatch: "#C8F169", dark: true, palette: palette({ primary: "#C8F169", background: "#0B0F0D", surface: "#161C18", foreground: "#F4F7F2", muted: "#A8B3AA", border: "#303A33", success: "#7BE495", warning: "#FF9F43", error: "#FF6B6B" }) },
+  { id: "light-minimal", title: "Светлый минимализм", hint: "Воздух, белые карточки, изумрудный акцент", swatch: "#0F7B5A", dark: false, palette: palette({ primary: "#0F7B5A", background: "#F7F7F5", surface: "#FFFFFF", foreground: "#1A1D1B", muted: "#6B7370", border: "#E4E7E5", success: "#16A34A", warning: "#D97706", error: "#DC2626" }) },
+  { id: "bold-neon", title: "Bold Neon", hint: "Градиенты и неон для энергичных тренировок", swatch: "#7C3AED", dark: true, palette: palette({ primary: "#7C3AED", background: "#0D0B14", surface: "#241B33", foreground: "#F7F4FF", muted: "#B4A6C9", border: "#3A2C52", success: "#4ADE80", warning: "#FF6B35", error: "#FF2E97" }) },
 ];
 
 export const DEFAULT_APP_THEME_ID: AppThemeId = "editorial";

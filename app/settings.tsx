@@ -235,6 +235,12 @@ function CompletionVolumeSlider({
 const themeModeChoices = APP_COLOR_THEMES.filter(
   (theme) => theme.id === "editorial" || theme.id === "midnight",
 );
+const designVariantChoices = APP_COLOR_THEMES.filter(
+  (theme) =>
+    theme.id === "dark-energy" ||
+    theme.id === "light-minimal" ||
+    theme.id === "bold-neon",
+);
 
 function triggerTabDragHaptic(phase: "start" | "move") {
   if (Platform.OS === "web") return;
@@ -1209,6 +1215,86 @@ export default function SettingsScreen() {
                         {theme.id === "editorial"
                           ? "Кремовый фон и контрастный текст"
                           : "Графитовый фон и мягкий свет"}
+                      </Text>
+                    </View>
+                    {selected && (
+                      <IconSymbol
+                        name="checkmark"
+                        size={17}
+                        color={colors.surface}
+                      />
+                    )}
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
+
+          <View
+            style={[
+              styles.appThemeCard,
+              { backgroundColor: colors.surface, borderColor: colors.border },
+            ]}
+          >
+            <Text style={[styles.iconThemeTitle, { color: colors.foreground }]}>
+              Варианты дизайна
+            </Text>
+            <Text style={[styles.iconThemeHint, { color: colors.muted }]}>
+              Готовые оформления из кликабельных прототипов. Выбор сохранится на
+              устройстве и применится ко всем экранам.
+            </Text>
+            <View style={styles.appThemeGrid}>
+              {designVariantChoices.map((theme) => {
+                const selected = theme.id === appThemeId;
+                return (
+                  <Pressable
+                    key={theme.id}
+                    onPress={() => setAppThemeId(theme.id)}
+                    style={({ pressed }) => [
+                      styles.appThemeOption,
+                      {
+                        backgroundColor: selected
+                          ? theme.swatch
+                          : colors.background,
+                        borderColor: selected ? theme.swatch : colors.border,
+                        opacity: pressed ? 0.72 : 1,
+                      },
+                    ]}
+                  >
+                    <View
+                      style={[
+                        styles.appThemeSwatch,
+                        {
+                          backgroundColor: selected
+                            ? colors.surface
+                            : theme.swatch,
+                        },
+                      ]}
+                    />
+                    <View style={{ flex: 1 }}>
+                      <Text
+                        style={[
+                          styles.appThemeName,
+                          {
+                            color: selected
+                              ? colors.surface
+                              : colors.foreground,
+                          },
+                        ]}
+                      >
+                        {theme.title}
+                      </Text>
+                      <Text
+                        style={[
+                          styles.appThemeHint,
+                          {
+                            color: selected
+                              ? `${colors.surface}CC`
+                              : colors.muted,
+                          },
+                        ]}
+                      >
+                        {theme.hint}
                       </Text>
                     </View>
                     {selected && (
