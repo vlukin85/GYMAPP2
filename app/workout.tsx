@@ -124,6 +124,8 @@ import {
   consumeActiveWorkoutWidgetAction,
   consumeNativeRestTimerAction,
   updateActiveWorkoutWidget,
+  showNativeActiveSetNotification,
+  clearNativeActiveSetNotification,
   type NativeRestNextAction,
 } from "@/modules/ironrise-rest-timer";
 import { loadLockScreenHeartRateVisible } from "@/lib/lock-screen-heart-rate-privacy";
@@ -878,6 +880,15 @@ export default function WorkoutScreen() {
   const [pendingWidgetAction, setPendingWidgetAction] = useState<
     ReturnType<typeof consumeActiveWorkoutWidgetAction> | null
   >(null);
+  const [pendingNativeSetCommit, setPendingNativeSetCommit] = useState<{
+    exerciseId?: string;
+    setIndex: number;
+    weight: string;
+    reps: string;
+  } | null>(null);
+  const [pendingExerciseAdvance, setPendingExerciseAdvance] = useState<
+    string | null
+  >(null);
   const previousRestRef = useRef(0);
   const restEndRef = useRef<number | null>(null);
   const restStartedRef = useRef<number | null>(null);
@@ -1184,6 +1195,9 @@ export default function WorkoutScreen() {
         note,
       });
       setActiveId(null);
+      // «Следующее упражнение» с часов: открываем следующее упражнение программы
+      // после того, как текущее закрыто и отмечено выполненным.
+      setPendingExerciseAdvance(exerciseId);
     },
     [activeId, draft, machineSetup, note, replacements, setExercisePreference],
   );
@@ -1227,6 +1241,21 @@ export default function WorkoutScreen() {
       setActiveSet(null);
       skipRest(action.restEndAt);
       finishExerciseFromNativeRestAction(action.exerciseId);
+      return;
+    }
+    if (action.kind === "commit-set") {
+      console.info(`${REST_TIMER_LOG_TAG} native-commit-set-received`, {
+        exerciseId: action.exerciseId,
+        setIndex: action.setIndex,
+        weight: action.weight,
+        reps: action.reps,
+      });
+      setPendingNativeSetCommit({
+        exerciseId: action.exerciseId,
+        setIndex: action.setIndex ?? -1,
+        weight: action.weight ?? "",
+        reps: action.reps ?? "",
+      });
       return;
     }
     if (action.restEndAt <= Date.now()) return;
@@ -1294,7 +1323,9 @@ export default function WorkoutScreen() {
   ]);
 
   useEffect(() => {
-    if (!restEndAt) return;
+    // Поллинг нужен и во время выполняющегося подхода: commit-set с часов
+    // должен применяться, даже если отдых ещё не запущен.
+    if (!restEndAt && !activeSet) return;
     const synchronize = () => {
       syncNativeRestTimerAction();
       syncActiveWorkoutWidgetAction();
@@ -1304,6 +1335,7 @@ export default function WorkoutScreen() {
     const timer = setInterval(synchronize, 300);
     return () => clearInterval(timer);
   }, [
+    activeSet,
     restEndAt,
     syncActiveWorkoutWidgetAction,
     syncNativeRestTimerAction,
@@ -1967,27 +1999,8 @@ export default function WorkoutScreen() {
     }
     closeSetEditor();
   };
-  const finishSetFromWidget = (setIndex: number) => {
-    if (
-      !activeId ||
-      !activePlan ||
-      activeSet?.exerciseId !== activeId ||
-      activeSet.setIndex !== setIndex
-    )
-      return;
-    const sourceSet = draft[setIndex];
-    if (!sourceSet) return;
-    const completedDraft = draft.map((set, index) =>
-      index === setIndex
-        ? {
-            ...set,
-            reps: set.reps.trim() || String(activePlan.reps),
-            weight: activeIsTimed
-              ? set.weight
-              : set.weight.trim() || String(activePlan.weight),
-          }
-        : set,
-    );
+  const completeSetDraft = (setIndex: number, completedDraft: ActualSet[]) => {
+    if (!activeId || !activeSet) return;
     const completedSet = completedDraft[setIndex];
     if (!completedSet || !setParts(completedSet, activeIsTimed).length) return;
     const finishedAt = Date.now();
@@ -2011,6 +2024,59 @@ export default function WorkoutScreen() {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(
         () => undefined,
       );
+  };
+  const finishSetFromWidget = (setIndex: number) => {
+    if (
+      !activeId ||
+      !activePlan ||
+      activeSet?.exerciseId !== activeId ||
+      activeSet.setIndex !== setIndex
+    )
+      return;
+    const sourceSet = draft[setIndex];
+    if (!sourceSet) return;
+    const completedDraft = draft.map((set, index) =>
+      index === setIndex
+        ? {
+            ...set,
+            reps: set.reps.trim() || String(activePlan.reps),
+            weight: activeIsTimed
+              ? set.weight
+              : set.weight.trim() || String(activePlan.weight),
+          }
+        : set,
+    );
+    completeSetDraft(setIndex, completedDraft);
+  };
+  // Завершение подхода с часов (kind=commit-set): значения, введённые кнопками
+  // уведомления, применяются тем же кодом, что и завершение подхода из интерфейса.
+  const finishSetFromWatch = (
+    exerciseId?: string,
+    setIndex?: number,
+    weight?: string,
+    reps?: string,
+  ) => {
+    if (!activeId || !activePlan || !activeSet) return;
+    if (exerciseId && exerciseId !== activeId) return;
+    const targetIndex = setIndex ?? activeSet.setIndex;
+    if (activeSet.exerciseId !== activeId || activeSet.setIndex !== targetIndex)
+      return;
+    const sourceSet = draft[targetIndex];
+    if (!sourceSet) return;
+    const completedDraft = draft.map((set, index) =>
+      index === targetIndex
+        ? {
+            ...set,
+            reps: reps?.trim() || set.reps.trim() || String(activePlan.reps),
+            weight: activeIsTimed
+              ? set.weight
+              : weight?.trim() ||
+                set.weight.trim() ||
+                String(activePlan.weight),
+          }
+        : set,
+    );
+    completeSetDraft(targetIndex, completedDraft);
   };
   useEffect(() => {
     const action = pendingWidgetAction;
@@ -2038,6 +2104,77 @@ export default function WorkoutScreen() {
     finishSetFromWidget,
     pendingWidgetAction,
     skipRest,
+  ]);
+  useEffect(() => {
+    const commit = pendingNativeSetCommit;
+    if (!commit) return;
+    setPendingNativeSetCommit(null);
+    if (commit.setIndex < 0) return;
+    finishSetFromWatch(
+      commit.exerciseId,
+      commit.setIndex,
+      commit.weight,
+      commit.reps,
+    );
+  }, [finishSetFromWatch, pendingNativeSetCommit]);
+  useEffect(() => {
+    if (
+      !activeSet ||
+      !activeId ||
+      activeSet.exerciseId !== activeId ||
+      !activePlan
+    ) {
+      clearNativeActiveSetNotification();
+      return;
+    }
+    showNativeActiveSetNotification({
+      exerciseName: activeExercise?.name ?? "Упражнение",
+      setIndex: activeSet.setIndex,
+      setsCount: Math.max(draft.length, activeSet.setIndex + 1),
+      planWeightKg: Number(activePlan.weight) || 0,
+      planReps: Number(activePlan.reps) || 0,
+      exerciseIndex: sessionExercises.findIndex(
+        (item) => item.exerciseId === activeId,
+      ),
+      exercisesCount: sessionExercises.length,
+      exerciseId: activeId,
+    });
+  }, [
+    activeExercise,
+    activeId,
+    activePlan,
+    activeSet,
+    draft.length,
+    sessionExercises,
+  ]);
+  useEffect(
+    () => () => {
+      clearNativeActiveSetNotification();
+    },
+    [],
+  );
+  useEffect(() => {
+    const finishedId = pendingExerciseAdvance;
+    if (!finishedId) return;
+    setPendingExerciseAdvance(null);
+    if (activeId) return;
+    const finishedIndex = sessionExercises.findIndex(
+      (item) => item.exerciseId === finishedId,
+    );
+    if (finishedIndex < 0) return;
+    const next = sessionExercises.find(
+      (item, index) =>
+        index > finishedIndex &&
+        item.exerciseId !== finishedId &&
+        !done[item.exerciseId],
+    );
+    if (next) openExercise(next.exerciseId);
+  }, [
+    activeId,
+    done,
+    openExercise,
+    pendingExerciseAdvance,
+    sessionExercises,
   ]);
   const focusedSet =
     focusedSetIndex === null ? undefined : draft[focusedSetIndex];
@@ -2275,6 +2412,7 @@ export default function WorkoutScreen() {
     setDragPreview(null);
   };
   const completeWorkout = async () => {
+    clearNativeActiveSetNotification();
     const persisted = sessionExercises
       .filter((item) => done[item.exerciseId])
       .flatMap((item) =>

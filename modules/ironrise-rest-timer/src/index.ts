@@ -3,13 +3,15 @@ import { requireOptionalNativeModule } from "expo-modules-core";
 
 type IronriseRestTimerNativeModule = {
   showCountdown(payload: NativeRestCountdownPayload): void;
+  showActiveSetNotification(payload: NativeActiveSetPayload): void;
+  clearActiveSetNotification(): void;
   previewCompletionSound(completionSound: string): void;
   clearCountdown(): void;
   updateActiveWorkoutWidget(payload: ActiveWorkoutWidgetPayload): void;
   updateWeeklyStatsWidget(payload: WeeklyStatsWidgetPayload): void;
   consumeActiveWorkoutWidgetAction(): ActiveWorkoutWidgetAction | null;
   consumePendingAction(): {
-    kind: "skip" | "extend" | "start" | "finish-exercise";
+    kind: "skip" | "extend" | "start" | "finish-exercise" | "commit-set";
     restEndAt: number;
     exerciseId?: string;
     setIndex?: number;
@@ -47,12 +49,22 @@ export type ActiveWorkoutWidgetPayload = {
 };
 
 export type NativeRestTimerAction = {
-  kind: "skip" | "extend" | "start" | "finish-exercise";
+  kind: "skip" | "extend" | "start" | "finish-exercise" | "commit-set";
   restEndAt: number;
   exerciseId?: string;
   setIndex?: number;
   weight?: string;
   reps?: string;
+};
+export type NativeActiveSetPayload = {
+  exerciseName: string;
+  setIndex: number;
+  setsCount: number;
+  planWeightKg: number;
+  planReps: number;
+  exerciseIndex: number;
+  exercisesCount: number;
+  exerciseId?: string;
 };
 export type NativeRestNextAction = {
   kind: "start" | "finish-exercise";
@@ -130,6 +142,36 @@ export function clearNativeRestCountdown() {
   const module = getModule();
   if (!module) return false;
   module.clearCountdown();
+  return true;
+}
+
+/**
+ * Зеркало выполняющегося подхода для часов: постоянное уведомление с планом
+ * подхода и действием «Завершить подход». setIndex ожидается 0-базным —
+ * нативный слой сам отображает «Подход N из M».
+ */
+export function showNativeActiveSetNotification(
+  payload: NativeActiveSetPayload,
+) {
+  const module = getModule();
+  if (!module) return false;
+  module.showActiveSetNotification({
+    exerciseName: payload.exerciseName,
+    setIndex: payload.setIndex,
+    setsCount: payload.setsCount,
+    planWeightKg: payload.planWeightKg,
+    planReps: payload.planReps,
+    exerciseIndex: payload.exerciseIndex,
+    exercisesCount: payload.exercisesCount,
+    exerciseId: payload.exerciseId ?? "",
+  });
+  return true;
+}
+
+export function clearNativeActiveSetNotification() {
+  const module = getModule();
+  if (!module) return false;
+  module.clearActiveSetNotification();
   return true;
 }
 

@@ -93,7 +93,7 @@ describe("таймер отдыха на заблокированном Android-
   });
 
   it("добавляет приватную текущую ЧСС и действие начала подхода", () => {
-    expect(nativeModule).toContain('"Начать подход"');
+    expect(nativeModule).toContain('"Следующий подход"');
     expect(nativeModule).toContain("currentHeartRateBpm");
     expect(actionReceiver).toContain("ACTION_START");
     expect(actionReceiver).toContain(
@@ -122,7 +122,7 @@ describe("таймер отдыха на заблокированном Android-
   it("показывает завершение упражнения после последнего подхода в обоих Android-уведомлениях", () => {
     expect(nativeBridge).toContain('kind: "start" | "finish-exercise"');
     expect(nativeModule).toContain('nextActionKind == "finish-exercise"');
-    expect(nativeModule).toContain('"Завершить упражнение"');
+    expect(nativeModule).toContain('"Следующее упражнение"');
     expect(receiver).toContain('nextActionKind == "finish-exercise"');
     expect(receiver).toContain('"Последний подход завершён."');
     expect(workoutScreen).toContain(
@@ -197,7 +197,7 @@ describe("таймер отдыха на заблокированном Android-
         ),
       ),
     ).toBe(true);
-    expect(receiver).toContain('"Начать подход"');
+    expect(receiver).toContain('"Следующий подход"');
     expect(receiver).toContain("ACTION_START");
     expect(receiver).toContain("ironrise-rest-complete-v3");
     expect(receiver).toContain("AudioAttributes.USAGE_ALARM");

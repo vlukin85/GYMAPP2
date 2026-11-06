@@ -29,7 +29,7 @@ class RestTimerCompletionReceiver : BroadcastReceiver() {
     val nextSetWeight = intent.getStringExtra(EXTRA_NEXT_SET_WEIGHT) ?: ""
     val nextSetReps = intent.getStringExtra(EXTRA_NEXT_SET_REPS) ?: ""
     val finishExercise = nextActionKind == "finish-exercise"
-    val primaryActionLabel = if (finishExercise) "Завершить упражнение" else "Начать подход"
+    val primaryActionLabel = if (finishExercise) "Следующее упражнение" else "Следующий подход"
     val primaryActionIcon = if (finishExercise) android.R.drawable.ic_menu_save else android.R.drawable.ic_media_play
     Log.d(REST_TIMER_LOG_TAG, "rest completed: action=$nextActionKind exerciseId=$exerciseId nextSetIndex=$nextSetIndex")
     val soundUri = completionSoundUri(context, completionSound)
