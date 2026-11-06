@@ -107,11 +107,14 @@ jobs:
         with:
           cache-provider: basic
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-
       - name: Install Android build dependencies
         run: |
+          # android-actions/setup-android@v3 currently fails on hosted runners
+          # ("Failed to find package 'tools'"), so rely on the preinstalled
+          # Android SDK and point PATH at its cmdline-tools explicitly.
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          export PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$PATH"
+          sdkmanager --version
           yes | sdkmanager --licenses > /dev/null
           sdkmanager "platforms;android-36" "build-tools;36.0.0" "ndk;27.1.12297006"
 
