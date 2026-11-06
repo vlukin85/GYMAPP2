@@ -38,6 +38,7 @@ export const bundledExercisePhotos: Record<string, number> = {
   "weighted-push-up": require("../assets/exercise-photos/weighted-push-up.jpg"),
   "svend-press": require("../assets/exercise-photos/svend-press.jpg"),
   "smith-flat-press": require("../assets/exercise-photos/smith-flat-press.jpg"),
+  "landmine-chest-press": require("../assets/exercise-photos/landmine-chest-press.jpg"),
   "kneeling-cable-press": require("../assets/exercise-photos/kneeling-cable-press.jpg"),
   "pull-up": require("../assets/exercise-photos/pull-up.jpg"),
   "neutral-pull-up": require("../assets/exercise-photos/neutral-pull-up.jpg"),
@@ -47,6 +48,7 @@ export const bundledExercisePhotos: Record<string, number> = {
   "single-cable-row": require("../assets/exercise-photos/single-cable-row.jpg"),
   "machine-low-row": require("../assets/exercise-photos/machine-low-row.jpg"),
   "wide-pulldown": require("../assets/exercise-photos/wide-pulldown.jpg"),
+  "neutral-pulldown": require("../assets/exercise-photos/neutral-pulldown.jpg"),
   "straight-arm-pulldown": require("../assets/exercise-photos/straight-arm-pulldown.jpg"),
   "db-pullover": require("../assets/exercise-photos/db-pullover.jpg"),
   "back-extension": require("../assets/exercise-photos/back-extension.jpg"),
@@ -76,6 +78,7 @@ export const bundledExercisePhotos: Record<string, number> = {
   "plate-front-raise": require("../assets/exercise-photos/plate-front-raise.jpg"),
   "rear-delt-fly": require("../assets/exercise-photos/rear-delt-fly.jpg"),
   "reverse-pec-deck": require("../assets/exercise-photos/reverse-pec-deck.jpg"),
+  "cable-lateral-raise": require("../assets/exercise-photos/cable-lateral-raise.jpg"),
   "cable-front-raise": require("../assets/exercise-photos/cable-front-raise.jpg"),
   "landmine-press": require("../assets/exercise-photos/landmine-press.jpg"),
   "push-press": require("../assets/exercise-photos/push-press.jpg"),
@@ -111,6 +114,8 @@ export const bundledExercisePhotos: Record<string, number> = {
   "russian-twist": require("../assets/exercise-photos/russian-twist.jpg"),
   "ab-wheel": require("../assets/exercise-photos/ab-wheel.jpg"),
   "dead-bug": require("../assets/exercise-photos/dead-bug.jpg"),
+  "bird-dog": require("../assets/exercise-photos/bird-dog.jpg"),
+  "side-plank": require("../assets/exercise-photos/side-plank.jpg"),
   "cable-woodchop": require("../assets/exercise-photos/cable-woodchop.jpg"),
   "pallof-press": require("../assets/exercise-photos/pallof-press.jpg"),
   "bicycle-crunch": require("../assets/exercise-photos/bicycle-crunch.jpg"),
@@ -118,18 +123,26 @@ export const bundledExercisePhotos: Record<string, number> = {
   "v-up": require("../assets/exercise-photos/v-up.jpg"),
   "decline-sit-up": require("../assets/exercise-photos/decline-sit-up.jpg"),
   "toe-touch": require("../assets/exercise-photos/toe-touch.jpg"),
+  "hollow-hold": require("../assets/exercise-photos/hollow-hold.jpg"),
   "farmer-carry": require("../assets/exercise-photos/farmer-carry.jpg"),
   "elliptical": require("../assets/exercise-photos/elliptical.jpg"),
   "stair-climber": require("../assets/exercise-photos/stair-climber.jpg"),
+  "air-bike": require("../assets/exercise-photos/air-bike.jpg"),
   "exercise-bike": require("../assets/exercise-photos/exercise-bike.jpg"),
   "incline-walk": require("../assets/exercise-photos/incline-walk.jpg"),
   "jump-rope": require("../assets/exercise-photos/jump-rope.jpg"),
   "sled-push": require("../assets/exercise-photos/sled-push.jpg"),
+  "burpee": require("../assets/exercise-photos/burpee.jpg"),
   "battle-ropes": require("../assets/exercise-photos/battle-ropes.jpg"),
   "box-step-cardio": require("../assets/exercise-photos/box-step-cardio.jpg"),
   "outdoor-run": require("../assets/exercise-photos/outdoor-run.jpg"),
+  "swimming": require("../assets/exercise-photos/swimming.jpg"),
+  "ski-erg": require("../assets/exercise-photos/ski-erg.jpg"),
+  "boxing-bag": require("../assets/exercise-photos/boxing-bag.jpg"),
   "kettlebell-swing": require("../assets/exercise-photos/kettlebell-swing.jpg"),
   "jumping-jacks": require("../assets/exercise-photos/jumping-jacks.jpg"),
+  "high-knees": require("../assets/exercise-photos/high-knees.jpg"),
+  "shadow-boxing": require("../assets/exercise-photos/shadow-boxing.jpg"),
 };
 
 export const bundledExerciseGroupFallbackPhotos: Record<string, number> = {
@@ -143,4 +156,4 @@ export const bundledExerciseGroupFallbackPhotos: Record<string, number> = {
   "Кардио": require("../assets/exercise-photos/group-cardio.jpg"),
 };
 
-export const bundledExercisePhotoFileNames: string[] = ["bench-press.jpg","incline-db-press.jpg","lat-pulldown.jpg","barbell-row.jpg","squat.jpg","leg-press.jpg","shoulder-press.jpg","lateral-raise.jpg","biceps-curl.jpg","triceps-pushdown.jpg","plank.jpg","treadmill.jpg","dumbbell-row.jpg","romanian-deadlift.jpg","walking-lunge.jpg","dips.jpg","leg-curl.jpg","calf-raise.jpg","cable-crunch.jpg","rower.jpg","db-flat-press.jpg","machine-chest-press.jpg","cable-fly-low.jpg","cable-fly-high.jpg","pec-deck.jpg","push-up.jpg","decline-bench-press.jpg","smith-incline-press.jpg","db-fly.jpg","floor-press.jpg","single-cable-press.jpg","machine-fly.jpg","weighted-push-up.jpg","svend-press.jpg","smith-flat-press.jpg","kneeling-cable-press.jpg","pull-up.jpg","neutral-pull-up.jpg","seated-cable-row.jpg","chest-supported-row.jpg","t-bar-row.jpg","single-cable-row.jpg","machine-low-row.jpg","wide-pulldown.jpg","straight-arm-pulldown.jpg","db-pullover.jpg","back-extension.jpg","rack-pull.jpg","inverted-row.jpg","meadows-row.jpg","shrug.jpg","reverse-grip-row.jpg","front-squat.jpg","bulgarian-split-squat.jpg","hack-squat.jpg","leg-extension.jpg","hip-thrust.jpg","sumo-deadlift.jpg","goblet-squat.jpg","step-up.jpg","glute-bridge.jpg","seated-calf-raise.jpg","standing-leg-curl.jpg","adductor-machine.jpg","abductor-machine.jpg","reverse-lunge.jpg","barbell-overhead-press.jpg","arnold-press.jpg","machine-shoulder-press.jpg","front-raise-db.jpg","plate-front-raise.jpg","rear-delt-fly.jpg","reverse-pec-deck.jpg","cable-front-raise.jpg","landmine-press.jpg","push-press.jpg","single-arm-db-press.jpg","external-rotation.jpg","y-raise.jpg","face-pull.jpg","upright-row-cable.jpg","scaption-raise.jpg","cuban-press.jpg","db-curl.jpg","hammer-curl.jpg","incline-curl.jpg","preacher-curl.jpg","cable-curl.jpg","concentration-curl.jpg","reverse-curl.jpg","spider-curl.jpg","ez-curl.jpg","lying-triceps-extension.jpg","rope-pushdown.jpg","overhead-rope-extension.jpg","triceps-kickback.jpg","close-grip-bench.jpg","single-arm-pushdown.jpg","bench-dip.jpg","cable-triceps-extension.jpg","diamond-push-up.jpg","crunch.jpg","reverse-crunch.jpg","hanging-leg-raise.jpg","hanging-knee-raise.jpg","russian-twist.jpg","ab-wheel.jpg","dead-bug.jpg","cable-woodchop.jpg","pallof-press.jpg","bicycle-crunch.jpg","mountain-climber.jpg","v-up.jpg","decline-sit-up.jpg","toe-touch.jpg","farmer-carry.jpg","elliptical.jpg","stair-climber.jpg","exercise-bike.jpg","incline-walk.jpg","jump-rope.jpg","sled-push.jpg","battle-ropes.jpg","box-step-cardio.jpg","outdoor-run.jpg","kettlebell-swing.jpg","jumping-jacks.jpg","group-chest.jpg","group-back.jpg","group-legs.jpg","group-shoulders.jpg","group-biceps.jpg","group-triceps.jpg","group-core.jpg","group-cardio.jpg"];
+export const bundledExercisePhotoFileNames: string[] = ["bench-press.jpg","incline-db-press.jpg","lat-pulldown.jpg","barbell-row.jpg","squat.jpg","leg-press.jpg","shoulder-press.jpg","lateral-raise.jpg","biceps-curl.jpg","triceps-pushdown.jpg","plank.jpg","treadmill.jpg","dumbbell-row.jpg","romanian-deadlift.jpg","walking-lunge.jpg","dips.jpg","leg-curl.jpg","calf-raise.jpg","cable-crunch.jpg","rower.jpg","db-flat-press.jpg","machine-chest-press.jpg","cable-fly-low.jpg","cable-fly-high.jpg","pec-deck.jpg","push-up.jpg","decline-bench-press.jpg","smith-incline-press.jpg","db-fly.jpg","floor-press.jpg","single-cable-press.jpg","machine-fly.jpg","weighted-push-up.jpg","svend-press.jpg","smith-flat-press.jpg","landmine-chest-press.jpg","kneeling-cable-press.jpg","pull-up.jpg","neutral-pull-up.jpg","seated-cable-row.jpg","chest-supported-row.jpg","t-bar-row.jpg","single-cable-row.jpg","machine-low-row.jpg","wide-pulldown.jpg","neutral-pulldown.jpg","straight-arm-pulldown.jpg","db-pullover.jpg","back-extension.jpg","rack-pull.jpg","inverted-row.jpg","meadows-row.jpg","shrug.jpg","reverse-grip-row.jpg","front-squat.jpg","bulgarian-split-squat.jpg","hack-squat.jpg","leg-extension.jpg","hip-thrust.jpg","sumo-deadlift.jpg","goblet-squat.jpg","step-up.jpg","glute-bridge.jpg","seated-calf-raise.jpg","standing-leg-curl.jpg","adductor-machine.jpg","abductor-machine.jpg","reverse-lunge.jpg","barbell-overhead-press.jpg","arnold-press.jpg","machine-shoulder-press.jpg","front-raise-db.jpg","plate-front-raise.jpg","rear-delt-fly.jpg","reverse-pec-deck.jpg","cable-lateral-raise.jpg","cable-front-raise.jpg","landmine-press.jpg","push-press.jpg","single-arm-db-press.jpg","external-rotation.jpg","y-raise.jpg","face-pull.jpg","upright-row-cable.jpg","scaption-raise.jpg","cuban-press.jpg","db-curl.jpg","hammer-curl.jpg","incline-curl.jpg","preacher-curl.jpg","cable-curl.jpg","concentration-curl.jpg","reverse-curl.jpg","spider-curl.jpg","ez-curl.jpg","lying-triceps-extension.jpg","rope-pushdown.jpg","overhead-rope-extension.jpg","triceps-kickback.jpg","close-grip-bench.jpg","single-arm-pushdown.jpg","bench-dip.jpg","cable-triceps-extension.jpg","diamond-push-up.jpg","crunch.jpg","reverse-crunch.jpg","hanging-leg-raise.jpg","hanging-knee-raise.jpg","russian-twist.jpg","ab-wheel.jpg","dead-bug.jpg","bird-dog.jpg","side-plank.jpg","cable-woodchop.jpg","pallof-press.jpg","bicycle-crunch.jpg","mountain-climber.jpg","v-up.jpg","decline-sit-up.jpg","toe-touch.jpg","hollow-hold.jpg","farmer-carry.jpg","elliptical.jpg","stair-climber.jpg","air-bike.jpg","exercise-bike.jpg","incline-walk.jpg","jump-rope.jpg","sled-push.jpg","burpee.jpg","battle-ropes.jpg","box-step-cardio.jpg","outdoor-run.jpg","swimming.jpg","ski-erg.jpg","boxing-bag.jpg","kettlebell-swing.jpg","jumping-jacks.jpg","high-knees.jpg","shadow-boxing.jpg","group-chest.jpg","group-back.jpg","group-legs.jpg","group-shoulders.jpg","group-biceps.jpg","group-triceps.jpg","group-core.jpg","group-cardio.jpg"];

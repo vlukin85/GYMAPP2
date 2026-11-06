@@ -60,21 +60,30 @@ const idPhotoOverrides = {
   "walking-lunge": { exercise: "Dumbbell Lunges", image: 1 },
   "v-up": { exercise: "Jackknife Sit-Up", image: 1 },
   "single-cable-press": { exercise: "Standing Cable Chest Press", image: 0 },
+  // Approved "nearest analog instead of no photo" decisions (QA round 2).
+  // Frames were picked to avoid duplicating an id that already uses the same
+  // dataset photo (exercise-bike, mountain-climber, battle-ropes, rower,
+  // kneeling-cable-press).
+  "air-bike": { exercise: "Bicycling, Stationary", image: 0 },
+  "ski-erg": { exercise: "Rowing, Stationary", image: 1 },
+  "high-knees": { exercise: "Fast Skipping", image: 0 },
+  "side-plank": { exercise: "Side Jackknife", image: 0 },
+  "landmine-chest-press": { exercise: "Cable Chest Press", image: 1 },
+  "cable-lateral-raise": { exercise: "Dumbbell One-Arm Upright Row", image: 0 },
+  "neutral-pulldown": { exercise: "Full Range-Of-Motion Lat Pulldown", image: 0 },
+  "bird-dog": { exercise: "Mountain Climbers", image: 1 },
+  "hollow-hold": { exercise: "Flat Bench Lying Leg Raise", image: 1 },
+  "burpee": { exercise: "Freehand Jump Squat", image: 0 },
+  "swimming": { exercise: "Running, Treadmill", image: 0 },
+  "boxing-bag": { exercise: "Battling Ropes", image: 1 },
+  "shadow-boxing": { exercise: "Box Skip", image: 1 },
 };
 
 /**
- * Ids that must not show a free-exercise-db photo: the only dataset candidates
- * were visually wrong (a wrong photo is worse than none — the next workout-data
- * illustration step takes over).
+ * Formerly excluded ids now carry approved nearest-analog overrides (QA round 2:
+ * "a close analog beats no photo"), so the exclusion list stays empty.
  */
-const idPhotoExclusions = new Set([
-  "air-bike", // dataset "Air Bike" is a floor abdominal drill, not the bike machine
-  "side-plank", // no Side Plank exercise in the dataset
-  "high-knees",
-  "neutral-pulldown",
-  "landmine-chest-press",
-  "cable-lateral-raise",
-]);
+const idPhotoExclusions = new Set([]);
 
 /** Adjacent words that legitimately form one movement word. */
 const compounds = new Set(["pushup", "pullup", "situp", "stepup", "getup"]);
@@ -570,14 +579,7 @@ if (runBundle) {
   bundleSummary = { files: fileNames.length, totalBytes, totalMb: Number((totalBytes / 1024 / 1024).toFixed(2)) };
 }
 
-const exclusionReasons = {
-  "air-bike": "в датасете «Air Bike» — упражнение на пресс лёжа, машины в датасете нет",
-  "side-plank": "Side Plank в датасете нет",
-  "high-knees": "кандидат Knee Tuck Jump — прыжок с блином, не бег с высоким подъёмом колен",
-  "neutral-pulldown": "кандидат V-Bar Pulldown — на кадре присед в раме",
-  "landmine-chest-press": "лендмайна в датасете нет, кандидат Neck Press — жим лёжа",
-  "cable-lateral-raise": "кандидат Cable Seated Lateral Raise — кадр читается как присед",
-};
+const exclusionReasons = {};
 
 function buildReportMarkdown(report) {
   const lines = [];

@@ -38,6 +38,7 @@ export const bundledExercisePhotos: Record<string, string> = {
   "weighted-push-up": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Pushups/0.jpg",
   "svend-press": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Svend_Press/0.jpg",
   "smith-flat-press": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Decline_Smith_Press/0.jpg",
+  "landmine-chest-press": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Cable_Chest_Press/1.jpg",
   "kneeling-cable-press": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Cable_Chest_Press/0.jpg",
   "pull-up": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Pullups/0.jpg",
   "neutral-pull-up": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Pullups/0.jpg",
@@ -47,6 +48,7 @@ export const bundledExercisePhotos: Record<string, string> = {
   "single-cable-row": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Seated_Cable_Rows/0.jpg",
   "machine-low-row": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Seated_Cable_Rows/0.jpg",
   "wide-pulldown": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Wide-Grip_Lat_Pulldown/0.jpg",
+  "neutral-pulldown": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Full_Range-Of-Motion_Lat_Pulldown/0.jpg",
   "straight-arm-pulldown": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Straight-Arm_Pulldown/0.jpg",
   "db-pullover": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Bent-Arm_Dumbbell_Pullover/0.jpg",
   "back-extension": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Hyperextensions_Back_Extensions/0.jpg",
@@ -76,6 +78,7 @@ export const bundledExercisePhotos: Record<string, string> = {
   "plate-front-raise": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Front_Plate_Raise/0.jpg",
   "rear-delt-fly": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Reverse_Flyes/0.jpg",
   "reverse-pec-deck": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Reverse_Machine_Flyes/0.jpg",
+  "cable-lateral-raise": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Dumbbell_One-Arm_Upright_Row/0.jpg",
   "cable-front-raise": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Front_Cable_Raise/0.jpg",
   "landmine-press": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Barbell_Shoulder_Press/0.jpg",
   "push-press": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Push_Press/0.jpg",
@@ -111,6 +114,8 @@ export const bundledExercisePhotos: Record<string, string> = {
   "russian-twist": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Russian_Twist/0.jpg",
   "ab-wheel": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Ab_Roller/0.jpg",
   "dead-bug": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Dead_Bug/0.jpg",
+  "bird-dog": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Mountain_Climbers/1.jpg",
+  "side-plank": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Side_Jackknife/0.jpg",
   "cable-woodchop": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Standing_Cable_Wood_Chop/0.jpg",
   "pallof-press": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Pallof_Press/0.jpg",
   "bicycle-crunch": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Cross-Body_Crunch/0.jpg",
@@ -118,18 +123,26 @@ export const bundledExercisePhotos: Record<string, string> = {
   "v-up": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Jackknife_Sit-Up/1.jpg",
   "decline-sit-up": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Sit-Up/0.jpg",
   "toe-touch": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Toe_Touchers/0.jpg",
+  "hollow-hold": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Flat_Bench_Lying_Leg_Raise/1.jpg",
   "farmer-carry": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Farmers_Walk/0.jpg",
   "elliptical": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Elliptical_Trainer/0.jpg",
   "stair-climber": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Stairmaster/0.jpg",
+  "air-bike": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Bicycling_Stationary/0.jpg",
   "exercise-bike": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Recumbent_Bike/0.jpg",
   "incline-walk": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Walking_Treadmill/0.jpg",
   "jump-rope": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Rope_Jumping/0.jpg",
   "sled-push": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Sled_Push/0.jpg",
+  "burpee": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Freehand_Jump_Squat/0.jpg",
   "battle-ropes": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Battling_Ropes/0.jpg",
   "box-step-cardio": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Box_Jump_Multiple_Response/0.jpg",
   "outdoor-run": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Trail_Running_Walking/0.jpg",
+  "swimming": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Running_Treadmill/0.jpg",
+  "ski-erg": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Rowing_Stationary/1.jpg",
+  "boxing-bag": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Battling_Ropes/1.jpg",
   "kettlebell-swing": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/One-Arm_Kettlebell_Swings/0.jpg",
   "jumping-jacks": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Star_Jump/0.jpg",
+  "high-knees": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Fast_Skipping/0.jpg",
+  "shadow-boxing": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Box_Skip/1.jpg",
 };
 
 export const bundledExerciseGroupFallbackPhotos: Record<string, string> = {
@@ -143,4 +156,4 @@ export const bundledExerciseGroupFallbackPhotos: Record<string, string> = {
   "Кардио": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Elliptical_Trainer/0.jpg",
 };
 
-export const bundledExercisePhotoFileNames: string[] = ["bench-press.jpg","incline-db-press.jpg","lat-pulldown.jpg","barbell-row.jpg","squat.jpg","leg-press.jpg","shoulder-press.jpg","lateral-raise.jpg","biceps-curl.jpg","triceps-pushdown.jpg","plank.jpg","treadmill.jpg","dumbbell-row.jpg","romanian-deadlift.jpg","walking-lunge.jpg","dips.jpg","leg-curl.jpg","calf-raise.jpg","cable-crunch.jpg","rower.jpg","db-flat-press.jpg","machine-chest-press.jpg","cable-fly-low.jpg","cable-fly-high.jpg","pec-deck.jpg","push-up.jpg","decline-bench-press.jpg","smith-incline-press.jpg","db-fly.jpg","floor-press.jpg","single-cable-press.jpg","machine-fly.jpg","weighted-push-up.jpg","svend-press.jpg","smith-flat-press.jpg","kneeling-cable-press.jpg","pull-up.jpg","neutral-pull-up.jpg","seated-cable-row.jpg","chest-supported-row.jpg","t-bar-row.jpg","single-cable-row.jpg","machine-low-row.jpg","wide-pulldown.jpg","straight-arm-pulldown.jpg","db-pullover.jpg","back-extension.jpg","rack-pull.jpg","inverted-row.jpg","meadows-row.jpg","shrug.jpg","reverse-grip-row.jpg","front-squat.jpg","bulgarian-split-squat.jpg","hack-squat.jpg","leg-extension.jpg","hip-thrust.jpg","sumo-deadlift.jpg","goblet-squat.jpg","step-up.jpg","glute-bridge.jpg","seated-calf-raise.jpg","standing-leg-curl.jpg","adductor-machine.jpg","abductor-machine.jpg","reverse-lunge.jpg","barbell-overhead-press.jpg","arnold-press.jpg","machine-shoulder-press.jpg","front-raise-db.jpg","plate-front-raise.jpg","rear-delt-fly.jpg","reverse-pec-deck.jpg","cable-front-raise.jpg","landmine-press.jpg","push-press.jpg","single-arm-db-press.jpg","external-rotation.jpg","y-raise.jpg","face-pull.jpg","upright-row-cable.jpg","scaption-raise.jpg","cuban-press.jpg","db-curl.jpg","hammer-curl.jpg","incline-curl.jpg","preacher-curl.jpg","cable-curl.jpg","concentration-curl.jpg","reverse-curl.jpg","spider-curl.jpg","ez-curl.jpg","lying-triceps-extension.jpg","rope-pushdown.jpg","overhead-rope-extension.jpg","triceps-kickback.jpg","close-grip-bench.jpg","single-arm-pushdown.jpg","bench-dip.jpg","cable-triceps-extension.jpg","diamond-push-up.jpg","crunch.jpg","reverse-crunch.jpg","hanging-leg-raise.jpg","hanging-knee-raise.jpg","russian-twist.jpg","ab-wheel.jpg","dead-bug.jpg","cable-woodchop.jpg","pallof-press.jpg","bicycle-crunch.jpg","mountain-climber.jpg","v-up.jpg","decline-sit-up.jpg","toe-touch.jpg","farmer-carry.jpg","elliptical.jpg","stair-climber.jpg","exercise-bike.jpg","incline-walk.jpg","jump-rope.jpg","sled-push.jpg","battle-ropes.jpg","box-step-cardio.jpg","outdoor-run.jpg","kettlebell-swing.jpg","jumping-jacks.jpg","group-chest.jpg","group-back.jpg","group-legs.jpg","group-shoulders.jpg","group-biceps.jpg","group-triceps.jpg","group-core.jpg","group-cardio.jpg"];
+export const bundledExercisePhotoFileNames: string[] = ["bench-press.jpg","incline-db-press.jpg","lat-pulldown.jpg","barbell-row.jpg","squat.jpg","leg-press.jpg","shoulder-press.jpg","lateral-raise.jpg","biceps-curl.jpg","triceps-pushdown.jpg","plank.jpg","treadmill.jpg","dumbbell-row.jpg","romanian-deadlift.jpg","walking-lunge.jpg","dips.jpg","leg-curl.jpg","calf-raise.jpg","cable-crunch.jpg","rower.jpg","db-flat-press.jpg","machine-chest-press.jpg","cable-fly-low.jpg","cable-fly-high.jpg","pec-deck.jpg","push-up.jpg","decline-bench-press.jpg","smith-incline-press.jpg","db-fly.jpg","floor-press.jpg","single-cable-press.jpg","machine-fly.jpg","weighted-push-up.jpg","svend-press.jpg","smith-flat-press.jpg","landmine-chest-press.jpg","kneeling-cable-press.jpg","pull-up.jpg","neutral-pull-up.jpg","seated-cable-row.jpg","chest-supported-row.jpg","t-bar-row.jpg","single-cable-row.jpg","machine-low-row.jpg","wide-pulldown.jpg","neutral-pulldown.jpg","straight-arm-pulldown.jpg","db-pullover.jpg","back-extension.jpg","rack-pull.jpg","inverted-row.jpg","meadows-row.jpg","shrug.jpg","reverse-grip-row.jpg","front-squat.jpg","bulgarian-split-squat.jpg","hack-squat.jpg","leg-extension.jpg","hip-thrust.jpg","sumo-deadlift.jpg","goblet-squat.jpg","step-up.jpg","glute-bridge.jpg","seated-calf-raise.jpg","standing-leg-curl.jpg","adductor-machine.jpg","abductor-machine.jpg","reverse-lunge.jpg","barbell-overhead-press.jpg","arnold-press.jpg","machine-shoulder-press.jpg","front-raise-db.jpg","plate-front-raise.jpg","rear-delt-fly.jpg","reverse-pec-deck.jpg","cable-lateral-raise.jpg","cable-front-raise.jpg","landmine-press.jpg","push-press.jpg","single-arm-db-press.jpg","external-rotation.jpg","y-raise.jpg","face-pull.jpg","upright-row-cable.jpg","scaption-raise.jpg","cuban-press.jpg","db-curl.jpg","hammer-curl.jpg","incline-curl.jpg","preacher-curl.jpg","cable-curl.jpg","concentration-curl.jpg","reverse-curl.jpg","spider-curl.jpg","ez-curl.jpg","lying-triceps-extension.jpg","rope-pushdown.jpg","overhead-rope-extension.jpg","triceps-kickback.jpg","close-grip-bench.jpg","single-arm-pushdown.jpg","bench-dip.jpg","cable-triceps-extension.jpg","diamond-push-up.jpg","crunch.jpg","reverse-crunch.jpg","hanging-leg-raise.jpg","hanging-knee-raise.jpg","russian-twist.jpg","ab-wheel.jpg","dead-bug.jpg","bird-dog.jpg","side-plank.jpg","cable-woodchop.jpg","pallof-press.jpg","bicycle-crunch.jpg","mountain-climber.jpg","v-up.jpg","decline-sit-up.jpg","toe-touch.jpg","hollow-hold.jpg","farmer-carry.jpg","elliptical.jpg","stair-climber.jpg","air-bike.jpg","exercise-bike.jpg","incline-walk.jpg","jump-rope.jpg","sled-push.jpg","burpee.jpg","battle-ropes.jpg","box-step-cardio.jpg","outdoor-run.jpg","swimming.jpg","ski-erg.jpg","boxing-bag.jpg","kettlebell-swing.jpg","jumping-jacks.jpg","high-knees.jpg","shadow-boxing.jpg","group-chest.jpg","group-back.jpg","group-legs.jpg","group-shoulders.jpg","group-biceps.jpg","group-triceps.jpg","group-core.jpg","group-cardio.jpg"];

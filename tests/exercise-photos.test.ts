@@ -23,14 +23,14 @@ const catalogIds = parseCatalogIds();
 const photosDir = path.join(root, "assets/exercise-photos");
 
 describe("bundled exercise photos", () => {
-  it("covers at least 90% of the exercise catalog", () => {
+  it("covers 100% of the exercise catalog", () => {
     expect(catalogIds.length).toBeGreaterThanOrEqual(140);
     const covered = catalogIds.filter((id) => freeExerciseDbPhotos[id]).length;
-    // 0.95 held before the QA review; six ids were deliberately dropped
-    // (high-knees, neutral-pulldown, landmine-chest-press, cable-lateral-raise,
-    // air-bike, side-plank) because every dataset candidate showed a wrong
-    // exercise. A missing photo is better than a wrong one.
-    expect(covered / catalogIds.length).toBeGreaterThanOrEqual(0.9);
+    // QA round 2 replaced the former six exclusions (high-knees,
+    // neutral-pulldown, landmine-chest-press, cable-lateral-raise, air-bike,
+    // side-plank) with approved nearest-analog dataset photos.
+    expect(covered / catalogIds.length).toBe(1);
+    expect(freeExerciseDbPhotoCoverage.unmatched.length).toBe(0);
     expect(freeExerciseDbPhotoCoverage.matched).toBe(Object.keys(freeExerciseDbPhotos).length);
     expect(freeExerciseDbPhotoCoverage.unmatched.every((id) => catalogIds.includes(id))).toBe(true);
     expect(freeExerciseDbPhotoCoverage.unmatched.length).toBe(catalogIds.length - covered);

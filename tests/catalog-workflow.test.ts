@@ -7,7 +7,7 @@ describe("catalog and program workflow", () => {
     expect(exercise.id).toBe("custom-exercise-1");
     expect(exercise.name).toBe("Тяга в кроссовере");
     expect(exercise.image).toContain("data:image/svg+xml");
-    expect(exercise.videoUrl).toContain("youtube.com");
+    expect(exercise.videoUrl).toContain("rutube.ru/search/?query=");
   });
 
   it("sorts program registry by creation date in both directions", () => {

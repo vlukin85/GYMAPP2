@@ -2,7 +2,7 @@ import type { Exercise } from "./workout-data";
 
 type Entry = [string, string, string, string];
 const makeImage = (id: string, tag: string) => `https://loremflickr.com/900/900/fitness,${encodeURIComponent(tag)}/all?lock=${id}`;
-const makeEntries = (group: Exercise["group"], entries: Entry[]): Exercise[] => entries.map(([id, name, equipment, description]) => ({ id, name, group, equipment, description, image: makeImage(id, id.replace(/-/g, ",")), videoUrl: `https://www.youtube.com/results?search_query=${encodeURIComponent(`${name} техника`)}`, recordKg: 0, recordReps: 0 }));
+const makeEntries = (group: Exercise["group"], entries: Entry[]): Exercise[] => entries.map(([id, name, equipment, description]) => ({ id, name, group, equipment, description, image: makeImage(id, id.replace(/-/g, ",")), videoUrl: `https://rutube.ru/search/?query=${encodeURIComponent(`${name} техника`)}`, recordKg: 0, recordReps: 0 }));
 
 export const expandedExercises: Exercise[] = [
   ...makeEntries("Грудь", [
