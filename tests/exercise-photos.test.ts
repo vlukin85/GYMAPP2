@@ -56,7 +56,7 @@ describe("bundled exercise photos", () => {
   });
 
   it("ships a real asset file for every bundled photo", () => {
-    const requirePattern = /require\("\.\.\/\.\.\/assets\/exercise-photos\/([A-Za-z0-9_-]+\.jpg)"\)/g;
+    const requirePattern = /require\("\.\.\/assets\/exercise-photos\/([A-Za-z0-9_-]+\.jpg)"\)/g;
     const nativeSource = readFileSync(path.join(root, "lib/bundled-exercise-photos.native.ts"), "utf8");
     const requiredFiles = [...nativeSource.matchAll(requirePattern)].map((match) => match[1]);
     expect(requiredFiles.length).toBe(bundledExercisePhotoFileNames.length);
