@@ -58,7 +58,11 @@ describe("settings visual system", () => {
     expect(settings).toContain("Мужской голос");
     expect(settings).toContain("Сирена");
     expect(settings).toContain("previewRestCompletionSound");
-    expect(settings).toContain("previewNativeRestCompletionSound");
+    // Предпрослушивание играет через expo-audio (тот же путь, что сигнал
+    // в приложении) и учитывает громкость: нативный RingtoneManager на
+    // части устройств молча не проигрывает raw-ресурсы.
+    expect(settings).not.toContain("previewNativeRestCompletionSound");
+    expect(settings).toContain("playsInSilentMode: true");
   });
 
   it("содержит ползунок громкости и явную настройку вибрации для сигнала завершения", () => {

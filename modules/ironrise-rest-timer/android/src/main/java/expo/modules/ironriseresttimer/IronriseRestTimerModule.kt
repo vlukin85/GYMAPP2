@@ -97,7 +97,14 @@ class IronriseRestTimerModule : Module() {
     }
 
     Function("previewCompletionSound") { completionSound: String ->
-      completionSoundUri(context, completionSound)?.let { RingtoneManager.getRingtone(context, it)?.play() }
+      // Возвращаем признак реального запуска: RingtoneManager на части
+      // устройств не проигрывает raw-ресурсы, вызывающая сторона должна
+      // уметь откатиться на expo-audio.
+      val ringtone = completionSoundUri(context, completionSound)
+        ?.let { RingtoneManager.getRingtone(context, it) }
+      val started = ringtone != null
+      ringtone?.play()
+      started
     }
 
     Function("clearCountdown") {

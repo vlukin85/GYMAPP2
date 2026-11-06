@@ -5,7 +5,7 @@ type IronriseRestTimerNativeModule = {
   showCountdown(payload: NativeRestCountdownPayload): void;
   showActiveSetNotification(payload: NativeActiveSetPayload): void;
   clearActiveSetNotification(): void;
-  previewCompletionSound(completionSound: string): void;
+  previewCompletionSound(completionSound: string): boolean;
   clearCountdown(): void;
   updateActiveWorkoutWidget(payload: ActiveWorkoutWidgetPayload): void;
   updateWeeklyStatsWidget(payload: WeeklyStatsWidgetPayload): void;
@@ -199,8 +199,9 @@ export function previewNativeRestCompletionSound(
 ) {
   const module = getModule();
   if (!module || completionSound === "silent") return false;
-  module.previewCompletionSound(completionSound);
-  return true;
+  // Нативная сторона отвечает, реально ли запустилось воспроизведение:
+  // RingtoneManager на части устройств молча не проигрывает raw-ресурсы.
+  return module.previewCompletionSound(completionSound) === true;
 }
 
 export function consumeNativeRestTimerAction(): NativeRestTimerAction | null {

@@ -93,7 +93,6 @@ import {
   loadLockScreenHeartRateVisible,
   saveLockScreenHeartRateVisible,
 } from "@/lib/lock-screen-heart-rate-privacy";
-import { previewNativeRestCompletionSound } from "@/modules/ironrise-rest-timer";
 
 const formulas: {
   id: OneRepMaxFormula;
@@ -550,7 +549,10 @@ export default function SettingsScreen() {
   ];
 
   const previewRestCompletionSound = useCallback(async () => {
-    if (previewNativeRestCompletionSound(restTimerCompletionSound)) return;
+    // Предпрослушивание всегда через expo-audio: нативный RingtoneManager
+    // на части устройств (в т.ч. Huawei) молча не проигрывает raw-ресурсы,
+    // а expo-audio — тот же проверенный путь, что и сигнал завершения в
+    // приложении, плюс он учитывает ползунок громкости.
     await setAudioModeAsync({ playsInSilentMode: true });
     const player =
       restTimerCompletionSound === "female"
