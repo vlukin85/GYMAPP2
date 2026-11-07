@@ -4,6 +4,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.util.Log
+import androidx.core.app.NotificationManagerCompat
 
 class RestTimerActionReceiver : BroadcastReceiver() {
   override fun onReceive(context: Context, intent: Intent) {
@@ -17,7 +18,6 @@ class RestTimerActionReceiver : BroadcastReceiver() {
     }
     if (action == ACTION_START) {
       clearCountdownNotification(context)
-      cancelRestActionCards(context)
       val nextActionKind = intent.getStringExtra(EXTRA_NEXT_ACTION_KIND) ?: "start"
       val exerciseId = intent.getStringExtra(EXTRA_EXERCISE_ID) ?: ""
       Log.d(REST_TIMER_LOG_TAG, "primary action selected: kind=$nextActionKind exerciseId=$exerciseId")
@@ -50,7 +50,8 @@ class RestTimerActionReceiver : BroadcastReceiver() {
       // а параллельно едут в extras каждого действия — на случай смерти процесса.
       currentWeightKg = state.planWeightKg
       currentReps = state.planReps
-      showSetResultNotification(context, state.copy(currentWeightKg = state.planWeightKg, currentReps = state.planReps))
+      resultLayout = 0
+      showSetResultNotification(context, state.copy(currentWeightKg = state.planWeightKg, currentReps = state.planReps, resultLayout = 0))
       return
     }
     if (action == ACTION_ADJUST_WEIGHT_UP || action == ACTION_ADJUST_WEIGHT_DOWN) {
@@ -60,8 +61,7 @@ class RestTimerActionReceiver : BroadcastReceiver() {
       val adjusted = if (action == ACTION_ADJUST_WEIGHT_UP) weight + SET_RESULT_WEIGHT_STEP_KG else (weight - SET_RESULT_WEIGHT_STEP_KG).coerceAtLeast(0.0)
       currentWeightKg = adjusted
       currentReps = state.currentReps
-      // Пере-постится только карточка «Готово»: она показывает новые значения
-      // и несёт обновлённый contentIntent. Карточки-действия статичны.
+      resultLayout = state.resultLayout
       showSetResultNotification(context, state.copy(currentWeightKg = adjusted))
       return
     }
@@ -72,7 +72,18 @@ class RestTimerActionReceiver : BroadcastReceiver() {
       val adjusted = if (action == ACTION_ADJUST_REPS_UP) reps + 1 else (reps - 1).coerceAtLeast(1)
       currentWeightKg = state.currentWeightKg
       currentReps = adjusted
+      resultLayout = state.resultLayout
       showSetResultNotification(context, state.copy(currentReps = adjusted))
+      return
+    }
+    if (action == ACTION_MORE) {
+      val state = activeSetStateFromIntent(intent)
+      if (state.setIndex < 0) return
+      val nextLayout = (state.resultLayout + 1) % SET_RESULT_LAYOUT_COUNT
+      currentWeightKg = state.currentWeightKg
+      currentReps = state.currentReps
+      resultLayout = nextLayout
+      showSetResultNotification(context, state.copy(resultLayout = nextLayout))
       return
     }
     if (action == ACTION_COMMIT_SET) {
@@ -81,9 +92,10 @@ class RestTimerActionReceiver : BroadcastReceiver() {
       val weight = currentWeight(state)
       val reps = currentRepsOf(state)
       Log.d(REST_TIMER_LOG_TAG, "set committed: exerciseId=${state.exerciseId} setIndex=${state.setIndex} weight=$weight reps=$reps")
-      cancelResultActionCards(context)
+      NotificationManagerCompat.from(context).cancel(SET_RESULT_NOTIFICATION_ID)
       currentWeightKg = 0.0
       currentReps = 0
+      resultLayout = 0
       savePendingAction(context, "commit-set", System.currentTimeMillis(), state.exerciseId, state.setIndex, formatSetWeightKg(weight), reps.toString())
       return
     }
@@ -91,9 +103,10 @@ class RestTimerActionReceiver : BroadcastReceiver() {
       val state = activeSetStateFromIntent(intent)
       if (state.setIndex < 0) return
       Log.d(REST_TIMER_LOG_TAG, "set result cancelled: exerciseId=${state.exerciseId} setIndex=${state.setIndex}")
-      cancelResultActionCards(context)
+      NotificationManagerCompat.from(context).cancel(SET_RESULT_NOTIFICATION_ID)
       currentWeightKg = state.planWeightKg
       currentReps = state.planReps
+      resultLayout = 0
       showActiveSetNotification(context, state.exerciseName, state.setIndex, state.setsCount, state.planWeightKg, state.planReps, state.exerciseIndex, state.exercisesCount, state.exerciseId)
     }
   }
@@ -109,5 +122,6 @@ class RestTimerActionReceiver : BroadcastReceiver() {
     // резервной копией на случай, если процесс успел перезапуститься между нажатиями.
     var currentWeightKg: Double = 0.0
     var currentReps: Int = 0
+    var resultLayout: Int = 0
   }
 }
