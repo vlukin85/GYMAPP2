@@ -8,6 +8,9 @@ import android.content.Intent
 import android.media.AudioAttributes
 import android.media.RingtoneManager
 import android.os.Build
+import android.os.VibrationEffect
+import android.os.Vibrator
+import android.os.VibratorManager
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
@@ -55,11 +58,34 @@ class RestTimerCompletionReceiver : BroadcastReceiver() {
     )
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) soundUri?.let { builder.setSound(it) }
     NotificationManagerCompat.from(context).notify(COMPLETION_NOTIFICATION_ID, builder.build())
+    // Вибрация канала уведомлений не гарантирована: на части оболочек она
+    // глушится режимом «Не беспокоить», системными настройками канала или
+    // просто не проигрывается, когда уведомление заменяет предыдущее.
+    // Дублируем сигнал явным Vibrator-вызовом по выбранному паттерну —
+    // совпадающие по времени вибрации Android объединяет в одну.
+    if (completionVibrationEnabled) vibrate(context, completionVibrationPattern)
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) soundUri?.let { uri ->
       RingtoneManager.getRingtone(context, uri)?.apply {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) volume = completionVolume
         play()
       }
+    }
+  }
+
+  private fun vibrate(context: Context, patternId: String) {
+    val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+      context.getSystemService(VibratorManager::class.java).defaultVibrator
+    } else {
+      @Suppress("DEPRECATION")
+      context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
+    } ?: return
+    if (!vibrator.hasVibrator()) return
+    val pattern = completionVibrationPattern(patternId)
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+      vibrator.vibrate(VibrationEffect.createWaveform(pattern, -1))
+    } else {
+      @Suppress("DEPRECATION")
+      vibrator.vibrate(pattern, -1)
     }
   }
 

@@ -31,6 +31,20 @@ const actionReceiver = readFileSync(
   ),
   "utf8",
 );
+const earlyWarningReceiver = readFileSync(
+  resolve(
+    process.cwd(),
+    "modules/ironrise-rest-timer/android/src/main/java/expo/modules/ironriseresttimer/RestTimerEarlyWarningReceiver.kt",
+  ),
+  "utf8",
+);
+const restTimerManifest = readFileSync(
+  resolve(
+    process.cwd(),
+    "modules/ironrise-rest-timer/android/src/main/AndroidManifest.xml",
+  ),
+  "utf8",
+);
 const workoutScreen = readFileSync(
   resolve(process.cwd(), "app/workout.tsx"),
   "utf8",
@@ -231,5 +245,25 @@ describe("таймер отдыха на заблокированном Android-
       "completionVibrationPattern(vibrationPatternId)",
     );
     expect(workoutScreen).toContain("restTimerVibrationPattern");
+  });
+
+  it("вибрирует на нативном уровне при завершении отдыха по сохранённому паттерну", () => {
+    // Разрешение VIBRATE объявлено в манифесте самого модуля.
+    expect(restTimerManifest).toContain(
+      '<uses-permission android:name="android.permission.VIBRATE" />',
+    );
+    // Явная вибрация Vibrator-ом, а не только настройка канала уведомлений:
+    // канал глушится «Не беспокоить» и настройками оболочек.
+    expect(receiver).toContain("VibrationEffect.createWaveform");
+    expect(receiver).toContain(
+      "if (completionVibrationEnabled) vibrate(context, completionVibrationPattern)",
+    );
+    expect(receiver).toContain("completionVibrationPattern(patternId)");
+    // Паттерн короткий/длинный/пульсирующий — тот же, что приходит из настроек.
+    expect(receiver).toMatch(/"long" -> longArrayOf\(0, 900\)/);
+    expect(receiver).toMatch(/"pulse" -> longArrayOf\(0, 160, 110, 160, 110, 160\)/);
+    // Предупреждение за 10 секунд вибрирует так же явно.
+    expect(earlyWarningReceiver).toContain("VibrationEffect.createWaveform");
+    expect(earlyWarningReceiver).toContain("vibrator.hasVibrator()");
   });
 });

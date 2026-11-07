@@ -14,8 +14,10 @@ import {
   TextInput,
   UIManager,
   View,
+  Image,
 } from "react-native";
 import { setAudioModeAsync, useAudioPlayer } from "expo-audio";
+import Constants from "expo-constants";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
@@ -3310,6 +3312,32 @@ export default function SettingsScreen() {
             </Text>
           </View>
         </View>
+
+        <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
+          О приложении
+        </Text>
+        <View
+          style={[
+            styles.aboutCard,
+            { backgroundColor: colors.surface, borderColor: colors.border },
+          ]}
+        >
+          <Image
+            source={require("@/assets/images/ironrise-shield-badge.png")}
+            style={styles.aboutLogo}
+          />
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.aboutName, { color: colors.foreground }]}>
+              IronRise
+            </Text>
+            <Text style={[styles.aboutVersion, { color: colors.muted }]}>
+              Версия {Constants.expoConfig?.version ?? "1.0.4"}
+            </Text>
+            <Text style={[styles.aboutTagline, { color: colors.primary }]}>
+              Дневник тренировок, питания и прогресса
+            </Text>
+          </View>
+        </View>
         {normalizedSettingsQuery.length > 0 && !matchingCategories.length && (
           <View
             style={[
@@ -3681,6 +3709,19 @@ const styles = StyleSheet.create({
     letterSpacing: 0.35,
     marginTop: 12,
   },
+  aboutCard: {
+    borderWidth: 1,
+    borderRadius: 0,
+    borderLeftWidth: 5,
+    padding: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  aboutLogo: { width: 60, height: 60 },
+  aboutName: { fontSize: 15, fontWeight: "900", letterSpacing: 0.4 },
+  aboutVersion: { fontSize: 11, fontWeight: "800", marginTop: 3 },
+  aboutTagline: { fontSize: 10, fontWeight: "800", marginTop: 5, letterSpacing: 0.3 },
   stepRow: { flexDirection: "row", gap: 9 },
   step: {
     flex: 1,

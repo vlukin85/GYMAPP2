@@ -79,4 +79,13 @@ describe("settings visual system", () => {
     expect(settings).toContain("Пульсирующая");
     expect(settings).toContain("restTimerVibrationPattern");
   });
+
+  it("показывает логотип и версию приложения в разделе «О приложении»", () => {
+    expect(settings).toContain("О приложении");
+    expect(settings).toContain("ironrise-shield-badge");
+    expect(settings).toMatch(/aboutCard:\s*{\s*borderWidth:\s*1,\s*borderRadius:\s*0,\s*borderLeftWidth:\s*5/);
+    expect(settings).toMatch(/aboutLogo:\s*{\s*width:\s*60,\s*height:\s*60\s*}/);
+    expect(settings).toContain("Версия");
+    expect(settings).toContain("Constants.expoConfig?.version");
+  });
 });

@@ -40,7 +40,7 @@ const env = {
 const config: ExpoConfig = {
   name: env.appName,
   slug: env.appSlug,
-  version: "1.0.3",
+  version: "1.0.4",
   orientation: "portrait",
   icon: "./assets/images/icon.png",
   scheme: env.scheme,
@@ -54,7 +54,7 @@ const config: ExpoConfig = {
       }
   },
   android: {
-    versionCode: 4,
+    versionCode: 5,
     adaptiveIcon: {
       backgroundColor: "#0D0F14",
       foregroundImage: "./assets/images/android-icon-foreground.png",
@@ -90,7 +90,14 @@ const config: ExpoConfig = {
     "expo-font",
     "expo-secure-store",
     "expo-web-browser",
-    "expo-notifications",
+    [
+      "expo-notifications",
+      {
+        // Small notification icon: белый силуэт щита на прозрачном фоне —
+        // статусбар Android тонирует его сам, цветные иконки запрещены.
+        icon: "./assets/images/notification-small-icon.png",
+      },
+    ],
     [
       "expo-image-picker",
       {
@@ -121,10 +128,17 @@ const config: ExpoConfig = {
       {
         // Логотип показывается целиком: contain вместо cover не обрезает
         // портретный арт 1024x1536 под экран, поля заливаются фоном.
-        image: "./assets/images/splash-icon.png",
+        // Светлая системная тема: светлый фон и вариант арта с тёмным
+        // контуром щита, чтобы белый штрих не растворялся на светлом.
+        image: "./assets/images/splash-icon-light.png",
         imageWidth: 1024,
         resizeMode: "contain",
-        backgroundColor: "#0D0F14",
+        backgroundColor: "#F7F7F5",
+        // Тёмная системная тема: прежний арт на фирменном тёмном фоне.
+        dark: {
+          image: "./assets/images/splash-icon.png",
+          backgroundColor: "#0D0F14",
+        },
         // Android 12+ маскирует иконку в круг: отдельная квадратная версия
         // с полями, чтобы маска резала только фон, а не логотип.
         android12: {
