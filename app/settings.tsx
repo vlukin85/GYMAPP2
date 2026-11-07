@@ -87,7 +87,7 @@ import {
 } from "@/lib/body-store";
 import { calculateDailyCalorieGuide } from "@/lib/body-calculations";
 import {
-  connectHealthConnectHeartRate,
+  connectHealthConnectActivity,
   getHealthConnectStatus,
   type HealthConnectStatus,
 } from "@/lib/health-connect";
@@ -496,6 +496,7 @@ export default function SettingsScreen() {
     useState<HealthConnectStatus>({
       state: "unsupported",
       heartRateGranted: false,
+      activityGranted: false,
       message: "Проверяем Health Connect…",
     });
   const [lockScreenHeartRateVisible, setLockScreenHeartRateVisible] =
@@ -665,7 +666,18 @@ export default function SettingsScreen() {
       ],
     );
   const connectHealthConnect = () =>
-    void connectHealthConnectHeartRate().then(setHealthConnectStatus);
+    void connectHealthConnectActivity().then(setHealthConnectStatus);
+  const healthConnectFullyGranted =
+    healthConnectStatus.heartRateGranted && healthConnectStatus.activityGranted;
+  const healthConnectBadgeText = healthConnectFullyGranted
+    ? "ГОТОВО"
+    : healthConnectStatus.heartRateGranted
+      ? "ПУЛЬС"
+      : healthConnectStatus.activityGranted
+        ? "АКТИВНОСТЬ"
+        : "НЕТ ДОСТУПА";
+  const healthConnectGrantedAny =
+    healthConnectStatus.heartRateGranted || healthConnectStatus.activityGranted;
 
   const downloadPhotos = async () => {
     setBulkState((state) => ({
@@ -2614,18 +2626,16 @@ export default function SettingsScreen() {
                 style={[
                   styles.groqStatus,
                   {
-                    color: healthConnectStatus.heartRateGranted
+                    color: healthConnectGrantedAny
                       ? colors.success
                       : colors.muted,
-                    backgroundColor: healthConnectStatus.heartRateGranted
+                    backgroundColor: healthConnectGrantedAny
                       ? `${colors.success}18`
                       : colors.border,
                   },
                 ]}
               >
-                {healthConnectStatus.heartRateGranted
-                  ? "ГОТОВО"
-                  : "НЕТ ДОСТУПА"}
+                {healthConnectBadgeText}
               </Text>
             </View>
             <View style={styles.groqActions}>
@@ -2638,7 +2648,7 @@ export default function SettingsScreen() {
               >
                 <Text style={styles.groqPrimaryText}>
                   {healthConnectStatus.state === "permission-required"
-                    ? "Подключить пульс"
+                    ? "Подключить активность и пульс"
                     : "Проверить Health Connect"}
                 </Text>
               </Pressable>
@@ -2680,8 +2690,9 @@ export default function SettingsScreen() {
               />
             </View>
             <Text style={[styles.groqPrivacy, { color: colors.muted }]}>
-              IronRise читает только данные пульса за время тренировки и
-              сохраняет среднее и пиковое значение локально.
+              IronRise читает шаги, активные калории, дистанцию и пульс и
+              сохраняет сводные значения локально. Записи появляются после
+              синхронизации приложения «Здоровье» с Health Connect.
             </Text>
           </View>
 

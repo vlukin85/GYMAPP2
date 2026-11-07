@@ -39,6 +39,8 @@ import { ProgressOverview } from "@/components/progress-overview";
 import { getExercisePersonalRecordHistory, type PersonalRecordHistoryPoint } from "@/lib/record-history";
 import { getPercentageChange, getStatsMetrics, getStatsPeriodComparison } from "@/lib/stats-comparison";
 import { getWeeklyCardioMinutes } from "@/lib/cardio-metrics";
+import { getHealthConnectStatus, readDailyActivity, readActivityWeek, type DailyActivityReading, type HealthConnectStatus } from "@/lib/health-connect";
+import type { ActivityWeekDay } from "@/lib/health-connect-activity";
 
 const periodOptions: { id: StatsFilterMode; label: string }[] = [
   { id: "week", label: "Неделя" },
@@ -79,6 +81,33 @@ export default function StatsScreen() {
   const periodComparison = useMemo(() => getStatsPeriodComparison(completed, filter, selectedExerciseId), [completed, filter, selectedExerciseId]);
   const oneRmHistory = useMemo(() => selectedExerciseId ? getExercisePersonalRecordHistory(completed, selectedExerciseId, oneRmFormula) : [], [completed, oneRmFormula, selectedExerciseId]);
   const weeklyCardio = useMemo(() => getWeeklyCardioMinutes(completed), [completed]);
+  // Виджет «Активность»: данные Health Connect читаются один раз при маунте,
+  // ошибки не блокируют экран — карточка показывает подсказку.
+  const [activityStatus, setActivityStatus] = useState<HealthConnectStatus | null>(null);
+  const [activityDay, setActivityDay] = useState<DailyActivityReading | null>(null);
+  const [activityWeek, setActivityWeek] = useState<ActivityWeekDay[]>([]);
+  const [activityLoaded, setActivityLoaded] = useState(false);
+  useEffect(() => {
+    let mounted = true;
+    void (async () => {
+      try {
+        const status = await getHealthConnectStatus();
+        if (!mounted) return;
+        setActivityStatus(status);
+        if (status.state === "ready" && status.activityGranted) {
+          const [day, week] = await Promise.all([readDailyActivity(), readActivityWeek()]);
+          if (!mounted) return;
+          setActivityDay(day);
+          setActivityWeek(week);
+        }
+      } catch {
+        // Тихо: виджет остаётся с подсказкой «не подключено».
+      } finally {
+        if (mounted) setActivityLoaded(true);
+      }
+    })();
+    return () => { mounted = false; };
+  }, []);
   const periodLabel = period === "date" ? selectedDate : period === "custom" ? `${rangeStart} — ${rangeEnd}` : periodOptions.find((option) => option.id === period)?.label.toLocaleLowerCase("ru") ?? "месяц";
   const calendarDays = useMemo(() => getMonthCalendarDays(calendarCursor.getFullYear(), calendarCursor.getMonth()), [calendarCursor]);
   useEffect(() => { let mounted = true; loadStatsPreferences({ filter, exerciseId: null }).then((saved) => { if (!mounted) return; setPeriod(saved.filter.mode); setSelectedDate(saved.filter.date ?? today); setRangeStart(saved.filter.start ?? today); setRangeEnd(saved.filter.end ?? today); setSelectedExerciseId(saved.exerciseId); setFilterLoaded(true); }); return () => { mounted = false; }; }, []);
@@ -176,6 +205,8 @@ export default function StatsScreen() {
       return selectedExerciseId && selectedExercise ? <OneRmHistoryChart exerciseName={selectedExercise.name} points={oneRmHistory} colors={colors} /> : null;
     if (id === "cardio")
       return <WeeklyCardioChart points={weeklyCardio} colors={colors} />;
+    if (id === "activity")
+      return <ActivityTodayCard status={activityStatus} day={activityDay} week={activityWeek} loaded={activityLoaded} colors={colors} />;
     if (id === "progress")
       return <ProgressOverview completed={completed} />;
     if (id === "records")
@@ -319,6 +350,67 @@ function WeeklyCardioChart({ points, colors }: { points: ReturnType<typeof getWe
   return <View style={[styles.cardioChart, { backgroundColor: colors.surface, borderColor: colors.border }]}><View style={styles.cardioChartHeader}><View><Text style={[styles.cardioChartTitle, { color: colors.foreground }]}>КАРДИО · 7 ДНЕЙ</Text><Text style={[styles.cardioChartHint, { color: colors.muted }]}>Время кардио по дням недели</Text></View><Text style={[styles.cardioChartTotal, { color: colors.primary }]}>{total} МИН</Text></View><Svg width="100%" height={132} viewBox="0 0 328 132"><Line x1="18" x2="316" y1="103" y2="103" stroke={colors.border} strokeWidth="1" />{points.map((point, index) => { const height = point.minutes ? Math.max(5, (point.minutes / max) * 76) : 2; const x = 25 + index * 43; return <Fragment key={point.date}><Rect x={x} y={103 - height} width="25" height={height} fill={point.minutes ? colors.primary : colors.border} /><SvgText x={x + 12} y="121" textAnchor="middle" fill={colors.muted} fontSize="9" fontWeight="800">{point.label}</SvgText>{point.minutes > 0 && <SvgText x={x + 12} y={96 - height} textAnchor="middle" fill={colors.foreground} fontSize="9" fontWeight="900">{point.minutes}</SvgText>}</Fragment>; })}</Svg></View>;
 }
 
+function ActivityTodayCard({ status, day, week, loaded, colors }: { status: HealthConnectStatus | null; day: DailyActivityReading | null; week: ActivityWeekDay[]; loaded: boolean; colors: any }) {
+  const connected = Boolean(status && status.state === "ready" && status.activityGranted);
+  const hasDayData = Boolean(day && (day.steps !== undefined || day.activeKcal !== undefined || day.distanceKm !== undefined || day.heartRate));
+  const heartRate = day?.heartRate;
+  const maxSteps = Math.max(1, ...week.map((entry) => entry.steps));
+  const todayISO = week.at(-1)?.dateISO;
+  const formatCount = (value: number) => Math.round(value).toLocaleString("ru-RU");
+  const weekLabel = (dateISO: string) => new Date(`${dateISO}T12:00:00`).toLocaleDateString("ru-RU", { weekday: "short" }).replace(/^./, (char) => char.toLocaleUpperCase("ru"));
+  return (
+    <View style={[styles.activityCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+      <View style={styles.activityHeader}>
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.activityTitle, { color: colors.foreground }]}>Активность · сегодня</Text>
+          <Text style={[styles.activityHint, { color: colors.muted }]}>Шаги, калории и пульс из Health Connect</Text>
+        </View>
+        <View style={[styles.activityBadge, { backgroundColor: `${colors.primary}18` }]}><Text style={[styles.activityBadgeText, { color: colors.primary }]}>HC</Text></View>
+      </View>
+      {!loaded ? (
+        <View style={[styles.activityEmpty, { borderColor: colors.border }]}><Text style={[styles.activityEmptyText, { color: colors.muted }]}>Загружаем данные Health Connect…</Text></View>
+      ) : !connected ? (
+        <View style={[styles.activityEmpty, { borderColor: colors.border }]}>
+          <Text style={[styles.activityEmptyTitle, { color: colors.foreground }]}>Health Connect не подключён</Text>
+          <Text style={[styles.activityEmptyText, { color: colors.muted }]}>Разрешите IronRise читать активность и пульс — данные приходят из приложения «Здоровье».</Text>
+          <Pressable onPress={() => router.push("/(tabs)/settings")} accessibilityRole="button" accessibilityLabel="Настроить Health Connect в настройках" style={({ pressed }) => [styles.activityConnectButton, { borderColor: colors.primary, opacity: pressed ? pressedOpacity : 1 }]}>
+            <Text style={[styles.activityConnectButtonText, { color: colors.primary }]}>Настроить Health Connect</Text>
+          </Pressable>
+        </View>
+      ) : !hasDayData ? (
+        <View style={[styles.activityEmpty, { borderColor: colors.border }]}>
+          <Text style={[styles.activityEmptyTitle, { color: colors.foreground }]}>Нет данных за сегодня</Text>
+          <Text style={[styles.activityEmptyText, { color: colors.muted }]}>Откройте приложение «Здоровье», чтобы оно синхронизировало шаги, калории и пульс в Health Connect.</Text>
+        </View>
+      ) : (
+        <>
+          <View style={styles.activityMetrics}>
+            <ActivityMetric label="Шаги" value={formatCount(day?.steps ?? 0)} colors={colors} />
+            <ActivityMetric label="Активные ккал" value={formatCount(day?.activeKcal ?? 0)} colors={colors} />
+            <ActivityMetric label="Дистанция" value={`${(day?.distanceKm ?? 0).toFixed(1)} км`} colors={colors} />
+          </View>
+          {heartRate && <Text style={[styles.activityHeartRate, { color: colors.muted }]}>Пульс: сейчас {heartRate.currentBpm ?? "—"} · среднее {heartRate.averageBpm ?? "—"} · пик {heartRate.peakBpm ?? "—"}</Text>}
+          <View style={styles.activityWeek}>{week.map((entry) => {
+            const isToday = entry.dateISO === todayISO;
+            const height = entry.steps ? Math.max(6, (entry.steps / maxSteps) * 62) : 3;
+            return (
+              <View key={entry.dateISO} style={styles.activityWeekColumn}>
+                <Text style={[styles.activityWeekValue, { color: isToday ? colors.primary : colors.muted }]}>{entry.steps ? formatCount(entry.steps) : " "}</Text>
+                <View style={[styles.activityWeekBar, { height, backgroundColor: entry.steps ? (isToday ? colors.primary : `${colors.primary}55`) : colors.border }]} />
+                <Text style={[styles.activityWeekLabel, { color: isToday ? colors.primary : colors.muted }]}>{weekLabel(entry.dateISO)}</Text>
+              </View>
+            );
+          })}</View>
+        </>
+      )}
+    </View>
+  );
+}
+
+function ActivityMetric({ label, value, colors }: { label: string; value: string; colors: any }) {
+  return <View style={[styles.activityMetric, { backgroundColor: colors.background, borderColor: colors.border }]}><Text style={[styles.activityMetricValue, { color: colors.foreground }]}>{value}</Text><Text style={[styles.activityMetricLabel, { color: colors.muted }]}>{label}</Text></View>;
+}
+
 function PeriodComparison({ comparison, period, colors }: { comparison: NonNullable<ReturnType<typeof getStatsPeriodComparison>>; period: StatsFilterMode; colors: any }) {
   const periodName = period === "week" ? "прошлой неделей" : "прошлым месяцем";
   return <View style={[styles.comparisonCard, { backgroundColor: colors.surface, borderColor: colors.border }]}><View style={styles.comparisonHeader}><View><Text style={[styles.comparisonTitle, { color: colors.foreground }]}>Сравнение с {periodName}</Text><Text style={[styles.comparisonHint, { color: colors.muted }]}>Текущий период и предыдущий на одном экране</Text></View><View style={[styles.comparisonBadge, { backgroundColor: `${colors.primary}18` }]}><Text style={[styles.comparisonBadgeText, { color: colors.primary }]}>{period === "week" ? "НЕДЕЛЯ" : "МЕСЯЦ"}</Text></View></View><View style={styles.comparisonMetrics}><ComparisonMetric label={"Тренировки"} current={comparison.current.workoutCount} previous={comparison.previous.workoutCount} colors={colors} /><ComparisonMetric label={"Объём"} current={comparison.current.volume / 1000} previous={comparison.previous.volume / 1000} suffix=" т" decimals={1} colors={colors} /><ComparisonMetric label={"Время"} current={comparison.current.minutes} previous={comparison.previous.minutes} suffix=" мин" colors={colors} /></View></View>;
@@ -386,6 +478,27 @@ const styles = StyleSheet.create({
   oneRmEmptyTitle: { fontSize: 13, fontWeight: "800", marginTop: 2 },
   oneRmEmptyText: { fontSize: 11, lineHeight: 16, textAlign: "center" }, cardioChart: { borderWidth: 1, borderRadius: radius.card, padding: 14, gap: 7 }, cardioChartHeader: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }, cardioChartTitle: { ...typeTokens.heading, fontSize: 15 }, cardioChartHint: { fontSize: 10, marginTop: 4 }, cardioChartTotal: { fontSize: 13, fontWeight: "800", letterSpacing: 0.5, fontVariant: ["tabular-nums"] },
   headerActions: { flexDirection: "row", alignItems: "center", gap: 8 },
+  activityCard: { borderWidth: 1, borderRadius: radius.card, padding: 14, gap: 11 },
+  activityHeader: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: 8 },
+  activityTitle: { ...typeTokens.heading, fontSize: 15 },
+  activityHint: { fontSize: 10, marginTop: 4 },
+  activityBadge: { borderRadius: radius.chip, paddingHorizontal: 9, paddingVertical: 5 },
+  activityBadgeText: { fontSize: 9, fontWeight: "800", letterSpacing: 0.5 },
+  activityMetrics: { flexDirection: "row", gap: 7 },
+  activityMetric: { flex: 1, minHeight: 74, borderWidth: 1, borderRadius: radius.tile, padding: 10, justifyContent: "flex-end", gap: 2 },
+  activityMetricValue: { fontSize: 17, fontWeight: "900", fontVariant: ["tabular-nums"] },
+  activityMetricLabel: { fontSize: 9, fontWeight: "700" },
+  activityHeartRate: { fontSize: 11, fontWeight: "600", fontVariant: ["tabular-nums"] },
+  activityWeek: { flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", paddingTop: 2 },
+  activityWeekColumn: { flex: 1, alignItems: "center", gap: 4 },
+  activityWeekBar: { width: "62%", borderRadius: 4 },
+  activityWeekValue: { fontSize: 8, fontWeight: "800", fontVariant: ["tabular-nums"], minHeight: 11 },
+  activityWeekLabel: { fontSize: 9, fontWeight: "700" },
+  activityEmpty: { borderWidth: 1, borderStyle: "dashed", borderRadius: radius.tile, padding: 12, gap: 6 },
+  activityEmptyTitle: { fontSize: 13, fontWeight: "800" },
+  activityEmptyText: { fontSize: 11, lineHeight: 16 },
+  activityConnectButton: { minHeight: minTouchTarget - 6, borderRadius: radius.button, borderWidth: 1, alignItems: "center", justifyContent: "center", marginTop: 4 },
+  activityConnectButtonText: { fontSize: 11, fontWeight: "800", letterSpacing: 0.3 },
   editButton: { minHeight: 36, borderRadius: radius.chip, borderWidth: 1, paddingHorizontal: 12, alignItems: "center", justifyContent: "center" },
   editButtonText: { fontSize: 11, fontWeight: "800", letterSpacing: 0.3 },
   widgetShell: { position: "relative" },

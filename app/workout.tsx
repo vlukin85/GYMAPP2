@@ -937,6 +937,7 @@ export default function WorkoutScreen() {
     useState<HealthConnectStatus>({
       state: "unsupported",
       heartRateGranted: false,
+      activityGranted: false,
       message: "Проверяем Health Connect…",
     });
   const [heartRate, setHeartRate] = useState<HeartRateSummary>({

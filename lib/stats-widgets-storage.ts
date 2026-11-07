@@ -7,6 +7,7 @@ export const STATS_WIDGETS = [
   { id: "comparison" as const, title: "Сравнение периодов", description: "Текущий период против предыдущего" },
   { id: "oneRm" as const, title: "Динамика 1RM", description: "График расчётного максимума по выбранному упражнению" },
   { id: "cardio" as const, title: "Кардио · 7 дней", description: "Минуты кардио по дням недели" },
+  { id: "activity" as const, title: "Активность · сегодня", description: "Шаги, калории, дистанция и пульс за день из Health Connect" },
   { id: "progress" as const, title: "Общий прогресс", description: "Сводный прогресс завершённых тренировок" },
   { id: "records" as const, title: "Личные рекорды", description: "Последние обновлённые рекорды за период" },
 ];

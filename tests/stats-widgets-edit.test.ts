@@ -19,6 +19,7 @@ describe("stats widgets edit mode", () => {
       "comparison",
       "oneRm",
       "cardio",
+      "activity",
       "progress",
       "records",
     ]);
@@ -35,7 +36,7 @@ describe("stats widgets edit mode", () => {
       { order: ["records", "summary"], hidden: ["cardio"] },
       DEFAULT_STATS_WIDGETS,
     );
-    expect(restored.order).toEqual(["records", "summary", "comparison", "oneRm", "cardio", "progress"]);
+    expect(restored.order).toEqual(["records", "summary", "comparison", "oneRm", "cardio", "activity", "progress"]);
     expect(restored.hidden).toEqual(["cardio"]);
     expect(normalizeStoredStatsWidgets(null, DEFAULT_STATS_WIDGETS)).toEqual(DEFAULT_STATS_WIDGETS);
     expect(normalizeStoredStatsWidgets({ order: ["bogus"], hidden: ["also-bogus"] }, DEFAULT_STATS_WIDGETS)).toEqual(DEFAULT_STATS_WIDGETS);
