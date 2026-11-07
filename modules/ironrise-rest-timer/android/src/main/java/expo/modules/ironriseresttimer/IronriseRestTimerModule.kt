@@ -491,7 +491,10 @@ internal fun buildActiveSetNotification(context: Context, state: ActiveSetNotifi
     .setSmallIcon(R.drawable.ironrise_notification)
     .setContentTitle("Подход ${state.setIndex + 1} из ${state.setsCount.coerceAtLeast(state.setIndex + 1)} · ${state.exerciseName.ifBlank { "Упражнение" }}")
     .setContentText(setPlanSummary(state))
-    .setOngoing(true)
+    // Не ongoing: Huawei Health зеркалирует на часы только обычные
+    // уведомления панели; постоянные до часов не доходят. Уведомление
+    // пере-постится при каждом изменении состояния, постоянность не нужна.
+    .setOngoing(false)
     .setOnlyAlertOnce(true)
     .setCategory(NotificationCompat.CATEGORY_WORKOUT)
     .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
@@ -512,7 +515,8 @@ internal fun showSetResultNotification(context: Context, state: ActiveSetNotific
     .setSmallIcon(R.drawable.ironrise_notification)
     .setContentTitle("Результат подхода ${state.setIndex + 1} · ${state.exerciseName.ifBlank { "Упражнение" }}")
     .setContentText("${formatSetWeightKg(state.currentWeightKg)} кг × ${state.currentReps}")
-    .setOngoing(true)
+    // Не ongoing по той же причине: обычное уведомление зеркалируется на часы.
+    .setOngoing(false)
     .setOnlyAlertOnce(true)
     .setCategory(NotificationCompat.CATEGORY_WORKOUT)
     .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
