@@ -2784,8 +2784,7 @@ export default function SettingsScreen() {
                 <Text style={[styles.groqSubtitle, { color: colors.muted }]}>
                   {bodyScaleStatus.message}
                 </Text>
-              </View>
-              <Text
+              </View>              <Text
                 style={[
                   styles.groqStatus,
                   {
@@ -2801,6 +2800,13 @@ export default function SettingsScreen() {
                 {bodyScaleStatus.granted ? "ПОДКЛЮЧЕНЫ" : "НУЖНЫ РАЗРЕШЕНИЯ"}
               </Text>
             </View>
+            <Text style={[styles.groqPrivacy, { color: colors.muted }]}>
+              Цепочка данных: весы → OKOK International → Google Fit →
+              Health Connect. Включите синхронизацию с Google Fit в настройках
+              OKOK и тумблер «Синхронизировать Fit с Health Connect» в Google
+              Fit — после этого взвешивания будут появляться здесь
+              автоматически после каждого взвешивания на весах.
+            </Text>
             <View style={styles.groqActions}>
               <Pressable
                 onPress={connectBodyScalePermissions}
