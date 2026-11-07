@@ -95,6 +95,14 @@ import {
   loadLockScreenHeartRateVisible,
   saveLockScreenHeartRateVisible,
 } from "@/lib/lock-screen-heart-rate-privacy";
+import {
+  connectBodyScale,
+  getBodyScaleStatus,
+  loadBodySyncState,
+  saveBodyScaleAutoSync,
+  syncBodyWeighIns,
+  type BodyScaleStatus,
+} from "@/lib/health-connect-body-sync";
 
 const formulas: {
   id: OneRepMaxFormula;
@@ -357,6 +365,9 @@ const SETTINGS_CATEGORIES: {
       "health connect",
       "пульс",
       "часы",
+      "весы",
+      "okok",
+      "состав тела",
       "инструменты",
       "приватность",
       "экран блокировки",
@@ -407,6 +418,7 @@ export default function SettingsScreen() {
     setProfileDetails,
     setGoals: setBodyGoals,
     setActivityLevel,
+    addMeasurement: addBodyMeasurement,
   } = useBodyStore();
   const {
     oneRmFormula,
@@ -501,6 +513,16 @@ export default function SettingsScreen() {
     });
   const [lockScreenHeartRateVisible, setLockScreenHeartRateVisible] =
     useState(true);
+  const [bodyScaleStatus, setBodyScaleStatus] = useState<BodyScaleStatus>({
+    state: "unsupported",
+    granted: false,
+    message: "Проверяем умные весы…",
+  });
+  const [bodyScaleSyncing, setBodyScaleSyncing] = useState(false);
+  const [bodyScaleSyncMessage, setBodyScaleSyncMessage] = useState<
+    string | null
+  >(null);
+  const [bodyScaleAutoSync, setBodyScaleAutoSync] = useState(true);
   const [settingsCategory, setSettingsCategory] =
     useState<SettingsCategoryId>("training");
   const [settingsQuery, setSettingsQuery] = useState("");
@@ -598,6 +620,10 @@ export default function SettingsScreen() {
       .catch(() => setHasGroqKey(false));
     void getHealthConnectStatus().then(setHealthConnectStatus);
     void loadLockScreenHeartRateVisible().then(setLockScreenHeartRateVisible);
+    void getBodyScaleStatus().then(setBodyScaleStatus);
+    void loadBodySyncState().then((state) =>
+      setBodyScaleAutoSync(state.autoSyncEnabled),
+    );
   }, [refreshStorageUsage]);
   useEffect(() => {
     setNotificationTime(defaultWorkoutTime);
@@ -667,6 +693,39 @@ export default function SettingsScreen() {
     );
   const connectHealthConnect = () =>
     void connectHealthConnectActivity().then(setHealthConnectStatus);
+  const runBodyScaleSync = (force: boolean) => {
+    setBodyScaleSyncing(true);
+    void syncBodyWeighIns({ force, addMeasurement: addBodyMeasurement })
+      .then((result) => {
+        setBodyScaleStatus((current) =>
+          result.granted === false
+            ? { ...current, granted: false, message: "Разрешите IronRise читать вес и состав тела в Health Connect." }
+            : current,
+        );
+        setBodyScaleSyncMessage(
+          result.granted === false
+            ? "Подключи весы, чтобы синхронизировать данные."
+            : result.created > 0
+              ? `Создано ${result.created} взвешиваний`
+              : "Новых взвешиваний нет.",
+        );
+      })
+      .catch(() =>
+        setBodyScaleSyncMessage(
+          "Не удалось синхронизировать данные весов. Попробуй ещё раз.",
+        ),
+      )
+      .finally(() => setBodyScaleSyncing(false));
+  };
+  const connectBodyScalePermissions = () =>
+    void connectBodyScale().then((status) => {
+      setBodyScaleStatus(status);
+      if (status.granted) runBodyScaleSync(true);
+    });
+  const toggleBodyScaleAutoSync = (value: boolean) => {
+    setBodyScaleAutoSync(value);
+    void saveBodyScaleAutoSync(value).catch(() => setBodyScaleAutoSync(!value));
+  };
   const healthConnectFullyGranted =
     healthConnectStatus.heartRateGranted && healthConnectStatus.activityGranted;
   const healthConnectBadgeText = healthConnectFullyGranted
@@ -2693,6 +2752,133 @@ export default function SettingsScreen() {
               IronRise читает шаги, активные калории, дистанцию и пульс и
               сохраняет сводные значения локально. Записи появляются после
               синхронизации приложения «Здоровье» с Health Connect.
+            </Text>
+          </View>
+
+          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
+            Умные весы (OKOK · Health Connect)
+          </Text>
+          <View
+            style={[
+              styles.groqCard,
+              { backgroundColor: colors.surface, borderColor: colors.border },
+            ]}
+          >
+            <View style={styles.groqHeader}>
+              <View
+                style={[
+                  styles.groqIcon,
+                  { backgroundColor: `${colors.primary}17` },
+                ]}
+              >
+                <SafeMaterialIcon
+                  name="scale"
+                  size={20}
+                  color={colors.primary}
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.groqTitle, { color: colors.foreground }]}>
+                  Вес и состав тела с весов
+                </Text>
+                <Text style={[styles.groqSubtitle, { color: colors.muted }]}>
+                  {bodyScaleStatus.message}
+                </Text>
+              </View>
+              <Text
+                style={[
+                  styles.groqStatus,
+                  {
+                    color: bodyScaleStatus.granted
+                      ? colors.success
+                      : colors.muted,
+                    backgroundColor: bodyScaleStatus.granted
+                      ? `${colors.success}18`
+                      : colors.border,
+                  },
+                ]}
+              >
+                {bodyScaleStatus.granted ? "ПОДКЛЮЧЕНЫ" : "НУЖНЫ РАЗРЕШЕНИЯ"}
+              </Text>
+            </View>
+            <View style={styles.groqActions}>
+              <Pressable
+                onPress={connectBodyScalePermissions}
+                style={[
+                  styles.groqPrimary,
+                  { backgroundColor: colors.primary },
+                ]}
+              >
+                <Text style={styles.groqPrimaryText}>
+                  {bodyScaleStatus.granted
+                    ? "Проверить весы"
+                    : "Подключить весы"}
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={() => runBodyScaleSync(true)}
+                disabled={bodyScaleSyncing}
+                style={({ pressed }) => [
+                  styles.groqDelete,
+                  {
+                    borderColor: colors.border,
+                    opacity: bodyScaleSyncing || pressed ? 0.65 : 1,
+                  },
+                ]}
+              >
+                <Text
+                  style={[styles.groqDeleteText, { color: colors.foreground }]}
+                >
+                  {bodyScaleSyncing
+                    ? "Синхронизируем…"
+                    : "Синхронизировать сейчас"}
+                </Text>
+              </Pressable>
+            </View>
+            {bodyScaleSyncMessage && (
+              <Text style={[styles.groqPrivacy, { color: colors.muted }]}>
+                {bodyScaleSyncMessage}
+              </Text>
+            )}
+            <View
+              style={[
+                styles.widgetFeedbackRow,
+                {
+                  borderColor: colors.border,
+                  backgroundColor: colors.background,
+                },
+              ]}
+            >
+              <View style={{ flex: 1 }}>
+                <Text
+                  style={[styles.widgetTitle, { color: colors.foreground }]}
+                >
+                  Автосинхронизация при запуске
+                </Text>
+                <Text style={[styles.widgetHint, { color: colors.muted }]}>
+                  {bodyScaleAutoSync
+                    ? "Взвешивания подтягиваются при запуске и на вкладке «Тело»."
+                    : "Данные весов загружаются только по кнопке «Синхронизировать сейчас»."}
+                </Text>
+              </View>
+              <Switch
+                value={bodyScaleAutoSync}
+                onValueChange={toggleBodyScaleAutoSync}
+                trackColor={{
+                  false: colors.border,
+                  true: `${colors.primary}88`,
+                }}
+                thumbColor={
+                  bodyScaleAutoSync ? colors.primary : colors.muted
+                }
+              />
+            </View>
+            <Text style={[styles.groqPrivacy, { color: colors.muted }]}>
+              Приложение OKOK International синхронизирует весы в Health
+              Connect, IronRise читает вес и состав тела (жир, мышцы, кости,
+              вода) и создаёт замеры автоматически. Если состав недоступен,
+              сохранится только вес. Дубликаты на ту же дату с тем же весом не
+              создаются.
             </Text>
           </View>
 

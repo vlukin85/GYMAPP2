@@ -19,6 +19,7 @@ import { NutritionProvider } from "@/lib/nutrition-store";
 import { HomeWidgetsProvider } from "@/lib/home-widgets";
 import { MainTabPreferencesProvider } from "@/lib/main-tab-preferences";
 import { BodyProvider } from "@/lib/body-store";
+import { BodyScaleAutoSync } from "@/components/body-scale-auto-sync";
 import { ExpoWebPhoneFrame } from "@/components/expo-web-phone-frame";
 import {
   SafeAreaFrameContext,
@@ -194,6 +195,7 @@ export default function RootLayout() {
                   <BodyProvider>
                     <HomeWidgetsProvider>
                       <MainTabPreferencesProvider>
+                        <BodyScaleAutoSync />
                         <SafeAreaProvider
                           initialMetrics={providerInitialMetrics}
                         >
@@ -225,6 +227,7 @@ export default function RootLayout() {
                 <BodyProvider>
                   <HomeWidgetsProvider>
                     <MainTabPreferencesProvider>
+                      <BodyScaleAutoSync />
                       <SafeAreaProvider initialMetrics={providerInitialMetrics}>
                         {content}
                       </SafeAreaProvider>
