@@ -1,6 +1,21 @@
-import { Fragment, useEffect, useMemo, useState } from "react";
-import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import {
+  Animated,
+  Easing,
+  LayoutAnimation,
+  Modal,
+  PanResponder,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  UIManager,
+  View,
+} from "react-native";
 import { router } from "expo-router";
+import * as Haptics from "expo-haptics";
 import Svg, { Circle, Line, Polyline, Rect, Text as SvgText } from "react-native-svg";
 
 import { ScreenContainer } from "@/components/screen-container";
@@ -11,6 +26,15 @@ import { getExercise, getMonthCalendarDays, shiftCalendarMonth } from "@/lib/wor
 import { filterWorkoutsByStatsFilter, getLatestPersonalRecordsByFilter, type StatsFilterMode } from "@/lib/stats-period";
 import { loadStatsPreferences, saveStatsPreferences } from "@/lib/stats-filter-storage";
 import { useWorkoutStore } from "@/lib/workout-store";
+import { useHomeWidgets } from "@/lib/home-widgets";
+import {
+  DEFAULT_STATS_WIDGETS,
+  STATS_WIDGETS,
+  loadStatsWidgets,
+  saveStatsWidgets,
+  type StatsWidgetId,
+  type StatsWidgetPreferences,
+} from "@/lib/stats-widgets-storage";
 import { ProgressOverview } from "@/components/progress-overview";
 import { getExercisePersonalRecordHistory, type PersonalRecordHistoryPoint } from "@/lib/record-history";
 import { getPercentageChange, getStatsMetrics, getStatsPeriodComparison } from "@/lib/stats-comparison";
@@ -62,26 +86,229 @@ export default function StatsScreen() {
   const openCalendar = (target: "date" | "start" | "end") => { const value = target === "date" ? selectedDate : target === "start" ? rangeStart : rangeEnd; setPickerTarget(target); setCalendarCursor(new Date(`${value}T12:00:00`)); setCalendarOpen(true); };
   const selectCalendarDate = (value: string) => { if (pickerTarget === "date") setSelectedDate(value); if (pickerTarget === "start") setRangeStart(value); if (pickerTarget === "end") setRangeEnd(value); setCalendarOpen(false); };
 
+  // Виджеты статистики: порядок и скрытие по образцу главного экрана.
+  const homeWidgetsPrefs = useHomeWidgets();
+  const [widgetPrefs, setWidgetPrefs] = useState<StatsWidgetPreferences>(DEFAULT_STATS_WIDGETS);
+  const [widgetsLoaded, setWidgetsLoaded] = useState(false);
+  const [editMode, setEditMode] = useState(false);
+  const [draggingId, setDraggingId] = useState<StatsWidgetId | null>(null);
+  const [dragTarget, setDragTarget] = useState<number | null>(null);
+  const [previewOrder, setPreviewOrder] = useState<StatsWidgetId[] | null>(null);
+  useEffect(() => { let mounted = true; loadStatsWidgets(DEFAULT_STATS_WIDGETS).then((saved) => { if (!mounted) return; setWidgetPrefs(saved); setWidgetsLoaded(true); }); return () => { mounted = false; }; }, []);
+  useEffect(() => { if (widgetsLoaded) void saveStatsWidgets(widgetPrefs); }, [widgetPrefs, widgetsLoaded]);
+  useEffect(() => {
+    if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental)
+      UIManager.setLayoutAnimationEnabledExperimental(true);
+  }, []);
+  const animateStatsLayout = () =>
+    LayoutAnimation.configureNext({
+      duration: 300,
+      update: { type: LayoutAnimation.Types.easeInEaseOut, property: LayoutAnimation.Properties.opacity },
+      create: { type: LayoutAnimation.Types.easeInEaseOut, property: LayoutAnimation.Properties.opacity },
+      delete: { type: LayoutAnimation.Types.easeInEaseOut, property: LayoutAnimation.Properties.opacity },
+    });
+  const isStatsWidgetAvailable = (id: StatsWidgetId) =>
+    id === "comparison" ? Boolean(periodComparison) : id === "oneRm" ? Boolean(selectedExerciseId && selectedExercise) : true;
+  const visibleWidgetIds = useMemo(
+    () => widgetPrefs.order.filter((id) => !widgetPrefs.hidden.includes(id)),
+    [widgetPrefs],
+  );
+  const placeableWidgetIds = useMemo(
+    () => visibleWidgetIds.filter(isStatsWidgetAvailable),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [visibleWidgetIds, periodComparison, selectedExercise, selectedExerciseId],
+  );
+  const displayedWidgetIds = previewOrder ? previewOrder.filter(isStatsWidgetAvailable) : placeableWidgetIds;
+  const previewStatsWidgetMove = (id: StatsWidgetId, target: number) => {
+    setDragTarget(target);
+    setPreviewOrder((current) => {
+      const order = current ?? visibleWidgetIds;
+      const source = order.indexOf(id);
+      if (source < 0 || source === target) return order;
+      animateStatsLayout();
+      const next = [...order];
+      next.splice(source, 1);
+      next.splice(target, 0, id);
+      return next;
+    });
+  };
+  const finishStatsWidgetDrag = (id: StatsWidgetId, target: number) => {
+    const destinationId = placeableWidgetIds[target];
+    const destination = destinationId
+      ? widgetPrefs.order.indexOf(destinationId)
+      : widgetPrefs.order.length - 1;
+    animateStatsLayout();
+    setWidgetPrefs((current) => {
+      const from = current.order.indexOf(id);
+      if (from === -1) return current;
+      const order = current.order.filter((item) => item !== id);
+      order.splice(Math.max(0, Math.min(order.length, destination)), 0, id);
+      return { ...current, order };
+    });
+    setDraggingId(null);
+    setDragTarget(null);
+    setPreviewOrder(null);
+  };
+  const hideStatsWidget = (id: StatsWidgetId) => {
+    animateStatsLayout();
+    setWidgetPrefs((current) => current.hidden.includes(id) ? current : { ...current, hidden: [...current.hidden, id] });
+  };
+  const restoreStatsWidget = (id: StatsWidgetId) => {
+    animateStatsLayout();
+    setWidgetPrefs((current) => current.hidden.includes(id) ? { ...current, hidden: current.hidden.filter((item) => item !== id) } : current);
+  };
+  const dismissStatsDragHint = () => setWidgetPrefs((current) => current.dragHintSeen ? current : { ...current, dragHintSeen: true });
+  const triggerStatsGrabFeedback = () => {
+    if (!homeWidgetsPrefs.dragHapticsEnabled) return;
+    if (Platform.OS === "android") {
+      void Haptics.performAndroidHapticsAsync(Haptics.AndroidHaptics.Drag_Start).catch(() => undefined);
+      return;
+    }
+    if (Platform.OS !== "web")
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => undefined);
+  };
+  const renderStatsWidget = (id: StatsWidgetId) => {
+    if (id === "summary")
+      return <View style={styles.bigStats}><Metric icon="dumbbell.fill" iconColor={colors.primary} value={String(metrics.workoutCount)} label={selectedExerciseId ? "сессий" : "тренировок"} colors={colors} /><Metric icon="chart.bar.fill" iconColor={colors.warning} value={`${(metrics.volume / 1000).toFixed(1)}т`} label={selectedExerciseId ? "объём упражнения" : "общий объём"} colors={colors} /><Metric icon="timer" iconColor={colors.success} value={String(metrics.minutes)} label="минут" colors={colors} /></View>;
+    if (id === "comparison")
+      return periodComparison ? <PeriodComparison comparison={periodComparison} period={period} colors={colors} /> : null;
+    if (id === "oneRm")
+      return selectedExerciseId && selectedExercise ? <OneRmHistoryChart exerciseName={selectedExercise.name} points={oneRmHistory} colors={colors} /> : null;
+    if (id === "cardio")
+      return <WeeklyCardioChart points={weeklyCardio} colors={colors} />;
+    if (id === "progress")
+      return <ProgressOverview completed={completed} />;
+    if (id === "records")
+      return <View><View style={styles.sectionRow}><View><Text style={[styles.section, { color: colors.foreground }]}>Личные рекорды</Text><Text style={[styles.hint, { color: colors.muted }]}>Последние зафиксированные или обновлённые за {periodLabel}.</Text></View><Text style={[styles.count, { color: colors.muted, fontVariant: ["tabular-nums"] }]}>{recentRecords.length}</Text></View>{recentRecords.length ? recentRecords.map((record) => {
+      const exercise = getExercise(record.exerciseId);
+      const date = new Date(record.achievedAt).toLocaleDateString("ru-RU", { day: "numeric", month: "short" });
+      return <View key={record.exerciseId} style={[styles.record, { backgroundColor: colors.surface, borderColor: colors.border }]}><View style={[styles.recordIcon, { backgroundColor: colors.primary + "20" }]}><IconSymbol name="trophy" size={19} color={colors.primary} /></View><View style={{ flex: 1 }}><Text style={[styles.recordName, { color: colors.foreground }]}>{exercise?.name ?? record.exerciseId}</Text><Text style={[styles.recordGroup, { color: colors.muted }]}>{exercise?.group ?? "Упражнение"} · обновлён {date}</Text></View><View style={styles.recordValueWrap}><Text style={[styles.recordValue, { color: colors.foreground, fontVariant: ["tabular-nums"] }]}>{record.weight} кг × {record.reps}</Text><Text style={[styles.oneRm, { color: colors.primary, fontVariant: ["tabular-nums"] }]}>1RM {record.estimatedOneRepMax.toFixed(1)} кг</Text></View></View>;
+    }) : <View style={[styles.empty, { backgroundColor: colors.surface, borderColor: colors.border }]}><IconSymbol name="trophy" size={22} color={colors.muted} /><Text style={[styles.emptyTitle, { color: colors.foreground }]}>Нет обновлений за этот период</Text><Text style={[styles.emptyText, { color: colors.muted }]}>Завершите тренировку с новым результатом, и он появится здесь.</Text></View>}</View>;
+    return null;
+  };
+
   return <ScreenContainer className="px-5" containerClassName="bg-background"><ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
-    <View style={[styles.topRow, { borderBottomColor: colors.border }]}><View><Text style={[styles.eyebrow, { color: colors.primary }]}>Анализ прогресса</Text><Text style={[styles.title, { color: colors.foreground }]}>Статистика</Text></View><Pressable onPress={() => router.push("/(tabs)/settings")} style={({ pressed }) => [styles.settingsButton, { backgroundColor: colors.surface, opacity: pressed ? pressedOpacity : 1 }]}><IconSymbol name="gearshape" size={21} color={colors.foreground} /></Pressable></View>
+    <View style={[styles.topRow, { borderBottomColor: colors.border }]}><View><Text style={[styles.eyebrow, { color: colors.primary }]}>Анализ прогресса</Text><Text style={[styles.title, { color: colors.foreground }]}>Статистика</Text></View><View style={styles.headerActions}><Pressable onPress={() => setEditMode((current) => !current)} accessibilityRole="button" accessibilityLabel={editMode ? "Завершить редактирование виджетов" : "Редактировать виджеты статистики"} style={({ pressed }) => [styles.editButton, { borderColor: editMode ? colors.primary : colors.border, backgroundColor: editMode ? `${colors.primary}18` : colors.surface, opacity: pressed ? pressedOpacity : 1 }]}><Text style={[styles.editButtonText, { color: editMode ? colors.primary : colors.foreground }]}>{editMode ? "Готово" : "Редактировать"}</Text></Pressable><Pressable onPress={() => router.push("/(tabs)/settings")} style={({ pressed }) => [styles.settingsButton, { backgroundColor: colors.surface, opacity: pressed ? pressedOpacity : 1 }]}><IconSymbol name="gearshape" size={21} color={colors.foreground} /></Pressable></View></View>
     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={[styles.filters, { backgroundColor: colors.surface, borderColor: colors.border }]}>{periodOptions.map((option) => <Pressable key={option.id} onPress={() => setPeriod(option.id)} style={({ pressed }) => [styles.filter, { minWidth: option.id === "custom" ? 92 : option.id.startsWith("last") ? 86 : 73, backgroundColor: period === option.id ? colors.primary : "transparent", opacity: pressed ? pressedOpacity : 1 }]}><Text style={[styles.filterText, { color: period === option.id ? colors.background : colors.muted }]}>{option.label}</Text></Pressable>)}</ScrollView>
     <View style={[styles.exerciseFilterCard, { backgroundColor: colors.surface, borderColor: colors.border }]}><View style={{ flex: 1 }}><Text style={[styles.exerciseFilterLabel, { color: colors.muted }]}>УПРАЖНЕНИЕ</Text><Text style={[styles.exerciseFilterValue, { color: colors.foreground }]}>{selectedExercise?.name ?? "Все упражнения"}</Text></View><Pressable onPress={() => { setExerciseQuery(""); setExercisePickerOpen(true); }} style={({ pressed }) => [styles.exerciseFilterButton, { borderColor: colors.primary, opacity: pressed ? pressedOpacity : 1 }]}><Text style={[styles.exerciseFilterButtonText, { color: colors.primary }]}>Выбрать</Text></Pressable>{selectedExerciseId && <Pressable onPress={() => setSelectedExerciseId(null)} style={({ pressed }) => [styles.clearExercise, { opacity: pressed ? pressedOpacity : 1 }]}><Text style={[styles.clearExerciseText, { color: colors.error }]}>Сбросить</Text></Pressable>}</View>
     {period === "date" && <View style={[styles.dateForm, { backgroundColor: colors.surface, borderColor: colors.border }]}><Text style={[styles.dateLabel, { color: colors.muted }]}>КОНКРЕТНАЯ ДАТА</Text><Pressable onPress={() => openCalendar("date")} style={({ pressed }) => [styles.calendarField, { backgroundColor: colors.background, borderColor: colors.border, opacity: pressed ? pressedOpacity : 1 }]}><IconSymbol name="calendar" size={17} color={colors.primary} /><Text style={[styles.calendarFieldText, { color: colors.foreground }]}>{formatPickerDate(selectedDate)}</Text><IconSymbol name="chevron.right" size={16} color={colors.muted} /></Pressable></View>}
     {period === "custom" && <View style={[styles.dateForm, { backgroundColor: colors.surface, borderColor: colors.border }]}><Text style={[styles.dateLabel, { color: colors.muted }]}>ПОЛЬЗОВАТЕЛЬСКИЙ ДИАПАЗОН</Text><View style={styles.rangeCalendarFields}><Pressable onPress={() => openCalendar("start")} style={({ pressed }) => [styles.rangeCalendarField, { backgroundColor: colors.background, borderColor: colors.border, opacity: pressed ? pressedOpacity : 1 }]}><Text style={[styles.rangeFieldCaption, { color: colors.muted }]}>ОТ</Text><Text style={[styles.rangeFieldValue, { color: colors.foreground }]}>{formatPickerDate(rangeStart)}</Text></Pressable><Pressable onPress={() => openCalendar("end")} style={({ pressed }) => [styles.rangeCalendarField, { backgroundColor: colors.background, borderColor: colors.border, opacity: pressed ? pressedOpacity : 1 }]}><Text style={[styles.rangeFieldCaption, { color: colors.muted }]}>ДО</Text><Text style={[styles.rangeFieldValue, { color: colors.foreground }]}>{formatPickerDate(rangeEnd)}</Text></Pressable></View><Text style={[styles.rangeHint, { color: colors.muted }]}>Нажмите дату, чтобы выбрать её в календаре.</Text></View>}
-    <View style={styles.bigStats}><Metric icon="dumbbell.fill" iconColor={colors.primary} value={String(metrics.workoutCount)} label={selectedExerciseId ? "сессий" : "тренировок"} colors={colors} /><Metric icon="chart.bar.fill" iconColor={colors.warning} value={`${(metrics.volume / 1000).toFixed(1)}т`} label={selectedExerciseId ? "объём упражнения" : "общий объём"} colors={colors} /><Metric icon="timer" iconColor={colors.success} value={String(metrics.minutes)} label="минут" colors={colors} /></View>
-    {periodComparison && <PeriodComparison comparison={periodComparison} period={period} colors={colors} />}
-    {selectedExerciseId && selectedExercise && <OneRmHistoryChart exerciseName={selectedExercise.name} points={oneRmHistory} colors={colors} />}
-    <WeeklyCardioChart points={weeklyCardio} colors={colors} />
-    <ProgressOverview completed={completed} />
-    <View style={styles.sectionRow}><View><Text style={[styles.section, { color: colors.foreground }]}>Личные рекорды</Text><Text style={[styles.hint, { color: colors.muted }]}>Последние зафиксированные или обновлённые за {periodLabel}.</Text></View><Text style={[styles.count, { color: colors.muted, fontVariant: ["tabular-nums"] }]}>{recentRecords.length}</Text></View>
-    {recentRecords.length ? recentRecords.map((record) => {
-      const exercise = getExercise(record.exerciseId);
-      const date = new Date(record.achievedAt).toLocaleDateString("ru-RU", { day: "numeric", month: "short" });
-      return <View key={record.exerciseId} style={[styles.record, { backgroundColor: colors.surface, borderColor: colors.border }]}><View style={[styles.recordIcon, { backgroundColor: colors.primary + "20" }]}><IconSymbol name="trophy" size={19} color={colors.primary} /></View><View style={{ flex: 1 }}><Text style={[styles.recordName, { color: colors.foreground }]}>{exercise?.name ?? record.exerciseId}</Text><Text style={[styles.recordGroup, { color: colors.muted }]}>{exercise?.group ?? "Упражнение"} · обновлён {date}</Text></View><View style={styles.recordValueWrap}><Text style={[styles.recordValue, { color: colors.foreground, fontVariant: ["tabular-nums"] }]}>{record.weight} кг × {record.reps}</Text><Text style={[styles.oneRm, { color: colors.primary, fontVariant: ["tabular-nums"] }]}>1RM {record.estimatedOneRepMax.toFixed(1)} кг</Text></View></View>;
-    }) : <View style={[styles.empty, { backgroundColor: colors.surface, borderColor: colors.border }]}><IconSymbol name="trophy" size={22} color={colors.muted} /><Text style={[styles.emptyTitle, { color: colors.foreground }]}>Нет обновлений за этот период</Text><Text style={[styles.emptyText, { color: colors.muted }]}>Завершите тренировку с новым результатом, и он появится здесь.</Text></View>}
+    {widgetsLoaded && editMode && !widgetPrefs.dragHintSeen && <StatsDragHint colors={colors} onDismiss={dismissStatsDragHint} />}
+    {displayedWidgetIds.map((id, index) => {
+      const content = renderStatsWidget(id);
+      if (!content) return null;
+      return (
+        <DraggableStatsWidget
+          key={id}
+          id={id}
+          index={index}
+          total={placeableWidgetIds.length}
+          dragging={draggingId === id}
+          editing={editMode}
+          colors={colors}
+          onDragStart={() => {
+            triggerStatsGrabFeedback();
+            setDraggingId(id);
+            setDragTarget(index);
+            setPreviewOrder(visibleWidgetIds);
+          }}
+          onDragMove={(next) => previewStatsWidgetMove(id, next)}
+          onDragEnd={(target) => finishStatsWidgetDrag(id, target)}
+          onHide={() => hideStatsWidget(id)}
+        >
+          {content}
+        </DraggableStatsWidget>
+      );
+    })}
+    {editMode && <View style={[styles.hiddenWidgetsCard, { backgroundColor: colors.surface, borderColor: colors.border }]}><Text style={[styles.hiddenWidgetsTitle, { color: colors.foreground }]}>Скрытые виджеты</Text><Text style={[styles.hiddenWidgetsHint, { color: colors.muted }]}>Скрытые блоки не показываются на экране, вернуть можно в любой момент.</Text>{widgetPrefs.hidden.length ? widgetPrefs.hidden.map((id) => { const meta = STATS_WIDGETS.find((widget) => widget.id === id); return <View key={id} style={[styles.hiddenWidgetRow, { borderColor: colors.border }]}><View style={{ flex: 1 }}><Text style={[styles.hiddenWidgetTitle, { color: colors.foreground }]}>{meta?.title ?? id}</Text><Text style={[styles.hiddenWidgetDescription, { color: colors.muted }]}>{meta?.description}</Text></View><Pressable onPress={() => restoreStatsWidget(id)} accessibilityRole="button" accessibilityLabel={`Вернуть виджет «${meta?.title ?? id}»`} style={({ pressed }) => [styles.restoreButton, { borderColor: colors.primary, opacity: pressed ? pressedOpacity : 1 }]}><Text style={[styles.restoreButtonText, { color: colors.primary }]}>Вернуть</Text></Pressable></View>; }) : <Text style={[styles.hiddenWidgetEmpty, { color: colors.muted }]}>Скрытых виджетов нет — все блоки на месте.</Text>}</View>}
   <Modal visible={exercisePickerOpen} transparent animationType="slide" onRequestClose={() => setExercisePickerOpen(false)}><View style={styles.backdrop}><View style={[styles.exerciseSheet, { backgroundColor: colors.background }]}><View style={styles.pickerHeader}><View><Text style={[styles.pickerTitle, { color: colors.foreground }]}>Фильтр упражнения</Text><Text style={[styles.pickerSubtitle, { color: colors.muted }]}>Показывает объём и рекорды выбранного движения.</Text></View><Pressable onPress={() => setExercisePickerOpen(false)} style={[styles.pickerClose, { backgroundColor: colors.surface }]}><Text style={[styles.pickerCloseText, { color: colors.foreground }]}>×</Text></Pressable></View><View style={[styles.exerciseSearch, { backgroundColor: colors.surface, borderColor: colors.border }]}><IconSymbol name="magnifyingglass" size={18} color={colors.muted} /><TextInput value={exerciseQuery} onChangeText={setExerciseQuery} placeholder="Поиск упражнения" placeholderTextColor={colors.muted} autoFocus style={[styles.exerciseSearchInput, { color: colors.foreground }]} /></View><ScrollView contentContainerStyle={styles.exerciseOptions}>{visibleExerciseOptions.map((exercise) => { const selected = exercise.id === selectedExerciseId; return <Pressable key={exercise.id} onPress={() => { setSelectedExerciseId(exercise.id); setExercisePickerOpen(false); }} style={[styles.exerciseOption, { backgroundColor: selected ? `${colors.primary}18` : colors.surface, borderColor: selected ? colors.primary : colors.border }]}><Text style={[styles.exerciseOptionText, { color: colors.foreground }]}>{exercise.name}</Text>{selected && <IconSymbol name="checkmark" size={18} color={colors.primary} />}</Pressable>; })}</ScrollView><Pressable onPress={() => { setSelectedExerciseId(null); setExercisePickerOpen(false); }} style={[styles.clearAllExercises, { borderColor: colors.border }]}><Text style={[styles.clearAllExercisesText, { color: colors.foreground }]}>Показать все упражнения</Text></Pressable></View></View></Modal>
   <Modal visible={calendarOpen} transparent animationType="slide" onRequestClose={() => setCalendarOpen(false)}><View style={styles.backdrop}><View style={[styles.calendarSheet, { backgroundColor: colors.background }]}><View style={styles.pickerHeader}><View><Text style={[styles.pickerTitle, { color: colors.foreground }]}>{pickerTarget === "date" ? "Выберите дату" : pickerTarget === "start" ? "Начало диапазона" : "Конец диапазона"}</Text><Text style={[styles.pickerSubtitle, { color: colors.muted }]}>Статистика будет пересчитана автоматически</Text></View><Pressable onPress={() => setCalendarOpen(false)} style={[styles.pickerClose, { backgroundColor: colors.surface }]}><Text style={[styles.pickerCloseText, { color: colors.foreground }]}>×</Text></Pressable></View><View style={styles.pickerMonth}><Pressable onPress={() => setCalendarCursor((current) => shiftCalendarMonth(current, -1))}><IconSymbol name="chevron.left" size={22} color={colors.foreground} /></Pressable><Text style={[styles.pickerMonthText, { color: colors.foreground }]}>{calendarCursor.toLocaleDateString("ru-RU", { month: "long", year: "numeric" })}</Text><Pressable onPress={() => setCalendarCursor((current) => shiftCalendarMonth(current, 1))}><IconSymbol name="chevron.right" size={22} color={colors.foreground} /></Pressable></View><View style={styles.weekdays}>{weekDays.map((day) => <Text key={day} style={[styles.weekday, { color: colors.muted }]}>{day}</Text>)}</View><View style={styles.calendarGrid}>{calendarDays.map((day) => { const key = dateKey(day); const active = pickerTarget === "date" ? key === selectedDate : pickerTarget === "start" ? key === rangeStart : key === rangeEnd; const inMonth = day.getMonth() === calendarCursor.getMonth(); return <Pressable key={key} onPress={() => selectCalendarDate(key)} style={[styles.calendarDay, active && { backgroundColor: colors.primary }]}><Text style={{ color: active ? "#101412" : inMonth ? colors.foreground : colors.muted, fontWeight: active ? "900" : "700" }}>{day.getDate()}</Text></Pressable>; })}</View></View></View></Modal>
   </ScrollView></ScreenContainer>;
+}
+
+function DraggableStatsWidget({ id, index, total, dragging, editing, colors, onDragStart, onDragMove, onDragEnd, onHide, children }: { id: StatsWidgetId; index: number; total: number; dragging: boolean; editing: boolean; colors: any; onDragStart: () => void; onDragMove: (index: number) => void; onDragEnd: (index: number) => void; onHide: () => void; children: React.ReactNode }) {
+  const currentTargetRef = useMemo(() => ({ value: index }), [index]);
+  const lift = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.timing(lift, {
+      toValue: dragging ? 1 : 0,
+      duration: dragging ? 210 : 260,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+  }, [dragging, lift]);
+  const trackedPanResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => true,
+        onMoveShouldSetPanResponder: (_event, gesture) => Math.abs(gesture.dy) > 4,
+        onPanResponderGrant: () => {
+          currentTargetRef.value = index;
+          onDragStart();
+        },
+        onPanResponderMove: (_event, gesture) => {
+          const next = Math.max(0, Math.min(total - 1, index + Math.round(gesture.dy / 96)));
+          currentTargetRef.value = next;
+          onDragMove(next);
+        },
+        onPanResponderRelease: () => onDragEnd(currentTargetRef.value),
+        onPanResponderTerminate: () => onDragEnd(index),
+      }),
+    [currentTargetRef, index, onDragEnd, onDragMove, onDragStart, total],
+  );
+  return (
+    <Animated.View
+      style={[
+        styles.widgetShell,
+        {
+          zIndex: dragging ? 20 : 1,
+          elevation: dragging ? 8 : 0,
+          opacity: lift.interpolate({ inputRange: [0, 1], outputRange: [1, 0.96] }),
+          transform: [
+            { translateY: lift.interpolate({ inputRange: [0, 1], outputRange: [0, -5] }) },
+            { scale: lift.interpolate({ inputRange: [0, 1], outputRange: [1, 1.015] }) },
+          ],
+        },
+      ]}
+    >
+      <View pointerEvents={editing ? "none" : "box-none"}>{children}</View>
+      {editing && <Pressable onPress={onHide} accessibilityRole="button" accessibilityLabel={`Скрыть виджет «${STATS_WIDGETS.find((widget) => widget.id === id)?.title ?? id}»`} style={[styles.widgetHideButton, { backgroundColor: colors.background, borderColor: colors.border }]}><Text style={[styles.widgetHideText, { color: colors.muted }]}>×</Text></Pressable>}
+      {editing && (
+        <View
+          pointerEvents="box-only"
+          accessibilityRole="adjustable"
+          accessibilityLabel="Перетащить виджет"
+          style={[
+            styles.widgetHandle,
+            {
+              backgroundColor: dragging ? colors.primary : colors.background,
+              borderColor: dragging ? colors.primary : colors.border,
+            },
+          ]}
+          {...trackedPanResponder.panHandlers}
+        >
+          <Text style={[styles.widgetHandleText, { color: dragging ? "#FFFFFF" : colors.muted }]}>⠿</Text>
+        </View>
+      )}
+    </Animated.View>
+  );
+}
+
+function StatsDragHint({ colors, onDismiss }: { colors: any; onDismiss: () => void }) {
+  return (
+    <Modal transparent animationType="fade" visible onRequestClose={onDismiss}>
+      <View style={styles.hintBackdrop}>
+        <View style={[styles.hintCard, { backgroundColor: colors.background, borderColor: colors.primary }]}>
+          <Text style={[styles.hintEyebrow, { color: colors.primary }]}>НАСТРОЙТЕ СТАТИСТИКУ ПОД СЕБЯ</Text>
+          <Text style={[styles.hintTitle, { color: colors.foreground }]}>Перемещайте виджеты</Text>
+          <Text style={[styles.hintText, { color: colors.muted }]}>Зажмите маркер ⠿ на карточке и потяните её вверх или вниз. Кнопка × скрывает ненужный блок — вернуть его можно в списке «Скрытые виджеты». Новый порядок сохранится автоматически.</Text>
+          <Pressable onPress={onDismiss} style={({ pressed }) => [styles.hintButton, { backgroundColor: colors.primary, opacity: pressed ? pressedOpacity : 1 }]}>
+            <Text style={[styles.hintButtonText, { color: colors.background }]}>ПОНЯТНО</Text>
+          </Pressable>
+        </View>
+      </View>
+    </Modal>
+  );
 }
 
 function Metric({ icon, iconColor, value, label, colors }: { icon: any; iconColor: string; value: string; label: string; colors: any }) { return <View style={[styles.bigCard, { backgroundColor: colors.surface, borderColor: colors.border, borderLeftColor: iconColor, borderLeftWidth: 3, borderRadius: radius.card }, shadows.card]}><IconSymbol name={icon} size={20} color={iconColor} /><Text style={[styles.bigValue, { color: colors.foreground, fontVariant: ["tabular-nums"] }]}>{value}</Text><Text style={[styles.bigLabel, { color: colors.muted }]}>{label}</Text></View>; }
@@ -158,4 +385,28 @@ const styles = StyleSheet.create({
   oneRmEmpty: { minHeight: 112, alignItems: "center", justifyContent: "center", paddingHorizontal: 20, gap: 6 },
   oneRmEmptyTitle: { fontSize: 13, fontWeight: "800", marginTop: 2 },
   oneRmEmptyText: { fontSize: 11, lineHeight: 16, textAlign: "center" }, cardioChart: { borderWidth: 1, borderRadius: radius.card, padding: 14, gap: 7 }, cardioChartHeader: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }, cardioChartTitle: { ...typeTokens.heading, fontSize: 15 }, cardioChartHint: { fontSize: 10, marginTop: 4 }, cardioChartTotal: { fontSize: 13, fontWeight: "800", letterSpacing: 0.5, fontVariant: ["tabular-nums"] },
+  headerActions: { flexDirection: "row", alignItems: "center", gap: 8 },
+  editButton: { minHeight: 36, borderRadius: radius.chip, borderWidth: 1, paddingHorizontal: 12, alignItems: "center", justifyContent: "center" },
+  editButtonText: { fontSize: 11, fontWeight: "800", letterSpacing: 0.3 },
+  widgetShell: { position: "relative" },
+  widgetHandle: { position: "absolute", right: 5, top: 5, width: 29, height: 29, borderWidth: StyleSheet.hairlineWidth, borderRadius: radius.chip, justifyContent: "center", alignItems: "center", zIndex: 12 },
+  widgetHandleText: { fontSize: 19, lineHeight: 21, fontWeight: "800" },
+  widgetHideButton: { position: "absolute", right: 40, top: 5, width: 29, height: 29, borderWidth: StyleSheet.hairlineWidth, borderRadius: radius.chip, justifyContent: "center", alignItems: "center", zIndex: 12 },
+  widgetHideText: { fontSize: 17, lineHeight: 19, fontWeight: "800" },
+  hiddenWidgetsCard: { borderWidth: 1, borderRadius: radius.card, padding: 14, gap: 10 },
+  hiddenWidgetsTitle: { ...typeTokens.heading, fontSize: 15 },
+  hiddenWidgetsHint: { fontSize: 11, lineHeight: 16 },
+  hiddenWidgetRow: { borderWidth: 1, borderRadius: radius.tile, padding: 12, flexDirection: "row", alignItems: "center", gap: 10 },
+  hiddenWidgetTitle: { fontSize: 13, fontWeight: "700" },
+  hiddenWidgetDescription: { fontSize: 10, lineHeight: 14, marginTop: 3 },
+  restoreButton: { minHeight: minTouchTarget - 8, borderRadius: radius.button, borderWidth: 1, paddingHorizontal: 12, justifyContent: "center" },
+  restoreButtonText: { fontSize: 11, fontWeight: "800" },
+  hiddenWidgetEmpty: { fontSize: 11, lineHeight: 16 },
+  hintBackdrop: { flex: 1, backgroundColor: "#050806B8", alignItems: "center", justifyContent: "center", padding: 24 },
+  hintCard: { width: "100%", maxWidth: 360, borderWidth: 1, borderRadius: radius.card, padding: 22, gap: 12 },
+  hintEyebrow: { ...typeTokens.eyebrow, fontSize: 9 },
+  hintTitle: { ...typeTokens.title, fontSize: 24, lineHeight: 28 },
+  hintText: { fontSize: 13, lineHeight: 20, fontWeight: "500" },
+  hintButton: { minHeight: minTouchTarget, borderRadius: radius.button, alignItems: "center", justifyContent: "center", marginTop: 4 },
+  hintButtonText: { fontSize: 12, fontWeight: "800", letterSpacing: 0.7 },
 });
