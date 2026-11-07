@@ -16,6 +16,7 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 
 private const val COMPLETION_CHANNEL = "ironrise-rest-complete-v3"
+private const val COMPLETION_ACTIONS_CHANNEL = "ironrise-rest-complete-actions-v1"
 private const val COMPLETION_ACCENT_COLOR = "#7C3AED"
 
 class RestTimerCompletionReceiver : BroadcastReceiver() {
@@ -58,6 +59,72 @@ class RestTimerCompletionReceiver : BroadcastReceiver() {
     )
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) soundUri?.let { builder.setSound(it) }
     NotificationManagerCompat.from(context).notify(COMPLETION_NOTIFICATION_ID, builder.build())
+    // Псевдокнопки для часов: addAction не зеркалируются Huawei Health, поэтому
+    // каждое действие дублируется отдельной тихой карточкой — тап по ней на
+    // часах запускает contentIntent (ACTION_START) на телефоне.
+    ensureCompletionActionsChannel(context)
+    if (!finishExercise) {
+      val nextSetIntent = restActionPendingIntent(
+        context,
+        ACTION_START,
+        System.currentTimeMillis(),
+        "",
+        0,
+        0,
+        REST_NEXT_SET_CARD_REQUEST_CODE,
+        completionSound,
+        completionVolume,
+        completionVibrationEnabled,
+        completionVibrationPattern,
+        nextActionKind,
+        exerciseId,
+        nextSetIndex,
+        nextSetWeight,
+        nextSetReps
+      )
+      val nextSetCard = NotificationCompat.Builder(context, COMPLETION_ACTIONS_CHANNEL)
+        .setSmallIcon(R.drawable.ironrise_notification)
+        .setContentTitle("Следующий подход")
+        .setContentText("Коснитесь, чтобы начать следующий подход")
+        .setOngoing(false)
+        .setAutoCancel(true)
+        .setCategory(NotificationCompat.CATEGORY_WORKOUT)
+        .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+        .setPriority(NotificationCompat.PRIORITY_LOW)
+        .setSortKey("0")
+      nextSetCard.setContentIntent(nextSetIntent)
+      NotificationManagerCompat.from(context).notify(REST_NEXT_SET_CARD_NOTIFICATION_ID, nextSetCard.build())
+    }
+    val nextExerciseIntent = restActionPendingIntent(
+      context,
+      ACTION_START,
+      System.currentTimeMillis(),
+      "",
+      0,
+      0,
+      REST_NEXT_EXERCISE_CARD_REQUEST_CODE,
+      completionSound,
+      completionVolume,
+      completionVibrationEnabled,
+      completionVibrationPattern,
+      "finish-exercise",
+      exerciseId,
+      nextSetIndex,
+      nextSetWeight,
+      nextSetReps
+    )
+    val nextExerciseCard = NotificationCompat.Builder(context, COMPLETION_ACTIONS_CHANNEL)
+      .setSmallIcon(R.drawable.ironrise_notification)
+      .setContentTitle("Следующее упражнение")
+      .setContentText("Коснитесь, чтобы перейти к следующему упражнению")
+      .setOngoing(false)
+      .setAutoCancel(true)
+      .setCategory(NotificationCompat.CATEGORY_WORKOUT)
+      .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+      .setPriority(NotificationCompat.PRIORITY_LOW)
+      .setSortKey("1")
+    nextExerciseCard.setContentIntent(nextExerciseIntent)
+    NotificationManagerCompat.from(context).notify(REST_NEXT_EXERCISE_CARD_NOTIFICATION_ID, nextExerciseCard.build())
     // Вибрация канала уведомлений не гарантирована: на части оболочек она
     // глушится режимом «Не беспокоить», системными настройками канала или
     // просто не проигрывается, когда уведомление заменяет предыдущее.
@@ -108,6 +175,18 @@ class RestTimerCompletionReceiver : BroadcastReceiver() {
     }
     manager.createNotificationChannel(channel)
     return channelId
+  }
+
+  private fun ensureCompletionActionsChannel(context: Context) {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
+    val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+    val channel = NotificationChannel(COMPLETION_ACTIONS_CHANNEL, "Действия после отдыха", NotificationManager.IMPORTANCE_LOW).apply {
+      lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
+      setShowBadge(false)
+      enableVibration(false)
+      setSound(null, null)
+    }
+    manager.createNotificationChannel(channel)
   }
 
   private fun completionVibrationPattern(patternId: String) = when (patternId) {

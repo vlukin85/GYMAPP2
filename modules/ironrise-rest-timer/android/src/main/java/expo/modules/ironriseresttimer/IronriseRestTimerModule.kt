@@ -24,7 +24,18 @@ internal const val EXTEND_REQUEST_CODE = 40105
 internal const val START_REQUEST_CODE = 40106
 internal const val EARLY_WARNING_REQUEST_CODE = 40107
 internal const val ACTIVE_SET_NOTIFICATION_ID = 40108
+// Псевдокнопки ввода результата: главная карточка «Готово» (40109) и тихие
+// карточки-действия. Каждое действие — отдельное уведомление, тап на часах
+// запускает его contentIntent на телефоне (addAction не зеркалируются).
 internal const val SET_RESULT_NOTIFICATION_ID = 40109
+internal const val RESULT_WEIGHT_UP_NOTIFICATION_ID = 40121
+internal const val RESULT_WEIGHT_DOWN_NOTIFICATION_ID = 40122
+internal const val RESULT_REPS_UP_NOTIFICATION_ID = 40123
+internal const val RESULT_REPS_DOWN_NOTIFICATION_ID = 40124
+internal const val RESULT_CANCEL_NOTIFICATION_ID = 40125
+// Тихие карточки-действия уведомления «Отдых завершён».
+internal const val REST_NEXT_SET_CARD_NOTIFICATION_ID = 40131
+internal const val REST_NEXT_EXERCISE_CARD_NOTIFICATION_ID = 40132
 internal const val FINISH_SET_REQUEST_CODE = 40110
 internal const val COMMIT_SET_REQUEST_CODE = 40111
 internal const val ADJUST_WEIGHT_UP_REQUEST_CODE = 40112
@@ -32,7 +43,11 @@ internal const val ADJUST_WEIGHT_DOWN_REQUEST_CODE = 40113
 internal const val ADJUST_REPS_UP_REQUEST_CODE = 40114
 internal const val ADJUST_REPS_DOWN_REQUEST_CODE = 40115
 internal const val CANCEL_SET_REQUEST_CODE = 40116
-internal const val MORE_REQUEST_CODE = 40117
+// ContentIntent зеркала подхода: тап по уведомлению на часах Huawei = запуск
+// этого PendingIntent на телефоне (addAction на часы не переносятся).
+internal const val ACTIVE_SET_CONTENT_REQUEST_CODE = 40118
+internal const val REST_NEXT_SET_CARD_REQUEST_CODE = 40119
+internal const val REST_NEXT_EXERCISE_CARD_REQUEST_CODE = 40120
 internal const val ACTION_SKIP = "expo.modules.ironriseresttimer.SKIP"
 internal const val ACTION_EXTEND = "expo.modules.ironriseresttimer.EXTEND"
 internal const val ACTION_START = "expo.modules.ironriseresttimer.START"
@@ -43,7 +58,6 @@ internal const val ACTION_ADJUST_WEIGHT_DOWN = "expo.modules.ironriseresttimer.A
 internal const val ACTION_ADJUST_REPS_UP = "expo.modules.ironriseresttimer.ADJUST_REPS_UP"
 internal const val ACTION_ADJUST_REPS_DOWN = "expo.modules.ironriseresttimer.ADJUST_REPS_DOWN"
 internal const val ACTION_CANCEL_SET = "expo.modules.ironriseresttimer.CANCEL_SET"
-internal const val ACTION_MORE = "expo.modules.ironriseresttimer.MORE"
 internal const val EXTRA_REST_END_AT = "restEndAt"
 internal const val EXTRA_TARGET_LABEL = "targetLabel"
 internal const val EXTRA_TARGET_FROM = "targetFrom"
@@ -65,9 +79,15 @@ internal const val EXTRA_EXERCISE_INDEX = "exerciseIndex"
 internal const val EXTRA_EXERCISES_COUNT = "exercisesCount"
 internal const val EXTRA_CURRENT_WEIGHT_KG = "currentWeightKg"
 internal const val EXTRA_CURRENT_REPS = "currentReps"
-internal const val EXTRA_RESULT_LAYOUT = "resultLayout"
 internal const val SET_RESULT_WEIGHT_STEP_KG = 5.0
-internal const val SET_RESULT_LAYOUT_COUNT = 5
+// Порядок карточек ввода результата: «Готово» — первая, корректировки следом.
+// setSortKey принимает строку и сортирует лексикографически.
+internal const val RESULT_CARD_SORT_KEY_COMMIT = "0"
+internal const val RESULT_CARD_SORT_KEY_WEIGHT_UP = "1"
+internal const val RESULT_CARD_SORT_KEY_WEIGHT_DOWN = "2"
+internal const val RESULT_CARD_SORT_KEY_REPS_UP = "3"
+internal const val RESULT_CARD_SORT_KEY_REPS_DOWN = "4"
+internal const val RESULT_CARD_SORT_KEY_CANCEL = "5"
 private const val ACTION_PREFERENCES = "ironrise.rest.timer.actions"
 internal const val REST_TIMER_LOG_TAG = "IronRiseRestTimer"
 
@@ -179,9 +199,11 @@ internal fun showCountdownNotification(
   val primaryActionLabel = if (finishExercise) "Следующее упражнение" else "Следующий подход"
   val primaryActionIcon = if (finishExercise) android.R.drawable.ic_menu_save else android.R.drawable.ic_media_play
   Log.d(REST_TIMER_LOG_TAG, "countdown shown: endAt=$restEndAt action=$nextActionKind exerciseId=$exerciseId nextSetIndex=$nextSetIndex")
-  // Отдых означает, что предыдущий подход завершён: снимаем зеркала подхода и ввода результата.
+  // Отдых означает, что предыдущий подход завершён: снимаем зеркало подхода,
+  // карточки ввода результата и карточки-действия прошлого «Отдых завершён».
   NotificationManagerCompat.from(context).cancel(ACTIVE_SET_NOTIFICATION_ID)
-  NotificationManagerCompat.from(context).cancel(SET_RESULT_NOTIFICATION_ID)
+  cancelResultActionCards(context)
+  cancelRestActionCards(context)
 
   val content = when {
     targetLabel.isBlank() -> "До следующего подхода"
@@ -228,10 +250,29 @@ internal fun showCountdownNotification(
 internal fun nextSetSummary(nextSetIndex: Int, weight: String, reps: String): String =
   if (nextSetIndex >= 0 && (weight.isNotBlank() || reps.isNotBlank())) " · Далее: $weight кг × $reps" else ""
 
+/** Карточка «Готово» и все тихие карточки-действия ввода результата. */
+internal fun cancelResultActionCards(context: Context) {
+  val manager = NotificationManagerCompat.from(context)
+  manager.cancel(SET_RESULT_NOTIFICATION_ID)
+  manager.cancel(RESULT_WEIGHT_UP_NOTIFICATION_ID)
+  manager.cancel(RESULT_WEIGHT_DOWN_NOTIFICATION_ID)
+  manager.cancel(RESULT_REPS_UP_NOTIFICATION_ID)
+  manager.cancel(RESULT_REPS_DOWN_NOTIFICATION_ID)
+  manager.cancel(RESULT_CANCEL_NOTIFICATION_ID)
+}
+
+/** Тихие карточки «Следующий подход»/«Следующее упражнение» у «Отдых завершён». */
+internal fun cancelRestActionCards(context: Context) {
+  val manager = NotificationManagerCompat.from(context)
+  manager.cancel(REST_NEXT_SET_CARD_NOTIFICATION_ID)
+  manager.cancel(REST_NEXT_EXERCISE_CARD_NOTIFICATION_ID)
+}
+
 internal fun clearCountdownNotification(context: Context) {
   Log.d(REST_TIMER_LOG_TAG, "countdown cleared")
   NotificationManagerCompat.from(context).cancel(COUNTDOWN_NOTIFICATION_ID)
   NotificationManagerCompat.from(context).cancel(COMPLETION_NOTIFICATION_ID)
+  cancelRestActionCards(context)
   val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
   completionPendingIntent(context, PendingIntent.FLAG_NO_CREATE)?.let { alarmManager.cancel(it) }
   earlyWarningPendingIntent(context, PendingIntent.FLAG_NO_CREATE)?.let { alarmManager.cancel(it) }
@@ -438,8 +479,7 @@ internal data class ActiveSetNotificationState(
   val exercisesCount: Int,
   val exerciseId: String,
   val currentWeightKg: Double,
-  val currentReps: Int,
-  val resultLayout: Int
+  val currentReps: Int
 )
 
 internal fun formatSetWeightKg(weightKg: Double): String =
@@ -478,11 +518,12 @@ internal fun showActiveSetNotification(
     exercisesCount = exercisesCount,
     exerciseId = exerciseId,
     currentWeightKg = planWeightKg,
-    currentReps = planReps,
-    resultLayout = 0
+    currentReps = planReps
   )
   Log.d(REST_TIMER_LOG_TAG, "active set shown: exerciseId=$exerciseId setIndex=$setIndex sets=$setsCount")
-  NotificationManagerCompat.from(context).cancel(SET_RESULT_NOTIFICATION_ID)
+  // Новый подход снимает не только «Готово», но и все карточки-действия
+  // ввода результата, оставшиеся от предыдущего цикла.
+  cancelResultActionCards(context)
   NotificationManagerCompat.from(context).notify(ACTIVE_SET_NOTIFICATION_ID, buildActiveSetNotification(context, state))
 }
 
@@ -490,7 +531,7 @@ internal fun buildActiveSetNotification(context: Context, state: ActiveSetNotifi
   val builder = NotificationCompat.Builder(context, ACTIVE_SET_CHANNEL)
     .setSmallIcon(R.drawable.ironrise_notification)
     .setContentTitle("Подход ${state.setIndex + 1} из ${state.setsCount.coerceAtLeast(state.setIndex + 1)} · ${state.exerciseName.ifBlank { "Упражнение" }}")
-    .setContentText(setPlanSummary(state))
+    .setContentText(setPlanSummary(state) + " · Коснитесь, чтобы завершить подход")
     // Не ongoing: Huawei Health зеркалирует на часы только обычные
     // уведомления панели; постоянные до часов не доходят. Уведомление
     // пере-постится при каждом изменении состояния, постоянность не нужна.
@@ -499,6 +540,9 @@ internal fun buildActiveSetNotification(context: Context, state: ActiveSetNotifi
     .setCategory(NotificationCompat.CATEGORY_WORKOUT)
     .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
     .setPriority(NotificationCompat.PRIORITY_LOW)
+  // Псевдокнопка: тап по уведомлению на часах Huawei запускает contentIntent
+  // на телефоне и завершает подход (addAction на часы не переносятся).
+  builder.setContentIntent(setActionPendingIntent(context, ACTION_FINISH_SET, state, ACTIVE_SET_CONTENT_REQUEST_CODE))
   builder.addAction(
     android.R.drawable.ic_media_play,
     "Завершить подход",
@@ -509,68 +553,116 @@ internal fun buildActiveSetNotification(context: Context, state: ActiveSetNotifi
 
 internal fun showSetResultNotification(context: Context, state: ActiveSetNotificationState) {
   ensureActiveSetChannel(context)
-  Log.d(REST_TIMER_LOG_TAG, "set result shown: exerciseId=${state.exerciseId} setIndex=${state.setIndex} weight=${state.currentWeightKg} reps=${state.currentReps} layout=${state.resultLayout}")
+  Log.d(REST_TIMER_LOG_TAG, "set result shown: exerciseId=${state.exerciseId} setIndex=${state.setIndex} weight=${state.currentWeightKg} reps=${state.currentReps}")
   NotificationManagerCompat.from(context).cancel(ACTIVE_SET_NOTIFICATION_ID)
-  val builder = NotificationCompat.Builder(context, ACTIVE_SET_CHANNEL)
+  // Главная карточка «Готово». ContentIntent пересоздаётся при каждом
+  // обновлении значений: тап на часах должен коммитить ТЕКУЩИЕ вес и повторы.
+  val commitIntent = setActionPendingIntent(context, ACTION_COMMIT_SET, state, COMMIT_SET_REQUEST_CODE)
+  val commitBuilder = NotificationCompat.Builder(context, ACTIVE_SET_CHANNEL)
     .setSmallIcon(R.drawable.ironrise_notification)
     .setContentTitle("Результат подхода ${state.setIndex + 1} · ${state.exerciseName.ifBlank { "Упражнение" }}")
-    .setContentText("${formatSetWeightKg(state.currentWeightKg)} кг × ${state.currentReps}")
+    .setContentText("${formatSetWeightKg(state.currentWeightKg)} кг × ${state.currentReps} · коснитесь, чтобы подтвердить")
     // Не ongoing по той же причине: обычное уведомление зеркалируется на часы.
     .setOngoing(false)
+    .setAutoCancel(true)
     .setOnlyAlertOnce(true)
     .setCategory(NotificationCompat.CATEGORY_WORKOUT)
     .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
     .setPriority(NotificationCompat.PRIORITY_HIGH)
-  // Зеркалируемые уведомления Huawei показывают до трёх действий в ряду, поэтому
-  // «Ещё» переключает раскладку корректировок по кругу:
-  // +5 кг → −5 кг → +1 повтор → −1 повтор → Отменить.
-  val primaryLabel = when (state.resultLayout % SET_RESULT_LAYOUT_COUNT) {
-    1 -> "−5 кг"
-    2 -> "+1 повтор"
-    3 -> "−1 повтор"
-    4 -> "Отменить"
-    else -> "+5 кг"
-  }
-  val primaryAction = when (state.resultLayout % SET_RESULT_LAYOUT_COUNT) {
-    1 -> ACTION_ADJUST_WEIGHT_DOWN
-    2 -> ACTION_ADJUST_REPS_UP
-    3 -> ACTION_ADJUST_REPS_DOWN
-    4 -> ACTION_CANCEL_SET
-    else -> ACTION_ADJUST_WEIGHT_UP
-  }
-  val primaryRequestCode = when (state.resultLayout % SET_RESULT_LAYOUT_COUNT) {
-    1 -> ADJUST_WEIGHT_DOWN_REQUEST_CODE
-    2 -> ADJUST_REPS_UP_REQUEST_CODE
-    3 -> ADJUST_REPS_DOWN_REQUEST_CODE
-    4 -> CANCEL_SET_REQUEST_CODE
-    else -> ADJUST_WEIGHT_UP_REQUEST_CODE
-  }
-  val primaryIcon = when (state.resultLayout % SET_RESULT_LAYOUT_COUNT) {
-    4 -> android.R.drawable.ic_menu_revert
-    else -> android.R.drawable.ic_input_add
-  }
-  builder.addAction(
-    primaryIcon,
-    primaryLabel,
-    setActionPendingIntent(context, primaryAction, state, primaryRequestCode)
+    // Псевдокнопки живут отдельными уведомлениями: сортируем карточки так,
+    // чтобы «Готово» была первой на часах.
+    .setSortKey(RESULT_CARD_SORT_KEY_COMMIT)
+  commitBuilder.setContentIntent(commitIntent)
+  commitBuilder.addAction(android.R.drawable.ic_menu_save, "Готово", commitIntent)
+  NotificationManagerCompat.from(context).notify(SET_RESULT_NOTIFICATION_ID, commitBuilder.build())
+  // Тихие карточки-действия: каждое корректирующее действие — отдельное
+  // уведомление, тап на часах запускает его contentIntent на телефоне.
+  // Карточки статичны (значения меняются только на карточке «Готово») и
+  // PRIORITY_LOW, чтобы не вибрировать при каждом обновлении.
+  postResultActionCard(
+    context,
+    id = RESULT_WEIGHT_UP_NOTIFICATION_ID,
+    sortKey = RESULT_CARD_SORT_KEY_WEIGHT_UP,
+    title = "+5 кг",
+    text = "Коснитесь, чтобы прибавить 5 кг к весу",
+    state = state,
+    action = ACTION_ADJUST_WEIGHT_UP,
+    requestCode = ADJUST_WEIGHT_UP_REQUEST_CODE
   )
-  builder.addAction(
-    android.R.drawable.ic_menu_manage,
-    "Ещё",
-    setActionPendingIntent(context, ACTION_MORE, state, MORE_REQUEST_CODE)
+  postResultActionCard(
+    context,
+    id = RESULT_WEIGHT_DOWN_NOTIFICATION_ID,
+    sortKey = RESULT_CARD_SORT_KEY_WEIGHT_DOWN,
+    title = "−5 кг",
+    text = "Коснитесь, чтобы убрать 5 кг",
+    state = state,
+    action = ACTION_ADJUST_WEIGHT_DOWN,
+    requestCode = ADJUST_WEIGHT_DOWN_REQUEST_CODE
   )
-  builder.addAction(
-    android.R.drawable.ic_menu_save,
-    "Готово",
-    setActionPendingIntent(context, ACTION_COMMIT_SET, state, COMMIT_SET_REQUEST_CODE)
+  postResultActionCard(
+    context,
+    id = RESULT_REPS_UP_NOTIFICATION_ID,
+    sortKey = RESULT_CARD_SORT_KEY_REPS_UP,
+    title = "+1 повтор",
+    text = "Коснитесь, чтобы прибавить повтор",
+    state = state,
+    action = ACTION_ADJUST_REPS_UP,
+    requestCode = ADJUST_REPS_UP_REQUEST_CODE
   )
-  NotificationManagerCompat.from(context).notify(SET_RESULT_NOTIFICATION_ID, builder.build())
+  postResultActionCard(
+    context,
+    id = RESULT_REPS_DOWN_NOTIFICATION_ID,
+    sortKey = RESULT_CARD_SORT_KEY_REPS_DOWN,
+    title = "−1 повтор",
+    text = "Коснитесь, чтобы убрать повтор",
+    state = state,
+    action = ACTION_ADJUST_REPS_DOWN,
+    requestCode = ADJUST_REPS_DOWN_REQUEST_CODE
+  )
+  postResultActionCard(
+    context,
+    id = RESULT_CANCEL_NOTIFICATION_ID,
+    sortKey = RESULT_CARD_SORT_KEY_CANCEL,
+    title = "Отменить",
+    text = "Коснитесь, чтобы отменить и вернуться к подходу",
+    state = state,
+    action = ACTION_CANCEL_SET,
+    requestCode = CANCEL_SET_REQUEST_CODE,
+    autoCancel = true
+  )
+}
+
+private fun postResultActionCard(
+  context: Context,
+  id: Int,
+  sortKey: String,
+  title: String,
+  text: String,
+  state: ActiveSetNotificationState,
+  action: String,
+  requestCode: Int,
+  autoCancel: Boolean = false
+) {
+  val builder = NotificationCompat.Builder(context, ACTIVE_SET_CHANNEL)
+    .setSmallIcon(R.drawable.ironrise_notification)
+    .setContentTitle(title)
+    .setContentText(text)
+    .setOngoing(false)
+    .setAutoCancel(autoCancel)
+    .setOnlyAlertOnce(true)
+    .setCategory(NotificationCompat.CATEGORY_WORKOUT)
+    .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+    .setPriority(NotificationCompat.PRIORITY_LOW)
+    .setSortKey(sortKey)
+  builder.setContentIntent(setActionPendingIntent(context, action, state, requestCode))
+  NotificationManagerCompat.from(context).notify(id, builder.build())
 }
 
 internal fun clearActiveSetNotification(context: Context) {
   Log.d(REST_TIMER_LOG_TAG, "active set notifications cleared")
   NotificationManagerCompat.from(context).cancel(ACTIVE_SET_NOTIFICATION_ID)
-  NotificationManagerCompat.from(context).cancel(SET_RESULT_NOTIFICATION_ID)
+  cancelResultActionCards(context)
+  cancelRestActionCards(context)
 }
 
 internal fun setActionPendingIntent(
@@ -591,7 +683,6 @@ internal fun setActionPendingIntent(
     putExtra(EXTRA_EXERCISES_COUNT, state.exercisesCount)
     putExtra(EXTRA_CURRENT_WEIGHT_KG, state.currentWeightKg)
     putExtra(EXTRA_CURRENT_REPS, state.currentReps)
-    putExtra(EXTRA_RESULT_LAYOUT, state.resultLayout)
   }
   val mutabilityFlag =
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) PendingIntent.FLAG_IMMUTABLE else 0
@@ -609,8 +700,7 @@ internal fun activeSetStateFromIntent(intent: Intent): ActiveSetNotificationStat
     exercisesCount = intent.getIntExtra(EXTRA_EXERCISES_COUNT, 0),
     exerciseId = intent.getStringExtra(EXTRA_EXERCISE_ID) ?: "",
     currentWeightKg = intent.getDoubleExtra(EXTRA_CURRENT_WEIGHT_KG, 0.0),
-    currentReps = intent.getIntExtra(EXTRA_CURRENT_REPS, 0),
-    resultLayout = intent.getIntExtra(EXTRA_RESULT_LAYOUT, 0)
+    currentReps = intent.getIntExtra(EXTRA_CURRENT_REPS, 0)
   )
 
 private fun ensureActiveSetChannel(context: Context) {
