@@ -1,9 +1,16 @@
 export type MuscleGroup = "Грудь" | "Спина" | "Ноги" | "Плечи" | "Бицепс" | "Трицепс" | "Корпус" | "Кардио";
 
 import { freeExerciseDbGroupFallbackPhotos, freeExerciseDbPhotos } from "./free-exercise-db-photos";
+import { bundledExerciseGroupFallbackPhotos, bundledExercisePhotos as bundledExercisePhotoAssets } from "./bundled-exercise-photos";
 import { aiArmsExerciseIllustration, aiGroupExerciseIllustrations, generatedTechniqueImages, individualAiExerciseIllustrations } from "./bundled-ai-exercise-images";
 
 export type ExerciseMeasure = "reps" | "minutes";
+
+/**
+ * Источник изображения упражнения: ссылка (web/тесты) или числовой идентификатор
+ * локального ассета (нативные сборки, офлайн-бандл).
+ */
+export type ExerciseImageSource = string | number;
 
 export type Exercise = {
 id: string;
@@ -11,8 +18,8 @@ name: string;
 group: MuscleGroup;
   equipment: string;
   description: string;
-  image: string;
-  photoAngles?: { id: string; label: string; url: string }[];
+  image: ExerciseImageSource;
+  photoAngles?: { id: string; label: string; url: ExerciseImageSource }[];
   videoUrl: string;
   recordKg: number;
   recordReps: number;
@@ -31,7 +38,7 @@ export function supportsDistanceTracking(exercise?: Pick<Exercise, "id">) {
   return exercise?.id === "treadmill" || exercise?.id === "rower";
 }
 
-export type ExerciseGalleryImage = { id: string; label: string; url: string };
+export type ExerciseGalleryImage = { id: string; label: string; url: ExerciseImageSource };
 
 export type AiExerciseArtStyle = "editorial" | "neon" | "minimal";
 
@@ -374,8 +381,11 @@ export const generatedExerciseIllustrationLibrary = [
   ...Object.entries(aiGroupExerciseIllustrations).map(([group, url]) => ({ exerciseId: `group-${group}`, url, label: `AI-иллюстрация группы: ${group}` })),
 ];
 
-function exerciseOpenPhoto(exercise: Exercise) {
-  return freeExerciseDbPhotos[exercise.id] ?? freeExerciseDbGroupFallbackPhotos[exercise.group];
+const bundledExercisePhotos: Record<string, ExerciseImageSource> = bundledExercisePhotoAssets;
+const bundledGroupFallbackPhotos: Record<string, ExerciseImageSource> = bundledExerciseGroupFallbackPhotos;
+
+function exerciseOpenPhoto(exercise: Exercise): ExerciseImageSource {
+  return bundledExercisePhotos[exercise.id] ?? bundledGroupFallbackPhotos[exercise.group] ?? freeExerciseDbPhotos[exercise.id] ?? freeExerciseDbGroupFallbackPhotos[exercise.group];
 }
 
 function exerciseTechniqueImage(exercise: Exercise) {
@@ -390,8 +400,8 @@ const individualAi = individualAiExerciseIllustrations[exercise.id];
   const openPhoto = exerciseOpenPhoto(exercise);
   const hasDedicatedOpenPhoto = Boolean(freeExerciseDbPhotos[exercise.id]);
 const defaultIllustration = exerciseTechniqueImage(exercise);
-const candidates: { id: string; label: string; url: string }[] = [];
-  const addCandidate = (id: string, label: string, url?: string) => {
+const candidates: { id: string; label: string; url: ExerciseImageSource }[] = [];
+  const addCandidate = (id: string, label: string, url?: ExerciseImageSource) => {
     if (url && !candidates.some((candidate) => candidate.url === url)) candidates.push({ id, label, url });
   };
   addCandidate(`ai-${exercise.id}`, "Отдельная AI-иллюстрация", individualAi);
@@ -403,27 +413,38 @@ const candidates: { id: string; label: string; url: string }[] = [];
   return candidates;
 }
 
+export type ExerciseLibraryCandidate = { id: string; label: string; url: string };
+
+/**
+ * Candidates that are safe to store as a user-selected image: only plain URLs.
+ * On native the open-photo candidate carries a local asset identifier, so it is
+ * excluded from the pickable library but stays available for rendering.
+ */
+export function getExerciseLibraryCandidates(exercise: Exercise): ExerciseLibraryCandidate[] {
+  return getExerciseIllustrationCandidates(exercise).filter((candidate): candidate is ExerciseLibraryCandidate => typeof candidate.url === "string");
+}
+
 const catalogExercises: Exercise[] = [
-  { id: "bench-press", name: "Жим штанги лёжа", group: "Грудь", equipment: "Штанга", description: "Базовое упражнение для грудных мышц. Сводите лопатки, удерживайте стопы на полу и опускайте гриф к нижней части груди.", image: images.benchPress, videoUrl: "https://www.youtube.com/results?search_query=жим+штанги+лежа+техника", recordKg: 92.5, recordReps: 5 },
-  { id: "incline-db-press", name: "Жим гантелей на наклонной", group: "Грудь", equipment: "Гантели", description: "Работает по верхней части груди. Двигайте гантели по естественной дуге и не разгибайте локти до щелчка.", image: images.inclinePress, videoUrl: "https://www.youtube.com/results?search_query=жим+гантелей+на+наклонной+скамье", recordKg: 34, recordReps: 8 },
-  { id: "lat-pulldown", name: "Тяга верхнего блока", group: "Спина", equipment: "Тренажёр", description: "Тяните рукоять к верхней части груди, направляя локти вниз. Не раскачивайте корпус.", image: images.latPulldown, videoUrl: "https://www.youtube.com/results?search_query=тяга+верхнего+блока+техника", recordKg: 70, recordReps: 8 },
-  { id: "barbell-row", name: "Тяга штанги в наклоне", group: "Спина", equipment: "Штанга", description: "Сохраняйте нейтральную спину, подтягивайте гриф к поясу и контролируйте опускание.", image: images.barbellRow, videoUrl: "https://www.youtube.com/results?search_query=тяга+штанги+в+наклоне+техника", recordKg: 85, recordReps: 6 },
-  { id: "squat", name: "Приседания со штангой", group: "Ноги", equipment: "Штанга", description: "Опускайтесь до комфортной глубины, держите колени по направлению носков и сохраняйте напряжение корпуса.", image: images.squat, videoUrl: "https://www.youtube.com/results?search_query=приседания+со+штангой+техника", recordKg: 120, recordReps: 4 },
-  { id: "leg-press", name: "Жим ногами", group: "Ноги", equipment: "Тренажёр", description: "Плотно прижмите таз к спинке и не блокируйте колени в верхней точке.", image: images.legPress, videoUrl: "https://www.youtube.com/results?search_query=жим+ногами+техника", recordKg: 210, recordReps: 8 },
-  { id: "shoulder-press", name: "Жим гантелей сидя", group: "Плечи", equipment: "Гантели", description: "Начинайте движение от уровня ушей, держите запястья над локтями и не прогибайтесь в пояснице.", image: images.shoulderPress, videoUrl: "https://www.youtube.com/results?search_query=жим+гантелей+сидя+техника", recordKg: 26, recordReps: 8 },
-  { id: "lateral-raise", name: "Разведения гантелей в стороны", group: "Плечи", equipment: "Гантели", description: "Поднимайте руки до уровня плеч с мягким локтем, не используя инерцию.", image: images.lateralRaise, videoUrl: "https://www.youtube.com/results?search_query=разведения+гантелей+в+стороны", recordKg: 12, recordReps: 12 },
-  { id: "biceps-curl", name: "Сгибания рук со штангой", group: "Бицепс", equipment: "Штанга", description: "Зафиксируйте локти возле корпуса и поднимайте вес без раскачивания плечами.", image: images.bicepsCurl, videoUrl: "https://www.youtube.com/results?search_query=сгибания+рук+со+штангой", recordKg: 42.5, recordReps: 8 },
-  { id: "triceps-pushdown", name: "Разгибания на блоке", group: "Трицепс", equipment: "Тренажёр", description: "Прижмите локти к корпусу и полностью разгибайте руки, сохраняя плечи неподвижными.", image: images.tricepsPushdown, videoUrl: "https://www.youtube.com/results?search_query=разгибания+рук+на+верхнем+блоке", recordKg: 45, recordReps: 10 },
-  { id: "plank", name: "Планка на локтях", group: "Корпус", equipment: "Без оборудования", description: "Создайте прямую линию от плеч до пяток, напрягите пресс и спокойно дышите.", image: images.plank, videoUrl: "https://www.youtube.com/results?search_query=планка+на+локтях+техника", recordKg: 0, recordReps: 90, measurement: "minutes" },
-  { id: "treadmill", name: "Беговая дорожка", group: "Кардио", equipment: "Тренажёр", description: "Начните с лёгкой ходьбы, постепенно увеличьте темп и завершите заминкой.", image: images.treadmill, videoUrl: "https://www.youtube.com/results?search_query=беговая+дорожка+техника", recordKg: 0, recordReps: 25, measurement: "minutes" },
-  { id: "dumbbell-row", name: "Тяга гантели к поясу", group: "Спина", equipment: "Гантели", description: "Упритесь свободной рукой в скамью, тяните локоть к тазу и не разворачивайте плечо.", image: images.dumbbellRow, videoUrl: "https://www.youtube.com/results?search_query=тяга+гантели+к+поясу+техника", recordKg: 36, recordReps: 10 },
-  { id: "romanian-deadlift", name: "Румынская тяга", group: "Ноги", equipment: "Штанга", description: "Отводите таз назад, держите гриф близко к ногам и сохраняйте нейтральную спину.", image: images.romanianDeadlift, videoUrl: "https://www.youtube.com/results?search_query=румынская+тяга+техника", recordKg: 100, recordReps: 8 },
-  { id: "walking-lunge", name: "Выпады с гантелями", group: "Ноги", equipment: "Гантели", description: "Делайте контролируемый шаг, опускайте заднее колено к полу и сохраняйте корпус устойчивым.", image: images.walkingLunge, videoUrl: "https://www.youtube.com/results?search_query=выпады+с+гантелями+техника", recordKg: 22, recordReps: 12 },
-  { id: "dips", name: "Отжимания на брусьях", group: "Грудь", equipment: "Вес тела", description: "Опускайтесь контролируемо, слегка наклоняйте корпус вперёд и не проваливайтесь в плечах.", image: images.dips, videoUrl: "https://www.youtube.com/results?search_query=отжимания+на+брусьях+техника", recordKg: 0, recordReps: 12 },
-  { id: "leg-curl", name: "Сгибания ног в тренажёре", group: "Ноги", equipment: "Тренажёр", description: "Фиксируйте таз, сгибайте ноги плавно и задерживайтесь в точке сокращения.", image: images.legCurl, videoUrl: "https://www.youtube.com/results?search_query=сгибание+ног+в+тренажере+техника", recordKg: 55, recordReps: 12 },
-  { id: "calf-raise", name: "Подъёмы на носки стоя", group: "Ноги", equipment: "Тренажёр", description: "Опускайте пятки до растяжения и поднимайтесь на носки с полной амплитудой.", image: images.calfRaise, videoUrl: "https://www.youtube.com/results?search_query=подъем+на+носки+стоя+техника", recordKg: 80, recordReps: 15 },
-  { id: "cable-crunch", name: "Скручивания на верхнем блоке", group: "Корпус", equipment: "Тренажёр", description: "Скручивайте корпус за счёт пресса, не тяните рукоять руками и не округляйте поясницу чрезмерно.", image: images.cableCrunch, videoUrl: "https://www.youtube.com/results?search_query=скручивания+на+верхнем+блоке+техника", recordKg: 42, recordReps: 12 },
-  { id: "rower", name: "Гребной тренажёр", group: "Кардио", equipment: "Тренажёр", description: "Отталкивайтесь ногами, затем подключайте корпус и руки; возвращайтесь в обратном порядке.", image: images.rower, videoUrl: "https://www.youtube.com/results?search_query=гребной+тренажер+техника", recordKg: 0, recordReps: 20, measurement: "minutes" },
+  { id: "bench-press", name: "Жим штанги лёжа", group: "Грудь", equipment: "Штанга", description: "Базовое упражнение для грудных мышц. Сводите лопатки, удерживайте стопы на полу и опускайте гриф к нижней части груди.", image: images.benchPress, videoUrl: "https://rutube.ru/search/?query=жим+штанги+лежа+техника", recordKg: 92.5, recordReps: 5 },
+  { id: "incline-db-press", name: "Жим гантелей на наклонной", group: "Грудь", equipment: "Гантели", description: "Работает по верхней части груди. Двигайте гантели по естественной дуге и не разгибайте локти до щелчка.", image: images.inclinePress, videoUrl: "https://rutube.ru/search/?query=жим+гантелей+на+наклонной+скамье", recordKg: 34, recordReps: 8 },
+  { id: "lat-pulldown", name: "Тяга верхнего блока", group: "Спина", equipment: "Тренажёр", description: "Тяните рукоять к верхней части груди, направляя локти вниз. Не раскачивайте корпус.", image: images.latPulldown, videoUrl: "https://rutube.ru/search/?query=тяга+верхнего+блока+техника", recordKg: 70, recordReps: 8 },
+  { id: "barbell-row", name: "Тяга штанги в наклоне", group: "Спина", equipment: "Штанга", description: "Сохраняйте нейтральную спину, подтягивайте гриф к поясу и контролируйте опускание.", image: images.barbellRow, videoUrl: "https://rutube.ru/search/?query=тяга+штанги+в+наклоне+техника", recordKg: 85, recordReps: 6 },
+  { id: "squat", name: "Приседания со штангой", group: "Ноги", equipment: "Штанга", description: "Опускайтесь до комфортной глубины, держите колени по направлению носков и сохраняйте напряжение корпуса.", image: images.squat, videoUrl: "https://rutube.ru/search/?query=приседания+со+штангой+техника", recordKg: 120, recordReps: 4 },
+  { id: "leg-press", name: "Жим ногами", group: "Ноги", equipment: "Тренажёр", description: "Плотно прижмите таз к спинке и не блокируйте колени в верхней точке.", image: images.legPress, videoUrl: "https://rutube.ru/search/?query=жим+ногами+техника", recordKg: 210, recordReps: 8 },
+  { id: "shoulder-press", name: "Жим гантелей сидя", group: "Плечи", equipment: "Гантели", description: "Начинайте движение от уровня ушей, держите запястья над локтями и не прогибайтесь в пояснице.", image: images.shoulderPress, videoUrl: "https://rutube.ru/search/?query=жим+гантелей+сидя+техника", recordKg: 26, recordReps: 8 },
+  { id: "lateral-raise", name: "Разведения гантелей в стороны", group: "Плечи", equipment: "Гантели", description: "Поднимайте руки до уровня плеч с мягким локтем, не используя инерцию.", image: images.lateralRaise, videoUrl: "https://rutube.ru/search/?query=разведения+гантелей+в+стороны", recordKg: 12, recordReps: 12 },
+  { id: "biceps-curl", name: "Сгибания рук со штангой", group: "Бицепс", equipment: "Штанга", description: "Зафиксируйте локти возле корпуса и поднимайте вес без раскачивания плечами.", image: images.bicepsCurl, videoUrl: "https://rutube.ru/search/?query=сгибания+рук+со+штангой", recordKg: 42.5, recordReps: 8 },
+  { id: "triceps-pushdown", name: "Разгибания на блоке", group: "Трицепс", equipment: "Тренажёр", description: "Прижмите локти к корпусу и полностью разгибайте руки, сохраняя плечи неподвижными.", image: images.tricepsPushdown, videoUrl: "https://rutube.ru/search/?query=разгибания+рук+на+верхнем+блоке", recordKg: 45, recordReps: 10 },
+  { id: "plank", name: "Планка на локтях", group: "Корпус", equipment: "Без оборудования", description: "Создайте прямую линию от плеч до пяток, напрягите пресс и спокойно дышите.", image: images.plank, videoUrl: "https://rutube.ru/search/?query=планка+на+локтях+техника", recordKg: 0, recordReps: 90, measurement: "minutes" },
+  { id: "treadmill", name: "Беговая дорожка", group: "Кардио", equipment: "Тренажёр", description: "Начните с лёгкой ходьбы, постепенно увеличьте темп и завершите заминкой.", image: images.treadmill, videoUrl: "https://rutube.ru/search/?query=беговая+дорожка+техника", recordKg: 0, recordReps: 25, measurement: "minutes" },
+  { id: "dumbbell-row", name: "Тяга гантели к поясу", group: "Спина", equipment: "Гантели", description: "Упритесь свободной рукой в скамью, тяните локоть к тазу и не разворачивайте плечо.", image: images.dumbbellRow, videoUrl: "https://rutube.ru/search/?query=тяга+гантели+к+поясу+техника", recordKg: 36, recordReps: 10 },
+  { id: "romanian-deadlift", name: "Румынская тяга", group: "Ноги", equipment: "Штанга", description: "Отводите таз назад, держите гриф близко к ногам и сохраняйте нейтральную спину.", image: images.romanianDeadlift, videoUrl: "https://rutube.ru/search/?query=румынская+тяга+техника", recordKg: 100, recordReps: 8 },
+  { id: "walking-lunge", name: "Выпады с гантелями", group: "Ноги", equipment: "Гантели", description: "Делайте контролируемый шаг, опускайте заднее колено к полу и сохраняйте корпус устойчивым.", image: images.walkingLunge, videoUrl: "https://rutube.ru/search/?query=выпады+с+гантелями+техника", recordKg: 22, recordReps: 12 },
+  { id: "dips", name: "Отжимания на брусьях", group: "Грудь", equipment: "Вес тела", description: "Опускайтесь контролируемо, слегка наклоняйте корпус вперёд и не проваливайтесь в плечах.", image: images.dips, videoUrl: "https://rutube.ru/search/?query=отжимания+на+брусьях+техника", recordKg: 0, recordReps: 12 },
+  { id: "leg-curl", name: "Сгибания ног в тренажёре", group: "Ноги", equipment: "Тренажёр", description: "Фиксируйте таз, сгибайте ноги плавно и задерживайтесь в точке сокращения.", image: images.legCurl, videoUrl: "https://rutube.ru/search/?query=сгибание+ног+в+тренажере+техника", recordKg: 55, recordReps: 12 },
+  { id: "calf-raise", name: "Подъёмы на носки стоя", group: "Ноги", equipment: "Тренажёр", description: "Опускайте пятки до растяжения и поднимайтесь на носки с полной амплитудой.", image: images.calfRaise, videoUrl: "https://rutube.ru/search/?query=подъем+на+носки+стоя+техника", recordKg: 80, recordReps: 15 },
+  { id: "cable-crunch", name: "Скручивания на верхнем блоке", group: "Корпус", equipment: "Тренажёр", description: "Скручивайте корпус за счёт пресса, не тяните рукоять руками и не округляйте поясницу чрезмерно.", image: images.cableCrunch, videoUrl: "https://rutube.ru/search/?query=скручивания+на+верхнем+блоке+техника", recordKg: 42, recordReps: 12 },
+  { id: "rower", name: "Гребной тренажёр", group: "Кардио", equipment: "Тренажёр", description: "Отталкивайтесь ногами, затем подключайте корпус и руки; возвращайтесь в обратном порядке.", image: images.rower, videoUrl: "https://rutube.ru/search/?query=гребной+тренажер+техника", recordKg: 0, recordReps: 20, measurement: "minutes" },
   ...expandedExercises,
 ];
 
@@ -453,7 +474,7 @@ export function createCustomExercise(draft: CustomExerciseDraft, id: string): Ex
     description: draft.description?.trim() || "Пользовательское упражнение. Добавьте заметку по технике в карточке упражнения.",
     image,
     photoAngles: [{ id: "main", label: "Техника", url: image }],
-    videoUrl: `https://www.youtube.com/results?search_query=${encodeURIComponent(`${draft.name} техника выполнения`)}`,
+    videoUrl: `https://rutube.ru/search/?query=${encodeURIComponent(`${draft.name} техника выполнения`)}`,
     recordKg: 0,
     recordReps: 0,
   };

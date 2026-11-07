@@ -14,8 +14,10 @@ import {
   TextInput,
   UIManager,
   View,
+  Image,
 } from "react-native";
 import { setAudioModeAsync, useAudioPlayer } from "expo-audio";
+import Constants from "expo-constants";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
@@ -85,7 +87,7 @@ import {
 } from "@/lib/body-store";
 import { calculateDailyCalorieGuide } from "@/lib/body-calculations";
 import {
-  connectHealthConnectHeartRate,
+  connectHealthConnectActivity,
   getHealthConnectStatus,
   type HealthConnectStatus,
 } from "@/lib/health-connect";
@@ -93,7 +95,14 @@ import {
   loadLockScreenHeartRateVisible,
   saveLockScreenHeartRateVisible,
 } from "@/lib/lock-screen-heart-rate-privacy";
-import { previewNativeRestCompletionSound } from "@/modules/ironrise-rest-timer";
+import {
+  connectBodyScale,
+  getBodyScaleStatus,
+  loadBodySyncState,
+  saveBodyScaleAutoSync,
+  syncBodyWeighIns,
+  type BodyScaleStatus,
+} from "@/lib/health-connect-body-sync";
 
 const formulas: {
   id: OneRepMaxFormula;
@@ -235,6 +244,12 @@ function CompletionVolumeSlider({
 const themeModeChoices = APP_COLOR_THEMES.filter(
   (theme) => theme.id === "editorial" || theme.id === "midnight",
 );
+const designVariantChoices = APP_COLOR_THEMES.filter(
+  (theme) =>
+    theme.id === "dark-energy" ||
+    theme.id === "light-minimal" ||
+    theme.id === "bold-neon",
+);
 
 function triggerTabDragHaptic(phase: "start" | "move") {
   if (Platform.OS === "web") return;
@@ -350,6 +365,9 @@ const SETTINGS_CATEGORIES: {
       "health connect",
       "пульс",
       "часы",
+      "весы",
+      "okok",
+      "состав тела",
       "инструменты",
       "приватность",
       "экран блокировки",
@@ -400,6 +418,7 @@ export default function SettingsScreen() {
     setProfileDetails,
     setGoals: setBodyGoals,
     setActivityLevel,
+    addMeasurement: addBodyMeasurement,
   } = useBodyStore();
   const {
     oneRmFormula,
@@ -489,10 +508,21 @@ export default function SettingsScreen() {
     useState<HealthConnectStatus>({
       state: "unsupported",
       heartRateGranted: false,
+      activityGranted: false,
       message: "Проверяем Health Connect…",
     });
   const [lockScreenHeartRateVisible, setLockScreenHeartRateVisible] =
     useState(true);
+  const [bodyScaleStatus, setBodyScaleStatus] = useState<BodyScaleStatus>({
+    state: "unsupported",
+    granted: false,
+    message: "Проверяем умные весы…",
+  });
+  const [bodyScaleSyncing, setBodyScaleSyncing] = useState(false);
+  const [bodyScaleSyncMessage, setBodyScaleSyncMessage] = useState<
+    string | null
+  >(null);
+  const [bodyScaleAutoSync, setBodyScaleAutoSync] = useState(true);
   const [settingsCategory, setSettingsCategory] =
     useState<SettingsCategoryId>("training");
   const [settingsQuery, setSettingsQuery] = useState("");
@@ -544,7 +574,10 @@ export default function SettingsScreen() {
   ];
 
   const previewRestCompletionSound = useCallback(async () => {
-    if (previewNativeRestCompletionSound(restTimerCompletionSound)) return;
+    // Предпрослушивание всегда через expo-audio: нативный RingtoneManager
+    // на части устройств (в т.ч. Huawei) молча не проигрывает raw-ресурсы,
+    // а expo-audio — тот же проверенный путь, что и сигнал завершения в
+    // приложении, плюс он учитывает ползунок громкости.
     await setAudioModeAsync({ playsInSilentMode: true });
     const player =
       restTimerCompletionSound === "female"
@@ -587,6 +620,10 @@ export default function SettingsScreen() {
       .catch(() => setHasGroqKey(false));
     void getHealthConnectStatus().then(setHealthConnectStatus);
     void loadLockScreenHeartRateVisible().then(setLockScreenHeartRateVisible);
+    void getBodyScaleStatus().then(setBodyScaleStatus);
+    void loadBodySyncState().then((state) =>
+      setBodyScaleAutoSync(state.autoSyncEnabled),
+    );
   }, [refreshStorageUsage]);
   useEffect(() => {
     setNotificationTime(defaultWorkoutTime);
@@ -655,7 +692,51 @@ export default function SettingsScreen() {
       ],
     );
   const connectHealthConnect = () =>
-    void connectHealthConnectHeartRate().then(setHealthConnectStatus);
+    void connectHealthConnectActivity().then(setHealthConnectStatus);
+  const runBodyScaleSync = (force: boolean) => {
+    setBodyScaleSyncing(true);
+    void syncBodyWeighIns({ force, addMeasurement: addBodyMeasurement })
+      .then((result) => {
+        setBodyScaleStatus((current) =>
+          result.granted === false
+            ? { ...current, granted: false, message: "Разрешите IronRise читать вес и состав тела в Health Connect." }
+            : current,
+        );
+        setBodyScaleSyncMessage(
+          result.granted === false
+            ? "Подключи весы, чтобы синхронизировать данные."
+            : result.created > 0
+              ? `Создано ${result.created} взвешиваний`
+              : "Новых взвешиваний нет.",
+        );
+      })
+      .catch(() =>
+        setBodyScaleSyncMessage(
+          "Не удалось синхронизировать данные весов. Попробуй ещё раз.",
+        ),
+      )
+      .finally(() => setBodyScaleSyncing(false));
+  };
+  const connectBodyScalePermissions = () =>
+    void connectBodyScale().then((status) => {
+      setBodyScaleStatus(status);
+      if (status.granted) runBodyScaleSync(true);
+    });
+  const toggleBodyScaleAutoSync = (value: boolean) => {
+    setBodyScaleAutoSync(value);
+    void saveBodyScaleAutoSync(value).catch(() => setBodyScaleAutoSync(!value));
+  };
+  const healthConnectFullyGranted =
+    healthConnectStatus.heartRateGranted && healthConnectStatus.activityGranted;
+  const healthConnectBadgeText = healthConnectFullyGranted
+    ? "ГОТОВО"
+    : healthConnectStatus.heartRateGranted
+      ? "ПУЛЬС"
+      : healthConnectStatus.activityGranted
+        ? "АКТИВНОСТЬ"
+        : "НЕТ ДОСТУПА";
+  const healthConnectGrantedAny =
+    healthConnectStatus.heartRateGranted || healthConnectStatus.activityGranted;
 
   const downloadPhotos = async () => {
     setBulkState((state) => ({
@@ -1209,6 +1290,86 @@ export default function SettingsScreen() {
                         {theme.id === "editorial"
                           ? "Кремовый фон и контрастный текст"
                           : "Графитовый фон и мягкий свет"}
+                      </Text>
+                    </View>
+                    {selected && (
+                      <IconSymbol
+                        name="checkmark"
+                        size={17}
+                        color={colors.surface}
+                      />
+                    )}
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
+
+          <View
+            style={[
+              styles.appThemeCard,
+              { backgroundColor: colors.surface, borderColor: colors.border },
+            ]}
+          >
+            <Text style={[styles.iconThemeTitle, { color: colors.foreground }]}>
+              Варианты дизайна
+            </Text>
+            <Text style={[styles.iconThemeHint, { color: colors.muted }]}>
+              Готовые оформления из кликабельных прототипов. Выбор сохранится на
+              устройстве и применится ко всем экранам.
+            </Text>
+            <View style={styles.appThemeGrid}>
+              {designVariantChoices.map((theme) => {
+                const selected = theme.id === appThemeId;
+                return (
+                  <Pressable
+                    key={theme.id}
+                    onPress={() => setAppThemeId(theme.id)}
+                    style={({ pressed }) => [
+                      styles.appThemeOption,
+                      {
+                        backgroundColor: selected
+                          ? theme.swatch
+                          : colors.background,
+                        borderColor: selected ? theme.swatch : colors.border,
+                        opacity: pressed ? 0.72 : 1,
+                      },
+                    ]}
+                  >
+                    <View
+                      style={[
+                        styles.appThemeSwatch,
+                        {
+                          backgroundColor: selected
+                            ? colors.surface
+                            : theme.swatch,
+                        },
+                      ]}
+                    />
+                    <View style={{ flex: 1 }}>
+                      <Text
+                        style={[
+                          styles.appThemeName,
+                          {
+                            color: selected
+                              ? colors.surface
+                              : colors.foreground,
+                          },
+                        ]}
+                      >
+                        {theme.title}
+                      </Text>
+                      <Text
+                        style={[
+                          styles.appThemeHint,
+                          {
+                            color: selected
+                              ? `${colors.surface}CC`
+                              : colors.muted,
+                          },
+                        ]}
+                      >
+                        {theme.hint}
                       </Text>
                     </View>
                     {selected && (
@@ -2524,18 +2685,16 @@ export default function SettingsScreen() {
                 style={[
                   styles.groqStatus,
                   {
-                    color: healthConnectStatus.heartRateGranted
+                    color: healthConnectGrantedAny
                       ? colors.success
                       : colors.muted,
-                    backgroundColor: healthConnectStatus.heartRateGranted
+                    backgroundColor: healthConnectGrantedAny
                       ? `${colors.success}18`
                       : colors.border,
                   },
                 ]}
               >
-                {healthConnectStatus.heartRateGranted
-                  ? "ГОТОВО"
-                  : "НЕТ ДОСТУПА"}
+                {healthConnectBadgeText}
               </Text>
             </View>
             <View style={styles.groqActions}>
@@ -2548,7 +2707,7 @@ export default function SettingsScreen() {
               >
                 <Text style={styles.groqPrimaryText}>
                   {healthConnectStatus.state === "permission-required"
-                    ? "Подключить пульс"
+                    ? "Подключить активность и пульс"
                     : "Проверить Health Connect"}
                 </Text>
               </Pressable>
@@ -2590,8 +2749,136 @@ export default function SettingsScreen() {
               />
             </View>
             <Text style={[styles.groqPrivacy, { color: colors.muted }]}>
-              IronRise читает только данные пульса за время тренировки и
-              сохраняет среднее и пиковое значение локально.
+              IronRise читает шаги, активные калории, дистанцию и пульс и
+              сохраняет сводные значения локально. Записи появляются после
+              синхронизации приложения «Здоровье» с Health Connect.
+            </Text>
+          </View>
+
+          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
+            Умные весы (OKOK · Health Connect)
+          </Text>
+          <View
+            style={[
+              styles.groqCard,
+              { backgroundColor: colors.surface, borderColor: colors.border },
+            ]}
+          >
+            <View style={styles.groqHeader}>
+              <View
+                style={[
+                  styles.groqIcon,
+                  { backgroundColor: `${colors.primary}17` },
+                ]}
+              >
+                <SafeMaterialIcon
+                  name="scale"
+                  size={20}
+                  color={colors.primary}
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.groqTitle, { color: colors.foreground }]}>
+                  Вес и состав тела с весов
+                </Text>
+                <Text style={[styles.groqSubtitle, { color: colors.muted }]}>
+                  {bodyScaleStatus.message}
+                </Text>
+              </View>
+              <Text
+                style={[
+                  styles.groqStatus,
+                  {
+                    color: bodyScaleStatus.granted
+                      ? colors.success
+                      : colors.muted,
+                    backgroundColor: bodyScaleStatus.granted
+                      ? `${colors.success}18`
+                      : colors.border,
+                  },
+                ]}
+              >
+                {bodyScaleStatus.granted ? "ПОДКЛЮЧЕНЫ" : "НУЖНЫ РАЗРЕШЕНИЯ"}
+              </Text>
+            </View>
+            <View style={styles.groqActions}>
+              <Pressable
+                onPress={connectBodyScalePermissions}
+                style={[
+                  styles.groqPrimary,
+                  { backgroundColor: colors.primary },
+                ]}
+              >
+                <Text style={styles.groqPrimaryText}>
+                  {bodyScaleStatus.granted
+                    ? "Проверить весы"
+                    : "Подключить весы"}
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={() => runBodyScaleSync(true)}
+                disabled={bodyScaleSyncing}
+                style={({ pressed }) => [
+                  styles.groqDelete,
+                  {
+                    borderColor: colors.border,
+                    opacity: bodyScaleSyncing || pressed ? 0.65 : 1,
+                  },
+                ]}
+              >
+                <Text
+                  style={[styles.groqDeleteText, { color: colors.foreground }]}
+                >
+                  {bodyScaleSyncing
+                    ? "Синхронизируем…"
+                    : "Синхронизировать сейчас"}
+                </Text>
+              </Pressable>
+            </View>
+            {bodyScaleSyncMessage && (
+              <Text style={[styles.groqPrivacy, { color: colors.muted }]}>
+                {bodyScaleSyncMessage}
+              </Text>
+            )}
+            <View
+              style={[
+                styles.widgetFeedbackRow,
+                {
+                  borderColor: colors.border,
+                  backgroundColor: colors.background,
+                },
+              ]}
+            >
+              <View style={{ flex: 1 }}>
+                <Text
+                  style={[styles.widgetTitle, { color: colors.foreground }]}
+                >
+                  Автосинхронизация при запуске
+                </Text>
+                <Text style={[styles.widgetHint, { color: colors.muted }]}>
+                  {bodyScaleAutoSync
+                    ? "Взвешивания подтягиваются при запуске и на вкладке «Тело»."
+                    : "Данные весов загружаются только по кнопке «Синхронизировать сейчас»."}
+                </Text>
+              </View>
+              <Switch
+                value={bodyScaleAutoSync}
+                onValueChange={toggleBodyScaleAutoSync}
+                trackColor={{
+                  false: colors.border,
+                  true: `${colors.primary}88`,
+                }}
+                thumbColor={
+                  bodyScaleAutoSync ? colors.primary : colors.muted
+                }
+              />
+            </View>
+            <Text style={[styles.groqPrivacy, { color: colors.muted }]}>
+              Приложение OKOK International синхронизирует весы в Health
+              Connect, IronRise читает вес и состав тела (жир, мышцы, кости,
+              вода) и создаёт замеры автоматически. Если состав недоступен,
+              сохранится только вес. Дубликаты на ту же дату с тем же весом не
+              создаются.
             </Text>
           </View>
 
@@ -3222,6 +3509,32 @@ export default function SettingsScreen() {
             </Text>
           </View>
         </View>
+
+        <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
+          О приложении
+        </Text>
+        <View
+          style={[
+            styles.aboutCard,
+            { backgroundColor: colors.surface, borderColor: colors.border },
+          ]}
+        >
+          <Image
+            source={require("@/assets/images/ironrise-shield-badge.png")}
+            style={styles.aboutLogo}
+          />
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.aboutName, { color: colors.foreground }]}>
+              IronRise
+            </Text>
+            <Text style={[styles.aboutVersion, { color: colors.muted }]}>
+              Версия {Constants.expoConfig?.version ?? "1.0.4"}
+            </Text>
+            <Text style={[styles.aboutTagline, { color: colors.primary }]}>
+              Дневник тренировок, питания и прогресса
+            </Text>
+          </View>
+        </View>
         {normalizedSettingsQuery.length > 0 && !matchingCategories.length && (
           <View
             style={[
@@ -3593,6 +3906,19 @@ const styles = StyleSheet.create({
     letterSpacing: 0.35,
     marginTop: 12,
   },
+  aboutCard: {
+    borderWidth: 1,
+    borderRadius: 0,
+    borderLeftWidth: 5,
+    padding: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  aboutLogo: { width: 60, height: 60 },
+  aboutName: { fontSize: 15, fontWeight: "900", letterSpacing: 0.4 },
+  aboutVersion: { fontSize: 11, fontWeight: "800", marginTop: 3 },
+  aboutTagline: { fontSize: 10, fontWeight: "800", marginTop: 5, letterSpacing: 0.3 },
   stepRow: { flexDirection: "row", gap: 9 },
   step: {
     flex: 1,

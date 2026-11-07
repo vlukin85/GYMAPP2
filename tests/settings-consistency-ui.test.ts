@@ -58,7 +58,11 @@ describe("settings visual system", () => {
     expect(settings).toContain("Мужской голос");
     expect(settings).toContain("Сирена");
     expect(settings).toContain("previewRestCompletionSound");
-    expect(settings).toContain("previewNativeRestCompletionSound");
+    // Предпрослушивание играет через expo-audio (тот же путь, что сигнал
+    // в приложении) и учитывает громкость: нативный RingtoneManager на
+    // части устройств молча не проигрывает raw-ресурсы.
+    expect(settings).not.toContain("previewNativeRestCompletionSound");
+    expect(settings).toContain("playsInSilentMode: true");
   });
 
   it("содержит ползунок громкости и явную настройку вибрации для сигнала завершения", () => {
@@ -74,5 +78,14 @@ describe("settings visual system", () => {
     expect(settings).toContain("Длинная");
     expect(settings).toContain("Пульсирующая");
     expect(settings).toContain("restTimerVibrationPattern");
+  });
+
+  it("показывает логотип и версию приложения в разделе «О приложении»", () => {
+    expect(settings).toContain("О приложении");
+    expect(settings).toContain("ironrise-shield-badge");
+    expect(settings).toMatch(/aboutCard:\s*{\s*borderWidth:\s*1,\s*borderRadius:\s*0,\s*borderLeftWidth:\s*5/);
+    expect(settings).toMatch(/aboutLogo:\s*{\s*width:\s*60,\s*height:\s*60\s*}/);
+    expect(settings).toContain("Версия");
+    expect(settings).toContain("Constants.expoConfig?.version");
   });
 });

@@ -10,7 +10,9 @@ export const DAILY_ACTIVITY_LEVELS: Array<{ id: DailyActivityLevel; title: strin
   { id: "moderate", title: "Умеренный", description: "Много ходьбы или работа на ногах", movementShare: 0.35 },
   { id: "high", title: "Высокий", description: "Подвижная физическая работа почти весь день", movementShare: 0.5 },
 ];
-export type BodyMeasurement = { id: string; date: string } & Partial<Record<BodyMetricId, number>>;
+/** Состав тела от умных весов: поля опциональные и не входят в BODY_METRICS, чтобы не ломать UI метрик и расчёты. */
+export type BodyCompositionFields = { muscleMassKg?: number; boneMassKg?: number; waterMassKg?: number; bmiKgM2?: number; sourceAtISO?: string };
+export type BodyMeasurement = { id: string; date: string } & Partial<Record<BodyMetricId, number>> & BodyCompositionFields;
 export type BodyProgressPhoto = { id: string; date: string; uri: string; createdAt: string };
 export type BodyGoals = Partial<Record<BodyMetricId, number>>;
 export const BODY_METRICS: Array<{ id: BodyMetricId; label: string; unit: string; short: string }> = [
@@ -23,11 +25,12 @@ export const BODY_METRICS: Array<{ id: BodyMetricId; label: string; unit: string
   { id: "thighCm", label: "Бедро", unit: "см", short: "БЕДРО" },
 ];
 
-const STORAGE_KEY = "ironrise.body-measurements.v1";
+export const BODY_MEASUREMENTS_STORAGE_KEY = "ironrise.body-measurements.v1";
+const STORAGE_KEY = BODY_MEASUREMENTS_STORAGE_KEY;
 const PHOTO_STORAGE_KEY = "ironrise.body-progress-photos.v1";
 const PROFILE_STORAGE_KEY = "ironrise.body-profile.v1";
 const DETAILS_STORAGE_KEY = "ironrise.body-profile-details.v1";
-type BodyStore = { measurements: BodyMeasurement[]; photos: BodyProgressPhoto[]; profile: BodyProfile; heightCm?: number; ageYears?: number; goals: BodyGoals; activityLevel: DailyActivityLevel; ready: boolean; addMeasurement: (input: Omit<BodyMeasurement, "id">) => void; removeMeasurement: (id: string) => void; addPhoto: (input: Omit<BodyProgressPhoto, "id" | "createdAt">) => void; removePhoto: (id: string) => void; setProfile: (profile: BodyProfile) => void; setProfileDetails: (details: { heightCm?: number; ageYears?: number }) => void; setGoals: (goals: BodyGoals) => void; setActivityLevel: (level: DailyActivityLevel) => void };
+type BodyStore = { measurements: BodyMeasurement[]; photos: BodyProgressPhoto[]; profile: BodyProfile; heightCm?: number; ageYears?: number; goals: BodyGoals; activityLevel: DailyActivityLevel; ready: boolean; addMeasurement: (input: Omit<BodyMeasurement, "id"> & { id?: string }) => void; removeMeasurement: (id: string) => void; addPhoto: (input: Omit<BodyProgressPhoto, "id" | "createdAt">) => void; removePhoto: (id: string) => void; setProfile: (profile: BodyProfile) => void; setProfileDetails: (details: { heightCm?: number; ageYears?: number }) => void; setGoals: (goals: BodyGoals) => void; setActivityLevel: (level: DailyActivityLevel) => void };
 const Context = createContext<BodyStore | null>(null);
 
 export function BodyProvider({ children }: { children: React.ReactNode }) {
@@ -44,8 +47,12 @@ export function BodyProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => { if (ready) void AsyncStorage.setItem(PHOTO_STORAGE_KEY, JSON.stringify(photos)); }, [photos, ready]);
   useEffect(() => { if (ready) void AsyncStorage.setItem(PROFILE_STORAGE_KEY, profile); }, [profile, ready]);
   useEffect(() => { if (ready) void AsyncStorage.setItem(DETAILS_STORAGE_KEY, JSON.stringify({ heightCm, ageYears, goals, activityLevel })); }, [heightCm, ageYears, goals, activityLevel, ready]);
-  const value = useMemo(() => ({ measurements, photos, profile, heightCm, ageYears, goals, activityLevel, ready, addMeasurement: (input: Omit<BodyMeasurement, "id">) => setMeasurements((current) => [{ ...input, id: `${input.date}-${Date.now()}` }, ...current].sort((a, b) => b.date.localeCompare(a.date))), removeMeasurement: (id: string) => setMeasurements((current) => current.filter((item) => item.id !== id)), addPhoto: (input: Omit<BodyProgressPhoto, "id" | "createdAt">) => setPhotos((current) => [{ ...input, id: `${input.date}-${Date.now()}`, createdAt: new Date().toISOString() }, ...current].sort((a, b) => b.date.localeCompare(a.date))), removePhoto: (id: string) => setPhotos((current) => current.filter((item) => item.id !== id)), setProfile, setProfileDetails: (details: { heightCm?: number; ageYears?: number }) => { setHeightCm(Number.isFinite(details.heightCm) && (details.heightCm ?? 0) > 0 ? Math.round(details.heightCm!) : undefined); setAgeYears(Number.isFinite(details.ageYears) && (details.ageYears ?? 0) > 0 ? Math.round(details.ageYears!) : undefined); }, setGoals: (nextGoals: BodyGoals) => setGoals(Object.fromEntries(Object.entries(nextGoals).filter(([key, value]) => BODY_METRICS.some((metric) => metric.id === key) && Number.isFinite(value) && Number(value) > 0)) as BodyGoals), setActivityLevel }), [measurements, photos, profile, heightCm, ageYears, goals, activityLevel, ready]);
+  const value = useMemo(() => ({ measurements, photos, profile, heightCm, ageYears, goals, activityLevel, ready, addMeasurement: (input: Omit<BodyMeasurement, "id"> & { id?: string }) => setMeasurements((current) => [createMeasurementRecord(input), ...current].sort((a, b) => b.date.localeCompare(a.date))), removeMeasurement: (id: string) => setMeasurements((current) => current.filter((item) => item.id !== id)), addPhoto: (input: Omit<BodyProgressPhoto, "id" | "createdAt">) => setPhotos((current) => [{ ...input, id: `${input.date}-${Date.now()}`, createdAt: new Date().toISOString() }, ...current].sort((a, b) => b.date.localeCompare(a.date))), removePhoto: (id: string) => setPhotos((current) => current.filter((item) => item.id !== id)), setProfile, setProfileDetails: (details: { heightCm?: number; ageYears?: number }) => { setHeightCm(Number.isFinite(details.heightCm) && (details.heightCm ?? 0) > 0 ? Math.round(details.heightCm!) : undefined); setAgeYears(Number.isFinite(details.ageYears) && (details.ageYears ?? 0) > 0 ? Math.round(details.ageYears!) : undefined); }, setGoals: (nextGoals: BodyGoals) => setGoals(Object.fromEntries(Object.entries(nextGoals).filter(([key, value]) => BODY_METRICS.some((metric) => metric.id === key) && Number.isFinite(value) && Number(value) > 0)) as BodyGoals), setActivityLevel }), [measurements, photos, profile, heightCm, ageYears, goals, activityLevel, ready]);
   return <Context.Provider value={value}>{children}</Context.Provider>;
 }
 
+/** Создаёт запись замера: id можно задать извне (синхронизация весов использует детерминированный `hc-<timestampISO>`). */
+export function createMeasurementRecord(input: Omit<BodyMeasurement, "id"> & { id?: string }): BodyMeasurement {
+  return { ...input, id: input.id ?? `${input.date}-${Date.now()}` };
+}
 export function useBodyStore() { const value = useContext(Context); if (!value) throw new Error("BodyProvider missing"); return value; }

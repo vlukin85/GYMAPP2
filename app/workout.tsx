@@ -109,6 +109,13 @@ import {
   subscribeToExerciseReplacement,
 } from "@/lib/exercise-replacement-bus";
 import {
+  minTouchTarget,
+  pressedOpacity,
+  radius,
+  shadows,
+  type as typeTokens,
+} from "@/lib/design-tokens";
+import {
   clearRestTimerLockScreenNotification,
   scheduleRestTimerLockScreenNotification,
   type RestTimerNotificationIds,
@@ -117,6 +124,8 @@ import {
   consumeActiveWorkoutWidgetAction,
   consumeNativeRestTimerAction,
   updateActiveWorkoutWidget,
+  showNativeActiveSetNotification,
+  clearNativeActiveSetNotification,
   type NativeRestNextAction,
 } from "@/modules/ironrise-rest-timer";
 import { loadLockScreenHeartRateVisible } from "@/lib/lock-screen-heart-rate-privacy";
@@ -150,7 +159,6 @@ const REST_CIRCLE_RADIUS = 108;
 const REST_CIRCLE_SIZE = 252;
 const REST_CIRCUMFERENCE = 2 * Math.PI * REST_CIRCLE_RADIUS;
 const REST_TIMER_LOG_TAG = "[IronRiseRestTimer]";
-const EDITORIAL_BLUE = "#1746D2";
 const WORKOUT_PROGRESS_CIRCLE_SIZE = 64;
 const WORKOUT_PROGRESS_CIRCLE_RADIUS = 27;
 const WORKOUT_PROGRESS_CIRCUMFERENCE =
@@ -274,7 +282,7 @@ function RestTimerOverlay({
         <View
           style={[styles.restTopBar, { backgroundColor: colors.primary }]}
         />
-        <View style={styles.restPosterHeader}>
+        <View style={[styles.restPosterHeader, { borderColor: colors.border }]}>
           <Text style={[styles.restPosterIndex, { color: colors.foreground }]}>
             01
           </Text>
@@ -381,7 +389,7 @@ function RestTimerOverlay({
             onPress={onAddTime}
             style={({ pressed }) => [
               styles.restSecondaryAction,
-              { borderColor: colors.border, opacity: pressed ? 0.65 : 1 },
+              { borderColor: colors.border, opacity: pressed ? pressedOpacity : 1 },
             ]}
           >
             <Text
@@ -394,10 +402,12 @@ function RestTimerOverlay({
             onPress={onSkip}
             style={({ pressed }) => [
               styles.restSkipAction,
-              { backgroundColor: colors.primary, opacity: pressed ? 0.8 : 1 },
+              { backgroundColor: colors.primary, opacity: pressed ? pressedOpacity : 1 },
             ]}
           >
-            <Text style={styles.restSkipText}>Пропустить отдых</Text>
+            <Text style={[styles.restSkipText, { color: colors.background }]}>
+              Пропустить отдых
+            </Text>
           </Pressable>
         </View>
       </View>
@@ -598,6 +608,7 @@ function WorkoutProgressCard({
       style={[
         styles.workoutProgressCard,
         { backgroundColor: colors.surface, borderColor: colors.border },
+        shadows.card,
       ]}
     >
       <View style={styles.workoutProgressHeader}>
@@ -656,7 +667,7 @@ function WorkoutProgressCard({
                 onPress={onConnectHealthConnect}
                 style={({ pressed }) => [
                   styles.heartRateConnect,
-                  { borderColor: colors.primary, opacity: pressed ? 0.66 : 1 },
+                  { borderColor: colors.primary, opacity: pressed ? pressedOpacity : 1 },
                 ]}
               >
                 <Text
@@ -720,7 +731,7 @@ function WorkoutProgressCard({
                           targetHeartRateZone === zone.id
                             ? `${colors.primary}16`
                             : colors.background,
-                        opacity: pressed ? 0.65 : 1,
+                        opacity: pressed ? pressedOpacity : 1,
                       },
                     ]}
                     accessibilityLabel={`Целевая зона: ${zone.label}`}
@@ -789,7 +800,7 @@ function WorkoutProgressCard({
         <Animated.View
           style={[
             styles.workoutProgressFill,
-            { backgroundColor: EDITORIAL_BLUE },
+            { backgroundColor: colors.primary },
             progressStyle,
           ]}
         />
@@ -869,6 +880,15 @@ export default function WorkoutScreen() {
   const [pendingWidgetAction, setPendingWidgetAction] = useState<
     ReturnType<typeof consumeActiveWorkoutWidgetAction> | null
   >(null);
+  const [pendingNativeSetCommit, setPendingNativeSetCommit] = useState<{
+    exerciseId?: string;
+    setIndex: number;
+    weight: string;
+    reps: string;
+  } | null>(null);
+  const [pendingExerciseAdvance, setPendingExerciseAdvance] = useState<
+    string | null
+  >(null);
   const previousRestRef = useRef(0);
   const restEndRef = useRef<number | null>(null);
   const restStartedRef = useRef<number | null>(null);
@@ -917,6 +937,7 @@ export default function WorkoutScreen() {
     useState<HealthConnectStatus>({
       state: "unsupported",
       heartRateGranted: false,
+      activityGranted: false,
       message: "Проверяем Health Connect…",
     });
   const [heartRate, setHeartRate] = useState<HeartRateSummary>({
@@ -1175,6 +1196,9 @@ export default function WorkoutScreen() {
         note,
       });
       setActiveId(null);
+      // «Следующее упражнение» с часов: открываем следующее упражнение программы
+      // после того, как текущее закрыто и отмечено выполненным.
+      setPendingExerciseAdvance(exerciseId);
     },
     [activeId, draft, machineSetup, note, replacements, setExercisePreference],
   );
@@ -1218,6 +1242,21 @@ export default function WorkoutScreen() {
       setActiveSet(null);
       skipRest(action.restEndAt);
       finishExerciseFromNativeRestAction(action.exerciseId);
+      return;
+    }
+    if (action.kind === "commit-set") {
+      console.info(`${REST_TIMER_LOG_TAG} native-commit-set-received`, {
+        exerciseId: action.exerciseId,
+        setIndex: action.setIndex,
+        weight: action.weight,
+        reps: action.reps,
+      });
+      setPendingNativeSetCommit({
+        exerciseId: action.exerciseId,
+        setIndex: action.setIndex ?? -1,
+        weight: action.weight ?? "",
+        reps: action.reps ?? "",
+      });
       return;
     }
     if (action.restEndAt <= Date.now()) return;
@@ -1285,7 +1324,9 @@ export default function WorkoutScreen() {
   ]);
 
   useEffect(() => {
-    if (!restEndAt) return;
+    // Поллинг нужен и во время выполняющегося подхода: commit-set с часов
+    // должен применяться, даже если отдых ещё не запущен.
+    if (!restEndAt && !activeSet) return;
     const synchronize = () => {
       syncNativeRestTimerAction();
       syncActiveWorkoutWidgetAction();
@@ -1295,6 +1336,7 @@ export default function WorkoutScreen() {
     const timer = setInterval(synchronize, 300);
     return () => clearInterval(timer);
   }, [
+    activeSet,
     restEndAt,
     syncActiveWorkoutWidgetAction,
     syncNativeRestTimerAction,
@@ -1958,27 +2000,8 @@ export default function WorkoutScreen() {
     }
     closeSetEditor();
   };
-  const finishSetFromWidget = (setIndex: number) => {
-    if (
-      !activeId ||
-      !activePlan ||
-      activeSet?.exerciseId !== activeId ||
-      activeSet.setIndex !== setIndex
-    )
-      return;
-    const sourceSet = draft[setIndex];
-    if (!sourceSet) return;
-    const completedDraft = draft.map((set, index) =>
-      index === setIndex
-        ? {
-            ...set,
-            reps: set.reps.trim() || String(activePlan.reps),
-            weight: activeIsTimed
-              ? set.weight
-              : set.weight.trim() || String(activePlan.weight),
-          }
-        : set,
-    );
+  const completeSetDraft = (setIndex: number, completedDraft: ActualSet[]) => {
+    if (!activeId || !activeSet) return;
     const completedSet = completedDraft[setIndex];
     if (!completedSet || !setParts(completedSet, activeIsTimed).length) return;
     const finishedAt = Date.now();
@@ -2002,6 +2025,59 @@ export default function WorkoutScreen() {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(
         () => undefined,
       );
+  };
+  const finishSetFromWidget = (setIndex: number) => {
+    if (
+      !activeId ||
+      !activePlan ||
+      activeSet?.exerciseId !== activeId ||
+      activeSet.setIndex !== setIndex
+    )
+      return;
+    const sourceSet = draft[setIndex];
+    if (!sourceSet) return;
+    const completedDraft = draft.map((set, index) =>
+      index === setIndex
+        ? {
+            ...set,
+            reps: set.reps.trim() || String(activePlan.reps),
+            weight: activeIsTimed
+              ? set.weight
+              : set.weight.trim() || String(activePlan.weight),
+          }
+        : set,
+    );
+    completeSetDraft(setIndex, completedDraft);
+  };
+  // Завершение подхода с часов (kind=commit-set): значения, введённые кнопками
+  // уведомления, применяются тем же кодом, что и завершение подхода из интерфейса.
+  const finishSetFromWatch = (
+    exerciseId?: string,
+    setIndex?: number,
+    weight?: string,
+    reps?: string,
+  ) => {
+    if (!activeId || !activePlan || !activeSet) return;
+    if (exerciseId && exerciseId !== activeId) return;
+    const targetIndex = setIndex ?? activeSet.setIndex;
+    if (activeSet.exerciseId !== activeId || activeSet.setIndex !== targetIndex)
+      return;
+    const sourceSet = draft[targetIndex];
+    if (!sourceSet) return;
+    const completedDraft = draft.map((set, index) =>
+      index === targetIndex
+        ? {
+            ...set,
+            reps: reps?.trim() || set.reps.trim() || String(activePlan.reps),
+            weight: activeIsTimed
+              ? set.weight
+              : weight?.trim() ||
+                set.weight.trim() ||
+                String(activePlan.weight),
+          }
+        : set,
+    );
+    completeSetDraft(targetIndex, completedDraft);
   };
   useEffect(() => {
     const action = pendingWidgetAction;
@@ -2029,6 +2105,77 @@ export default function WorkoutScreen() {
     finishSetFromWidget,
     pendingWidgetAction,
     skipRest,
+  ]);
+  useEffect(() => {
+    const commit = pendingNativeSetCommit;
+    if (!commit) return;
+    setPendingNativeSetCommit(null);
+    if (commit.setIndex < 0) return;
+    finishSetFromWatch(
+      commit.exerciseId,
+      commit.setIndex,
+      commit.weight,
+      commit.reps,
+    );
+  }, [finishSetFromWatch, pendingNativeSetCommit]);
+  useEffect(() => {
+    if (
+      !activeSet ||
+      !activeId ||
+      activeSet.exerciseId !== activeId ||
+      !activePlan
+    ) {
+      clearNativeActiveSetNotification();
+      return;
+    }
+    showNativeActiveSetNotification({
+      exerciseName: activeExercise?.name ?? "Упражнение",
+      setIndex: activeSet.setIndex,
+      setsCount: Math.max(draft.length, activeSet.setIndex + 1),
+      planWeightKg: Number(activePlan.weight) || 0,
+      planReps: Number(activePlan.reps) || 0,
+      exerciseIndex: sessionExercises.findIndex(
+        (item) => item.exerciseId === activeId,
+      ),
+      exercisesCount: sessionExercises.length,
+      exerciseId: activeId,
+    });
+  }, [
+    activeExercise,
+    activeId,
+    activePlan,
+    activeSet,
+    draft.length,
+    sessionExercises,
+  ]);
+  useEffect(
+    () => () => {
+      clearNativeActiveSetNotification();
+    },
+    [],
+  );
+  useEffect(() => {
+    const finishedId = pendingExerciseAdvance;
+    if (!finishedId) return;
+    setPendingExerciseAdvance(null);
+    if (activeId) return;
+    const finishedIndex = sessionExercises.findIndex(
+      (item) => item.exerciseId === finishedId,
+    );
+    if (finishedIndex < 0) return;
+    const next = sessionExercises.find(
+      (item, index) =>
+        index > finishedIndex &&
+        item.exerciseId !== finishedId &&
+        !done[item.exerciseId],
+    );
+    if (next) openExercise(next.exerciseId);
+  }, [
+    activeId,
+    done,
+    openExercise,
+    pendingExerciseAdvance,
+    sessionExercises,
   ]);
   const focusedSet =
     focusedSetIndex === null ? undefined : draft[focusedSetIndex];
@@ -2266,6 +2413,7 @@ export default function WorkoutScreen() {
     setDragPreview(null);
   };
   const completeWorkout = async () => {
+    clearNativeActiveSetNotification();
     const persisted = sessionExercises
       .filter((item) => done[item.exerciseId])
       .flatMap((item) =>
@@ -2582,16 +2730,32 @@ export default function WorkoutScreen() {
         }}
       >
         <View style={styles.nav}>
-          <Pressable onPress={leaveWorkout}>
+          <Pressable
+            onPress={leaveWorkout}
+            style={({ pressed }) => [
+              styles.navExit,
+              {
+                backgroundColor: colors.surface,
+                borderColor: colors.border,
+                opacity: pressed ? pressedOpacity : 1,
+              },
+            ]}
+            accessibilityLabel="Выйти из тренировки"
+          >
             <IconSymbol
               name="chevron.left"
-              size={27}
+              size={22}
               color={colors.foreground}
             />
           </Pressable>
-          <Text style={[styles.navTitle, { color: colors.foreground }]}>
-            Активная тренировка
-          </Text>
+          <View style={styles.navMid}>
+            <Text style={[styles.navTitle, { color: colors.muted }]}>
+              Тренировка идёт
+            </Text>
+            <Text style={[styles.navProgram, { color: colors.foreground }]} numberOfLines={1}>
+              {program.name}
+            </Text>
+          </View>
           <View style={styles.navActions}>
             <Pressable onPress={resetActiveWorkout} hitSlop={8}>
               <Text style={[styles.resetNavText, { color: colors.error }]}>
@@ -2604,9 +2768,6 @@ export default function WorkoutScreen() {
             </Text>
           </View>
         </View>
-        <Text style={[styles.title, { color: colors.foreground }]}>
-          {program.name}
-        </Text>
         <Text style={[styles.helper, { color: colors.muted }]}>
           Сохраняйте только выполненные упражнения. Свайпните карточку влево для
           удаления, перетащите маркер ⠿ для смены порядка.
@@ -2653,7 +2814,7 @@ export default function WorkoutScreen() {
                     styles.swipeDelete,
                     {
                       backgroundColor: colors.error,
-                      opacity: pressed ? 0.78 : 1,
+                      opacity: pressed ? pressedOpacity : 1,
                     },
                   ]}
                   accessibilityRole="button"
@@ -2683,7 +2844,12 @@ export default function WorkoutScreen() {
                     ]}
                   >
                     <SafeMaterialIcon name="south" size={16} color="#101412" />
-                    <Text style={styles.dropIndicatorText}>
+                    <Text
+                      style={[
+                        styles.dropIndicatorText,
+                        { color: colors.background },
+                      ]}
+                    >
                       Отпустите здесь
                     </Text>
                   </View>
@@ -2795,7 +2961,7 @@ export default function WorkoutScreen() {
                       backgroundColor: colors.primary + "12",
                       borderColor: colors.primary + "3D",
                     },
-                    pressed && { opacity: 0.72 },
+                    pressed && { opacity: pressedOpacity },
                   ]}
                 >
                   <Text
@@ -2819,7 +2985,7 @@ export default function WorkoutScreen() {
             {
               borderColor: colors.primary,
               backgroundColor: colors.primary + "10",
-              opacity: pressed ? 0.72 : 1,
+              opacity: pressed ? pressedOpacity : 1,
             },
           ]}
         >
@@ -2851,7 +3017,12 @@ export default function WorkoutScreen() {
             </Text>
           </View>
         )}
-        <View style={[styles.total, { backgroundColor: colors.surface }]}>
+        <View
+          style={[
+            styles.total,
+            { backgroundColor: colors.surface, borderColor: colors.border },
+          ]}
+        >
           <Text style={[styles.totalLabel, { color: colors.muted }]}>
             ТЕКУЩИЙ ОБЪЁМ
           </Text>
@@ -2864,9 +3035,13 @@ export default function WorkoutScreen() {
         </View>
         <Pressable
           onPress={completeWorkout}
-          style={[styles.complete, { backgroundColor: colors.primary }]}
+          style={({ pressed }) => [
+            styles.complete,
+            { backgroundColor: colors.primary, opacity: pressed ? pressedOpacity : 1 },
+            shadows.raised,
+          ]}
         >
-          <Text style={styles.completeText}>
+          <Text style={[styles.completeText, { color: colors.background }]}>
             Завершить и сохранить выполненное
           </Text>
         </Pressable>
@@ -2924,7 +3099,7 @@ export default function WorkoutScreen() {
                 onPress={() => setEditingConfirmationSetIndex(null)}
                 style={({ pressed }) => [
                   styles.editConfirmCancel,
-                  { borderColor: colors.border, opacity: pressed ? 0.7 : 1 },
+                  { borderColor: colors.border, opacity: pressed ? pressedOpacity : 1 },
                 ]}
               >
                 <Text
@@ -2942,11 +3117,18 @@ export default function WorkoutScreen() {
                   styles.editConfirmAccept,
                   {
                     backgroundColor: colors.primary,
-                    opacity: pressed ? 0.76 : 1,
+                    opacity: pressed ? pressedOpacity : 1,
                   },
                 ]}
               >
-                <Text style={styles.editConfirmAcceptText}>ИЗМЕНИТЬ</Text>
+                <Text
+                  style={[
+                    styles.editConfirmAcceptText,
+                    { color: colors.background },
+                  ]}
+                >
+                  Изменить
+                </Text>
               </Pressable>
             </View>
           </Animated.View>
@@ -2965,7 +3147,7 @@ export default function WorkoutScreen() {
           <View style={styles.catalogHeader}>
             <Pressable
               onPress={() => setCatalogVisible(false)}
-              style={({ pressed }) => [{ opacity: pressed ? 0.6 : 1 }]}
+              style={({ pressed }) => [{ opacity: pressed ? pressedOpacity : 1 }]}
             >
               <Text style={[styles.catalogCancel, { color: colors.muted }]}>
                 Отмена
@@ -3019,7 +3201,7 @@ export default function WorkoutScreen() {
                       catalogGroup === group ? colors.primary : colors.border,
                     backgroundColor:
                       catalogGroup === group ? colors.primary : colors.surface,
-                    opacity: pressed ? 0.75 : 1,
+                    opacity: pressed ? pressedOpacity : 1,
                   },
                 ]}
               >
@@ -3056,12 +3238,21 @@ export default function WorkoutScreen() {
                       styles.catalogCreateExercise,
                       {
                         backgroundColor: colors.primary,
-                        opacity: pressed ? 0.76 : 1,
+                        opacity: pressed ? pressedOpacity : 1,
                       },
                     ]}
                   >
-                    <SafeMaterialIcon name="add" size={19} color="#FFFDF8" />
-                    <Text style={styles.catalogCreateExerciseText}>
+                    <SafeMaterialIcon
+                      name="add"
+                      size={19}
+                      color={colors.background}
+                    />
+                    <Text
+                      style={[
+                        styles.catalogCreateExerciseText,
+                        { color: colors.background },
+                      ]}
+                    >
                       ДОБАВИТЬ НОВОЕ УПРАЖНЕНИЕ
                     </Text>
                   </Pressable>
@@ -3076,7 +3267,7 @@ export default function WorkoutScreen() {
                   {
                     borderColor: colors.border,
                     backgroundColor: colors.surface,
-                    opacity: pressed ? 0.72 : 1,
+                    opacity: pressed ? pressedOpacity : 1,
                   },
                 ]}
               >
@@ -3186,7 +3377,7 @@ export default function WorkoutScreen() {
                         customExerciseGroup === group
                           ? colors.primary
                           : colors.border,
-                      opacity: pressed ? 0.76 : 1,
+                      opacity: pressed ? pressedOpacity : 1,
                     },
                   ]}
                 >
@@ -3240,7 +3431,7 @@ export default function WorkoutScreen() {
                 onPress={() => setCustomExerciseCreatorVisible(false)}
                 style={({ pressed }) => [
                   styles.catalogCreateCancel,
-                  { borderColor: colors.border, opacity: pressed ? 0.7 : 1 },
+                  { borderColor: colors.border, opacity: pressed ? pressedOpacity : 1 },
                 ]}
               >
                 <Text
@@ -3258,11 +3449,16 @@ export default function WorkoutScreen() {
                   styles.catalogCreateSave,
                   {
                     backgroundColor: colors.primary,
-                    opacity: pressed ? 0.76 : 1,
+                    opacity: pressed ? pressedOpacity : 1,
                   },
                 ]}
               >
-                <Text style={styles.catalogCreateSaveText}>
+                <Text
+                  style={[
+                    styles.catalogCreateSaveText,
+                    { color: colors.background },
+                  ]}
+                >
                   СОЗДАТЬ И ДОБАВИТЬ
                 </Text>
               </Pressable>
@@ -3312,16 +3508,33 @@ export default function WorkoutScreen() {
             keyboardDismissMode="on-drag"
           >
             {!activeIsTimed && (
-              <View style={[styles.oneRm, { backgroundColor: colors.primary }]}>
+              <View
+                style={[
+                  styles.oneRm,
+                  { backgroundColor: colors.primary },
+                  shadows.card,
+                ]}
+              >
                 <View>
-                  <Text style={styles.oneRmLabel}>ПРЕДПОЛАГАЕМЫЙ 1RM</Text>
-                  <Text style={styles.oneRmHint}>
+                  <Text
+                    style={[
+                      styles.oneRmLabel,
+                      { color: colors.background },
+                    ]}
+                  >
+                    Предполагаемый 1RM
+                  </Text>
+                  <Text
+                    style={[styles.oneRmHint, { color: colors.background, opacity: 0.75 }]}
+                  >
                     {oneRmFormula === "epley"
                       ? "Формула Эпли"
                       : "Формула Бржицки"}
                   </Text>
                 </View>
-                <Text style={styles.oneRmValue}>
+                <Text
+                  style={[styles.oneRmValue, { color: colors.background }]}
+                >
                   {currentOneRm.toFixed(1)} кг
                 </Text>
               </View>
@@ -3540,7 +3753,7 @@ export default function WorkoutScreen() {
                         placeholderTextColor={colors.muted}
                         style={[
                           fieldStyle(set.reps),
-                          isSetCompleted(index) && styles.completedSetField,
+                          isSetCompleted(index) && [styles.completedSetField, { color: colors.success, borderColor: colors.success, backgroundColor: `${colors.success}14` }],
                         ]}
                       />
                       {activeTracksDistance && (
@@ -3559,7 +3772,7 @@ export default function WorkoutScreen() {
                           placeholderTextColor={colors.muted}
                           style={[
                             fieldStyle(set.distance ?? ""),
-                            isSetCompleted(index) && styles.completedSetField,
+                            isSetCompleted(index) && [styles.completedSetField, { color: colors.success, borderColor: colors.success, backgroundColor: `${colors.success}14` }],
                           ]}
                         />
                       )}
@@ -3582,7 +3795,7 @@ export default function WorkoutScreen() {
                           placeholderTextColor={colors.muted}
                           style={[
                             fieldStyle(set.reps),
-                            isSetCompleted(index) && styles.completedSetField,
+                            isSetCompleted(index) && [styles.completedSetField, { color: colors.success, borderColor: colors.success, backgroundColor: `${colors.success}14` }],
                           ]}
                         />
                         <TextInput
@@ -3600,7 +3813,7 @@ export default function WorkoutScreen() {
                           placeholderTextColor={colors.muted}
                           style={[
                             fieldStyle(set.weight),
-                            isSetCompleted(index) && styles.completedSetField,
+                            isSetCompleted(index) && [styles.completedSetField, { color: colors.success, borderColor: colors.success, backgroundColor: `${colors.success}14` }],
                           ]}
                         />
                       </>
@@ -3700,7 +3913,7 @@ export default function WorkoutScreen() {
                           placeholderTextColor={colors.muted}
                           style={[
                             subsetFieldStyle(part.reps),
-                            isSetCompleted(index) && styles.completedSetField,
+                            isSetCompleted(index) && [styles.completedSetField, { color: colors.success, borderColor: colors.success, backgroundColor: `${colors.success}14` }],
                           ]}
                         />
                         <TextInput
@@ -3720,7 +3933,7 @@ export default function WorkoutScreen() {
                           placeholderTextColor={colors.muted}
                           style={[
                             subsetFieldStyle(part.weight),
-                            isSetCompleted(index) && styles.completedSetField,
+                            isSetCompleted(index) && [styles.completedSetField, { color: colors.success, borderColor: colors.success, backgroundColor: `${colors.success}14` }],
                           ]}
                         />
                         {(set.dropSubsets?.length ?? 0) > 1 && (
@@ -3802,12 +4015,18 @@ export default function WorkoutScreen() {
                             styles.finishSetAction,
                             {
                               backgroundColor: colors.primary,
-                              opacity: pressed ? 0.76 : 1,
+                              opacity: pressed ? pressedOpacity : 1,
                             },
+                            shadows.card,
                           ]}
                         >
-                          <Text style={styles.finishSetActionText}>
-                            ЗАВЕРШИТЬ ПОДХОД
+                          <Text
+                            style={[
+                              styles.finishSetActionText,
+                              { color: colors.background },
+                            ]}
+                          >
+                            Завершить подход
                           </Text>
                         </Pressable>
                       </>
@@ -3860,7 +4079,7 @@ export default function WorkoutScreen() {
                           styles.startSetAction,
                           {
                             borderColor: colors.primary,
-                            opacity: activeSet ? 0.38 : pressed ? 0.7 : 1,
+                            opacity: activeSet ? 0.38 : pressed ? pressedOpacity : 1,
                           },
                         ]}
                       >
@@ -3870,7 +4089,7 @@ export default function WorkoutScreen() {
                             { color: colors.primary },
                           ]}
                         >
-                          НАЧАТЬ ПОДХОД
+                          Начать подход
                         </Text>
                       </Pressable>
                     )}
@@ -3898,9 +4117,13 @@ export default function WorkoutScreen() {
             </Pressable>
             <Pressable
               onPress={saveExercise}
-              style={[styles.saveButton, { backgroundColor: colors.primary }]}
+              style={({ pressed }) => [
+                styles.saveButton,
+                { backgroundColor: colors.primary, opacity: pressed ? pressedOpacity : 1 },
+                shadows.card,
+              ]}
             >
-              <Text style={styles.saveButtonText}>Завершить упражнение</Text>
+              <Text style={[styles.saveButtonText, { color: colors.background }]}>Завершить упражнение</Text>
             </Pressable>
           </ScrollView>
           <RestTimerOverlay
@@ -4121,7 +4344,7 @@ export default function WorkoutScreen() {
                                     focusedPart.weight === weight
                                       ? colors.primary + "18"
                                       : colors.surface,
-                                  opacity: pressed ? 0.7 : 1,
+                                  opacity: pressed ? pressedOpacity : 1,
                                 },
                               ]}
                             >
@@ -4153,12 +4376,18 @@ export default function WorkoutScreen() {
                           opacity: !setParts(focusedSet, activeIsTimed).length
                             ? 0.45
                             : pressed
-                              ? 0.78
+                              ? pressedOpacity
                               : 1,
                         },
+                        shadows.raised,
                       ]}
                     >
-                      <Text style={styles.setEditorFinishText}>
+                      <Text
+                        style={[
+                          styles.setEditorFinishText,
+                          { color: colors.background },
+                        ]}
+                      >
                         Завершить подход
                       </Text>
                     </Pressable>
@@ -4177,28 +4406,38 @@ const styles = StyleSheet.create({
   content: { paddingTop: 16, paddingBottom: 32, gap: 13 },
   nav: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
+    gap: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "#272624",
-    paddingBottom: 11,
+    paddingBottom: 12,
   },
-  navActions: { flexDirection: "row", alignItems: "center", gap: 10 },
-  navTitle: {
-    fontSize: 16,
-    fontWeight: "900",
-    textTransform: "uppercase",
+  navExit: {
+    width: 40,
+    height: 40,
+    borderRadius: 13,
+    borderWidth: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  navMid: { flex: 1, minWidth: 0 },
+  navActions: { flexDirection: "row", alignItems: "center", gap: 12 },
+  navTitle: { ...typeTokens.eyebrow, fontSize: 10 },
+  navProgram: { ...typeTokens.heading, fontSize: 15, marginTop: 3 },
+  timer: {
+    fontSize: 26,
+    fontWeight: "800",
     letterSpacing: 0.4,
+    fontVariant: ["tabular-nums"] as const,
+    textShadowColor: "rgba(200, 241, 105, 0.25)",
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 12,
   },
-  timer: { fontSize: 14, fontWeight: "900" },
-  resetNavText: { fontSize: 11, fontWeight: "900" },
-  title: { fontSize: 27, fontWeight: "900", marginTop: 8, letterSpacing: -0.8 },
+  resetNavText: { fontSize: 11, fontWeight: "700" },
   helper: { fontSize: 12, lineHeight: 18 },
   workoutProgressCard: {
     borderWidth: 1,
-    borderRadius: 0,
-    borderLeftWidth: 6,
-    padding: 13,
+    borderRadius: radius.card,
+    padding: 14,
     gap: 10,
     marginTop: 2,
   },
@@ -4225,43 +4464,48 @@ const styles = StyleSheet.create({
   heartRatePanel: {
     marginTop: 9,
     borderWidth: 1,
-    padding: 9,
+    borderRadius: radius.input,
+    padding: 10,
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
   },
-  heartRateEyebrow: { fontSize: 8, fontWeight: "900", letterSpacing: 0.75 },
+  heartRateEyebrow: { fontSize: 8, fontWeight: "800", letterSpacing: 0.75 },
   heartRateValue: {
     fontSize: 10,
     lineHeight: 14,
-    fontWeight: "700",
+    fontWeight: "600",
     marginTop: 3,
   },
-  heartRateBpm: { fontSize: 24, fontWeight: "900", letterSpacing: -0.8 },
+  heartRateBpm: {
+    fontSize: 24,
+    fontWeight: "800",
+    letterSpacing: -0.8,
+    fontVariant: ["tabular-nums"] as const,
+  },
   heartRateConnect: {
-    minHeight: 34,
-    paddingHorizontal: 8,
+    minHeight: 36,
+    paddingHorizontal: 10,
     borderWidth: 1,
+    borderRadius: radius.chip,
     alignItems: "center",
     justifyContent: "center",
   },
-  heartRateConnectText: { fontSize: 8, fontWeight: "900", letterSpacing: 0.4 },
+  heartRateConnectText: { fontSize: 8, fontWeight: "800", letterSpacing: 0.4 },
   targetZoneAlert: {
     marginTop: 8,
     borderWidth: 1,
-    borderLeftWidth: 5,
+    borderRadius: radius.input,
     minHeight: 50,
-    paddingHorizontal: 9,
+    paddingHorizontal: 10,
     paddingVertical: 7,
     flexDirection: "row",
     alignItems: "center",
     gap: 9,
   },
   completedSetField: {
-    opacity: 0.78,
-    color: "#71717A",
-    backgroundColor: "rgba(113, 113, 122, 0.16)",
-    borderColor: "#71717A",
+    opacity: 1,
+    fontVariant: ["tabular-nums"] as const,
   },
   editConfirmBackdrop: {
     flex: 1,
@@ -4269,33 +4513,39 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     padding: 24,
   },
-  editConfirmCard: { borderWidth: 1, borderTopWidth: 8, padding: 20, gap: 11 },
-  editConfirmEyebrow: { fontSize: 10, fontWeight: "900", letterSpacing: 1 },
-  editConfirmTitle: { fontSize: 23, fontWeight: "900", letterSpacing: -0.5 },
+  editConfirmCard: {
+    borderWidth: 1,
+    borderRadius: radius.card,
+    padding: 20,
+    gap: 11,
+  },
+  editConfirmEyebrow: { ...typeTokens.eyebrow, fontSize: 10 },
+  editConfirmTitle: { ...typeTokens.title, fontSize: 22 },
   editConfirmText: { fontSize: 13, lineHeight: 19 },
   editConfirmActions: { flexDirection: "row", gap: 10, marginTop: 5 },
   editConfirmCancel: {
     flex: 1,
-    minHeight: 48,
+    minHeight: minTouchTarget,
     borderWidth: 1,
+    borderRadius: radius.button,
     alignItems: "center",
     justifyContent: "center",
   },
   editConfirmCancelText: {
     fontSize: 11,
-    fontWeight: "900",
+    fontWeight: "800",
     letterSpacing: 0.55,
   },
   editConfirmAccept: {
     flex: 1,
-    minHeight: 48,
+    minHeight: minTouchTarget,
+    borderRadius: radius.button,
     alignItems: "center",
     justifyContent: "center",
   },
   editConfirmAcceptText: {
-    color: "#FFFDF8",
     fontSize: 11,
-    fontWeight: "900",
+    fontWeight: "800",
     letterSpacing: 0.55,
   },
   targetZoneEyebrow: { fontSize: 8, fontWeight: "900", letterSpacing: 0.65 },
@@ -4311,13 +4561,14 @@ const styles = StyleSheet.create({
   targetZoneChoices: { marginTop: 7, flexDirection: "row", gap: 5 },
   targetZoneChoice: {
     flex: 1,
-    minHeight: 30,
+    minHeight: 32,
     borderWidth: 1,
+    borderRadius: radius.chip,
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 4,
   },
-  targetZoneChoiceText: { fontSize: 8, fontWeight: "900", letterSpacing: 0.2 },
+  targetZoneChoiceText: { fontSize: 8, fontWeight: "800", letterSpacing: 0.2 },
   workoutProgressRing: {
     width: WORKOUT_PROGRESS_CIRCLE_SIZE,
     height: WORKOUT_PROGRESS_CIRCLE_SIZE,
@@ -4329,9 +4580,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  workoutProgressPercent: { fontSize: 16, fontWeight: "900" },
-  workoutProgressTrack: { height: 8, borderRadius: 0, overflow: "hidden" },
-  workoutProgressFill: { height: "100%", borderRadius: 0, minWidth: 0 },
+  workoutProgressPercent: {
+    fontSize: 16,
+    fontWeight: "800",
+    fontVariant: ["tabular-nums"] as const,
+  },
+  workoutProgressTrack: { height: 8, borderRadius: 4, overflow: "hidden" },
+  workoutProgressFill: { height: "100%", borderRadius: 4, minWidth: 0 },
   exerciseWrap: { gap: 5, position: "relative" },
   exerciseWrapDragging: { zIndex: 5 },
   dropIndicator: {
@@ -4340,34 +4595,33 @@ const styles = StyleSheet.create({
     right: 14,
     top: -9,
     height: 26,
-    borderRadius: 0,
+    borderRadius: radius.chip,
     zIndex: 8,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 4,
-    elevation: 0,
+    elevation: 2,
   },
-  dropIndicatorText: { color: "#101412", fontSize: 10, fontWeight: "900" },
+  dropIndicatorText: { fontSize: 10, fontWeight: "800" },
   swipeDelete: {
     width: 98,
     marginLeft: 8,
-    borderRadius: 0,
+    borderRadius: radius.input,
     alignItems: "center",
     justifyContent: "center",
     gap: 3,
   },
-  swipeDeleteText: { color: "#FFFFFF", fontSize: 10, fontWeight: "900" },
+  swipeDeleteText: { color: "#FFFFFF", fontSize: 10, fontWeight: "800" },
   supersetFlag: {
     fontSize: 10,
-    fontWeight: "900",
+    fontWeight: "800",
     letterSpacing: 1,
     marginLeft: 4,
   },
   exercise: {
-    borderRadius: 0,
+    borderRadius: radius.card,
     borderWidth: 1,
-    borderLeftWidth: 5,
     padding: 14,
   },
   exerciseDragging: { transform: [{ scale: 1.008 }], elevation: 4 },
@@ -4375,7 +4629,7 @@ const styles = StyleSheet.create({
   dragHandle: {
     width: 34,
     height: 34,
-    borderRadius: 0,
+    borderRadius: 12,
     borderWidth: 1,
     alignItems: "center",
     justifyContent: "center",
@@ -4384,35 +4638,35 @@ const styles = StyleSheet.create({
   number: {
     width: 34,
     height: 34,
-    borderRadius: 0,
+    borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
   },
-  exerciseName: { fontSize: 14, fontWeight: "900", textTransform: "uppercase" },
+  exerciseName: { fontSize: 14, fontWeight: "700" },
   plan: { fontSize: 11, marginTop: 4 },
   draggingLabel: {
     marginTop: 11,
-    borderRadius: 0,
+    borderRadius: radius.chip,
     minHeight: 28,
-    paddingHorizontal: 9,
+    paddingHorizontal: 10,
     alignSelf: "flex-start",
     flexDirection: "row",
     alignItems: "center",
     gap: 5,
   },
-  draggingLabelText: { fontSize: 9, fontWeight: "900", letterSpacing: 0.55 },
+  draggingLabelText: { fontSize: 9, fontWeight: "800", letterSpacing: 0.55 },
   replaceButton: {
-    minHeight: 36,
+    minHeight: 38,
     alignSelf: "flex-start",
-    paddingHorizontal: 12,
-    borderRadius: 0,
+    paddingHorizontal: 13,
+    borderRadius: radius.chip,
     borderWidth: 1,
     justifyContent: "center",
   },
-  replaceButtonText: { fontSize: 11, fontWeight: "900" },
+  replaceButtonText: { fontSize: 11, fontWeight: "700" },
   addExercise: {
     minHeight: 52,
-    borderRadius: 0,
+    borderRadius: radius.tile,
     borderWidth: 1,
     borderStyle: "dashed",
     alignItems: "center",
@@ -4420,7 +4674,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 8,
   },
-  addExerciseText: { fontSize: 14, fontWeight: "900" },
+  addExerciseText: { fontSize: 14, fontWeight: "700" },
   catalogModal: { flex: 1, paddingTop: 40 },
   catalogHeader: {
     minHeight: 56,
@@ -4473,7 +4727,7 @@ const styles = StyleSheet.create({
   catalogList: { paddingHorizontal: 20, paddingBottom: 32, gap: 9 },
   catalogItem: {
     minHeight: 72,
-    borderRadius: 17,
+    borderRadius: radius.tile,
     borderWidth: 1,
     flexDirection: "row",
     alignItems: "center",
@@ -4483,29 +4737,28 @@ const styles = StyleSheet.create({
   catalogItemBadge: {
     width: 40,
     height: 40,
-    borderRadius: 13,
+    borderRadius: radius.input,
     alignItems: "center",
     justifyContent: "center",
   },
-  catalogItemBadgeText: { fontSize: 16, fontWeight: "900" },
+  catalogItemBadgeText: { fontSize: 16, fontWeight: "800" },
   catalogItemCopy: { flex: 1, gap: 3 },
-  catalogItemName: { fontSize: 14, fontWeight: "900" },
+  catalogItemName: { fontSize: 14, fontWeight: "700" },
   catalogItemMeta: { fontSize: 11 },
   catalogEmpty: { textAlign: "center", marginTop: 56, fontSize: 13 },
   catalogEmptyState: { paddingTop: 52, alignItems: "center", gap: 14 },
   catalogCreateExercise: {
     minHeight: 48,
-    paddingHorizontal: 15,
-    borderRadius: 0,
+    paddingHorizontal: 16,
+    borderRadius: radius.chip,
     alignItems: "center",
     justifyContent: "center",
     flexDirection: "row",
     gap: 7,
   },
   catalogCreateExerciseText: {
-    color: "#FFFDF8",
     fontSize: 11,
-    fontWeight: "900",
+    fontWeight: "800",
     letterSpacing: 0.45,
   },
   catalogCreateBackdrop: {
@@ -4514,33 +4767,37 @@ const styles = StyleSheet.create({
     justifyContent: "flex-end",
   },
   catalogCreateSheet: {
-    borderTopWidth: 8,
+    borderTopLeftRadius: radius.sheet,
+    borderTopRightRadius: radius.sheet,
     padding: 20,
     gap: 11,
   },
-  catalogCreateEyebrow: { fontSize: 10, fontWeight: "900", letterSpacing: 0.9 },
-  catalogCreateTitle: { fontSize: 24, fontWeight: "900", letterSpacing: -0.6 },
+  catalogCreateEyebrow: { ...typeTokens.eyebrow, fontSize: 10 },
+  catalogCreateTitle: { ...typeTokens.title, fontSize: 24 },
   catalogCreateHint: { fontSize: 12, lineHeight: 17 },
   catalogCreateInput: {
     minHeight: 48,
     borderWidth: 1,
+    borderRadius: radius.input,
     paddingHorizontal: 13,
     fontSize: 14,
-    fontWeight: "700",
+    fontWeight: "600",
   },
-  catalogCreateLabel: { fontSize: 10, fontWeight: "900", letterSpacing: 0.7 },
+  catalogCreateLabel: { ...typeTokens.eyebrow, fontSize: 10 },
   catalogCreateGroups: { flexDirection: "row", flexWrap: "wrap", gap: 7 },
   catalogCreateGroup: {
     minHeight: 34,
     borderWidth: 1,
-    paddingHorizontal: 10,
+    borderRadius: radius.chip,
+    paddingHorizontal: 12,
     alignItems: "center",
     justifyContent: "center",
   },
-  catalogCreateGroupText: { fontSize: 10, fontWeight: "900" },
+  catalogCreateGroupText: { fontSize: 10, fontWeight: "700" },
   catalogCreateDescription: {
     minHeight: 70,
     borderWidth: 1,
+    borderRadius: radius.input,
     padding: 12,
     fontSize: 13,
     textAlignVertical: "top",
@@ -4550,46 +4807,56 @@ const styles = StyleSheet.create({
     flex: 1,
     minHeight: 48,
     borderWidth: 1,
+    borderRadius: radius.button,
     alignItems: "center",
     justifyContent: "center",
   },
   catalogCreateCancelText: {
     fontSize: 11,
-    fontWeight: "900",
+    fontWeight: "800",
     letterSpacing: 0.5,
   },
   catalogCreateSave: {
     flex: 1.35,
     minHeight: 48,
+    borderRadius: radius.button,
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 7,
   },
   catalogCreateSaveText: {
-    color: "#FFFDF8",
     fontSize: 10,
-    fontWeight: "900",
+    fontWeight: "800",
     letterSpacing: 0.35,
   },
-  emptySession: { borderRadius: 17, borderWidth: 1, padding: 15, gap: 5 },
-  emptySessionTitle: { fontSize: 14, fontWeight: "900" },
+  emptySession: {
+    borderRadius: radius.card,
+    borderWidth: 1,
+    padding: 15,
+    gap: 5,
+  },
+  emptySessionTitle: { fontSize: 14, fontWeight: "800" },
   emptySessionText: { fontSize: 11, lineHeight: 16 },
   total: {
-    borderRadius: 0,
+    borderRadius: radius.card,
     padding: 15,
     borderWidth: 1,
-    borderColor: "#272624",
   },
-  totalLabel: { fontSize: 10, fontWeight: "800", letterSpacing: 1 },
-  totalValue: { fontSize: 25, fontWeight: "800", marginTop: 5 },
+  totalLabel: { ...typeTokens.eyebrow, fontSize: 10 },
+  totalValue: {
+    fontSize: 25,
+    fontWeight: "800",
+    marginTop: 5,
+    fontVariant: ["tabular-nums"] as const,
+  },
   totalHint: { fontSize: 10, marginTop: 4 },
   complete: {
-    minHeight: 55,
-    borderRadius: 0,
+    minHeight: minTouchTarget + 12,
+    borderRadius: radius.button,
     alignItems: "center",
     justifyContent: "center",
   },
-  completeText: { color: "#101412", fontSize: 15, fontWeight: "800" },
+  completeText: { fontSize: 15, fontWeight: "800" },
   restOverlay: {
     flex: 1,
     paddingHorizontal: 24,
@@ -4598,32 +4865,31 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "stretch",
   },
-  restTopBar: { position: "absolute", top: 0, left: 0, right: 0, height: 9 },
+  restTopBar: { position: "absolute", top: 0, left: 0, right: 0, height: 3 },
   restPosterHeader: {
     flexDirection: "row",
     alignItems: "flex-start",
     justifyContent: "space-between",
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderColor: "#272624",
     paddingBottom: 14,
   },
   restPosterIndex: {
-    fontSize: 56,
-    lineHeight: 49,
+    fontSize: 36,
+    lineHeight: 36,
     fontWeight: "900",
-    letterSpacing: -3,
+    letterSpacing: -1.5,
+    fontVariant: ["tabular-nums"] as const,
   },
   restOverlayEyebrow: {
     textAlign: "right",
-    fontSize: 13,
-    lineHeight: 18,
-    fontWeight: "900",
-    letterSpacing: 1.4,
+    ...typeTokens.eyebrow,
+    fontSize: 11,
+    lineHeight: 17,
   },
   restOverlayCard: {
     flex: 1,
     borderWidth: 1,
-    borderRadius: 0,
+    borderRadius: radius.card,
     padding: 24,
     justifyContent: "center",
     alignItems: "center",
@@ -4637,48 +4903,60 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   restCircleText: { position: "absolute", alignItems: "center" },
-  restCircleLabel: { fontSize: 13, fontWeight: "900", letterSpacing: 1.2 },
-  restCircleValue: { fontSize: 40, fontWeight: "900", marginTop: 4 },
+  restCircleLabel: { ...typeTokens.eyebrow, fontSize: 11 },
+  restCircleValue: {
+    fontSize: 40,
+    fontWeight: "800",
+    marginTop: 4,
+    fontVariant: ["tabular-nums"] as const,
+  },
   restCopy: { alignItems: "center", gap: 8, maxWidth: 280 },
   restTitle: {
     textAlign: "center",
-    fontSize: 20,
-    fontWeight: "900",
-    lineHeight: 27,
+    fontSize: 19,
+    fontWeight: "800",
+    lineHeight: 26,
   },
   restHint: { textAlign: "center", fontSize: 13, lineHeight: 19 },
   restAlertStatus: {
     marginTop: 4,
     borderWidth: 1,
-    paddingHorizontal: 10,
+    borderRadius: radius.input,
+    paddingHorizontal: 12,
     paddingVertical: 8,
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
   },
-  restAlertStatusText: { fontSize: 10, fontWeight: "800" },
+  restAlertStatusText: { fontSize: 10, fontWeight: "700" },
   restActions: { flexDirection: "row", gap: 10 },
   restSecondaryAction: {
     flex: 1,
-    minHeight: 54,
+    minHeight: minTouchTarget + 10,
     paddingHorizontal: 12,
-    borderRadius: 0,
+    borderRadius: radius.button,
     borderWidth: 1,
     alignItems: "center",
     justifyContent: "center",
   },
-  restSecondaryText: { fontSize: 14, fontWeight: "900" },
+  restSecondaryText: { fontSize: 14, fontWeight: "700" },
   restSkipAction: {
     flex: 1.55,
-    minHeight: 54,
+    minHeight: minTouchTarget + 10,
     paddingHorizontal: 12,
-    borderRadius: 0,
+    borderRadius: radius.button,
     alignItems: "center",
     justifyContent: "center",
   },
-  restSkipText: { color: "#FFFDF8", fontSize: 14, fontWeight: "900" },
+  restSkipText: { fontSize: 14, fontWeight: "800" },
   setEditorBackdrop: { flex: 1 },
-  setEditorSheet: { flex: 1, padding: 24, paddingTop: 42, borderTopWidth: 9 },
+  setEditorSheet: {
+    flex: 1,
+    padding: 24,
+    paddingTop: 42,
+    borderTopLeftRadius: radius.sheet,
+    borderTopRightRadius: radius.sheet,
+  },
   setEditorHeader: {
     position: "absolute",
     top: 42,
@@ -4689,16 +4967,16 @@ const styles = StyleSheet.create({
     alignItems: "flex-start",
     gap: 12,
   },
-  setEditorEyebrow: { fontSize: 10, fontWeight: "900", letterSpacing: 0.9 },
-  setEditorTitle: { fontSize: 28, fontWeight: "900", marginTop: 5 },
+  setEditorEyebrow: { ...typeTokens.eyebrow, fontSize: 10 },
+  setEditorTitle: { ...typeTokens.title, fontSize: 27, marginTop: 5 },
   setEditorClose: {
-    width: 46,
-    height: 46,
-    borderRadius: 0,
+    width: 44,
+    height: 44,
+    borderRadius: radius.chip,
     alignItems: "center",
     justifyContent: "center",
   },
-  setEditorCloseText: { fontSize: 25, lineHeight: 28 },
+  setEditorCloseText: { fontSize: 24, lineHeight: 27 },
   setEditorCenter: {
     flex: 1,
     width: "100%",
@@ -4709,41 +4987,41 @@ const styles = StyleSheet.create({
   },
   setEditorFields: { flexDirection: "row", gap: 14 },
   setEditorFieldWrap: { flex: 1, gap: 9 },
-  setEditorLabel: { fontSize: 11, fontWeight: "900", letterSpacing: 0.75 },
+  setEditorLabel: { ...typeTokens.eyebrow, fontSize: 11 },
   setEditorInput: {
     height: 86,
-    borderRadius: 0,
+    borderRadius: radius.input,
     borderWidth: 1,
     textAlign: "center",
     fontSize: 30,
-    fontWeight: "900",
+    fontWeight: "800",
+    fontVariant: ["tabular-nums"] as const,
   },
   quickWeightGroup: { gap: 8 },
   quickWeightLabel: {
+    ...typeTokens.eyebrow,
     fontSize: 10,
-    fontWeight: "900",
-    letterSpacing: 0.65,
     textAlign: "center",
   },
   quickWeightRow: { flexDirection: "row", gap: 8, justifyContent: "center" },
   quickWeightButton: {
     flex: 1,
     minHeight: 42,
-    borderRadius: 0,
+    borderRadius: radius.input,
     borderWidth: 1,
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 4,
   },
-  quickWeightText: { fontSize: 12, fontWeight: "900" },
+  quickWeightText: { fontSize: 12, fontWeight: "800", fontVariant: ["tabular-nums"] as const },
   setEditorFinish: {
-    minHeight: 62,
-    borderRadius: 0,
+    minHeight: minTouchTarget + 16,
+    borderRadius: radius.button,
     alignItems: "center",
     justifyContent: "center",
     marginTop: 2,
   },
-  setEditorFinishText: { color: "#FFFDF8", fontSize: 17, fontWeight: "900" },
+  setEditorFinishText: { fontSize: 17, fontWeight: "800" },
   setActionPanel: {
     marginTop: 10,
     paddingTop: 10,
@@ -4751,28 +5029,30 @@ const styles = StyleSheet.create({
     gap: 7,
   },
   startSetAction: {
-    minHeight: 42,
+    minHeight: minTouchTarget,
     borderWidth: 1,
+    borderRadius: radius.button,
     alignItems: "center",
     justifyContent: "center",
   },
-  startSetActionText: { fontSize: 11, fontWeight: "900", letterSpacing: 0.65 },
+  startSetActionText: { fontSize: 11, fontWeight: "800", letterSpacing: 0.65 },
   finishSetAction: {
-    minHeight: 44,
+    minHeight: minTouchTarget + 2,
+    borderRadius: radius.button,
     alignItems: "center",
     justifyContent: "center",
   },
   finishSetActionText: {
-    color: "#FFFDF8",
     fontSize: 11,
-    fontWeight: "900",
+    fontWeight: "800",
     letterSpacing: 0.65,
   },
   setActionTimer: {
-    fontSize: 9,
-    fontWeight: "900",
+    fontSize: 10,
+    fontWeight: "700",
     letterSpacing: 0.45,
     textAlign: "center",
+    fontVariant: ["tabular-nums"] as const,
   },
   setCompletedLine: {
     minHeight: 38,
@@ -4781,7 +5061,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     gap: 8,
   },
-  setEditLink: { fontSize: 9, fontWeight: "900", letterSpacing: 0.35 },
+  setEditLink: { fontSize: 10, fontWeight: "700", letterSpacing: 0.35 },
   modalRoot: { flex: 1, paddingTop: 10 },
   modalHeader: {
     minHeight: 56,
@@ -4795,20 +5075,23 @@ const styles = StyleSheet.create({
   save: { fontSize: 14, fontWeight: "800" },
   modalContent: { padding: 18, gap: 12, paddingBottom: 178 },
   oneRm: {
-    borderRadius: 17,
+    borderRadius: radius.tile,
     padding: 15,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
   },
   oneRmLabel: {
-    color: "#101412",
     fontSize: 10,
-    fontWeight: "900",
+    fontWeight: "800",
     letterSpacing: 0.8,
   },
-  oneRmHint: { color: "#101412AA", fontSize: 11, marginTop: 4 },
-  oneRmValue: { color: "#101412", fontSize: 24, fontWeight: "900" },
+  oneRmHint: { fontSize: 11, marginTop: 4 },
+  oneRmValue: {
+    fontSize: 24,
+    fontWeight: "900",
+    fontVariant: ["tabular-nums"] as const,
+  },
   sectionTitle: { fontSize: 17, fontWeight: "800", marginTop: 4 },
   zones: { flexDirection: "row", gap: 8 },
   zone: {
@@ -4823,7 +5106,7 @@ const styles = StyleSheet.create({
   zoneWeight: { fontSize: 13, fontWeight: "800" },
   noteInput: {
     minHeight: 46,
-    borderRadius: 13,
+    borderRadius: radius.input,
     borderWidth: 1,
     paddingHorizontal: 12,
     fontSize: 12,
@@ -4837,39 +5120,51 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
   },
-  historyDate: { fontSize: 13, fontWeight: "800" },
+  historyDate: { fontSize: 13, fontWeight: "700", fontVariant: ["tabular-nums"] as const },
   historyMeta: { fontSize: 10, marginTop: 3 },
   historySet: { paddingVertical: 6, flexDirection: "row" },
   setDetail: { flex: 1, fontSize: 12, fontWeight: "700" },
   empty: { fontSize: 12 },
   fieldHint: { fontSize: 11, lineHeight: 16, marginTop: -4 },
-  setBox: { borderRadius: 15, borderWidth: 1, padding: 8, gap: 8 },
-  setRow: { minHeight: 43, flexDirection: "row", alignItems: "center", gap: 9 },
-  setIndex: { width: 38, textAlign: "center", fontSize: 16, fontWeight: "900" },
-  input: {
-    flex: 1,
-    height: 42,
-    borderRadius: 12,
+  setBox: {
+    borderRadius: radius.tile,
     borderWidth: 1,
+    padding: 10,
+    gap: 8,
+  },
+  setRow: { minHeight: 43, flexDirection: "row", alignItems: "center", gap: 9 },
+  setIndex: {
+    width: 38,
     textAlign: "center",
     fontSize: 15,
     fontWeight: "800",
+    fontVariant: ["tabular-nums"] as const,
+  },
+  input: {
+    flex: 1,
+    height: 42,
+    borderRadius: radius.input,
+    borderWidth: 1,
+    textAlign: "center",
+    fontSize: 15,
+    fontWeight: "700",
+    fontVariant: ["tabular-nums"] as const,
   },
   typeChips: { flexDirection: "row", gap: 6, paddingLeft: 46 },
   typeChip: {
     flex: 1,
     minHeight: 30,
-    borderRadius: 9,
+    borderRadius: radius.chip,
     borderWidth: 1,
     alignItems: "center",
     justifyContent: "center",
   },
-  typeChipText: { fontSize: 10, fontWeight: "800" },
-  dropPanel: { borderRadius: 13, borderWidth: 1, padding: 10, gap: 8 },
+  typeChipText: { fontSize: 10, fontWeight: "700" },
+  dropPanel: { borderRadius: radius.input, borderWidth: 1, padding: 10, gap: 8 },
   dropHeader: { flexDirection: "row", justifyContent: "space-between", gap: 8 },
   dropTitle: { fontSize: 12, fontWeight: "900" },
   dropHint: { fontSize: 10, marginTop: 3, lineHeight: 14 },
-  dropCount: { fontSize: 12, fontWeight: "900" },
+  dropCount: { fontSize: 12, fontWeight: "800", fontVariant: ["tabular-nums"] as const },
   subsetRow: { flexDirection: "row", alignItems: "center", gap: 7 },
   subsetIndex: {
     width: 22,
@@ -4884,7 +5179,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     textAlign: "center",
     fontSize: 13,
-    fontWeight: "800",
+    fontWeight: "700",
+    fontVariant: ["tabular-nums"] as const,
   },
   removeSubset: {
     width: 25,
@@ -4905,18 +5201,18 @@ const styles = StyleSheet.create({
   dropVolume: { fontSize: 10, textAlign: "right" },
   addSet: {
     minHeight: 46,
-    borderRadius: 14,
+    borderRadius: radius.input,
     borderWidth: 1,
     borderStyle: "dashed",
     alignItems: "center",
     justifyContent: "center",
   },
-  addSetText: { fontSize: 14, fontWeight: "800" },
+  addSetText: { fontSize: 14, fontWeight: "700" },
   saveButton: {
-    minHeight: 54,
-    borderRadius: 16,
+    minHeight: minTouchTarget + 10,
+    borderRadius: radius.button,
     alignItems: "center",
     justifyContent: "center",
   },
-  saveButtonText: { color: "#101412", fontSize: 15, fontWeight: "800" },
+  saveButtonText: { fontSize: 15, fontWeight: "800" },
 });

@@ -7,7 +7,7 @@ describe("catalog and program workflow", () => {
     expect(exercise.id).toBe("custom-exercise-1");
     expect(exercise.name).toBe("Тяга в кроссовере");
     expect(exercise.image).toContain("data:image/svg+xml");
-    expect(exercise.videoUrl).toContain("youtube.com");
+    expect(exercise.videoUrl).toContain("rutube.ru/search/?query=");
   });
 
   it("sorts program registry by creation date in both directions", () => {
@@ -28,7 +28,7 @@ describe("catalog and program workflow", () => {
 
   it("keeps prior generated technique art available as an exercise image candidate", () => {
     const exercise: Exercise = { id: "bench-press", name: "Жим", group: "Грудь", equipment: "Штанга", description: "", image: "", videoUrl: "", recordKg: 0, recordReps: 0 };
-    expect(getExerciseIllustrationCandidates(exercise).some((candidate) => candidate.url.includes("bench-press-generated"))).toBe(true);
+    expect(getExerciseIllustrationCandidates(exercise).some((candidate) => String(candidate.url).includes("bench-press-generated"))).toBe(true);
   });
 
   it("offers an AI group illustration for every catalog exercise group", () => {

@@ -43,12 +43,26 @@ import {
   buildHomeEnergyTrend,
   type HomeEnergyTrendPoint,
 } from "@/lib/home-energy-trend";
-
-const REFERENCE_BLUE = "#1746D2";
+import {
+  minTouchTarget,
+  pressedOpacity,
+  radius,
+  shadows,
+  spacing,
+  type as typeTokens,
+} from "@/lib/design-tokens";
 
 const dateKey = (date: Date) => date.toISOString().slice(0, 10);
 const titleCase = (value: string) =>
   value ? value[0].toUpperCase() + value.slice(1) : value;
+const greetingByHour = (hour: number) =>
+  hour < 5
+    ? "Доброй ночи"
+    : hour < 12
+      ? "Доброе утро"
+      : hour < 18
+        ? "Добрый день"
+        : "Добрый вечер";
 
 export default function HomeScreen() {
   const colors = useColors();
@@ -75,9 +89,18 @@ export default function HomeScreen() {
   const dayLabel = titleCase(
     now.toLocaleDateString("ru-RU", { weekday: "long" }),
   );
-  const monthLabel = now
-    .toLocaleDateString("ru-RU", { month: "long" })
-    .toUpperCase();
+  const monthLabel = now.toLocaleDateString("ru-RU", { month: "long" });
+  const greeting = greetingByHour(now.getHours());
+  const todayTotalSets =
+    todayProgram?.exercises.reduce((sum, item) => sum + item.sets, 0) ?? 0;
+  const todayEstimateMinutes = todayProgram
+    ? Math.round(
+        todayProgram.exercises.reduce(
+          (sum, item) => sum + item.sets * (item.rest + 45),
+          0,
+        ) / 60,
+      )
+    : 0;
   const todayFoodEntries = nutritionEntries.filter(
     (entry) => entry.date === nutritionToday,
   );
@@ -139,75 +162,53 @@ export default function HomeScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.content}
       >
-        <View style={[styles.banner, { backgroundColor: colors.primary }]} />
-        <View style={styles.heroGrid}>
-          <View style={[styles.heroLeft, { borderColor: colors.border }]}>
-            <Text style={[styles.sideMotto, { color: colors.foreground }]}>
-              ПОДНИМАЙ. ПРОГРЕССИРУЙ. ПОВТОРЯЙ.
+        <View style={styles.hero}>
+          <Text style={[styles.heroEyebrow, { color: colors.primary }]}>
+            Дневник тренировок
+          </Text>
+          <Text style={[styles.heroGreeting, { color: colors.foreground }]}>
+            {greeting}
+          </Text>
+          <Text style={[styles.heroDate, { color: colors.muted }]}>
+            {dayLabel.toLowerCase()}, {now.getDate()} {monthLabel}
+          </Text>
+          <View style={styles.brandCredit}>
+            <Text style={[styles.creditName, { color: colors.foreground }]}>
+              IronRise · by Vasily Lukin
             </Text>
-            <View
-              style={[styles.mottoRule, { backgroundColor: colors.foreground }]}
-            />
-          </View>
-          <View style={[styles.dayPanel, { borderColor: colors.border }]}>
-            <Text style={[styles.dayNumber, { color: colors.foreground }]}>
-              {String(now.getDate()).padStart(2, "0")}
+            <Text style={[styles.creditRights, { color: colors.muted }]}>
+              © All rights reserved
             </Text>
-            <View style={styles.dayMeta}>
-              <Text style={[styles.redKicker, { color: colors.primary }]}>
-                СЕГОДНЯ
-              </Text>
-              <Text style={[styles.dayName, { color: colors.foreground }]}>
-                {dayLabel}
-              </Text>
-              <Text style={[styles.dateText, { color: colors.foreground }]}>
-                {now.getDate()} {monthLabel}
-              </Text>
-              <View
-                style={[styles.redRule, { backgroundColor: colors.primary }]}
-              />
-            </View>
-            <Text
-              numberOfLines={1}
-              adjustsFontSizeToFit
-              minimumFontScale={0.76}
-              style={[styles.wordmark, { color: colors.foreground }]}
-            >
-              IRON<Text style={{ color: colors.primary }}>RISE</Text>
-            </Text>
-            <Text style={[styles.tagline, { color: colors.foreground }]}>
-              СТАНЬ СИЛЬНЕЕ СЕБЯ ВЧЕРАШНЕГО.
-            </Text>
-            <View style={styles.brandCredit}>
-              <Text style={[styles.creditName, { color: colors.foreground }]}>
-                by Vasily Lukin
-              </Text>
-              <Text style={[styles.creditRights, { color: colors.muted }]}>
-                © All rights reserved
-              </Text>
-            </View>
-            <View
-              style={[styles.blueBlock, { backgroundColor: REFERENCE_BLUE }]}
-            />
-          </View>
-          <View style={[styles.planPanel, { borderColor: colors.border }]}>
-            <View
-              style={[styles.planHeading, { borderBottomColor: colors.border }]}
-            >
-              <Text style={[styles.planStar, { color: colors.primary }]}>
-                ✳
-              </Text>
-              <Text style={[styles.planTitle, { color: colors.primary }]}>
-                ПЛАН
-              </Text>
-            </View>
-            {todayProgram ? (
-              <PlanTimeline program={todayProgram} colors={colors} />
-            ) : (
-              <EmptyPlan colors={colors} />
-            )}
           </View>
         </View>
+        {todayProgram ? (
+          <TodayWorkoutCard
+            program={todayProgram}
+            colors={colors}
+            totalSets={todayTotalSets}
+            estimateMinutes={todayEstimateMinutes}
+            onStart={() => {
+              startWorkout(todayProgram.id);
+              router.push({
+                pathname: "/workout",
+                params: { programId: todayProgram.id },
+              });
+            }}
+          />
+        ) : (
+          <View
+            style={[
+              styles.todCard,
+              { backgroundColor: colors.surface, borderColor: colors.border },
+              shadows.card,
+            ]}
+          >
+            <Text style={[styles.todKicker, { color: colors.primary }]}>
+              Тренировка дня
+            </Text>
+            <EmptyPlan colors={colors} />
+          </View>
+        )}
         <HomeWidgetStack
           homeWidgets={homeWidgets}
           now={now}
@@ -381,48 +382,34 @@ function HomeWidgetStack({
           style={[
             styles.analytics,
             compact && compactStyles.analytics,
-            { borderTopColor: colors.border, borderBottomColor: colors.border },
+            { backgroundColor: colors.surface, borderColor: colors.border },
+            shadows.card,
           ]}
         >
-          <View
-            style={[styles.analyticsLabel, { borderRightColor: colors.border }]}
-          >
+          <View style={styles.chartTopline}>
             <Text style={[styles.analyticsTitle, { color: colors.foreground }]}>
-              ОБЪЁМ{`\n`}КГ
+              ОБЪЁМ · КГ
             </Text>
-            <View
-              style={[styles.graphMark, { backgroundColor: colors.foreground }]}
+            <Pressable
+              onPress={() => router.push("/(tabs)/stats")}
+              style={({ pressed }) => [
+                styles.chartLink,
+                { borderColor: colors.primary, opacity: pressed ? pressedOpacity : 1 },
+              ]}
             >
-              <IconSymbol
-                name="chart.bar.fill"
-                size={compact ? 24 : 34}
-                color={colors.surface}
-              />
-            </View>
-          </View>
-          <View style={styles.chartArea}>
-            <View style={styles.chartTopline}>
-              <Text style={[styles.chartCaption, { color: colors.foreground }]}>
-                ЗАВЕРШЁННЫЕ ТРЕНИРОВКИ
+              <Text style={[styles.chartLinkText, { color: colors.primary }]}>
+                Статистика
               </Text>
-              <Pressable
-                onPress={() => router.push("/(tabs)/stats")}
-                style={({ pressed }) => [
-                  styles.chartLink,
-                  { borderColor: colors.primary, opacity: pressed ? 0.65 : 1 },
-                ]}
-              >
-                <Text style={[styles.chartLinkText, { color: colors.primary }]}>
-                  СТАТИСТИКА
-                </Text>
-              </Pressable>
-            </View>
-            <CompletedWorkoutChart
-              points={workoutTrend}
-              colors={colors}
-              compact={compact}
-            />
+            </Pressable>
           </View>
+          <Text style={[styles.chartCaption, { color: colors.muted }]}>
+            ЗАВЕРШЁННЫЕ ТРЕНИРОВКИ
+          </Text>
+          <CompletedWorkoutChart
+            points={workoutTrend}
+            colors={colors}
+            compact={compact}
+          />
         </View>
       );
     if (id === "metrics")
@@ -478,11 +465,11 @@ function HomeWidgetStack({
           style={({ pressed }) => [
             styles.outlineAction,
             compact && compactStyles.outlineAction,
-            { borderColor: colors.border, opacity: pressed ? 0.65 : 1 },
+            { borderColor: colors.border, opacity: pressed ? pressedOpacity : 1 },
           ]}
         >
           <Text style={[styles.actionText, { color: colors.foreground }]}>
-            КАЛЕНДАРЬ
+            Календарь
           </Text>
           <IconSymbol
             name="calendar"
@@ -495,11 +482,11 @@ function HomeWidgetStack({
           style={({ pressed }) => [
             styles.outlineAction,
             compact && compactStyles.outlineAction,
-            { borderColor: colors.border, opacity: pressed ? 0.65 : 1 },
+            { borderColor: colors.border, opacity: pressed ? pressedOpacity : 1 },
           ]}
         >
           <Text style={[styles.actionText, { color: colors.foreground }]}>
-            УПРАЖНЕНИЯ
+            Упражнения
           </Text>
           <IconSymbol
             name="dumbbell.fill"
@@ -573,10 +560,10 @@ function WidgetDragHint({
             onPress={onDismiss}
             style={({ pressed }) => [
               styles.hintButton,
-              { backgroundColor: colors.primary, opacity: pressed ? 0.74 : 1 },
+              { backgroundColor: colors.primary, opacity: pressed ? pressedOpacity : 1 },
             ]}
           >
-            <Text style={styles.hintButtonText}>ПОНЯТНО</Text>
+            <Text style={[styles.hintButtonText, { color: colors.background }]}>ПОНЯТНО</Text>
           </Pressable>
         </View>
       </View>
@@ -702,68 +689,146 @@ function EmptyPlan({ colors }: { colors: any }) {
         onPress={() => router.push("/(tabs)/calendar")}
         style={({ pressed }) => [
           styles.planButton,
-          { backgroundColor: colors.primary, opacity: pressed ? 0.72 : 1 },
+          {
+            backgroundColor: colors.background,
+            borderColor: colors.border,
+            opacity: pressed ? pressedOpacity : 1,
+          },
         ]}
       >
-        <Text style={styles.planButtonText}>ЗАПЛАНИРОВАТЬ</Text>
+        <Text style={[styles.planButtonText, { color: colors.foreground }]}>
+          Запланировать
+        </Text>
       </Pressable>
     </View>
   );
 }
 
-function PlanTimeline({
+function TodayWorkoutCard({
   program,
   colors,
+  totalSets,
+  estimateMinutes,
+  onStart,
 }: {
   program: NonNullable<ReturnType<typeof getProgram>>;
   colors: any;
+  totalSets: number;
+  estimateMinutes: number;
+  onStart: () => void;
 }) {
-  const plan = program.exercises.slice(0, 4);
+  const chips = program.exercises.slice(0, 5);
   return (
-    <View style={styles.timeline}>
-      {plan.map((exercise, index) => {
-        const detail = `${exercise.sets} × ${exercise.reps}`;
-        return (
+    <View
+      style={[
+        styles.todCard,
+        { backgroundColor: colors.surface, borderColor: colors.border },
+        shadows.card,
+      ]}
+    >
+      <View
+        pointerEvents="none"
+        style={[styles.todGlow, { backgroundColor: `${colors.primary}17` }]}
+      />
+      <View style={styles.todTop}>
+        <Text style={[styles.todKicker, { color: colors.primary }]}>
+          Тренировка дня
+        </Text>
+        <View
+          style={[
+            styles.todBadge,
+            {
+              borderColor: `${colors.warning}47`,
+              backgroundColor: `${colors.warning}1F`,
+            },
+          ]}
+        >
+          <Text style={[styles.todBadgeText, { color: colors.warning }]}>
+            {totalSets} подходов
+          </Text>
+        </View>
+      </View>
+      <Text
+        numberOfLines={2}
+        style={[styles.todName, { color: colors.foreground }]}
+      >
+        {program.name}
+      </Text>
+      <View style={styles.todMeta}>
+        <Text style={[styles.todMetaText, { color: colors.muted }]}>
+          <Text
+            style={[
+              styles.todMetaValue,
+              { color: colors.foreground, fontVariant: ["tabular-nums"] },
+            ]}
+          >
+            {program.exercises.length}
+          </Text>{" "}
+          упражнений
+        </Text>
+        <Text style={[styles.todMetaText, { color: colors.muted }]}>
+          ≈{" "}
+          <Text
+            style={[
+              styles.todMetaValue,
+              { color: colors.foreground, fontVariant: ["tabular-nums"] },
+            ]}
+          >
+            {estimateMinutes}
+          </Text>{" "}
+          мин
+        </Text>
+      </View>
+      <View style={styles.todExList}>
+        {chips.map((exercise) => (
           <View
             key={`${program.id}-${exercise.exerciseId}`}
             style={[
-              styles.planItem,
-              index < plan.length - 1 && {
-                borderBottomColor: colors.border,
-                borderBottomWidth: StyleSheet.hairlineWidth,
+              styles.todExChip,
+              {
+                backgroundColor: colors.background,
+                borderColor: colors.border,
               },
             ]}
           >
-            <View style={styles.planIndex}>
-              <Text style={[styles.indexText, { color: colors.primary }]}>
-                {String(index + 1).padStart(2, "0")}
-              </Text>
-              <View
-                style={[
-                  styles.timelineDot,
-                  { backgroundColor: colors.primary },
-                ]}
-              />
-            </View>
-            <View style={styles.planBody}>
-              <Text
-                numberOfLines={2}
-                style={[styles.exerciseName, { color: colors.foreground }]}
-              >
-                {getExercise(exercise.exerciseId)?.name ?? "Упражнение"}
-              </Text>
-              <Text style={[styles.exerciseDetail, { color: colors.muted }]}>
-                {detail} · отдых {exercise.rest} с
-              </Text>
-            </View>
+            <Text
+              numberOfLines={1}
+              style={[styles.todExChipText, { color: colors.muted }]}
+            >
+              {getExercise(exercise.exerciseId)?.name ?? "Упражнение"}
+            </Text>
           </View>
-        );
-      })}
-      {program.exercises.length > plan.length && (
-        <Text style={[styles.morePlan, { color: colors.muted }]}>
-          + ещё {program.exercises.length - plan.length} в программе
+        ))}
+        {program.exercises.length > chips.length && (
+          <View
+            style={[
+              styles.todExChip,
+              {
+                backgroundColor: colors.background,
+                borderColor: colors.border,
+              },
+            ]}
+          >
+            <Text style={[styles.todExChipText, { color: colors.muted }]}>
+              + ещё {program.exercises.length - chips.length}
+            </Text>
+          </View>
+        )}
+      </View>
+      <Pressable
+        onPress={onStart}
+        style={({ pressed }) => [
+          styles.todCta,
+          { backgroundColor: colors.primary, opacity: pressed ? pressedOpacity : 1 },
+          shadows.raised,
+        ]}
+        accessibilityRole="button"
+        accessibilityLabel="Начать тренировку"
+      >
+        <Text style={[styles.todCtaText, { color: colors.background }]}>
+          Начать тренировку
         </Text>
-      )}
+      </Pressable>
     </View>
   );
 }
@@ -777,7 +842,7 @@ function WeekStrip({
 }: {
   now: Date;
   scheduled: Record<string, unknown>;
-  completed: Array<{ date: string }>;
+  completed: Array<{ date: string; totalVolume?: number; durationMinutes?: number }>;
   colors: any;
   compact: boolean;
 }) {
@@ -788,73 +853,132 @@ function WeekStrip({
     const date = new Date(monday);
     date.setDate(monday.getDate() + index);
     const key = dateKey(date);
+    const dayWorkouts = completed.filter((item) => item.date === key);
+    const volume = dayWorkouts.reduce(
+      (sum, item) => sum + Math.max(0, item.totalVolume ?? 0),
+      0,
+    );
     return {
       date,
       key,
-      done: completed.some((item) => item.date === key),
+      done: dayWorkouts.length > 0,
+      volume,
       planned: Boolean(scheduled[key]),
       today: key === dateKey(now),
     };
   });
+  const rangeLabel = `${monday.getDate()}–${new Date(monday.getTime() + 6 * 86_400_000).getDate()} ${monday.toLocaleDateString("ru-RU", { month: "short" }).replace(".", "")}`;
+  const weekWorkouts = cells.filter((cell) => cell.done).length;
+  const weekVolume = cells.reduce((sum, cell) => sum + cell.volume, 0);
+  const weekMinutes = completed
+    .filter((item) => cells.some((cell) => cell.key === item.date))
+    .reduce((sum, item) => sum + Math.max(0, item.durationMinutes ?? 0), 0);
+  const maxVolume = Math.max(1, ...cells.map((cell) => cell.volume));
+  const stats = [
+    { value: String(weekWorkouts), label: "Тренировки", tone: colors.primary },
+    {
+      value: `${(weekVolume / 1000).toFixed(1)}т`,
+      label: "Объём, кг",
+      tone: colors.warning,
+    },
+    {
+      value: String(weekMinutes),
+      label: "Минуты",
+      tone: colors.foreground,
+    },
+  ];
   return (
-    <View style={[styles.weekStrip, { borderBottomColor: colors.border }]}>
-      {cells.map((cell) => (
-        <Pressable
-          key={cell.key}
-          onPress={() => router.push("/(tabs)/calendar")}
-          style={({ pressed }) => [
-            styles.weekCell,
-            compact && compactStyles.weekCell,
-            {
-              borderRightColor: colors.border,
-              backgroundColor: cell.today ? REFERENCE_BLUE : "transparent",
-              opacity: pressed ? 0.64 : 1,
-            },
-          ]}
-        >
-          <Text
-            style={[
-              styles.weekDay,
-              { color: cell.today ? colors.surface : colors.foreground },
+    <View
+      style={[
+        styles.weekCard,
+        { backgroundColor: colors.surface, borderColor: colors.border },
+        shadows.card,
+      ]}
+    >
+      <View style={styles.weekHead}>
+        <Text style={[styles.weekKicker, { color: colors.primary }]}>
+          Неделя
+        </Text>
+        <Text style={[styles.weekRange, { color: colors.muted }]}>
+          {rangeLabel}
+        </Text>
+      </View>
+      {!compact && (
+        <View style={styles.weekStats}>
+          {stats.map((stat) => (
+            <View
+              key={stat.label}
+              style={[
+                styles.weekStat,
+                { backgroundColor: colors.background, borderColor: colors.border },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.weekStatValue,
+                  { color: stat.tone, fontVariant: ["tabular-nums"] },
+                ]}
+              >
+                {stat.value}
+              </Text>
+              <Text style={[styles.weekStatLabel, { color: colors.muted }]}>
+                {stat.label}
+              </Text>
+            </View>
+          ))}
+        </View>
+      )}
+      <View style={[styles.weekBars, compact && compactStyles.weekBars]}>
+        {cells.map((cell) => (
+          <Pressable
+            key={cell.key}
+            onPress={() => router.push("/(tabs)/calendar")}
+            style={({ pressed }) => [
+              styles.weekBarCell,
+              compact && compactStyles.weekBarCell,
+              { opacity: pressed ? pressedOpacity : 1 },
             ]}
+            accessibilityLabel={`День ${cell.date.getDate()}`}
           >
-            {cell.date
-              .toLocaleDateString("ru-RU", { weekday: "short" })
-              .replace(".", "")
-              .toUpperCase()}
-          </Text>
-          <Text
-            style={[
-              styles.weekDate,
-              compact && compactStyles.weekDate,
-              { color: cell.today ? colors.surface : colors.foreground },
-            ]}
-          >
-            {cell.date.getDate()}
-          </Text>
-          {!compact && (
             <View
               style={[
-                styles.weekStatus,
+                styles.weekBar,
+                compact && compactStyles.weekBar,
                 {
-                  borderColor: cell.today
-                    ? colors.surface
-                    : cell.done
-                      ? colors.success
-                      : cell.planned
-                        ? colors.foreground
-                        : colors.muted,
+                  height: cell.done
+                    ? `${Math.max(24, Math.round((cell.volume / maxVolume) * 100))}%`
+                    : 5,
                   backgroundColor: cell.done
-                    ? colors.success
-                    : cell.planned
-                      ? colors.foreground
-                      : "transparent",
+                    ? cell.today
+                      ? colors.primary
+                      : `${colors.primary}80`
+                    : colors.background,
+                  borderColor:
+                    cell.planned && !cell.done
+                      ? colors.border
+                      : cell.done
+                        ? `${colors.primary}4D`
+                        : colors.border,
                 },
               ]}
             />
-          )}
-        </Pressable>
-      ))}
+            <Text
+              style={[
+                styles.weekBarDay,
+                {
+                  color: cell.today ? colors.primary : colors.muted,
+                  fontWeight: cell.today ? "800" : "600",
+                },
+              ]}
+            >
+              {cell.date
+                .toLocaleDateString("ru-RU", { weekday: "short" })
+                .replace(".", "")
+                .toLowerCase()}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
     </View>
   );
 }
@@ -878,7 +1002,7 @@ function Metric({
       style={({ pressed }) => [
         styles.metric,
         compact && compactStyles.metric,
-        { borderColor: colors.border, opacity: pressed ? 0.64 : 1 },
+        { borderColor: colors.border, opacity: pressed ? pressedOpacity : 1 },
       ]}
     >
       <Text
@@ -929,7 +1053,7 @@ function DailyEnergyCard({
         {
           backgroundColor: colors.surface,
           borderColor: colors.border,
-          opacity: pressed ? 0.68 : 1,
+          opacity: pressed ? pressedOpacity : 1,
         },
       ]}
     >
@@ -1030,7 +1154,7 @@ function WeeklyEnergyTrend({
         {
           borderColor: colors.border,
           backgroundColor: colors.surface,
-          opacity: pressed ? 0.68 : 1,
+          opacity: pressed ? pressedOpacity : 1,
         },
       ]}
     >
@@ -1118,12 +1242,12 @@ function NutritionProgress({
       goal: macroGoals.protein,
       color: colors.primary,
     },
-    { label: "Ж", value: macros.fat, goal: macroGoals.fat, color: "#2F5FC4" },
+    { label: "Ж", value: macros.fat, goal: macroGoals.fat, color: colors.warning },
     {
       label: "У",
       value: macros.carbs,
       goal: macroGoals.carbs,
-      color: "#E6A52D",
+      color: colors.success,
     },
   ];
   const caloriePercent = Math.min(
@@ -1139,7 +1263,7 @@ function NutritionProgress({
         {
           borderColor: colors.border,
           backgroundColor: colors.surface,
-          opacity: pressed ? 0.68 : 1,
+          opacity: pressed ? pressedOpacity : 1,
         },
       ]}
     >
@@ -1275,7 +1399,9 @@ function CompletedWorkoutChart({
               width={barWidth}
               height={barHeight}
               fill={
-                index === points.length - 1 ? REFERENCE_BLUE : colors.foreground
+                index === points.length - 1
+                  ? colors.primary
+                  : `${colors.primary}66`
               }
               onPress={() =>
                 router.push({
@@ -1309,175 +1435,92 @@ function CompletedWorkoutChart({
 
 const styles = StyleSheet.create({
   content: { paddingBottom: 28 },
-  banner: { height: 8 },
-  heroGrid: { flexDirection: "row", minHeight: 432 },
-  heroLeft: {
-    width: 38,
-    borderRightWidth: StyleSheet.hairlineWidth,
-    alignItems: "center",
-    justifyContent: "flex-end",
-    paddingBottom: 24,
-  },
-  sideMotto: {
-    position: "absolute",
-    top: 166,
-    left: -111,
-    fontSize: 10,
-    fontWeight: "900",
-    letterSpacing: 1.6,
-    writingDirection: "ltr",
-    transform: [{ rotate: "-90deg" }],
-    width: 260,
-    textAlign: "center",
-  },
-  mottoRule: { width: 1, height: 42 },
-  dayPanel: {
-    width: "44%",
-    borderRightWidth: StyleSheet.hairlineWidth,
-    padding: 14,
+  hero: { paddingHorizontal: 18, paddingTop: 14, paddingBottom: 14 },
+  heroEyebrow: { ...typeTokens.eyebrow },
+  heroGreeting: { ...typeTokens.title, fontSize: 27, marginTop: 6 },
+  heroDate: { fontSize: 13, marginTop: 5, textTransform: "capitalize" },
+  brandCredit: { marginTop: 10, gap: 2 },
+  creditName: { fontSize: 9, fontWeight: "700", letterSpacing: 0.3 },
+  creditRights: { fontSize: 8, fontWeight: "600", letterSpacing: 0.1, opacity: 0.8 },
+  todCard: {
+    marginHorizontal: 14,
+    borderRadius: radius.card,
+    borderWidth: 1,
+    padding: 20,
     overflow: "hidden",
     position: "relative",
   },
-  dayNumber: {
-    fontSize: 118,
-    lineHeight: 104,
-    letterSpacing: -8,
-    fontWeight: "900",
-  },
-  dayMeta: { marginTop: 12, marginLeft: 2 },
-  redKicker: { fontSize: 12, letterSpacing: 1.5, fontWeight: "900" },
-  dayName: {
-    fontSize: 18,
-    fontWeight: "900",
-    marginTop: 7,
-    textTransform: "uppercase",
-  },
-  dateText: { fontSize: 12, fontWeight: "800", marginTop: 4 },
-  redRule: { width: 38, height: 3, marginTop: 16 },
-  wordmark: {
-    alignSelf: "stretch",
-    flexShrink: 1,
-    fontSize: 34,
-    lineHeight: 39,
-    letterSpacing: -2.5,
-    fontWeight: "900",
-    marginTop: 38,
-    includeFontPadding: false,
-  },
-  tagline: {
-    fontSize: 8.5,
-    fontWeight: "900",
-    letterSpacing: 0.4,
-    marginTop: 7,
-  },
-  brandCredit: { marginTop: 8, gap: 2 },
-  creditName: { fontSize: 9, fontWeight: "900", letterSpacing: 0.15 },
-  creditRights: { fontSize: 7.5, fontWeight: "700", letterSpacing: 0.1 },
-  blueBlock: {
-    position: "absolute",
-    height: 130,
-    width: 300,
-    bottom: -98,
-    right: -88,
-    transform: [{ rotate: "-29deg" }],
-  },
-  planPanel: { flex: 1, paddingHorizontal: 12, paddingTop: 18 },
-  planHeading: {
-    flexDirection: "row",
+  todGlow: { position: "absolute", top: 0, right: 0, width: 220, height: 110, borderBottomLeftRadius: 110, opacity: 0.55 },
+  todTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  todKicker: { ...typeTokens.eyebrow },
+  todBadge: { borderWidth: 1, borderRadius: radius.chip, paddingHorizontal: 10, paddingVertical: 5 },
+  todBadgeText: { fontSize: 10, fontWeight: "800", letterSpacing: 0.6, textTransform: "uppercase", fontVariant: ["tabular-nums"] },
+  todName: { ...typeTokens.title, marginTop: 12 },
+  todMeta: { flexDirection: "row", gap: 16, marginTop: 8 },
+  todMetaText: { fontSize: 13 },
+  todMetaValue: { fontWeight: "800", fontSize: 14 },
+  todExList: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 14 },
+  todExChip: { borderWidth: 1, borderRadius: radius.chip, paddingHorizontal: 10, paddingVertical: 5, maxWidth: 150 },
+  todExChipText: { fontSize: 11, fontWeight: "600" },
+  todCta: {
+    marginTop: 16,
+    minHeight: minTouchTarget + 6,
+    borderRadius: radius.button,
     alignItems: "center",
-    gap: 8,
-    paddingBottom: 13,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    justifyContent: "center",
   },
-  planStar: { fontSize: 22, fontWeight: "900" },
-  planTitle: { fontSize: 16, letterSpacing: 1.1, fontWeight: "900" },
-  timeline: { paddingTop: 7 },
-  planItem: { minHeight: 75, flexDirection: "row" },
-  planIndex: {
-    width: 38,
-    paddingTop: 10,
-    alignItems: "flex-start",
-    position: "relative",
-  },
-  indexText: { fontSize: 20, fontWeight: "900" },
-  timelineDot: { width: 8, height: 8, position: "absolute", right: 0, top: 18 },
-  planBody: { flex: 1, paddingVertical: 11, paddingLeft: 11 },
-  exerciseName: {
-    fontSize: 13,
-    lineHeight: 16,
-    fontWeight: "900",
-    textTransform: "uppercase",
-  },
-  exerciseDetail: {
-    fontSize: 10,
-    lineHeight: 14,
-    marginTop: 5,
-    fontWeight: "700",
-  },
-  morePlan: {
-    fontSize: 10,
-    fontWeight: "800",
-    marginTop: 6,
-    textAlign: "right",
-  },
-  emptyPlan: { paddingTop: 28, gap: 13 },
-  emptyPlanText: { fontSize: 12, lineHeight: 17, fontWeight: "700" },
+  todCtaText: { fontSize: 15, fontWeight: "800", letterSpacing: 0.2 },
+  emptyPlan: { paddingTop: 12, gap: 13 },
+  emptyPlanText: { fontSize: 13, lineHeight: 18, fontWeight: "500" },
   planButton: {
-    minHeight: 37,
+    minHeight: minTouchTarget,
+    borderRadius: radius.button,
+    borderWidth: 1,
     justifyContent: "center",
     alignItems: "center",
-    paddingHorizontal: 8,
+    paddingHorizontal: 12,
   },
-  planButtonText: {
-    color: "#FFFDF8",
-    fontSize: 10,
-    letterSpacing: 0.8,
-    fontWeight: "900",
-  },
+  planButtonText: { fontSize: 13, fontWeight: "700" },
   quoteCard: {
-    margin: 12,
+    margin: 14,
     marginBottom: 0,
     borderWidth: 1,
-    padding: 15,
+    borderLeftWidth: 3,
+    borderRadius: radius.tile,
+    padding: 16,
     paddingLeft: 18,
     gap: 7,
     overflow: "hidden",
     position: "relative",
   },
-  quoteAccent: { position: "absolute", left: 0, top: 0, bottom: 0, width: 5 },
-  quoteKicker: { fontSize: 9, letterSpacing: 1.1, fontWeight: "900" },
-  quoteText: { fontSize: 15, lineHeight: 22, fontWeight: "800" },
-  quoteAuthor: {
-    fontSize: 8,
-    letterSpacing: 0.7,
-    fontWeight: "900",
-    marginTop: 2,
-  },
-  weekStrip: {
-    flexDirection: "row",
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  weekCell: {
-    flex: 1,
-    minHeight: 86,
-    paddingTop: 10,
-    alignItems: "center",
-    borderRightWidth: StyleSheet.hairlineWidth,
-  },
-  weekDay: { fontSize: 9, fontWeight: "900" },
-  weekDate: { fontSize: 18, fontWeight: "900", marginTop: 4 },
-  weekStatus: {
-    width: 7,
-    height: 7,
+  quoteAccent: { position: "absolute", left: 0, top: 0, bottom: 0, width: 3 },
+  quoteKicker: { ...typeTokens.eyebrow, fontSize: 9 },
+  quoteText: { fontSize: 15, lineHeight: 22, fontWeight: "600", fontStyle: "italic" },
+  quoteAuthor: { ...typeTokens.eyebrow, fontSize: 8, marginTop: 2 },
+  weekCard: {
+    margin: 14,
+    marginBottom: 0,
+    borderRadius: radius.card,
     borderWidth: 1,
-    borderRadius: 5,
-    marginTop: 7,
+    padding: 18,
   },
+  weekHead: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  weekKicker: { ...typeTokens.eyebrow },
+  weekRange: { fontSize: 11, fontVariant: ["tabular-nums"] },
+  weekStats: { flexDirection: "row", gap: 8, marginTop: 12 },
+  weekStat: { flex: 1, borderWidth: 1, borderRadius: radius.input, padding: 12, paddingBottom: 10 },
+  weekStatValue: { fontSize: 20, fontWeight: "800" },
+  weekStatLabel: { fontSize: 9, letterSpacing: 0.8, textTransform: "uppercase", marginTop: 4 },
+  weekBars: { flexDirection: "row", alignItems: "flex-end", gap: 8, height: 64, marginTop: 16 },
+  weekBarCell: { flex: 1, height: "100%", alignItems: "center", justifyContent: "flex-end", gap: 6 },
+  weekBar: { width: "100%", maxWidth: 26, borderTopLeftRadius: 6, borderTopRightRadius: 6, borderBottomLeftRadius: 3, borderBottomRightRadius: 3, borderWidth: 1 },
+  weekBarDay: { fontSize: 9, letterSpacing: 0.5 },
   nutritionProgress: {
-    margin: 12,
+    margin: 14,
+    marginBottom: 0,
     borderWidth: 1,
-    borderLeftWidth: 5,
-    padding: 13,
+    borderRadius: radius.card,
+    padding: 14,
     gap: 10,
   },
   nutritionHead: {
@@ -1485,59 +1528,49 @@ const styles = StyleSheet.create({
     alignItems: "flex-end",
     justifyContent: "space-between",
   },
-  nutritionKicker: { fontSize: 9, fontWeight: "900", letterSpacing: 0.8 },
+  nutritionKicker: { ...typeTokens.eyebrow, fontSize: 9 },
   nutritionCalories: {
     fontSize: 26,
     fontWeight: "900",
     marginTop: 4,
     letterSpacing: -1,
+    fontVariant: ["tabular-nums"],
   },
   nutritionCaloriesSuffix: { fontSize: 10, letterSpacing: 0 },
-  nutritionPercent: { fontSize: 18, fontWeight: "900" },
-  nutritionTrack: { height: 8, overflow: "hidden" },
+  nutritionPercent: { fontSize: 18, fontWeight: "800", fontVariant: ["tabular-nums"] },
+  nutritionTrack: { height: 8, borderRadius: 4, overflow: "hidden" },
   nutritionFill: { height: "100%" },
   macroProgressRow: { flexDirection: "row", gap: 8 },
   macroProgress: { flex: 1, gap: 4 },
   macroProgressHead: { flexDirection: "row", justifyContent: "space-between" },
-  macroProgressLabel: { fontSize: 9, fontWeight: "900" },
-  macroProgressValue: { fontSize: 9, fontWeight: "900" },
-  macroProgressTrack: { height: 4, overflow: "hidden" },
+  macroProgressLabel: { fontSize: 9, fontWeight: "800" },
+  macroProgressValue: { fontSize: 9, fontWeight: "700", fontVariant: ["tabular-nums"] },
+  macroProgressTrack: { height: 4, borderRadius: 2, overflow: "hidden" },
   macroProgressFill: { height: "100%" },
   analytics: {
-    minHeight: 216,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    flexDirection: "row",
-  },
-  analyticsLabel: {
-    width: 92,
-    borderRightWidth: StyleSheet.hairlineWidth,
-    justifyContent: "space-between",
-  },
-  analyticsTitle: {
+    margin: 14,
+    marginBottom: 0,
+    borderRadius: radius.card,
+    borderWidth: 1,
     padding: 14,
-    fontSize: 16,
-    lineHeight: 20,
-    letterSpacing: -0.6,
-    fontWeight: "900",
+    gap: 6,
   },
-  graphMark: { height: 78, alignItems: "center", justifyContent: "center" },
-  chartArea: { flex: 1, padding: 12 },
+  analyticsTitle: { ...typeTokens.eyebrow, fontSize: 12, letterSpacing: 0.8 },
   chartTopline: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
   },
-  chartCaption: { fontSize: 9, fontWeight: "900", letterSpacing: 0.4, flex: 1 },
+  chartCaption: { fontSize: 9, fontWeight: "700", letterSpacing: 0.6 },
   chartLink: { paddingBottom: 3, borderBottomWidth: 2 },
-  chartLinkText: { fontSize: 8, fontWeight: "900", letterSpacing: 0.2 },
+  chartLinkText: { fontSize: 9, fontWeight: "800", letterSpacing: 0.6, textTransform: "uppercase" },
   chartAxis: {
     flexDirection: "row",
     justifyContent: "space-between",
     gap: 3,
     paddingHorizontal: 4,
   },
-  axisLabel: { fontSize: 8, flex: 1, textAlign: "center", fontWeight: "700" },
+  axisLabel: { fontSize: 8, flex: 1, textAlign: "center", fontWeight: "600", fontVariant: ["tabular-nums"] },
   chartEmpty: {
     minHeight: 132,
     justifyContent: "center",
@@ -1547,15 +1580,15 @@ const styles = StyleSheet.create({
     fontSize: 11,
     lineHeight: 16,
     textAlign: "center",
-    fontWeight: "700",
+    fontWeight: "500",
     paddingHorizontal: 16,
   },
   metricsStack: { gap: 0 },
   energyCard: {
-    marginHorizontal: 12,
+    marginHorizontal: 14,
     marginTop: 14,
     borderWidth: 1,
-    borderLeftWidth: 6,
+    borderRadius: radius.card,
     padding: 14,
     gap: 9,
   },
@@ -1564,12 +1597,13 @@ const styles = StyleSheet.create({
     alignItems: "flex-start",
     justifyContent: "space-between",
   },
-  energyKicker: { fontSize: 9, fontWeight: "900", letterSpacing: 0.8 },
+  energyKicker: { ...typeTokens.eyebrow, fontSize: 9 },
   energyValue: {
     fontSize: 30,
     fontWeight: "900",
     letterSpacing: -1.3,
     marginTop: 3,
+    fontVariant: ["tabular-nums"],
   },
   energySuffix: { fontSize: 11, letterSpacing: 0 },
   energyBreakdown: {
@@ -1579,13 +1613,14 @@ const styles = StyleSheet.create({
     paddingTop: 8,
     borderTopWidth: StyleSheet.hairlineWidth,
   },
-  energyPart: { fontSize: 9, fontWeight: "800", flex: 1 },
-  energyPartValue: { fontSize: 11, fontWeight: "900" },
-  energyHint: { fontSize: 9, lineHeight: 13, fontWeight: "700" },
+  energyPart: { fontSize: 10, fontWeight: "600", flex: 1 },
+  energyPartValue: { fontSize: 11, fontWeight: "800", fontVariant: ["tabular-nums"] },
+  energyHint: { fontSize: 10, lineHeight: 13, fontWeight: "500" },
   energyTrend: {
-    marginHorizontal: 12,
+    marginHorizontal: 14,
     marginTop: 12,
     borderWidth: 1,
+    borderRadius: radius.card,
     padding: 14,
   },
   energyTrendHead: {
@@ -1595,48 +1630,61 @@ const styles = StyleSheet.create({
   },
   energyTrendValue: {
     fontSize: 17,
-    fontWeight: "900",
+    fontWeight: "800",
     letterSpacing: -0.5,
     marginTop: 3,
+    fontVariant: ["tabular-nums"],
   },
-  energyTrendHint: { fontSize: 9, fontWeight: "700", marginTop: 4 },
+  energyTrendHint: { fontSize: 10, fontWeight: "500", marginTop: 4 },
   dataRow: {
     flexDirection: "row",
-    marginHorizontal: 12,
+    marginHorizontal: 14,
     marginTop: 14,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: "#272624",
+    gap: 8,
   },
   metric: {
     flex: 1,
     minHeight: 75,
-    padding: 11,
-    borderRightWidth: StyleSheet.hairlineWidth,
+    padding: 12,
+    borderWidth: 1,
+    borderRadius: radius.tile,
   },
-  metricValue: { fontSize: 19, fontWeight: "900", letterSpacing: -0.8 },
+  metricValue: { fontSize: 19, fontWeight: "800", letterSpacing: -0.8, fontVariant: ["tabular-nums"] },
   metricSuffix: { fontSize: 10 },
   metricLabel: {
+    ...typeTokens.eyebrow,
     fontSize: 8,
-    fontWeight: "900",
-    letterSpacing: 0.4,
     marginTop: 9,
   },
   footerActions: {
     flexDirection: "row",
-    paddingHorizontal: 12,
-    marginTop: 12,
+    paddingHorizontal: 14,
+    marginTop: 14,
     gap: 10,
   },
   outlineAction: {
     flex: 1,
-    height: 48,
-    borderWidth: StyleSheet.hairlineWidth,
+    minHeight: minTouchTarget,
+    borderWidth: 1,
+    borderRadius: radius.button,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 12,
+    paddingHorizontal: 14,
   },
-  actionText: { fontSize: 10, fontWeight: "900", letterSpacing: 0.7 },
+  actionText: { ...typeTokens.eyebrow, fontSize: 10 },
+  sideMotto: {
+    position: "absolute",
+    top: 166,
+    left: -111,
+    fontSize: 10,
+    fontWeight: "800",
+    letterSpacing: 1.6,
+    writingDirection: "ltr",
+    transform: [{ rotate: "-90deg" }],
+    width: 260,
+    textAlign: "center",
+  },
   widgetShell: { position: "relative" },
   widgetHandle: {
     position: "absolute",
@@ -1645,14 +1693,15 @@ const styles = StyleSheet.create({
     width: 29,
     height: 29,
     borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: radius.chip,
     justifyContent: "center",
     alignItems: "center",
     zIndex: 12,
   },
-  widgetHandleText: { fontSize: 19, lineHeight: 21, fontWeight: "900" },
+  widgetHandleText: { fontSize: 19, lineHeight: 21, fontWeight: "800" },
   hintBackdrop: {
     flex: 1,
-    backgroundColor: "#111016B8",
+    backgroundColor: "#050806B8",
     alignItems: "center",
     justifyContent: "center",
     padding: 24,
@@ -1660,23 +1709,24 @@ const styles = StyleSheet.create({
   hintCard: {
     width: "100%",
     maxWidth: 360,
-    borderWidth: 2,
+    borderWidth: 1,
+    borderRadius: radius.card,
     padding: 22,
     gap: 12,
   },
-  hintEyebrow: { fontSize: 9, fontWeight: "900", letterSpacing: 0.9 },
-  hintTitle: { fontSize: 25, lineHeight: 29, fontWeight: "900" },
-  hintText: { fontSize: 13, lineHeight: 20, fontWeight: "700" },
+  hintEyebrow: { ...typeTokens.eyebrow, fontSize: 9 },
+  hintTitle: { ...typeTokens.title, fontSize: 24, lineHeight: 28 },
+  hintText: { fontSize: 13, lineHeight: 20, fontWeight: "500" },
   hintButton: {
-    minHeight: 48,
+    minHeight: minTouchTarget,
+    borderRadius: radius.button,
     alignItems: "center",
     justifyContent: "center",
     marginTop: 4,
   },
   hintButtonText: {
-    color: "#FFFFFF",
     fontSize: 12,
-    fontWeight: "900",
+    fontWeight: "800",
     letterSpacing: 0.7,
   },
 });
@@ -1684,8 +1734,9 @@ const styles = StyleSheet.create({
 const compactStyles = StyleSheet.create({
   quoteCard: { paddingVertical: 10, gap: 4 },
   quoteText: { fontSize: 12, lineHeight: 17 },
-  weekCell: { minHeight: 54, paddingTop: 7 },
-  weekDate: { fontSize: 14, marginTop: 2 },
+  weekBars: { height: 46, marginTop: 12 },
+  weekBarCell: { gap: 4 },
+  weekBar: { maxWidth: 22 },
   nutritionProgress: { paddingVertical: 9, gap: 7 },
   nutritionCalories: { fontSize: 20, marginTop: 1 },
   analytics: { minHeight: 150 },
@@ -1697,5 +1748,5 @@ const compactStyles = StyleSheet.create({
   metricValue: { fontSize: 16 },
   metricLabel: { marginTop: 5, fontSize: 7 },
   footerActions: { marginTop: 8 },
-  outlineAction: { height: 40, paddingHorizontal: 9 },
+  outlineAction: { minHeight: 44, paddingHorizontal: 10 },
 });

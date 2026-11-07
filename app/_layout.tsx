@@ -11,6 +11,7 @@ import { ThemeProvider } from "@/lib/theme-provider";
 import { SvgIconThemeProvider } from "@/lib/svg-icon-theme";
 import { WorkoutReplacementOverlay } from "@/components/workout-replacement-overlay";
 import { ReleaseNotesOverlay } from "@/components/release-notes-overlay";
+import { HydrationGate } from "@/components/hydration-gate";
 import { StartupErrorBoundary } from "@/components/startup-error-boundary";
 import { WorkoutProvider } from "@/lib/workout-store";
 import { InterfaceDensityProvider } from "@/lib/interface-density-provider";
@@ -18,6 +19,7 @@ import { NutritionProvider } from "@/lib/nutrition-store";
 import { HomeWidgetsProvider } from "@/lib/home-widgets";
 import { MainTabPreferencesProvider } from "@/lib/main-tab-preferences";
 import { BodyProvider } from "@/lib/body-store";
+import { BodyScaleAutoSync } from "@/components/body-scale-auto-sync";
 import { ExpoWebPhoneFrame } from "@/components/expo-web-phone-frame";
 import {
   SafeAreaFrameContext,
@@ -32,6 +34,7 @@ import {
   beginLaunchDiagnostics,
   completeLaunchDiagnostics,
   recordStartupChecks,
+  reportStartupError,
 } from "@/lib/launch-diagnostics";
 
 Notifications.setNotificationHandler({
@@ -60,13 +63,19 @@ export default function RootLayout() {
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
     void (async () => {
-      const launchId = await beginLaunchDiagnostics();
-      await recordStartupChecks();
-      if (!cancelled)
-        timer = setTimeout(
-          () => void completeLaunchDiagnostics(launchId),
-          1200,
-        );
+      // Диагностика запуска не должна ронять холодный старт: любая ошибка
+      // здесь — только запись в журнал, а не необработанный reject.
+      try {
+        const launchId = await beginLaunchDiagnostics();
+        await recordStartupChecks();
+        if (!cancelled)
+          timer = setTimeout(
+            () => void completeLaunchDiagnostics(launchId),
+            1200,
+          );
+      } catch (error) {
+        reportStartupError(error, "Сбой диагностики запуска");
+      }
     })();
     return () => {
       cancelled = true;
@@ -157,6 +166,10 @@ export default function RootLayout() {
       </Stack>
       <WorkoutReplacementOverlay />
       <ReleaseNotesOverlay />
+      {/* Оверлей гидрации рендерится внутри провайдеров: он читает ready
+          основных хранилищ и исчезает, как только AsyncStorage-загрузки
+          завершены (или по таймауту 2,5 с — запуск не блокируется). */}
+      <HydrationGate />
       <StatusBar style="auto" />
     </GestureHandlerRootView>
   );
@@ -182,6 +195,7 @@ export default function RootLayout() {
                   <BodyProvider>
                     <HomeWidgetsProvider>
                       <MainTabPreferencesProvider>
+                        <BodyScaleAutoSync />
                         <SafeAreaProvider
                           initialMetrics={providerInitialMetrics}
                         >
@@ -213,6 +227,7 @@ export default function RootLayout() {
                 <BodyProvider>
                   <HomeWidgetsProvider>
                     <MainTabPreferencesProvider>
+                      <BodyScaleAutoSync />
                       <SafeAreaProvider initialMetrics={providerInitialMetrics}>
                         {content}
                       </SafeAreaProvider>

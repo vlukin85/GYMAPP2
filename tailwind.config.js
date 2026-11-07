@@ -12,6 +12,20 @@ const tailwindColors = Object.fromEntries(
   ]),
 );
 
+/**
+ * Радиусы синхронизированы с lib/design-tokens.ts (эталон «Тёмный атлет»).
+ * Значения дублируются здесь намеренно: конфиг не умеет импортировать TS-токены,
+ * поэтому при изменении design-tokens обнови и эту карту.
+ */
+const designRadii = {
+  card: 20,
+  tile: 16,
+  button: 16,
+  input: 14,
+  sheet: 28,
+  chip: 999,
+};
+
 /** @type {import('tailwindcss').Config} */
 module.exports = {
   darkMode: "class",
@@ -22,6 +36,7 @@ module.exports = {
   theme: {
     extend: {
       colors: tailwindColors,
+      borderRadius: designRadii,
     },
   },
   plugins: [

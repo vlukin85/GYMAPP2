@@ -7,8 +7,8 @@ import { canDownloadPhotosOnWifi, getUniquePhotoUrls } from "./offline-media";
 export type ExerciseImageCacheResult = { total: number; cached: number; offlineAvailable: boolean };
 export type BulkPhotoCacheResult = ExerciseImageCacheResult & { allowed: boolean; message: string };
 
-export async function cacheExercisePhotos(urls: string[]): Promise<ExerciseImageCacheResult> {
-  const uniqueUrls = [...new Set(urls.filter((url) => url.startsWith("http")))];
+export async function cacheExercisePhotos(urls: (string | number)[]): Promise<ExerciseImageCacheResult> {
+  const uniqueUrls = [...new Set(urls.filter((url): url is string => typeof url === "string" && url.startsWith("http")))];
   if (!uniqueUrls.length || Platform.OS === "web") return { total: uniqueUrls.length, cached: 0, offlineAvailable: false };
   try {
     await Image.prefetch(uniqueUrls, "memory-disk");

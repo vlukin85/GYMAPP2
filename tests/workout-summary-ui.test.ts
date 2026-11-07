@@ -22,9 +22,10 @@ describe("editorial workout completion interface", () => {
     expect(summary).toContain("energy.caloriesBurned");
   });
 
-  it("uses a strict editorial grid in the exercise catalog", () => {
-    expect(catalog).toContain("cardAccent");
-    expect(catalog).toContain("borderRadius: 0");
+  it("uses a redesigned tile grid in the exercise catalog", () => {
+    expect(catalog).not.toContain("cardAccent");
+    expect(catalog).not.toContain("borderRadius: 0");
+    expect(catalog).toContain("cardTitle");
     expect(catalog).toContain("useInterfaceDensity");
   });
 });

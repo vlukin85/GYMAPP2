@@ -1,5 +1,5 @@
 import { type BottomTabBarProps } from "@react-navigation/bottom-tabs";
-import { useEffect, useMemo, useRef } from "react";
+import { type ReactNode, useEffect, useMemo, useRef } from "react";
 import {
   Animated,
   LayoutAnimation,
@@ -12,6 +12,13 @@ import {
 } from "react-native";
 
 import { useColors } from "@/hooks/use-colors";
+import {
+  minTouchTarget,
+  pressedOpacity,
+  radius,
+  spacing,
+  type as typeScale,
+} from "@/lib/design-tokens";
 import { type MainTabId } from "@/lib/main-tab-preferences";
 
 const ROUTE_TO_TAB_ID: Record<string, MainTabId> = {
@@ -25,6 +32,9 @@ const ROUTE_TO_TAB_ID: Record<string, MainTabId> = {
   settings: "settings",
 };
 
+/** Высота контента панели по гайдам: компакт — только иконка-пилюля, обычный — иконка + подпись. */
+const CONTENT_HEIGHT = { compact: 46, regular: 62 } as const;
+
 export function OrderedMainTabBar({
   state,
   descriptors,
@@ -37,7 +47,10 @@ export function OrderedMainTabBar({
   compact: boolean;
 }) {
   const colors = useColors();
-  const contentHeight = compact ? 42 : 54;
+  const contentHeight = compact
+    ? CONTENT_HEIGHT.compact
+    : CONTENT_HEIGHT.regular;
+  // Безопасные отступы: Android-жесты приходят через insets, на web — фиксированный зазор.
   const bottomInset = Platform.OS === "web" ? 10 : Math.max(insets.bottom, 8);
   const height = useRef(
     new Animated.Value(contentHeight + bottomInset),
@@ -91,7 +104,7 @@ export function OrderedMainTabBar({
         styles.bar,
         {
           height,
-          paddingTop: compact ? 4 : 6,
+          paddingTop: compact ? 3 : 5,
           paddingBottom: bottomInset,
           backgroundColor: colors.surface,
           borderTopColor: colors.border,
@@ -99,11 +112,11 @@ export function OrderedMainTabBar({
       ]}
     >
       <View style={styles.row}>
-        {orderedRoutes.map((route, index) => {
+        {orderedRoutes.map((route) => {
           const routeIndex = state.routes.indexOf(route);
           const focused = state.index === routeIndex;
           const options = descriptors[route.key].options;
-          const color = focused ? colors.primary : colors.foreground;
+          const color = focused ? colors.primary : colors.muted;
           const label =
             typeof options.tabBarLabel === "string"
               ? options.tabBarLabel
@@ -111,15 +124,17 @@ export function OrderedMainTabBar({
           const icon = options.tabBarIcon?.({
             focused,
             color,
-            size: compact ? 17 : 18,
+            size: compact ? 17 : 19,
           });
 
           return (
-            <Pressable
+            <TabItem
               key={route.key}
-              accessibilityRole="button"
-              accessibilityLabel={label}
-              accessibilityState={focused ? { selected: true } : {}}
+              label={label}
+              icon={icon}
+              focused={focused}
+              compact={compact}
+              colors={colors}
               onPress={() => {
                 const event = navigation.emit({
                   type: "tabPress",
@@ -132,30 +147,7 @@ export function OrderedMainTabBar({
               onLongPress={() =>
                 navigation.emit({ type: "tabLongPress", target: route.key })
               }
-              style={({ pressed }) => [
-                styles.item,
-                {
-                  borderRightColor: colors.border,
-                  opacity: pressed ? 0.64 : 1,
-                },
-                index === orderedRoutes.length - 1 && styles.lastItem,
-              ]}
-            >
-              <View style={styles.iconWrap}>{icon}</View>
-              {!compact && (
-                <Text numberOfLines={1} style={[styles.label, { color }]}>
-                  {label}
-                </Text>
-              )}
-              {focused && (
-                <View
-                  style={[
-                    styles.activeLine,
-                    { backgroundColor: colors.primary },
-                  ]}
-                />
-              )}
-            </Pressable>
+            />
           );
         })}
       </View>
@@ -163,32 +155,142 @@ export function OrderedMainTabBar({
   );
 }
 
+type TabItemProps = {
+  label: string;
+  icon: ReactNode;
+  focused: boolean;
+  compact: boolean;
+  colors: ReturnType<typeof useColors>;
+  onPress: () => void;
+  onLongPress: () => void;
+};
+
+/** Один таб: скруглённый контейнер иконки, мягкое свечение и плавный переход состояний. */
+function TabItem({
+  label,
+  icon,
+  focused,
+  compact,
+  colors,
+  onPress,
+  onLongPress,
+}: TabItemProps) {
+  // 0 — неактивен, 1 — активен: анимируются масштаб пилюли и её свечение.
+  const active = useRef(new Animated.Value(focused ? 1 : 0)).current;
+
+  useEffect(() => {
+    Animated.spring(active, {
+      toValue: focused ? 1 : 0,
+      speed: 22,
+      bounciness: 4,
+      useNativeDriver: true,
+    }).start();
+  }, [active, focused]);
+
+  const glowOpacity = active.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, 0.18],
+  });
+  const iconScale = active.interpolate({
+    inputRange: [0, 1],
+    outputRange: [1, 1.06],
+  });
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={focused ? { selected: true } : {}}
+      onPress={onPress}
+      onLongPress={onLongPress}
+      style={({ pressed }) => [
+        styles.item,
+        { opacity: pressed ? pressedOpacity : 1 },
+      ]}
+    >
+      <Animated.View
+        style={[
+          styles.iconWrap,
+          compact ? styles.iconWrapCompact : styles.iconWrapRegular,
+          { transform: [{ scale: iconScale }] },
+        ]}
+      >
+        <Animated.View
+          pointerEvents="none"
+          style={[
+            styles.iconGlow,
+            compact ? styles.iconGlowCompact : styles.iconGlowRegular,
+            {
+              backgroundColor: colors.primary,
+              opacity: glowOpacity,
+              shadowColor: colors.primary,
+            },
+          ]}
+        />
+        <View style={styles.iconHolder}>{icon}</View>
+      </Animated.View>
+      {!compact && (
+        <Text numberOfLines={1} style={[styles.label, { color: focused ? colors.primary : colors.muted }]}>
+          {label}
+        </Text>
+      )}
+    </Pressable>
+  );
+}
+
 const styles = StyleSheet.create({
-  bar: { borderTopWidth: 1, overflow: "hidden" },
-  row: { flex: 1, flexDirection: "row", alignItems: "stretch" },
+  bar: {
+    borderTopWidth: 1,
+    overflow: "hidden",
+  },
+  row: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "stretch",
+    paddingHorizontal: spacing().sm,
+  },
   item: {
     flex: 1,
     minWidth: 0,
     alignItems: "center",
     justifyContent: "center",
-    borderRightWidth: 1,
-    gap: 1,
+    gap: 3,
+    borderRadius: radius.button,
+    minHeight: minTouchTarget,
   },
-  lastItem: { borderRightWidth: 0 },
-  iconWrap: { minHeight: 18, justifyContent: "center" },
+  iconWrap: {
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "visible",
+  },
+  iconWrapRegular: {
+    width: 38,
+    height: 34,
+    borderRadius: radius.tile,
+  },
+  iconWrapCompact: {
+    width: 32,
+    height: 32,
+    borderRadius: radius.tile,
+  },
+  iconGlow: {
+    ...StyleSheet.absoluteFillObject,
+    shadowOpacity: 0.4,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 3 },
+  },
+  iconGlowRegular: { borderRadius: radius.tile },
+  iconGlowCompact: { borderRadius: radius.tile },
+  iconHolder: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
   label: {
+    ...typeScale.meta,
+    fontSize: 10,
+    lineHeight: 12,
+    letterSpacing: 0.2,
     maxWidth: "100%",
-    fontSize: 8,
-    lineHeight: 10,
-    fontWeight: "900",
-    letterSpacing: 0.15,
     textAlign: "center",
-  },
-  activeLine: {
-    position: "absolute",
-    left: "20%",
-    right: "20%",
-    bottom: 0,
-    height: 2,
   },
 });

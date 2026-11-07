@@ -12,7 +12,7 @@ type MediaPickerSheetProps = {
   title: string;
   ownerId: string;
   scope: "exercise" | "program";
-  currentImage?: string;
+  currentImage?: string | number;
   library: MediaLibraryItem[];
   onSelect: (uri: string) => void;
   onClose: () => void;

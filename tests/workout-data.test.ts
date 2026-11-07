@@ -11,7 +11,7 @@ describe("workout calculations", () => {
   it("uses the open free-exercise-db media library as a photo option for every catalog exercise", () => {
     const benchPress = exercises.find((exercise) => exercise.id === "bench-press");
     expect(benchPress?.photoAngles?.[0].id).toBe("main");
-    expect(benchPress?.photoAngles?.some((image) => image.url.includes("raw.githubusercontent.com/yuhonas/free-exercise-db"))).toBe(true);
+    expect(benchPress?.photoAngles?.some((image) => String(image.url).includes("raw.githubusercontent.com/yuhonas/free-exercise-db"))).toBe(true);
     expect(exercises.every((exercise) => getExerciseIllustrationCandidates(exercise).some((candidate) => candidate.id.startsWith("open-photo-")))).toBe(true);
   });
   it("calculates volume from weight, reps and sets", () => {
@@ -115,7 +115,7 @@ describe("workout calculations", () => {
     expect(exercises.filter((exercise) => exercise.group === "Трицепс")).toHaveLength(10);
     expect(muscleGroups).toEqual(expect.arrayContaining(["Бицепс", "Трицепс"]));
     expect(muscleGroups).not.toContain("Руки");
-    expect(exercises.every((exercise) => !exercise.image.includes("loremflickr") && !exercise.image.includes("images.unsplash"))).toBe(true);
+    expect(exercises.every((exercise) => !String(exercise.image).includes("loremflickr") && !String(exercise.image).includes("images.unsplash"))).toBe(true);
     expect(bundledAiExerciseAssetCoverage).toEqual({ individual: 10, technique: 10, groupFallbacks: 8, auxiliary: 1 });
     expect(exercises.every((exercise) => exercise.photoAngles?.[0].id === "main" && exercise.photoAngles[0].url === exercise.image)).toBe(true);
     const bench = exercises.find((exercise) => exercise.id === "bench-press")!;

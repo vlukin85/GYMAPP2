@@ -19,6 +19,25 @@ describe("интеграция Health Connect", () => {
     expect(workout).toContain("ПУЛЬС · HEALTH CONNECT");
     expect(summary).toContain("Данные часов за время тренировки");
     expect(settings).toContain("Пульс со смарт-часов");
-    expect(settings).toContain("connectHealthConnectHeartRate");
+  });
+
+  it("запрашивает активность и пульс всеми четырьмя типами в настройках", () => {
+    expect(settings).toContain("connectHealthConnectActivity");
+    expect(settings).toContain("Подключить активность и пульс");
+    expect(settings).toContain("healthConnectStatus.activityGranted");
+  });
+
+  it("показывает карточку активности в редакторе виджетов статистики", () => {
+    const stats = readFileSync(resolve(process.cwd(), "app/(tabs)/stats.tsx"), "utf8");
+    const activity = readFileSync(resolve(process.cwd(), "lib/health-connect-activity.ts"), "utf8");
+    const storage = readFileSync(resolve(process.cwd(), "lib/stats-widgets-storage.ts"), "utf8");
+    expect(storage).toContain('"activity"');
+    expect(stats).toContain("ActivityTodayCard");
+    expect(stats).toContain("readDailyActivity");
+    expect(stats).toContain("readActivityWeek");
+    expect(stats).toContain("Активность · сегодня");
+    expect(stats).toContain("Настроить Health Connect");
+    expect(activity).toContain("ACTIVITY_PERMISSIONS");
+    expect(activity).toContain("buildActivityWeek");
   });
 });

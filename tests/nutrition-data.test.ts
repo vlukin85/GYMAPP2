@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import { entryCalories, entryMacros, popularFoods } from "../lib/nutrition-data";
 
 describe("nutrition food database", () => {
-  it("contains exactly 300 popular foods with calorie values and macronutrients", () => {
-    expect(popularFoods).toHaveLength(300);
+  it("contains 334 popular foods with calorie values and macronutrients", () => {
+    expect(popularFoods).toHaveLength(334);
     expect(popularFoods.every((food) => food.kcalPer100g >= 0 && food.name.length > 0 && food.proteinPer100g >= 0 && food.fatPer100g >= 0 && food.carbsPer100g >= 0)).toBe(true);
   });
   it("calculates a meal entry from grams and kcal per 100 g", () => {
