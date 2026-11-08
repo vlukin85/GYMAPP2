@@ -107,6 +107,18 @@ jobs:
         with:
           cache-provider: basic
 
+      - name: Cache Gradle
+        # actions/cache пишется на любой ветке (в отличие от gradle/actions,
+        # который на feature-ветках read-only). Пост-шаг сохраняет кэш даже
+        # при отмене прогона — следующий стартует с тёплым Gradle.
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/wrapper
+            ~/.gradle/caches
+          key: gradle-${{ runner.os }}-${{ hashFiles('gradle/wrapper/gradle-wrapper.properties', '**/*.gradle*', 'pnpm-lock.yaml') }}
+          restore-keys: gradle-${{ runner.os }}-
+
       - name: Install Android build dependencies
         run: |
           # android-actions/setup-android@v3 currently fails on hosted runners
