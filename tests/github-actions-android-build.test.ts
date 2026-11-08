@@ -27,10 +27,14 @@ describe("GitHub Android build route", () => {
     );
     expect(workflow).toContain("debug_architecture:");
     expect(workflow).toContain('default: "arm64-v8a"');
+    // Сборка обёрнута в ретраи (GRADLE_CMD), arch-флаг экранируется:
     expect(workflow).toContain(
-      'assembleDebug -PreactNativeArchitectures="${DEBUG_ARCHITECTURE}" --no-daemon',
+      'GRADLE_CMD="./gradlew :app:assembleDebug -PreactNativeArchitectures=\\"${DEBUG_ARCHITECTURE}\\" --no-daemon"',
     );
-    expect(workflow).toContain("./gradlew :app:assembleRelease --no-daemon");
+    expect(workflow).toContain(
+      './gradlew :app:assembleRelease --no-daemon"',
+    );
+    expect(workflow).toContain("for attempt in 1 2 3");
     expect(workflow).toContain("name: ironrise-${{ env.BUILD_VARIANT }}-apk");
   });
 
