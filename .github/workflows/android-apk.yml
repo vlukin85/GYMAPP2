@@ -254,8 +254,8 @@ jobs:
               echo "Сборка не удалась после 3 попыток"
               exit 1
             fi
-            echo "Сборка упала, повтор через 60 с (кэш Gradle сохранён)..."
-            sleep 60
+            echo "Сборка упала, повтор через 30 мин (кэш Gradle сохранён)..."
+            sleep 1800
           done
 
       - name: Upload installable APK
