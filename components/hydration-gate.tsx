@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Image, StyleSheet, View, useColorScheme } from "react-native";
 import { useBodyStore } from "@/lib/body-store";
 import { useNutritionStore } from "@/lib/nutrition-store";
 import { useWorkoutStore } from "@/lib/workout-store";
@@ -12,20 +12,27 @@ const HYDRATION_TIMEOUT_MS = 2500;
 
 export const HYDRATION_GATE_TIMEOUT_MS = HYDRATION_TIMEOUT_MS;
 
+const SPLASH_FULL_DARK = require("@/assets/images/splash-full-dark.png");
+const SPLASH_FULL_LIGHT = require("@/assets/images/splash-full-light.png");
+
 /**
- * Лёгкий оверлей инициализации: закрывает интерфейс, пока AsyncStorage-загрузки
- * основных хранилищ (тренировки, питание, тело) не заполнены. Не блокирует
- * запуск навсегда — по таймауту приложение открывается в любом случае.
+ * Стартовый экран инициализации: полнокадровый арт с атлетом и надписью
+ * IRONRISE внизу (тёмный/светлый вариант по системной теме). Закрывает
+ * интерфейс, пока AsyncStorage-загрузки основных хранилищ не заполнены.
+ * Не блокирует запуск навсегда — по таймауту приложение открывается
+ * в любом случае.
  */
 export function HydrationGate() {
   const { ready: workoutReady } = useWorkoutStore();
   const { ready: nutritionReady } = useNutritionStore();
   const { ready: bodyReady } = useBodyStore();
+  const colorScheme = useColorScheme();
   const [timedOut, setTimedOut] = useState(false);
   const loggedStage = useRef<"pending" | "ready" | "timeout">("pending");
 
   const hydrated = workoutReady && nutritionReady && bodyReady;
   const visible = !hydrated && !timedOut;
+  const dark = colorScheme !== "light";
 
   useEffect(() => {
     if (hydrated || timedOut) return;
@@ -51,9 +58,19 @@ export function HydrationGate() {
   if (!visible) return null;
 
   return (
-    <View style={styles.overlay} pointerEvents="auto">
-      <ActivityIndicator color="#C8F169" />
-      <Text style={styles.eyebrow}>IRONRISE</Text>
+    <View
+      style={[styles.overlay, dark ? null : styles.overlayLight]}
+      pointerEvents="auto"
+    >
+      <Image
+        source={dark ? SPLASH_FULL_DARK : SPLASH_FULL_LIGHT}
+        resizeMode="contain"
+        style={styles.art}
+      />
+      <ActivityIndicator
+        color={dark ? "#C8F169" : "#0F7B5A"}
+        style={styles.loader}
+      />
     </View>
   );
 }
@@ -64,14 +81,19 @@ const styles = StyleSheet.create({
     backgroundColor: "#0B0F0D",
     alignItems: "center",
     justifyContent: "center",
-    gap: 14,
     zIndex: 50,
     elevation: 50,
   },
-  eyebrow: {
-    color: "rgba(200, 241, 105, 0.72)",
-    fontSize: 12,
-    fontWeight: "800",
-    letterSpacing: 4,
+  overlayLight: {
+    backgroundColor: "#F7F7F5",
+  },
+  art: {
+    ...StyleSheet.absoluteFillObject,
+    width: "100%",
+    height: "100%",
+  },
+  loader: {
+    position: "absolute",
+    bottom: 28,
   },
 });
