@@ -4,7 +4,7 @@ import android.app.AlarmManager
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
-import android.app.RemoteInput
+import androidx.core.app.RemoteInput
 import android.content.Context
 import android.content.Intent
 import android.media.RingtoneManager
@@ -569,6 +569,7 @@ internal fun showSetResultNotification(context: Context, state: ActiveSetNotific
   // вес/повторы (совместимость со старым путём и восстановлением из extras).
   val remoteInput = RemoteInput.Builder(EXTRA_RESULT_INPUT)
     .setLabel("Вес × повторы, напр. 80 x 8")
+    .setAllowGeneratedReplies(false)
     .build()
   val commitAction = NotificationCompat.Action.Builder(
     android.R.drawable.ic_menu_save,
@@ -576,7 +577,6 @@ internal fun showSetResultNotification(context: Context, state: ActiveSetNotific
     setActionPendingIntent(context, ACTION_COMMIT_SET, state, COMMIT_SET_REQUEST_CODE, mutable = true)
   )
     .addRemoteInput(remoteInput)
-    .extend(NotificationCompat.Action.WearableExtender().setAllowGeneratedReplies(false))
     .build()
   builder.addAction(commitAction)
   NotificationManagerCompat.from(context).notify(SET_RESULT_NOTIFICATION_ID, builder.build())
