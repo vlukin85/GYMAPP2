@@ -17,31 +17,20 @@ const settings = readFileSync(
 );
 
 describe("native launch splash", () => {
-  it("configures one full-screen Expo splash with the bundled app mark", () => {
-    // contain с фоном в цвет арта: бесшовный полный экран без обрезки.
+  it("configures one square system splash icon per system theme", () => {
+    // Android 12+ показывает image как иконку в круге: полнокадровый арт
+    // там обрезается до квадрата, поэтому image — квадратный щит по теме.
     expect(appConfig).toContain('resizeMode: "contain"');
     expect(appConfig).not.toContain('resizeMode: "cover"');
-    expect(appConfig).toContain("imageWidth: 1080");
-    // Android 12+ обрезает иконку в круг: используем квадратную версию с полями.
     expect(appConfig).toContain(
-      'icon: "./assets/images/splash-icon-android12.png"',
+      'image: "./assets/images/splash-icon-android12-light.png"',
+    );
+    expect(appConfig).toMatch(
+      /dark:\s*\{\s*image:\s*"\.\/assets\/images\/splash-icon-android12\.png",\s*backgroundColor:\s*"#0B0F0D",?\s*\}/,
     );
     expect(appConfig).toContain('iconBackground: "#0D0F14"');
-  });
-
-  it("uses the full-screen bodybuilder art with the IRONRISE wordmark", () => {
-    // Светлая тема (базовые пропсы плагина): светлый полнокадровый арт.
-    expect(appConfig).toContain(
-      'image: "./assets/images/splash-full-light.png"',
-    );
-    expect(appConfig).toContain('backgroundColor: "#F7F7F5"');
-  });
-
-  it("keeps the dark full-screen art for the dark system theme", () => {
-    // Тёмная тема: блок dark плагина expo-splash-screen (SDK 54).
-    expect(appConfig).toMatch(
-      /dark:\s*\{\s*image:\s*"\.\/assets\/images\/splash-full-dark\.png",\s*backgroundColor:\s*"#0B0F0D",?\s*\}/,
-    );
+    // Полнокадровый атлет показывается сразу после системного splash.
+    expect(appConfig).not.toContain("splash-full-");
   });
 
   it("does not mount a second custom splash layer", () => {

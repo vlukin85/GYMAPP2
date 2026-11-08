@@ -126,16 +126,16 @@ const config: ExpoConfig = {
     [
       "expo-splash-screen",
       {
-        // Полнокадровый арт с атлетом и надписью IRONRISE внизу.
-        // contain с фоном в цвет арта даёт бесшовный полный экран
-        // на любых пропорциях устройства. Светлая системная тема —
-        // светлый арт, тёмная — тёмный.
-        image: "./assets/images/splash-full-light.png",
-        imageWidth: 1080,
+        // Системный splash на Android 12+ показывает image как иконку в круге
+        // (полнокадровый арт там обрезается до квадрата) — поэтому image
+        // квадратный щит по теме, а полнокадровый атлет показывается сразу
+        // после системного splash через HydrationGate.
+        image: "./assets/images/splash-icon-android12-light.png",
+        imageWidth: 1024,
         resizeMode: "contain",
         backgroundColor: "#F7F7F5",
         dark: {
-          image: "./assets/images/splash-full-dark.png",
+          image: "./assets/images/splash-icon-android12.png",
           backgroundColor: "#0B0F0D",
         },
         // Android 12+ маскирует иконку в круг: отдельная квадратная версия
