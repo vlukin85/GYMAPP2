@@ -133,6 +133,22 @@ jobs:
       - name: Generate Android project
         run: pnpm exec expo prebuild --platform android --non-interactive --no-install
 
+      - name: Warm up Gradle distribution with retries
+        # services.gradle.org редиректит на GitHub Releases; в последние дни
+        # тот отдаёт 504/таймауты. Прогреваем дистрибутив с ретраями, чтобы
+        # сама сборка не падала на скачивании.
+        run: |
+          cd android
+          for attempt in 1 2 3 4 5; do
+            if ./gradlew --version > /dev/null 2>&1; then
+              echo "Gradle distribution ready (attempt $attempt)"
+              exit 0
+            fi
+            echo "Gradle download failed (attempt $attempt), retrying in 30s..."
+            sleep 30
+          done
+          ./gradlew --version
+
       - name: Detect production signing secrets
         if: ${{ env.BUILD_VARIANT == 'release' }}
         env:
