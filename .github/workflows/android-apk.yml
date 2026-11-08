@@ -75,7 +75,7 @@ jobs:
     name: Build release APK
     needs: verify
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 240
     env:
       BUILD_VARIANT: ${{ github.event_name == 'workflow_dispatch' && inputs.build_variant || 'release' }}
       ARTIFACT_TYPE: ${{ github.event_name == 'workflow_dispatch' && inputs.artifact_type || 'apk' }}
