@@ -76,9 +76,7 @@ describe("управление тренировкой с часов Huawei че�
     expect(actionReceiver).toContain(
       "(state.resultLayout + 1) % SET_RESULT_LAYOUT_COUNT",
     );
-    // RemoteInput на зеркальных уведомлениях Huawei не поддерживается.
-    expect(nativeModule).not.toContain("RemoteInput");
-    expect(actionReceiver).not.toContain("RemoteInput");
+    // RemoteInput теперь используется в «Готово» — см. тест про прямой ввод.
   });
 
   it("корректировки пересчитывают значения и пере-постят уведомление результата", () => {
@@ -146,6 +144,47 @@ describe("управление тренировкой с часов Huawei че�
     expect(workoutScreen).toContain("openExercise(next.exerciseId)");
   });
 
+  it("принимает вес и повторы цифрами в действии «Готово» через RemoteInput", () => {
+    expect(nativeModule).toContain(
+      'internal const val EXTRA_RESULT_INPUT = "ironrise_result_input"',
+    );
+    expect(setResultBuilder).toContain("RemoteInput.Builder(EXTRA_RESULT_INPUT)");
+    expect(setResultBuilder).toContain('"Вес × повторы, напр. 80 x 8"');
+    expect(setResultBuilder).toContain(".addRemoteInput(remoteInput)");
+    expect(setResultBuilder).toContain("setAllowGeneratedReplies(false)");
+    // PendingIntent действия с RemoteInput обязан быть mutable: система
+    // дописывает введённый текст в extras перед доставкой broadcast.
+    expect(setResultBuilder).toContain(
+      "COMMIT_SET_REQUEST_CODE, mutable = true",
+    );
+    expect(nativeModule).toContain(
+      "if (mutable) PendingIntent.FLAG_MUTABLE else PendingIntent.FLAG_IMMUTABLE",
+    );
+    // Тап по карточке и ввод из клавиатуры уведомления приходят в один
+    // ACTION_COMMIT_SET broadcast.
+    expect(actionReceiver).toContain("RemoteInput.getResultsFromIntent(intent)");
+    expect(actionReceiver).toContain("applyResultInput(");
+  });
+
+  it("parseResultInput понимает форматы «80 x 8» и отбрасывает мусор", () => {
+    const parseFn =
+      actionReceiver.match(/internal fun parseResultInput[\s\S]*?\n}\n/)?.[0] ??
+      "";
+    const pattern =
+      actionReceiver.match(/Regex\("""([^"]+)"""/)?.[1] ?? "";
+    // Разделители: латинская x, русская х, ×, *, пробел, запятая.
+    expect(pattern).toContain("[xх×*]");
+    expect(pattern).toContain("|\\s+|,");
+    // Вес десятичный: точка или запятая («80,5 x 6» = 80.5 кг × 6).
+    expect(pattern).toContain("(?:[.,]\\d+)?");
+    expect(parseFn).toContain("matchEntire");
+    expect(parseFn).toContain("toDoubleOrNull()");
+    expect(parseFn).toContain("toIntOrNull()");
+    // Мусор и пусто → null; «0 x 8» (вес > 0) и «80 x 0» (повторы >= 1) → null.
+    expect(parseFn).toContain("weight <= 0.0");
+    expect(parseFn).toContain("reps < 1");
+  });
+
   it("документирует state machine и ограничения Huawei", () => {
     expect(existsSync(resolve(process.cwd(), "docs/watch-notifications-research.md"))).toBe(
       true,
@@ -155,5 +194,14 @@ describe("управление тренировкой с часов Huawei че�
     expect(research).toContain("RemoteInput");
     expect(research).toContain("commit-set");
     expect(research).toContain("Убитый процесс");
+    expect(research).toContain("Прямой ввод результата в уведомлении (телефон)");
+    expect(research).toContain("«80 x 8»");
+    expect(research).toContain("«80х8»");
+    expect(research).toContain("«80×8»");
+    expect(research).toContain("«80*8»");
+    expect(research).toContain("«80 8»");
+    expect(research).toContain("«80,8»");
+    expect(research).toContain("«80,5 x 6»");
+    expect(research).toContain("mutable");
   });
 });

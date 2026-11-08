@@ -170,3 +170,40 @@ export function dedupeAgainst(existingMeasurements: ExistingMeasurementLike[], c
 export function bodySyncMeasurementId(sourceAtISO: string): string {
   return `hc-${sourceAtISO}`;
 }
+
+/** Образец веса из Google Fit: метка времени записи и вес в килограммах. */
+export type GoogleFitWeightSampleInput = { timestampISO: string; weightKg: number };
+
+/**
+ * Собирает кандидатов взвешиваний из образцов веса Google Fit.
+ * Состав тела (жир, мышцы, кости, вода) библиотека react-native-google-fit
+ * не отдаёт, поэтому из Google Fit сохраняется только вес — поля состава
+ * остаются опциональными. Механизмы те же, что у Health Connect: пропуск
+ * меток из журнала прошлых синхронизаций и сортировка по времени.
+ */
+export function collectGoogleFitWeighIns(
+  samples: GoogleFitWeightSampleInput[],
+  processedTimestampsISO: string[],
+): WeighInCandidate[] {
+  const processedTimes = new Set(
+    (processedTimestampsISO ?? []).map((iso) => parseTime(iso)).filter((timeMs): timeMs is number => timeMs !== null),
+  );
+  const candidates: WeighInCandidate[] = [];
+  for (const sample of samples ?? []) {
+    const timeMs = parseTime(sample?.timestampISO);
+    if (timeMs === null) continue;
+    if (!isValidMetricValue(sample?.weightKg) || sample.weightKg <= 0) continue;
+    if (processedTimes.has(timeMs)) continue;
+    candidates.push({
+      date: localDateKey(new Date(timeMs)),
+      weightKg: roundTo(sample.weightKg, 1),
+      sourceAtISO: sample.timestampISO,
+    });
+  }
+  return candidates.sort((first, second) => Date.parse(first.sourceAtISO) - Date.parse(second.sourceAtISO));
+}
+
+/** Детерминированный идентификатор замера из Google Fit: `gf-<timestampISO>`. */
+export function googleFitMeasurementId(sourceAtISO: string): string {
+  return `gf-${sourceAtISO}`;
+}

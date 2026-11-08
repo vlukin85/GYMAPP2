@@ -3,11 +3,15 @@ import { Platform } from "react-native";
 import { getGrantedPermissions, getSdkStatus, initialize, readRecords, requestPermission, SdkAvailabilityStatus } from "react-native-health-connect";
 
 import { BODY_MEASUREMENTS_STORAGE_KEY, type BodyMeasurement } from "./body-store";
+import { getGoogleFitStatus, readGoogleFitWeightSamples } from "./google-fit";
+import { loadHealthSource } from "./health-source";
 import {
   BODY_SCALE_PERMISSIONS,
   bodySyncMeasurementId,
+  collectGoogleFitWeighIns,
   collectWeighIns,
   dedupeAgainst,
+  googleFitMeasurementId,
   type BodyFatRecordInput,
   type BodyMassRecordInput,
   type BodyScalePermission,
@@ -17,9 +21,11 @@ import {
 } from "./health-connect-body";
 
 /**
- * IO-слой синхронизации умных весов (OKOK International → Health Connect).
- * Читает записи веса и состава тела, передаёт их чистым функциям
- * health-connect-body и создаёт замеры в журнале тела через body-store.
+ * IO-слой синхронизации умных весов (OKOK International → Health Connect или
+ * напрямую в Google Fit). Читает записи веса и состава тела, передаёт их
+ * чистым функциям health-connect-body и создаёт замеры в журнале тела через
+ * body-store. Основной источник — Google Fit (когда он подключён), Health
+ * Connect остаётся резервом: выбор читается из health-source.
  */
 
 export type BodyScaleState = "unsupported" | "unavailable" | "update-required" | "ready" | "permission-required" | "error";
@@ -126,9 +132,11 @@ function toMassInputs(records: { time: string; mass: { inKilograms: number } }[]
 let inFlightSync: Promise<BodyScaleSyncResult> | null = null;
 
 /**
- * Синхронизация взвешиваний из Health Connect в журнал тела.
- * Читает записи за последние 90 дней, сопоставляет состав, дедуплицирует
- * против локального журнала и создаёт замеры с детерминированным id.
+ * Синхронизация взвешиваний в журнал тела.
+ * Основной источник выбирается настройкой: Google Fit (вес читается напрямую,
+ * состав тела библиотека не отдаёт — сохраняется только вес) или Health
+ * Connect (прежний путь с сопоставлением состава). Дедупликация против
+ * локального журнала и журнал processedAtISO — общие для обоих источников.
  * Автозапуск (force: false) уважает переключатель автосинхронизации
  * и не выполняется чаще раза в 10 минут.
  */
@@ -149,6 +157,19 @@ export async function syncBodyWeighIns(options: SyncBodyWeighInsOptions): Promis
         if (!Number.isNaN(lastMs) && Date.now() - lastMs < AUTO_SYNC_MIN_INTERVAL_MS) return empty;
       }
     }
+    const source = await loadHealthSource();
+    if (source === "google-fit") {
+      const fitStatus = await getGoogleFitStatus();
+      if (fitStatus.state !== "ready") return { ...empty, granted: false };
+      const samples = await readGoogleFitWeightSamples(LOOKBACK_DAYS);
+      return commitWeighIns(
+        collectGoogleFitWeighIns(samples, state.processedAtISO),
+        state,
+        options,
+        nowISO,
+        googleFitMeasurementId,
+      );
+    }
     const status = await getBodyScaleStatus();
     if (!status.granted) return { ...empty, granted: false };
     const endISO = nowISO;
@@ -168,35 +189,8 @@ export async function syncBodyWeighIns(options: SyncBodyWeighInsOptions): Promis
       toMassInputs(boneResult?.records as { time: string; mass: { inKilograms: number } }[] | undefined),
       toMassInputs(waterResult?.records as { time: string; mass: { inKilograms: number } }[] | undefined),
       state.processedAtISO,
-    );    const pending = dedupeAgainst(await readStoredMeasurements(), candidates);
-    for (const candidate of pending) {
-      const measurement: Omit<BodyMeasurement, "id"> & { id?: string } = {
-        id: bodySyncMeasurementId(candidate.sourceAtISO),
-        date: candidate.date,
-        weightKg: candidate.weightKg,
-        sourceAtISO: candidate.sourceAtISO,
-      };
-      if (candidate.bodyFatPct !== undefined) measurement.bodyFatPct = candidate.bodyFatPct;
-      if (candidate.muscleMassKg !== undefined) measurement.muscleMassKg = candidate.muscleMassKg;
-      if (candidate.boneMassKg !== undefined) measurement.boneMassKg = candidate.boneMassKg;
-      if (candidate.waterMassKg !== undefined) measurement.waterMassKg = candidate.waterMassKg;
-      options.addMeasurement(measurement);
-    }
-    const processedAtISO = [...state.processedAtISO, ...candidates.map((candidate: WeighInCandidate) => candidate.sourceAtISO)]
-      .filter((item, index, all) => all.indexOf(item) === index)
-      .slice(-MAX_PROCESSED_TIMESTAMPS);
-    const lastCandidate = candidates[candidates.length - 1];
-    await saveBodySyncState({
-      processedAtISO,
-      lastSyncAtISO: nowISO,
-      autoSyncEnabled: state.autoSyncEnabled,
-    });
-    return {
-      created: pending.length,
-      skipped: candidates.length - pending.length,
-      lastWeight: lastCandidate?.weightKg,
-      granted: true,
-    };
+    );
+    return commitWeighIns(candidates, state, options, nowISO, bodySyncMeasurementId);
   })();
   inFlightSync = run;
   try {
@@ -204,4 +198,47 @@ export async function syncBodyWeighIns(options: SyncBodyWeighInsOptions): Promis
   } finally {
     if (inFlightSync === run) inFlightSync = null;
   }
+}
+
+/**
+ * Общий финал синхронизации для обоих источников: дедупликация против
+ * локального журнала (±0,1 кг на ту же дату), создание замеров с
+ * детерминированным id источника и обновление журнала обработанных меток.
+ */
+async function commitWeighIns(
+  candidates: WeighInCandidate[],
+  state: BodySyncState,
+  options: SyncBodyWeighInsOptions,
+  nowISO: string,
+  measurementId: (sourceAtISO: string) => string,
+): Promise<BodyScaleSyncResult> {
+  const pending = dedupeAgainst(await readStoredMeasurements(), candidates);
+  for (const candidate of pending) {
+    const measurement: Omit<BodyMeasurement, "id"> & { id?: string } = {
+      id: measurementId(candidate.sourceAtISO),
+      date: candidate.date,
+      weightKg: candidate.weightKg,
+      sourceAtISO: candidate.sourceAtISO,
+    };
+    if (candidate.bodyFatPct !== undefined) measurement.bodyFatPct = candidate.bodyFatPct;
+    if (candidate.muscleMassKg !== undefined) measurement.muscleMassKg = candidate.muscleMassKg;
+    if (candidate.boneMassKg !== undefined) measurement.boneMassKg = candidate.boneMassKg;
+    if (candidate.waterMassKg !== undefined) measurement.waterMassKg = candidate.waterMassKg;
+    options.addMeasurement(measurement);
+  }
+  const processedAtISO = [...state.processedAtISO, ...candidates.map((candidate: WeighInCandidate) => candidate.sourceAtISO)]
+    .filter((item, index, all) => all.indexOf(item) === index)
+    .slice(-MAX_PROCESSED_TIMESTAMPS);
+  const lastCandidate = candidates[candidates.length - 1];
+  await saveBodySyncState({
+    processedAtISO,
+    lastSyncAtISO: nowISO,
+    autoSyncEnabled: state.autoSyncEnabled,
+  });
+  return {
+    created: pending.length,
+    skipped: candidates.length - pending.length,
+    lastWeight: lastCandidate?.weightKg,
+    granted: true,
+  };
 }

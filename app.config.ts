@@ -147,6 +147,9 @@ const config: ExpoConfig = {
       },
     ],
     "react-native-health-connect",
+    // Плагин react-native-google-fit добавляет <queries> для пакета
+    // com.google.android.apps.fitness в AndroidManifest (Android 11+).
+    "react-native-google-fit",
     [
       "expo-build-properties",
       {

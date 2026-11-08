@@ -4,6 +4,7 @@ import android.app.AlarmManager
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
+import android.app.RemoteInput
 import android.content.Context
 import android.content.Intent
 import android.media.RingtoneManager
@@ -66,6 +67,7 @@ internal const val EXTRA_EXERCISES_COUNT = "exercisesCount"
 internal const val EXTRA_CURRENT_WEIGHT_KG = "currentWeightKg"
 internal const val EXTRA_CURRENT_REPS = "currentReps"
 internal const val EXTRA_RESULT_LAYOUT = "resultLayout"
+internal const val EXTRA_RESULT_INPUT = "ironrise_result_input"
 internal const val SET_RESULT_WEIGHT_STEP_KG = 5.0
 internal const val SET_RESULT_LAYOUT_COUNT = 5
 private const val ACTION_PREFERENCES = "ironrise.rest.timer.actions"
@@ -559,11 +561,24 @@ internal fun showSetResultNotification(context: Context, state: ActiveSetNotific
     "Ещё",
     setActionPendingIntent(context, ACTION_MORE, state, MORE_REQUEST_CODE)
   )
-  builder.addAction(
+  // «Готово» с RemoteInput: прямой ввод «вес × повторы» цифрами с клавиатуры
+  // уведомления на телефоне (Android 7+). PendingIntent действия с RemoteInput
+  // обязан быть mutable, иначе система не сможет дописать введённый текст в
+  // extras. На зеркальные уведомления Huawei RemoteInput не пробрасывается —
+  // там остаются кнопки-корректировки. Extras intent'а уже содержат текущие
+  // вес/повторы (совместимость со старым путём и восстановлением из extras).
+  val remoteInput = RemoteInput.Builder(EXTRA_RESULT_INPUT)
+    .setLabel("Вес × повторы, напр. 80 x 8")
+    .build()
+  val commitAction = NotificationCompat.Action.Builder(
     android.R.drawable.ic_menu_save,
     "Готово",
-    setActionPendingIntent(context, ACTION_COMMIT_SET, state, COMMIT_SET_REQUEST_CODE)
+    setActionPendingIntent(context, ACTION_COMMIT_SET, state, COMMIT_SET_REQUEST_CODE, mutable = true)
   )
+    .addRemoteInput(remoteInput)
+    .extend(NotificationCompat.Action.WearableExtender().setAllowGeneratedReplies(false))
+    .build()
+  builder.addAction(commitAction)
   NotificationManagerCompat.from(context).notify(SET_RESULT_NOTIFICATION_ID, builder.build())
 }
 
@@ -577,7 +592,8 @@ internal fun setActionPendingIntent(
   context: Context,
   action: String,
   state: ActiveSetNotificationState,
-  requestCode: Int
+  requestCode: Int,
+  mutable: Boolean = false
 ): PendingIntent {
   val intent = Intent(context, RestTimerActionReceiver::class.java).apply {
     this.action = action
@@ -593,8 +609,14 @@ internal fun setActionPendingIntent(
     putExtra(EXTRA_CURRENT_REPS, state.currentReps)
     putExtra(EXTRA_RESULT_LAYOUT, state.resultLayout)
   }
+  // RemoteInput требует mutable PendingIntent: система дописывает введённый
+  // текст в EXTRA_RESULT_INPUT перед доставкой broadcast.
   val mutabilityFlag =
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) PendingIntent.FLAG_IMMUTABLE else 0
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+      if (mutable) PendingIntent.FLAG_MUTABLE else PendingIntent.FLAG_IMMUTABLE
+    } else {
+      0
+    }
   return PendingIntent.getBroadcast(context, requestCode, intent, PendingIntent.FLAG_UPDATE_CURRENT or mutabilityFlag)
 }
 

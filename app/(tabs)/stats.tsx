@@ -40,7 +40,8 @@ import { ProgressOverview } from "@/components/progress-overview";
 import { getExercisePersonalRecordHistory, type PersonalRecordHistoryPoint } from "@/lib/record-history";
 import { getPercentageChange, getStatsMetrics, getStatsPeriodComparison } from "@/lib/stats-comparison";
 import { getWeeklyCardioMinutes } from "@/lib/cardio-metrics";
-import { getHealthConnectStatus, readDailyActivity, readActivityWeek, type DailyActivityReading, type HealthConnectStatus } from "@/lib/health-connect";
+import type { DailyActivityReading } from "@/lib/health-connect";
+import { getActivityStatus, getActivityToday, getActivityWeek, type ActivityProviderStatus } from "@/lib/activity-provider";
 import type { ActivityWeekDay } from "@/lib/health-connect-activity";
 
 const periodOptions: { id: StatsFilterMode; label: string }[] = [
@@ -83,9 +84,9 @@ export default function StatsScreen() {
   const periodComparison = useMemo(() => getStatsPeriodComparison(completed, filter, selectedExerciseId), [completed, filter, selectedExerciseId]);
   const oneRmHistory = useMemo(() => selectedExerciseId ? getExercisePersonalRecordHistory(completed, selectedExerciseId, oneRmFormula) : [], [completed, oneRmFormula, selectedExerciseId]);
   const weeklyCardio = useMemo(() => getWeeklyCardioMinutes(completed), [completed]);
-  // Виджет «Активность»: данные Health Connect читаются один раз при маунте,
-  // ошибки не блокируют экран — карточка показывает подсказку.
-  const [activityStatus, setActivityStatus] = useState<HealthConnectStatus | null>(null);
+  // Виджет «Активность»: данные читаются провайдером (Google Fit — основной,
+  // Health Connect — резерв) один раз при маунте, ошибки не блокируют экран.
+  const [activityStatus, setActivityStatus] = useState<ActivityProviderStatus | null>(null);
   const [activityDay, setActivityDay] = useState<DailyActivityReading | null>(null);
   const [activityWeek, setActivityWeek] = useState<ActivityWeekDay[]>([]);
   const [activityLoaded, setActivityLoaded] = useState(false);
@@ -93,11 +94,11 @@ export default function StatsScreen() {
     let mounted = true;
     void (async () => {
       try {
-        const status = await getHealthConnectStatus();
+        const status = await getActivityStatus();
         if (!mounted) return;
         setActivityStatus(status);
-        if (status.state === "ready" && status.activityGranted) {
-          const [day, week] = await Promise.all([readDailyActivity(), readActivityWeek()]);
+        if (status.connected) {
+          const [day, week] = await Promise.all([getActivityToday(), getActivityWeek()]);
           if (!mounted) return;
           setActivityDay(day);
           setActivityWeek(week);
@@ -352,8 +353,10 @@ function WeeklyCardioChart({ points, colors }: { points: ReturnType<typeof getWe
   return <View style={[styles.cardioChart, { backgroundColor: colors.surface, borderColor: colors.border }]}><View style={styles.cardioChartHeader}><View><Text style={[styles.cardioChartTitle, { color: colors.foreground }]}>КАРДИО · 7 ДНЕЙ</Text><Text style={[styles.cardioChartHint, { color: colors.muted }]}>Время кардио по дням недели</Text></View><Text style={[styles.cardioChartTotal, { color: colors.primary }]}>{total} МИН</Text></View><Svg width="100%" height={132} viewBox="0 0 328 132"><Line x1="18" x2="316" y1="103" y2="103" stroke={colors.border} strokeWidth="1" />{points.map((point, index) => { const height = point.minutes ? Math.max(5, (point.minutes / max) * 76) : 2; const x = 25 + index * 43; return <Fragment key={point.date}><Rect x={x} y={103 - height} width="25" height={height} fill={point.minutes ? colors.primary : colors.border} /><SvgText x={x + 12} y="121" textAnchor="middle" fill={colors.muted} fontSize="9" fontWeight="800">{point.label}</SvgText>{point.minutes > 0 && <SvgText x={x + 12} y={96 - height} textAnchor="middle" fill={colors.foreground} fontSize="9" fontWeight="900">{point.minutes}</SvgText>}</Fragment>; })}</Svg></View>;
 }
 
-function ActivityTodayCard({ status, day, week, loaded, colors }: { status: HealthConnectStatus | null; day: DailyActivityReading | null; week: ActivityWeekDay[]; loaded: boolean; colors: any }) {
-  const connected = Boolean(status && status.state === "ready" && status.activityGranted);
+function ActivityTodayCard({ status, day, week, loaded, colors }: { status: ActivityProviderStatus | null; day: DailyActivityReading | null; week: ActivityWeekDay[]; loaded: boolean; colors: any }) {
+  const fromGoogleFit = status?.source === "google-fit";
+  const sourceLabel = fromGoogleFit ? "Google Fit" : "Health Connect";
+  const connected = Boolean(status?.connected);
   const hasDayData = Boolean(day && (day.steps !== undefined || day.activeKcal !== undefined || day.distanceKm !== undefined || day.heartRate));
   const heartRate = day?.heartRate;
   const maxSteps = Math.max(1, ...week.map((entry) => entry.steps));
@@ -365,24 +368,35 @@ function ActivityTodayCard({ status, day, week, loaded, colors }: { status: Heal
       <View style={styles.activityHeader}>
         <View style={{ flex: 1 }}>
           <Text style={[styles.activityTitle, { color: colors.foreground }]}>Активность · сегодня</Text>
-          <Text style={[styles.activityHint, { color: colors.muted }]}>Шаги, калории и пульс из Health Connect</Text>
+          <Text style={[styles.activityHint, { color: colors.muted }]}>Шаги, калории и пульс из {sourceLabel}</Text>
         </View>
-        <View style={[styles.activityBadge, { backgroundColor: `${colors.primary}18` }]}><Text style={[styles.activityBadgeText, { color: colors.primary }]}>HC</Text></View>
+        <View style={[styles.activityBadge, { backgroundColor: `${colors.primary}18` }]}><Text style={[styles.activityBadgeText, { color: colors.primary }]}>{fromGoogleFit ? "GF" : "HC"}</Text></View>
       </View>
       {!loaded ? (
-        <View style={[styles.activityEmpty, { borderColor: colors.border }]}><Text style={[styles.activityEmptyText, { color: colors.muted }]}>Загружаем данные Health Connect…</Text></View>
+        <View style={[styles.activityEmpty, { borderColor: colors.border }]}><Text style={[styles.activityEmptyText, { color: colors.muted }]}>Загружаем данные {sourceLabel}…</Text></View>
       ) : !connected ? (
         <View style={[styles.activityEmpty, { borderColor: colors.border }]}>
-          <Text style={[styles.activityEmptyTitle, { color: colors.foreground }]}>Health Connect не подключён</Text>
-          <Text style={[styles.activityEmptyText, { color: colors.muted }]}>Разрешите IronRise читать активность и пульс — данные приходят из приложения «Здоровье».</Text>
-          <Pressable onPress={() => router.push("/(tabs)/settings")} accessibilityRole="button" accessibilityLabel="Настроить Health Connect в настройках" style={({ pressed }) => [styles.activityConnectButton, { borderColor: colors.primary, opacity: pressed ? pressedOpacity : 1 }]}>
-            <Text style={[styles.activityConnectButtonText, { color: colors.primary }]}>Настроить Health Connect</Text>
-          </Pressable>
+          <Text style={[styles.activityEmptyTitle, { color: colors.foreground }]}>{sourceLabel} не подключён</Text>
+          {fromGoogleFit ? (
+            <>
+              <Text style={[styles.activityEmptyText, { color: colors.muted }]}>Подключите Google Fit в настройках — он основной источник данных, Health Connect остаётся резервом.</Text>
+              <Pressable onPress={() => router.push("/(tabs)/settings")} accessibilityRole="button" accessibilityLabel="Подключить Google Fit в настройках" style={({ pressed }) => [styles.activityConnectButton, { borderColor: colors.primary, opacity: pressed ? pressedOpacity : 1 }]}>
+                <Text style={[styles.activityConnectButtonText, { color: colors.primary }]}>Подключить Google Fit</Text>
+              </Pressable>
+            </>
+          ) : (
+            <>
+              <Text style={[styles.activityEmptyText, { color: colors.muted }]}>Разрешите IronRise читать активность и пульс — данные приходят из приложения «Здоровье».</Text>
+              <Pressable onPress={() => router.push("/(tabs)/settings")} accessibilityRole="button" accessibilityLabel="Настроить Health Connect в настройках" style={({ pressed }) => [styles.activityConnectButton, { borderColor: colors.primary, opacity: pressed ? pressedOpacity : 1 }]}>
+                <Text style={[styles.activityConnectButtonText, { color: colors.primary }]}>Настроить Health Connect</Text>
+              </Pressable>
+            </>
+          )}
         </View>
       ) : !hasDayData ? (
         <View style={[styles.activityEmpty, { borderColor: colors.border }]}>
           <Text style={[styles.activityEmptyTitle, { color: colors.foreground }]}>Нет данных за сегодня</Text>
-          <Text style={[styles.activityEmptyText, { color: colors.muted }]}>Откройте приложение «Здоровье», чтобы оно синхронизировало шаги, калории и пульс в Health Connect.</Text>
+          <Text style={[styles.activityEmptyText, { color: colors.muted }]}>{fromGoogleFit ? "Откройте приложение Google Fit, чтобы оно синхронизировало шаги, калории и пульс." : "Откройте приложение «Здоровье», чтобы оно синхронизировало шаги, калории и пульс в Health Connect."}</Text>
         </View>
       ) : (
         <>

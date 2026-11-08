@@ -1,10 +1,30 @@
 package expo.modules.ironriseresttimer
 
+import android.app.RemoteInput
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.util.Log
 import androidx.core.app.NotificationManagerCompat
+
+// Форматы ввода «вес × повторы»: «80 x 8», «80х8» (русская х), «80×8», «80*8»,
+// «80 8», «80,8». Здесь «80,8» — два числа через запятую-разделитель (80 кг × 8),
+// а не 80.8 кг; десятичный вес пишется с точкой или запятой перед разделителем:
+// «80,5 x 6» = 80.5 кг × 6.
+internal val RESULT_INPUT_PATTERN =
+  Regex("""^(\d+(?:[.,]\d+)?)\s*(?:[xх×*]\s*|\s+|,)(\d+)$""", RegexOption.IGNORE_CASE)
+
+// Чистая функция «строка → (вес, повторы)?» для unit-проверок: null при пустом
+// или мусорном вводе, весе <= 0 или повторах < 1 — тогда коммит идёт с текущими
+// значениями, как обычное «Готово».
+internal fun parseResultInput(raw: String?): Pair<Double, Int>? {
+  val value = raw?.trim() ?: return null
+  val match = RESULT_INPUT_PATTERN.matchEntire(value) ?: return null
+  val weight = match.groupValues[1].replace(',', '.').toDoubleOrNull() ?: return null
+  val reps = match.groupValues[2].toIntOrNull() ?: return null
+  if (weight <= 0.0 || reps < 1) return null
+  return weight to reps
+}
 
 class RestTimerActionReceiver : BroadcastReceiver() {
   override fun onReceive(context: Context, intent: Intent) {
@@ -89,6 +109,13 @@ class RestTimerActionReceiver : BroadcastReceiver() {
     if (action == ACTION_COMMIT_SET) {
       val state = activeSetStateFromIntent(intent)
       if (state.setIndex < 0) return
+      // Прямой ввод «вес × повторы» из клавиатуры уведомления (RemoteInput):
+      // распарсили — обновляем значения до коммита; не распарсили (пусто/мусор) —
+      // коммит идёт с текущими значениями, как обычное «Готово». Уведомление
+      // снимается ниже, это заодно очищает поле ввода; отдельный пере-пост 40109
+      // для сброса поля не нужен, потому что некоммитный путь здесь один —
+      // setIndex < 0, а до него нажатие из самого уведомления дойти не может.
+      applyResultInput(RemoteInput.getResultsFromIntent(intent))
       val weight = currentWeight(state)
       val reps = currentRepsOf(state)
       Log.d(REST_TIMER_LOG_TAG, "set committed: exerciseId=${state.exerciseId} setIndex=${state.setIndex} weight=$weight reps=$reps")
@@ -116,6 +143,21 @@ class RestTimerActionReceiver : BroadcastReceiver() {
 
   private fun currentRepsOf(state: ActiveSetNotificationState): Int =
     if (currentReps > 0) currentReps else state.currentReps
+
+  // Достаёт введённый текст из ответа уведомления и обновляет статику значений.
+  // null-результат (действие без RemoteInput, обычный тап по карточке) — no-op.
+  private fun applyResultInput(results: android.os.Bundle?) {
+    if (results == null) return
+    val raw = results.getCharSequence(EXTRA_RESULT_INPUT)?.toString()
+    val parsed = parseResultInput(raw)
+    if (parsed == null) {
+      Log.d(REST_TIMER_LOG_TAG, "result input ignored: raw=$raw")
+      return
+    }
+    currentWeightKg = parsed.first
+    currentReps = parsed.second
+    Log.d(REST_TIMER_LOG_TAG, "result input applied: weight=${parsed.first} reps=${parsed.second}")
+  }
 
   private companion object {
     // Текущие значения ввода результата живут в статике receiver'а; extras остаются

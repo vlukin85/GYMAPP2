@@ -33,11 +33,23 @@ describe("интеграция Health Connect", () => {
     const storage = readFileSync(resolve(process.cwd(), "lib/stats-widgets-storage.ts"), "utf8");
     expect(storage).toContain('"activity"');
     expect(stats).toContain("ActivityTodayCard");
-    expect(stats).toContain("readDailyActivity");
-    expect(stats).toContain("readActivityWeek");
+    expect(stats).toContain("getActivityToday");
+    expect(stats).toContain("getActivityWeek");
     expect(stats).toContain("Активность · сегодня");
     expect(stats).toContain("Настроить Health Connect");
     expect(activity).toContain("ACTIVITY_PERMISSIONS");
     expect(activity).toContain("buildActivityWeek");
+  });
+
+  it("подключает Google Fit как основной источник данных", () => {
+    expect(config).toContain('"react-native-google-fit"');
+    expect(settings).toContain("Google Fit");
+    expect(settings).toContain("Подключить Google Fit");
+    expect(settings).toContain("Основной источник данных");
+    expect(settings).toContain("useHealthSource");
+    const provider = readFileSync(resolve(process.cwd(), "lib/activity-provider.ts"), "utf8");
+    const stats = readFileSync(resolve(process.cwd(), "app/(tabs)/stats.tsx"), "utf8");
+    expect(provider).toContain("Подключите Google Fit в настройках");
+    expect(stats).toContain("Подключите Google Fit в настройках");
   });
 });

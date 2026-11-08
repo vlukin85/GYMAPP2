@@ -104,6 +104,8 @@ import {
   syncBodyWeighIns,
   type BodyScaleStatus,
 } from "@/lib/health-connect-body-sync";
+import { authorizeGoogleFit, getGoogleFitStatus, type GoogleFitStatus } from "@/lib/google-fit";
+import { HEALTH_SOURCE_OPTIONS, useHealthSource } from "@/lib/health-source";
 
 const formulas: {
   id: OneRepMaxFormula;
@@ -525,6 +527,13 @@ export default function SettingsScreen() {
     string | null
   >(null);
   const [bodyScaleAutoSync, setBodyScaleAutoSync] = useState(true);
+  // Источник данных о здоровье: Google Fit — основной, Health Connect — резерв.
+  const { source: healthSource, setSource: setHealthSource } = useHealthSource();
+  const [googleFitStatus, setGoogleFitStatus] = useState<GoogleFitStatus>({
+    state: "unavailable",
+    message: "Проверяем Google Fit…",
+  });
+  const [googleFitConnecting, setGoogleFitConnecting] = useState(false);
   const [settingsCategory, setSettingsCategory] =
     useState<SettingsCategoryId>("training");
   const [settingsQuery, setSettingsQuery] = useState("");
@@ -621,6 +630,7 @@ export default function SettingsScreen() {
       .then((key) => setHasGroqKey(Boolean(key)))
       .catch(() => setHasGroqKey(false));
     void getHealthConnectStatus().then(setHealthConnectStatus);
+    void getGoogleFitStatus().then(setGoogleFitStatus);
     void loadLockScreenHeartRateVisible().then(setLockScreenHeartRateVisible);
     void getBodyScaleStatus().then(setBodyScaleStatus);
     void loadBodySyncState().then((state) =>
@@ -695,18 +705,39 @@ export default function SettingsScreen() {
     );
   const connectHealthConnect = () =>
     void connectHealthConnectActivity().then(setHealthConnectStatus);
+  const connectGoogleFit = () => {
+    setGoogleFitConnecting(true);
+    void authorizeGoogleFit()
+      .then(setGoogleFitStatus)
+      .catch(() =>
+        setGoogleFitStatus({
+          state: "error",
+          message: "Не удалось авторизоваться в Google Fit. Проверь настройку OAuth-клиента и попробуй ещё раз.",
+        }),
+      )
+      .finally(() => setGoogleFitConnecting(false));
+  };
   const runBodyScaleSync = (force: boolean) => {
     setBodyScaleSyncing(true);
     void syncBodyWeighIns({ force, addMeasurement: addBodyMeasurement })
       .then((result) => {
         setBodyScaleStatus((current) =>
           result.granted === false
-            ? { ...current, granted: false, message: "Разрешите IronRise читать вес и состав тела в Health Connect." }
+            ? {
+                ...current,
+                granted: false,
+                message:
+                  healthSource === "google-fit"
+                    ? "Подключите Google Fit — он основной источник взвешиваний. Health Connect остаётся резервом."
+                    : "Разрешите IronRise читать вес и состав тела в Health Connect.",
+              }
             : current,
         );
         setBodyScaleSyncMessage(
           result.granted === false
-            ? "Подключи весы, чтобы синхронизировать данные."
+            ? healthSource === "google-fit"
+              ? "Подключи Google Fit, чтобы синхронизировать взвешивания."
+              : "Подключи весы, чтобы синхронизировать данные."
             : result.created > 0
               ? `Создано ${result.created} взвешиваний`
               : "Новых взвешиваний нет.",
@@ -2654,6 +2685,147 @@ export default function SettingsScreen() {
           </View>
 
           <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
+            Google Fit
+          </Text>
+          <View
+            style={[
+              styles.groqCard,
+              { backgroundColor: colors.surface, borderColor: colors.border },
+            ]}
+          >
+            <View style={styles.groqHeader}>
+              <View
+                style={[
+                  styles.groqIcon,
+                  { backgroundColor: `${colors.primary}17` },
+                ]}
+              >
+                <SafeMaterialIcon
+                  name="directions-run"
+                  size={20}
+                  color={colors.primary}
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.groqTitle, { color: colors.foreground }]}>
+                  Активность и вес из Google Fit
+                </Text>
+                <Text style={[styles.groqSubtitle, { color: colors.muted }]}>
+                  {googleFitStatus.message}
+                </Text>
+              </View>
+              <Text
+                style={[
+                  styles.groqStatus,
+                  {
+                    color:
+                      googleFitStatus.state === "ready"
+                        ? colors.success
+                        : colors.muted,
+                    backgroundColor:
+                      googleFitStatus.state === "ready"
+                        ? `${colors.success}18`
+                        : colors.border,
+                  },
+                ]}
+              >
+                {googleFitStatus.state === "ready"
+                  ? "ГОТОВ"
+                  : googleFitStatus.state === "unauthorized"
+                    ? "НЕ АВТОРИЗОВАН"
+                    : "НЕ НАСТРОЕНО"}
+              </Text>
+            </View>
+            <View style={styles.groqActions}>
+              <Pressable
+                onPress={connectGoogleFit}
+                disabled={googleFitConnecting}
+                style={[
+                  styles.groqPrimary,
+                  { backgroundColor: colors.primary },
+                ]}
+              >
+                <Text style={styles.groqPrimaryText}>
+                  {googleFitConnecting
+                    ? "Подключаем…"
+                    : googleFitStatus.state === "ready"
+                      ? "Проверить Google Fit"
+                      : "Подключить Google Fit"}
+                </Text>
+              </Pressable>
+            </View>
+            <View
+              style={[
+                styles.widgetFeedbackRow,
+                {
+                  borderColor: colors.border,
+                  backgroundColor: colors.background,
+                },
+              ]}
+            >
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.widgetTitle, { color: colors.foreground }]}>
+                  Основной источник данных
+                </Text>
+                <Text style={[styles.widgetHint, { color: colors.muted }]}>
+                  {healthSource === "google-fit"
+                    ? "Google Fit — основной источник, Health Connect остаётся резервом."
+                    : "Health Connect выбран как основной, Google Fit подключён как резерв."}
+                </Text>
+              </View>
+            </View>
+            {HEALTH_SOURCE_OPTIONS.map((option) => {
+              const selected = healthSource === option.id;
+              return (
+                <Pressable
+                  key={option.id}
+                  onPress={() => setHealthSource(option.id)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Основной источник данных: ${option.title}`}
+                  style={[
+                    styles.healthSourceOption,
+                    {
+                      borderColor: selected ? colors.primary : colors.border,
+                      backgroundColor: selected
+                        ? `${colors.primary}14`
+                        : colors.background,
+                    },
+                  ]}
+                >
+                  <View style={{ flex: 1 }}>
+                    <Text
+                      style={[styles.healthSourceTitle, { color: colors.foreground }]}
+                    >
+                      {option.title}
+                    </Text>
+                    <Text
+                      style={[
+                        styles.healthSourceDescription,
+                        { color: colors.muted },
+                      ]}
+                    >
+                      {option.description}
+                    </Text>
+                  </View>
+                  {selected && (
+                    <SafeMaterialIcon
+                      name="check-circle"
+                      size={20}
+                      color={colors.primary}
+                    />
+                  )}
+                </Pressable>
+              );
+            })}
+            <Text style={[styles.groqPrivacy, { color: colors.muted }]}>
+              Для OAuth нужен Client ID типа Android с package name и SHA-1
+              подписи — пошаговая инструкция в docs/setup-google-fit.md. Пока
+              клиент не настроен или Google Fit не авторизован, карточка
+              «Активность» и взвешивания читаются через Health Connect.
+            </Text>
+          </View>
+
+          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
             Health Connect
           </Text>
           <View
@@ -4212,6 +4384,16 @@ const styles = StyleSheet.create({
   },
   groqDeleteText: { fontSize: 12, fontWeight: "900" },
   groqPrivacy: { fontSize: 10, lineHeight: 14 },
+  healthSourceOption: {
+    borderWidth: 1,
+    borderRadius: 10,
+    padding: 11,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  healthSourceTitle: { fontSize: 13, fontWeight: "800" },
+  healthSourceDescription: { fontSize: 11, lineHeight: 15, marginTop: 3 },
   storageCard: {
     borderWidth: 1,
     borderRadius: 0,

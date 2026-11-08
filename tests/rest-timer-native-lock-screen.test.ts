@@ -119,10 +119,12 @@ describe("таймер отдыха на заблокированном Android-
 
   it("оставляет только управление таймером и действие продления отдыха", () => {
     expect(nativeModule).not.toContain("ACTION_EDIT_SET");
-    expect(nativeModule).not.toContain("RemoteInput");
-    expect(nativeModule).not.toContain('"Вес × повторы"');
+    // RemoteInput разрешён только в действии «Готово» уведомления результата
+    // (см. tests/watch-set-notifications.test.ts); старый путь update-set
+    // оставаться не должен.
+    expect(nativeModule).not.toContain('"update-set"');
     expect(nativeBridge).not.toContain('"update-set"');
-    expect(actionReceiver).not.toContain("RemoteInput");
+    expect(actionReceiver).not.toContain("ACTION_EDIT_SET");
     expect(actionReceiver).not.toContain('"update-set"');
     expect(receiver).not.toContain("buildEditSetAction(");
     expect(workoutScreen).not.toContain("applySetUpdateFromNativeRestAction");
