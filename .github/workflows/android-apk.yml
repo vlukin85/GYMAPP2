@@ -226,20 +226,37 @@ jobs:
 
       - name: Build Android artifacts
         working-directory: android
+        # Ретраи: зеркала GitHub Releases периодически отдают 504/таймауты
+        # на больших артефактах (kotlin-compiler и т.п.). Gradle кэширует
+        # успешно скачанное, поэтому повторная попытка продолжает с места
+        # обрыва, а не с нуля.
         run: |
           if [ "${BUILD_VARIANT}" = "debug" ]; then
             if [ "${DEBUG_ARCHITECTURE}" = "universal" ]; then
-              ./gradlew :app:assembleDebug --no-daemon
+              GRADLE_CMD="./gradlew :app:assembleDebug --no-daemon"
             else
-              ./gradlew :app:assembleDebug -PreactNativeArchitectures="${DEBUG_ARCHITECTURE}" --no-daemon
+              GRADLE_CMD="./gradlew :app:assembleDebug -PreactNativeArchitectures=\"${DEBUG_ARCHITECTURE}\" --no-daemon"
             fi
           elif [ "${ARTIFACT_TYPE}" = "aab" ]; then
-            ./gradlew :app:bundleRelease --no-daemon
+            GRADLE_CMD="./gradlew :app:bundleRelease --no-daemon"
           elif [ "${ARTIFACT_TYPE}" = "both" ]; then
-            ./gradlew :app:assembleRelease :app:bundleRelease --no-daemon
+            GRADLE_CMD="./gradlew :app:assembleRelease :app:bundleRelease --no-daemon"
           else
-            ./gradlew :app:assembleRelease --no-daemon
+            GRADLE_CMD="./gradlew :app:assembleRelease --no-daemon"
           fi
+          for attempt in 1 2 3; do
+            echo "=== Сборка, попытка $attempt ==="
+            if eval "$GRADLE_CMD"; then
+              echo "Сборка успешна (попытка $attempt)"
+              exit 0
+            fi
+            if [ "$attempt" = "3" ]; then
+              echo "Сборка не удалась после 3 попыток"
+              exit 1
+            fi
+            echo "Сборка упала, повтор через 60 с (кэш Gradle сохранён)..."
+            sleep 60
+          done
 
       - name: Upload installable APK
         if: ${{ env.ARTIFACT_TYPE == 'apk' || env.ARTIFACT_TYPE == 'both' }}
