@@ -33,6 +33,7 @@ import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { SafeMaterialIcon } from "@/components/ui/safe-material-icon";
 import { useColors } from "@/hooks/use-colors";
+import { useBottomActionInset } from "@/lib/use-bottom-inset";
 import {
   clearActiveWorkoutDraft,
   isDraftForProgram,
@@ -257,6 +258,7 @@ function RestTimerOverlay({
   vibrationEnabled: boolean;
   vibrationPattern: "short" | "long" | "pulse";
 }) {
+  const restBottomInset = useBottomActionInset(32);
   if (rest <= 0 || totalRest <= 0) return null;
   const progress = getRestProgress(rest, totalRest);
   const dashOffset = REST_CIRCUMFERENCE * (1 - progress);
@@ -277,7 +279,13 @@ function RestTimerOverlay({
       onRequestClose={onSkip}
     >
       <View
-        style={[styles.restOverlay, { backgroundColor: colors.background }]}
+        style={[
+          styles.restOverlay,
+          {
+            backgroundColor: colors.background,
+            paddingBottom: restBottomInset,
+          },
+        ]}
       >
         <View
           style={[styles.restTopBar, { backgroundColor: colors.primary }]}
@@ -811,6 +819,9 @@ function WorkoutProgressCard({
 
 export default function WorkoutScreen() {
   const colors = useColors();
+  const setEditorBottomInset = useBottomActionInset(24);
+  const catalogListBottomInset = useBottomActionInset(32);
+  const catalogCreateBottomInset = useBottomActionInset(20);
   const { profile: bodyProfile, ageYears } = useBodyStore();
   const { programId } = useLocalSearchParams<{ programId: string }>();
   const store = useWorkoutStore();
@@ -3223,7 +3234,10 @@ export default function WorkoutScreen() {
             data={filteredCatalog}
             keyExtractor={(item) => item.id}
             keyboardShouldPersistTaps="handled"
-            contentContainerStyle={styles.catalogList}
+            contentContainerStyle={[
+              styles.catalogList,
+              { paddingBottom: catalogListBottomInset },
+            ]}
             ListEmptyComponent={
               <View style={styles.catalogEmptyState}>
                 <Text style={[styles.catalogEmpty, { color: colors.muted }]}>
@@ -3326,6 +3340,7 @@ export default function WorkoutScreen() {
               {
                 backgroundColor: colors.background,
                 borderColor: colors.primary,
+                paddingBottom: catalogCreateBottomInset,
               },
             ]}
           >
@@ -4160,6 +4175,7 @@ export default function WorkoutScreen() {
                     {
                       backgroundColor: colors.background,
                       borderColor: colors.primary,
+                      paddingBottom: setEditorBottomInset,
                     },
                   ]}
                 >

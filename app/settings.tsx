@@ -24,6 +24,7 @@ import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { SafeMaterialIcon } from "@/components/ui/safe-material-icon";
 import { useColors } from "@/hooks/use-colors";
+import { useBottomActionInset } from "@/lib/use-bottom-inset";
 import { APP_COLOR_THEMES } from "@/lib/app-color-themes";
 import { INTERFACE_DENSITY_PRESETS } from "@/lib/interface-density";
 import { useInterfaceDensity } from "@/lib/interface-density-provider";
@@ -377,6 +378,7 @@ const SETTINGS_CATEGORIES: {
 
 export default function SettingsScreen() {
   const colors = useColors();
+  const keySheetBottomInset = useBottomActionInset(20);
   const store = useWorkoutStore();
   const { theme: svgIconTheme, setThemeId } = useSvgIconTheme();
   const { themeId: appThemeId, setThemeId: setAppThemeId } = useThemeContext();
@@ -3585,7 +3587,13 @@ export default function SettingsScreen() {
             style={styles.sheetKeyboard}
           >
             <View
-              style={[styles.sheet, { backgroundColor: colors.background }]}
+              style={[
+                styles.sheet,
+                {
+                  backgroundColor: colors.background,
+                  paddingBottom: keySheetBottomInset,
+                },
+              ]}
             >
               <View style={styles.sheetHeader}>
                 <View>

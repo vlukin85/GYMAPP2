@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Image, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { ScreenContainer } from "@/components/screen-container";
 import { useColors } from "@/hooks/use-colors";
+import { useBottomActionInset } from "@/lib/use-bottom-inset";
 import { BODY_METRICS, type BodyMeasurement, useBodyStore } from "@/lib/body-store";
 import { compareBodyMeasurements, formatBodyDifference } from "@/lib/body-comparison";
 import { BodyMetricChart, BodySilhouette } from "@/components/body-visuals";
@@ -16,6 +17,7 @@ const measurementSourceLabel = (item: BodyMeasurement) => item.sourceAtISO ? " �
 
 export default function BodyScreen() {
   const colors = useColors();
+  const sheetBottomInset = useBottomActionInset(18);
   const { measurements, photos, profile, heightCm, goals, addMeasurement, removeMeasurement, addPhoto, removePhoto } = useBodyStore();
   const [editorOpen, setEditorOpen] = useState(false);
   const [date, setDate] = useState(localDate);
@@ -41,7 +43,7 @@ export default function BodyScreen() {
     <View style={styles.sectionHead}><Text style={[styles.sectionTitle, { color: colors.foreground }]}>ИСТОРИЯ</Text><Text style={[styles.sectionMeta, { color: colors.muted }]}>{measurementsCount} {measurementsCount === 1 ? "запись" : "записей"}</Text></View>
     {measurements.length ? measurements.map((measurement) => <MeasurementRow key={measurement.id} item={measurement} colors={colors} uploading={uploadingDate === measurement.date} onAddPhoto={() => void addProgressPhoto(measurement)} onDelete={() => Alert.alert("Удалить замер?", "Запись исчезнет только из локального журнала. Прикреплённые фото останутся в визуальной истории.", [{ text: "Отмена", style: "cancel" }, { text: "Удалить", style: "destructive", onPress: () => removeMeasurement(measurement.id) }])} />) : <View style={[styles.historyEmpty, { borderColor: colors.border }]}><Text style={[styles.empty, { color: colors.muted }]}>История пока пуста.</Text></View>}
   </ScrollView>
-  <Modal visible={editorOpen} transparent animationType="slide" onRequestClose={() => setEditorOpen(false)}><View style={styles.backdrop}><View style={[styles.sheet, { backgroundColor: colors.surface, borderColor: colors.border }]}><View style={styles.sheetHeader}><View><Text style={[styles.eyebrow, { color: colors.primary }]}>НОВАЯ ЗАПИСЬ</Text><Text style={[styles.sheetTitle, { color: colors.foreground }]}>Замеры тела</Text></View><Pressable onPress={() => setEditorOpen(false)} style={[styles.close, { borderColor: colors.border }]}><Text style={[styles.closeText, { color: colors.foreground }]}>×</Text></Pressable></View><Text style={[styles.inputLabel, { color: colors.muted }]}>Дата · ГГГГ-ММ-ДД</Text><TextInput value={date} onChangeText={setDate} placeholder="2026-08-19" placeholderTextColor={colors.muted} style={[styles.dateInput, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.background }]} />
+  <Modal visible={editorOpen} transparent animationType="slide" onRequestClose={() => setEditorOpen(false)}><View style={styles.backdrop}><View style={[styles.sheet, { backgroundColor: colors.surface, borderColor: colors.border, paddingBottom: sheetBottomInset }]}><View style={styles.sheetHeader}><View><Text style={[styles.eyebrow, { color: colors.primary }]}>НОВАЯ ЗАПИСЬ</Text><Text style={[styles.sheetTitle, { color: colors.foreground }]}>Замеры тела</Text></View><Pressable onPress={() => setEditorOpen(false)} style={[styles.close, { borderColor: colors.border }]}><Text style={[styles.closeText, { color: colors.foreground }]}>×</Text></Pressable></View><Text style={[styles.inputLabel, { color: colors.muted }]}>Дата · ГГГГ-ММ-ДД</Text><TextInput value={date} onChangeText={setDate} placeholder="2026-08-19" placeholderTextColor={colors.muted} style={[styles.dateInput, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.background }]} />
     <View style={styles.fields}>{BODY_METRICS.map((metric) => <View key={metric.id} style={styles.field}><Text style={[styles.inputLabel, { color: colors.muted }]}>{metric.label}, {metric.unit}</Text><TextInput value={draft[metric.id]} onChangeText={(value) => setDraft((current) => ({ ...current, [metric.id]: value }))} keyboardType="decimal-pad" placeholder="—" placeholderTextColor={colors.muted} style={[styles.dateInput, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.background }]} /></View>)}</View><Pressable onPress={save} style={({ pressed }) => [styles.saveButton, { backgroundColor: colors.primary, opacity: pressed ? 0.7 : 1 }]}><Text style={styles.saveText}>СОХРАНИТЬ ЗАМЕР</Text></Pressable></View></View></Modal>
   </ScreenContainer>;
 }
