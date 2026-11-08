@@ -150,6 +150,9 @@ const config: ExpoConfig = {
     // Плагин react-native-google-fit добавляет <queries> для пакета
     // com.google.android.apps.fitness в AndroidManifest (Android 11+).
     "react-native-google-fit",
+    // Закрепление версий play-services-auth/fitness
+    // (22.0.0 удалила классы GoogleSignIn — компиляция библиотеки падала).
+    "./plugins/google-fit-versions.js",
     [
       "expo-build-properties",
       {
