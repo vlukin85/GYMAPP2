@@ -1,6 +1,6 @@
-export type FoodProduct = { id: string; name: string; category: string; kcalPer100g: number; proteinPer100g: number; fatPer100g: number; carbsPer100g: number; barcode?: string };
+export type FoodProduct = { id: string; name: string; category: string; kcalPer100g: number; proteinPer100g: number; fatPer100g: number; carbsPer100g: number; barcode?: string; pieceWeightG?: number; pieceLabel?: string };
 export type MealType = "Завтрак" | "Обед" | "Ужин" | "Перекус";
-export type FoodEntry = { id: string; date: string; meal: MealType; productId: string; grams: number; customProduct?: FoodProduct };
+export type FoodEntry = { id: string; date: string; meal: MealType; productId: string; grams: number; pieces?: number; customProduct?: FoodProduct };
 export type MealTemplate = { id: string; name: string; meal: MealType; items: Array<Pick<FoodEntry, "productId" | "grams" | "customProduct">> };
 export type NutritionMacros = { protein: number; fat: number; carbs: number };
 
@@ -9,7 +9,7 @@ type FoodRow = [string, string, string, number];
 const baseRows: FoodRow[] = [
   ["apple","Яблоко","Фрукты",52],["banana","Банан","Фрукты",89],["orange","Апельсин","Фрукты",47],["pear","Груша","Фрукты",57],["grape","Виноград","Фрукты",69],["strawberry","Клубника","Ягоды",32],["blueberry","Черника","Ягоды",57],["kiwi","Киви","Фрукты",61],["peach","Персик","Фрукты",39],["watermelon","Арбуз","Фрукты",30],
   ["cucumber","Огурец","Овощи",15],["tomato","Помидор","Овощи",18],["potato","Картофель","Овощи",77],["carrot","Морковь","Овощи",41],["broccoli","Брокколи","Овощи",34],["cabbage","Капуста белокочанная","Овощи",25],["bell-pepper","Перец сладкий","Овощи",31],["onion","Лук репчатый","Овощи",40],["avocado","Авокадо","Овощи",160],["corn","Кукуруза","Овощи",86],
-  ["chicken-breast","Куриная грудка","Мясо и рыба",165],["chicken-thigh","Куриное бедро","Мясо и рыба",177],["turkey","Индейка","Мясо и рыба",135],["beef","Говядина постная","Мясо и рыба",187],["pork","Свинина","Мясо и рыба",242],["salmon","Лосось","Мясо и рыба",208],["tuna","Тунец","Мясо и рыба",132],["cod","Треска","Мясо и рыба",82],["shrimp","Креветки","Мясо и рыба",99],["egg","Яйцо куриное","Мясо и рыба",143],
+  ["chicken-breast","Куриная грудка","Мясо и рыба",165],["chicken-thigh","Куриное бедро","Мясо и рыба",177],["turkey","Индейка","Мясо и рыба",135],["beef","Говядина постная","Мясо и рыба",187],["pork","Свинина","Мясо и рыба",242],["salmon","Лосось","Мясо и рыба",208],["tuna","Тунец","Мясо и рыба",132],["cod","Треска","Мясо и рыба",82],["shrimp","Креветки","Мясо и рыба",99],["egg","Яйцо куриное С1","Мясо и рыба",143],["egg-c0","Яйцо куриное С0","Мясо и рыба",143],["egg-c2","Яйцо куриное С2","Мясо и рыба",143],
   ["milk","Молоко 2.5%","Молочные",52],["kefir","Кефир 2.5%","Молочные",53],["yogurt","Йогурт натуральный","Молочные",61],["greek-yogurt","Йогурт греческий","Молочные",97],["cottage-cheese","Творог 5%","Молочные",121],["cheese","Сыр твёрдый","Молочные",350],["mozzarella","Моцарелла","Молочные",280],["sour-cream","Сметана 15%","Молочные",162],["butter","Масло сливочное","Молочные",717],["cream","Сливки 10%","Молочные",118],
   ["oats","Овсяные хлопья","Крупы",366],["buckwheat","Гречка сухая","Крупы",343],["rice","Рис белый сухой","Крупы",365],["brown-rice","Рис бурый сухой","Крупы",362],["pasta","Макароны сухие","Крупы",350],["quinoa","Киноа сухая","Крупы",368],["couscous","Кускус сухой","Крупы",376],["bulgur","Булгур сухой","Крупы",342],["barley","Перловка сухая","Крупы",352],["millet","Пшено сухое","Крупы",348],
   ["white-bread","Хлеб белый","Хлеб",265],["rye-bread","Хлеб ржаной","Хлеб",214],["whole-bread","Хлеб цельнозерновой","Хлеб",247],["lavash","Лаваш","Хлеб",275],["tortilla","Тортилья","Хлеб",312],["croissant","Круассан","Выпечка",406],["bagel","Бублик","Выпечка",336],["cracker","Крекер","Выпечка",430],["pancake","Блин","Выпечка",227],["pizza","Пицца Маргарита","Готовые блюда",266],
@@ -55,16 +55,30 @@ const thirdRows: FoodRow[] = [
   ["manti","Манты","Мировая кухня",217]
 ];
 
+/** Типовые веса одной штуки: id продукта → вес штуки и подпись (по умолчанию «штука»). */
+const pieceSpecs: Record<string, { pieceWeightG: number; pieceLabel?: string }> = {
+  banana: { pieceWeightG: 120 }, apple: { pieceWeightG: 180 }, pear: { pieceWeightG: 170 }, orange: { pieceWeightG: 200 }, mandarin: { pieceWeightG: 80 }, peach: { pieceWeightG: 150 },
+  yogurt: { pieceWeightG: 290, pieceLabel: "банка" }, "greek-yogurt": { pieceWeightG: 170, pieceLabel: "банка" }, "yogurt-dessert": { pieceWeightG: 130, pieceLabel: "банка" }, snezhok: { pieceWeightG: 190, pieceLabel: "стакан" },
+  "protein-bar": { pieceWeightG: 60 }, bagel: { pieceWeightG: 80 }, croissant: { pieceWeightG: 60 }, pancake: { pieceWeightG: 90 }, syrniki: { pieceWeightG: 60 },
+  "scrambled-eggs": { pieceWeightG: 150, pieceLabel: "порция" }, omelette: { pieceWeightG: 200, pieceLabel: "порция" },
+  egg: { pieceWeightG: 55 }, "egg-c0": { pieceWeightG: 62 }, "egg-c2": { pieceWeightG: 43 }
+};
+
 const macroProfiles: Record<string, NutritionMacros> = {
   "Фрукты": { protein: 0.7, fat: 0.2, carbs: 14 }, "Ягоды": { protein: 0.8, fat: 0.4, carbs: 10 }, "Сухофрукты": { protein: 2, fat: 0.6, carbs: 65 }, "Овощи": { protein: 2, fat: 0.3, carbs: 5 }, "Мясо и рыба": { protein: 20, fat: 8, carbs: 0 }, "Молочные": { protein: 7, fat: 7, carbs: 5 }, "Крупы": { protein: 11, fat: 3, carbs: 70 }, "Хлеб": { protein: 8, fat: 3, carbs: 50 }, "Выпечка": { protein: 7, fat: 15, carbs: 55 }, "Орехи": { protein: 18, fat: 55, carbs: 18 }, "Масла": { protein: 0, fat: 100, carbs: 0 }, "Соусы": { protein: 2, fat: 20, carbs: 12 }, "Сладкое": { protein: 5, fat: 20, carbs: 60 }, "Спортпит": { protein: 55, fat: 6, carbs: 25 }, "Напитки": { protein: 0.5, fat: 0.2, carbs: 8 }, "Готовые блюда": { protein: 10, fat: 9, carbs: 17 }, "Бобовые": { protein: 17, fat: 5, carbs: 33 }, "Завтрак": { protein: 9, fat: 8, carbs: 45 }, "Фастфуд": { protein: 12, fat: 17, carbs: 25 }, "Салаты и роллы": { protein: 8, fat: 8, carbs: 14 }, "Мировая кухня": { protein: 10, fat: 12, carbs: 22 }, "Ингредиенты": { protein: 7, fat: 2, carbs: 72 }, "Супы": { protein: 4, fat: 3, carbs: 8 }, "Колбасные изделия": { protein: 13, fat: 30, carbs: 2 }
 };
 
-const toProduct = ([id, name, category, kcalPer100g]: FoodRow): FoodProduct => ({ id, name, category, kcalPer100g, ...(macroProfiles[category] ?? { protein: 0, fat: 0, carbs: 0 }), proteinPer100g: (macroProfiles[category] ?? { protein: 0 }).protein, fatPer100g: (macroProfiles[category] ?? { fat: 0 }).fat, carbsPer100g: (macroProfiles[category] ?? { carbs: 0 }).carbs });
+const toProduct = ([id, name, category, kcalPer100g]: FoodRow): FoodProduct => { const piece = pieceSpecs[id]; const macros = macroProfiles[category] ?? { protein: 0, fat: 0, carbs: 0 }; return { id, name, category, kcalPer100g, ...(macroProfiles[category] ?? { protein: 0, fat: 0, carbs: 0 }), proteinPer100g: macros.protein, fatPer100g: macros.fat, carbsPer100g: macros.carbs, ...(piece ? { pieceWeightG: piece.pieceWeightG, ...(piece.pieceLabel ? { pieceLabel: piece.pieceLabel } : {}) } : {}) }; };
+
+export const defaultPieceLabel = "штука";
+export const pieceLabelOf = (product?: Pick<FoodProduct, "pieceLabel"> | null) => product?.pieceLabel ?? defaultPieceLabel;
+/** Граммы записи с учётом штук: pieces учитываются только у продуктов с известным весом штуки. */
+export const effectiveEntryGrams = (entry: Pick<FoodEntry, "grams" | "pieces">, product?: Pick<FoodProduct, "pieceWeightG">) => { const pieces = entry.pieces; if (product?.pieceWeightG && pieces !== undefined && Number.isFinite(pieces) && pieces > 0) return Math.round(pieces) * product.pieceWeightG; return entry.grams; };
 
 export const popularFoods: FoodProduct[] = [...baseRows, ...addedRows, ...thirdRows].map(toProduct);
 export const mealTypes: MealType[] = ["Завтрак", "Обед", "Ужин", "Перекус"];
 export const getFood = (id: string) => popularFoods.find((food) => food.id === id);
 export const getEntryFood = (entry: FoodEntry) => entry.customProduct ?? getFood(entry.productId);
-export const entryCalories = (entry: FoodEntry) => Math.round((getEntryFood(entry)?.kcalPer100g ?? 0) * entry.grams / 100);
-export const entryMacros = (entry: FoodEntry): NutritionMacros => { const food = getEntryFood(entry); const factor = entry.grams / 100; return { protein: Math.round((food?.proteinPer100g ?? 0) * factor * 10) / 10, fat: Math.round((food?.fatPer100g ?? 0) * factor * 10) / 10, carbs: Math.round((food?.carbsPer100g ?? 0) * factor * 10) / 10 }; };
+export const entryCalories = (entry: FoodEntry) => { const food = getEntryFood(entry); return Math.round((food?.kcalPer100g ?? 0) * effectiveEntryGrams(entry, food) / 100); };
+export const entryMacros = (entry: FoodEntry): NutritionMacros => { const food = getEntryFood(entry); const factor = effectiveEntryGrams(entry, food) / 100; return { protein: Math.round((food?.proteinPer100g ?? 0) * factor * 10) / 10, fat: Math.round((food?.fatPer100g ?? 0) * factor * 10) / 10, carbs: Math.round((food?.carbsPer100g ?? 0) * factor * 10) / 10 }; };
 export const sumEntryMacros = (entries: FoodEntry[]) => entries.reduce<NutritionMacros>((total, entry) => { const macros = entryMacros(entry); return { protein: Math.round((total.protein + macros.protein) * 10) / 10, fat: Math.round((total.fat + macros.fat) * 10) / 10, carbs: Math.round((total.carbs + macros.carbs) * 10) / 10 }; }, { protein: 0, fat: 0, carbs: 0 });

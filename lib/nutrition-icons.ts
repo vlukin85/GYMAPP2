@@ -339,7 +339,7 @@ const explicitCompositions: Record<string, string> = {
   "chicken-breast": "chicken-breast", turkey: "chicken-breast", "chicken-thigh": "chicken-leg", duck: "chicken-leg", "chicken-wings": "chicken-leg",
   beef: "steak", pork: "steak", veal: "steak", lamb: "steak", rabbit: "steak", liver: "steak", "pork-loin": "steak", "beef-steak": "steak", "pork-kebab": "steak", kebab: "steak",
   salmon: "fish-steak", tuna: "fish-steak", "salmon-steak": "fish-steak", sashimi: "fish-steak", cod: "fish-whole", mackerel: "fish-whole", herring: "fish-whole", pollock: "fish-whole", "pink-salmon": "fish-whole",
-  shrimp: "shrimp", "battered-shrimp": "shrimp", mussels: "shrimp", squid: "shrimp", "red-caviar": "caviar", egg: "egg", "quail-egg": "egg",
+  shrimp: "shrimp", "battered-shrimp": "shrimp", mussels: "shrimp", squid: "shrimp", "red-caviar": "caviar", egg: "egg", "egg-c0": "egg", "egg-c2": "egg", "quail-egg": "egg",
   milk: "milk-bottle", cream: "milk-bottle", "soy-milk": "milk-bottle", "oat-milk": "milk-bottle", "baked-milk": "milk-bottle", "condensed-milk": "milk-bottle",
   kefir: "yogurt-cup", yogurt: "yogurt-cup", "greek-yogurt": "yogurt-cup", ryazhenka: "yogurt-cup", "sour-milk": "yogurt-cup", snezhok: "yogurt-cup", "sour-cream": "yogurt-cup", "curd-dessert": "yogurt-cup", "yogurt-dessert": "yogurt-cup",
   "cottage-cheese": "cottage-pack", "cottage-zero": "cottage-pack", skyr: "cottage-pack", ricotta: "cottage-pack", "cream-cheese": "cottage-pack",

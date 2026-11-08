@@ -74,4 +74,29 @@ describe("nutrition journal ui", () => {
     expect(nutrition).not.toContain("ПЕРЕТАЩИТЕ МЕЖДУ ПРИЁМАМИ");
     expect(nutrition).toContain("orderedMealTypes");
   });
+  it("switches between grams and pieces for products with a piece weight", () => {
+    expect(nutrition).toContain("ГРАММЫ");
+    expect(nutrition).toContain("ШТУКИ");
+    expect(nutrition).toContain("pieceMode");
+    expect(nutrition).toContain("pieceWeightG");
+    expect(nutrition).toContain("Вес порции, г");
+  });
+  it("counts pieces with a stepper and a live recalculation", () => {
+    expect(nutrition).toContain("pieceStepper");
+    expect(nutrition).toContain("pieceCount");
+    expect(nutrition).toContain("Добавить одну штуку");
+    expect(nutrition).toContain("Убрать одну штуку");
+    expect(nutrition).toContain("ккал");
+    expect(nutrition).toContain("tabular-nums");
+  });
+  it("bumps meal entries piece by piece from the meal list", () => {
+    expect(nutrition).toContain("updateEntry");
+    expect(nutrition).toContain("bumpEntryPieces");
+    expect(nutrition).toContain("pieceEntryButton");
+  });
+  it("adds an optional piece weight to custom products with a per-piece preview", () => {
+    expect(nutrition).toContain("Вес одной штуки, г — необязательно");
+    expect(nutrition).toContain("В одной штуке:");
+    expect(nutrition).toContain("pieceWeightG: customPieceValid ? customPieceWeight : undefined");
+  });
 });
