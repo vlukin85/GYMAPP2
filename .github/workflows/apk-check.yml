@@ -1,0 +1,42 @@
+name: APK diagnostics
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Install build-tools
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "build-tools;36.0.0" > /dev/null
+          "$ANDROID_HOME/build-tools/36.0.0/aapt" version
+
+      - name: Download release APK
+        run: |
+          curl -sL --retry 5 --retry-all-errors -o app.apk \
+            "https://github.com/vlukin85/GYMAPP2/releases/download/v2.5-custom-product-photo/ironrise-2.5-custom-photo.apk"
+          ls -la app.apk
+          sha256sum app.apk
+
+      - name: aapt dump badging
+        run: |
+          "$ANDROID_HOME/build-tools/36.0.0/aapt" dump badging app.apk | head -40 || true
+
+      - name: Manifest tree (queries placement)
+        run: |
+          "$ANDROID_HOME/build-tools/36.0.0/aapt" dump xmltree app.apk --file AndroidManifest.xml | head -80 || true
+
+      - name: apksigner verify
+        run: |
+          "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --print-certs --verbose app.apk || true
