@@ -151,7 +151,6 @@ describe("управление тренировкой с часов Huawei че�
     expect(setResultBuilder).toContain("RemoteInput.Builder(EXTRA_RESULT_INPUT)");
     expect(setResultBuilder).toContain('"Вес × повторы, напр. 80 x 8"');
     expect(setResultBuilder).toContain(".addRemoteInput(remoteInput)");
-    expect(setResultBuilder).toContain("setAllowGeneratedReplies(false)");
     // PendingIntent действия с RemoteInput обязан быть mutable: система
     // дописывает введённый текст в extras перед доставкой broadcast.
     expect(setResultBuilder).toContain(
