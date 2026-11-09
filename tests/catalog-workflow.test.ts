@@ -26,18 +26,29 @@ describe("catalog and program workflow", () => {
     expect(hasCompletedWorkoutSet({ reps: "", weight: "", type: "drop", dropSubsets: [{ reps: "6", weight: "25" }] })).toBe(true);
   });
 
-  it("keeps prior generated technique art available as an exercise image candidate", () => {
+  it("offers a real photo from the offline bundle before the SVG fallback", () => {
     const exercise: Exercise = { id: "bench-press", name: "Жим", group: "Грудь", equipment: "Штанга", description: "", image: "", videoUrl: "", recordKg: 0, recordReps: 0 };
-    expect(getExerciseIllustrationCandidates(exercise).some((candidate) => String(candidate.url).includes("bench-press-generated"))).toBe(true);
+    const candidates = getExerciseIllustrationCandidates(exercise);
+    // Мёртвые Manus-ссылки (individualAi/generated/group) удалены из цепочки:
+    // первое фото — реальное фото из офлайн-бандла.
+    expect(candidates[0].id).toBe("open-photo-bench-press");
+    expect(String(candidates[0].url).length).toBeGreaterThan(0);
   });
 
-  it("offers an AI group illustration for every catalog exercise group", () => {
+  it("falls back to a group photo for custom exercises", () => {
+    const custom: Exercise = { id: "my-custom-move", name: "Моё", group: "Грудь", equipment: "Штанга", description: "", image: "", videoUrl: "", recordKg: 0, recordReps: 0 };
+    const candidates = getExerciseIllustrationCandidates(custom);
+    expect(candidates.length).toBeGreaterThan(0);
+    expect(candidates[candidates.length - 1].id.startsWith("open-photo-")).toBe(true);
+  });
+
+  it("does not offer dead Manus AI illustrations as candidates", () => {
     const exercise = getExercise("treadmill");
-    expect(exercise && getExerciseIllustrationCandidates(exercise).some((candidate) => candidate.id === "ai-Кардио")).toBe(true);
+    expect(exercise && getExerciseIllustrationCandidates(exercise).some((candidate) => candidate.id === "ai-Кардио")).toBe(false);
   });
 
-  it("uses an individual AI illustration before the group fallback", () => {
+  it("keeps the photo first for base exercises", () => {
     const exercise = getExercise("bench-press");
-    expect(exercise && getExerciseIllustrationCandidates(exercise)[0]?.id).toBe("ai-bench-press");
+    expect(exercise && getExerciseIllustrationCandidates(exercise)[0]?.id).toBe("open-photo-bench-press");
   });
 });

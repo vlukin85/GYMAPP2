@@ -116,11 +116,16 @@ describe("workout calculations", () => {
     expect(muscleGroups).toEqual(expect.arrayContaining(["Бицепс", "Трицепс"]));
     expect(muscleGroups).not.toContain("Руки");
     expect(exercises.every((exercise) => !String(exercise.image).includes("loremflickr") && !String(exercise.image).includes("images.unsplash"))).toBe(true);
-    expect(bundledAiExerciseAssetCoverage).toEqual({ individual: 10, technique: 10, groupFallbacks: 8, auxiliary: 1 });
+    // Мёртвые Manus-карты очищены: реальные фото упражнений живут в
+// офлайн-бандле free-exercise-db (см. tests/exercise-photos.test.ts).
+expect(bundledAiExerciseAssetCoverage).toEqual({ individual: 0, technique: 0, groupFallbacks: 0, auxiliary: 1 });
     expect(exercises.every((exercise) => exercise.photoAngles?.[0].id === "main" && exercise.photoAngles[0].url === exercise.image)).toBe(true);
     const bench = exercises.find((exercise) => exercise.id === "bench-press")!;
-    expect(getExerciseIllustrationCandidates(bench).map((candidate) => candidate.label)).toEqual(expect.arrayContaining(["Отдельная AI-иллюстрация", "Ранее созданная иллюстрация техники", "AI-иллюстрация группы"]));
-    expect(bench.photoAngles?.length).toBeGreaterThanOrEqual(3);
+    // Цепочка начинается с реального фото из офлайн-бандла; мёртвые AI-кандидаты убраны.
+    expect(getExerciseIllustrationCandidates(bench)[0].label).toBe("Открытое фото упражнения · free-exercise-db");
+    expect(getExerciseIllustrationCandidates(bench).some((candidate) => candidate.label.includes("AI"))).toBe(false);
+    // Мёртвые AI-кандидаты убраны; главный ракурс — реальное фото из бандла.
+    expect(bench.photoAngles?.length).toBeGreaterThanOrEqual(1);
   });
   it("migrates the legacy arm group in local custom exercises using the exercise name", () => {
     expect(normalizeStoredMuscleGroup("Руки", "Сгибания с гантелями")).toBe("Бицепс");

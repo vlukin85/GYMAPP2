@@ -524,13 +524,18 @@ function wrap(pair: string[], body: string, seed: number) {
     `<circle cx="${14 + ((seed >>> 5) % 7)}" cy="${74 + ((seed >>> 9) % 7)}" r="${(2 + ((seed >>> 13) % 3) * 0.7).toFixed(1)}" fill="#FDE68A" opacity=".45"/>` +
     body +
     `</svg>`;
-  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+  return svg;
 }
 
 const cache = new Map<string, string>();
 
-/** Миниатюра продукта: детерминированная SVG-иллюстрация по id, категории и названию. */
+/** Data URI-обёртка (для expo-image на web и там, где SVG поддержан). */
 export function getFoodIllustration(id: string, category: string, name: string): string {
+  return `data:image/svg+xml;utf8,${encodeURIComponent(getFoodIllustrationXml(id, category, name))}`;
+}
+
+/** Миниатюра продукта: детерминированная SVG-иллюстрация по id, категории и названию. */
+export function getFoodIllustrationXml(id: string, category: string, name: string): string {
   const key = `${id}\n${category}\n${name ?? ""}`;
   const cached = cache.get(key);
   if (cached) return cached;
