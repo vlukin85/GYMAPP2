@@ -569,7 +569,6 @@ internal fun showSetResultNotification(context: Context, state: ActiveSetNotific
   // вес/повторы (совместимость со старым путём и восстановлением из extras).
   val remoteInput = RemoteInput.Builder(EXTRA_RESULT_INPUT)
     .setLabel("Вес × повторы, напр. 80 x 8")
-    .setAllowGeneratedReplies(false)
     .build()
   val commitAction = NotificationCompat.Action.Builder(
     android.R.drawable.ic_menu_save,
