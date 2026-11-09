@@ -99,4 +99,22 @@ describe("nutrition journal ui", () => {
     expect(nutrition).toContain("В одной штуке:");
     expect(nutrition).toContain("pieceWeightG: customPieceValid ? customPieceWeight : undefined");
   });
+  it("offers an optional custom product photo with camera, gallery and crop", () => {
+    expect(nutrition).toContain("ФОТО ПРОДУКТА — НЕОБЯЗАТЕЛЬНО");
+    expect(nutrition).toContain("Выбрать фото продукта");
+    expect(nutrition).toContain("УБРАТЬ ФОТО");
+    expect(nutrition).toContain("Из галереи");
+    expect(nutrition).toContain("Сделать фото");
+    expect(nutrition).toContain("ImageCropSheet");
+    expect(nutrition).toContain('scope="food"');
+    expect(nutrition).toContain("pickFoodProductPhotoFromLibrary");
+    expect(nutrition).toContain("captureFoodProductPhoto");
+  });
+  it("renders a custom product photo in the catalog and keeps the svg fallback otherwise", () => {
+    expect(nutrition).toContain("food.imageUri ? <Image");
+    expect(nutrition).toContain('source={{ uri: food.imageUri }}');
+    expect(nutrition).toContain("getFoodIllustrationXml(food.id, food.category, food.name)");
+    expect(nutrition).toContain("<SvgXml accessibilityLabel={`Иллюстрация ${food.name}`}");
+    expect(nutrition).toContain("imageUri: customPhotoUri ?? undefined");
+  });
 });

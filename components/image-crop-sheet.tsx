@@ -6,7 +6,7 @@ import { useColors } from "@/hooks/use-colors";
 import { useBottomActionInset } from "@/lib/use-bottom-inset";
 import { cropAndPersistUserImage, DEFAULT_CROP_ADJUSTMENT, getCropRect, type CropAdjustment, type CropPreset, type PickedUserImage } from "@/lib/user-media";
 
-type ImageCropSheetProps = { source: PickedUserImage | null; scope: "exercise" | "program"; ownerId: string; onSave: (uri: string) => void; onClose: () => void };
+type ImageCropSheetProps = { source: PickedUserImage | null; scope: "exercise" | "program" | "food"; ownerId: string; onSave: (uri: string) => void; onClose: () => void };
 const PREVIEW_WIDTH = 320;
 const PREVIEW_HEIGHT = 220;
 const presets: { id: CropPreset; label: string; hint: string }[] = [{ id: "square", label: "1:1", hint: "Карточка" }, { id: "landscape", label: "4:3", hint: "Обложка" }, { id: "original", label: "Полный", hint: "Без обрезки" }];

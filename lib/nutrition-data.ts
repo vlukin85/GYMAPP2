@@ -1,4 +1,4 @@
-export type FoodProduct = { id: string; name: string; category: string; kcalPer100g: number; proteinPer100g: number; fatPer100g: number; carbsPer100g: number; barcode?: string; pieceWeightG?: number; pieceLabel?: string };
+export type FoodProduct = { id: string; name: string; category: string; kcalPer100g: number; proteinPer100g: number; fatPer100g: number; carbsPer100g: number; barcode?: string; pieceWeightG?: number; pieceLabel?: string; imageUri?: string };
 export type MealType = "Завтрак" | "Обед" | "Ужин" | "Перекус";
 export type FoodEntry = { id: string; date: string; meal: MealType; productId: string; grams: number; pieces?: number; customProduct?: FoodProduct };
 export type MealTemplate = { id: string; name: string; meal: MealType; items: Array<Pick<FoodEntry, "productId" | "grams" | "customProduct">> };

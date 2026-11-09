@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { effectiveEntryGrams, entryCalories, entryMacros, getFood, popularFoods } from "../lib/nutrition-data";
+import { effectiveEntryGrams, entryCalories, entryMacros, getFood, popularFoods, type FoodProduct } from "../lib/nutrition-data";
 
 describe("nutrition food database", () => {
   it("contains 336 popular foods with calorie values and macronutrients", () => {
@@ -21,5 +21,12 @@ describe("nutrition food database", () => {
   it("resolves entry grams through pieces when the product has a piece weight", () => {
     expect(effectiveEntryGrams({ grams: 100, pieces: 3 }, { pieceWeightG: 55 })).toBe(165);
     expect(effectiveEntryGrams({ grams: 150 }, { pieceWeightG: 55 })).toBe(150);
+  });
+  it("keeps an optional local photo uri on custom products through storage round-trip", () => {
+    const withPhoto: FoodProduct = { id: "custom-1", name: "Мой продукт", category: "Мои продукты", kcalPer100g: 120, proteinPer100g: 8, fatPer100g: 3, carbsPer100g: 12, imageUri: "file:///data/gym-diary-media/food-custom-1-123.jpg" };
+    const roundTrip = JSON.parse(JSON.stringify(withPhoto)) as FoodProduct;
+    expect(roundTrip.imageUri).toBe("file:///data/gym-diary-media/food-custom-1-123.jpg");
+    const withoutPhoto: FoodProduct = { id: "custom-2", name: "Простой продукт", category: "Мои продукты", kcalPer100g: 90, proteinPer100g: 4, fatPer100g: 1, carbsPer100g: 16 };
+    expect("imageUri" in withoutPhoto).toBe(false);
   });
 });
