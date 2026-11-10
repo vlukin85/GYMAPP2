@@ -1,17 +1,35 @@
 import type { HeartRateSampleInput } from "./health-connect-heart-rate";
+import { DEFAULT_LANG, translate } from "./i18n";
+import type { DictKey, Lang } from "./i18n";
 
 export type HeartRateZoneId = "recovery" | "easy" | "aerobic" | "threshold" | "maximum";
-export type HeartRateZone = { id: HeartRateZoneId; label: string; fromRatio: number; toRatio: number; color: string };
+/**
+ * Зона пульса. Поле `label` — русская подпись, оставленная для совместимости:
+ * зоны сохраняются в завершённой тренировке (heartRateZones) и не должны
+ * «замерзать» на языке, который был выбран в момент сохранения. Для показа
+ * берите heartRateZoneLabel(id, lang) — он переводит подпись в момент вывода.
+ */
+export type HeartRateZone = { id: HeartRateZoneId; label: string; labelKey: DictKey; fromRatio: number; toRatio: number; color: string };
 export type HeartRateZoneSummary = HeartRateZone & { seconds: number; fromBpm: number; toBpm: number };
 export type HeartRateAnalysis = { estimatedMaxBpm?: number; samples: HeartRateSampleInput[]; zones: HeartRateZoneSummary[]; coveredSeconds: number };
 
 export const HEART_RATE_ZONES: HeartRateZone[] = [
-  { id: "recovery", label: "Восстановление", fromRatio: 0, toRatio: 0.6, color: "#8090A8" },
-  { id: "easy", label: "Лёгкая", fromRatio: 0.6, toRatio: 0.7, color: "#3E85D8" },
-  { id: "aerobic", label: "Аэробная", fromRatio: 0.7, toRatio: 0.8, color: "#37A67A" },
-  { id: "threshold", label: "Пороговая", fromRatio: 0.8, toRatio: 0.9, color: "#E4A11B" },
-  { id: "maximum", label: "Максимальная", fromRatio: 0.9, toRatio: 1.01, color: "#D94343" },
+  { id: "recovery", label: "Восстановление", labelKey: "workout.summary.zoneRecovery", fromRatio: 0, toRatio: 0.6, color: "#8090A8" },
+  { id: "easy", label: "Лёгкая", labelKey: "workout.summary.zoneEasy", fromRatio: 0.6, toRatio: 0.7, color: "#3E85D8" },
+  { id: "aerobic", label: "Аэробная", labelKey: "workout.summary.zoneAerobic", fromRatio: 0.7, toRatio: 0.8, color: "#37A67A" },
+  { id: "threshold", label: "Пороговая", labelKey: "workout.summary.zoneThreshold", fromRatio: 0.8, toRatio: 0.9, color: "#E4A11B" },
+  { id: "maximum", label: "Максимальная", labelKey: "workout.summary.zoneMaximum", fromRatio: 0.9, toRatio: 1.01, color: "#D94343" },
 ];
+
+/**
+ * Название зоны пульса на выбранном языке.
+ * Язык — необязательный параметр: без него возвращается русская подпись,
+ * поэтому прежние вызовы работают как раньше.
+ */
+export function heartRateZoneLabel(id: HeartRateZoneId, lang: Lang = DEFAULT_LANG): string {
+  const zone = HEART_RATE_ZONES.find((item) => item.id === id) ?? HEART_RATE_ZONES[HEART_RATE_ZONES.length - 1];
+  return translate(lang, zone.labelKey);
+}
 
 /** Tanaka et al. age-predicted maximum HR: 208 − 0.7 × age. */
 export function estimateMaximumHeartRate(ageYears?: number) {

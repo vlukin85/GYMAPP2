@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 const programsScreen = readFileSync(
   resolve(process.cwd(), "app/(tabs)/programs.tsx"),
   "utf8",
-);
+) + readFileSync(resolve(process.cwd(), "lib/i18n/domains/programs.ts"), "utf8");
 
 describe("program delete undo", () => {
   it("stages deletion before it becomes irreversible and exposes an undo action", () => {

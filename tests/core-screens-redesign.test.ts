@@ -9,12 +9,18 @@ import { describe, expect, it } from "vitest";
  */
 
 const read = (path: string) => readFileSync(resolve(process.cwd(), path), "utf8");
+// Русские подписи вкладок живут в словарях доменов tabs/catalog/programs/stats,
+// поэтому экраны проверяются вместе со своими словарями локализации.
+const tabsDict = read("lib/i18n/domains/tabs.ts");
+const catalogDict = read("lib/i18n/domains/catalog.ts");
+const programsDict = read("lib/i18n/domains/programs.ts");
+const statsDict = read("lib/i18n/domains/stats.ts");
 
 const coreScreens = {
-  home: read("app/(tabs)/index.tsx"),
-  exercises: read("app/(tabs)/exercises.tsx"),
-  programs: read("app/(tabs)/programs.tsx"),
-  stats: read("app/(tabs)/stats.tsx"),
+  home: read("app/(tabs)/index.tsx") + tabsDict,
+  exercises: read("app/(tabs)/exercises.tsx") + catalogDict,
+  programs: read("app/(tabs)/programs.tsx") + programsDict,
+  stats: read("app/(tabs)/stats.tsx") + statsDict,
   workout: read("app/workout.tsx"),
   workoutSummary: read("app/workout-summary.tsx"),
   progress: read("app/progress.tsx"),

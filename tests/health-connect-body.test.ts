@@ -18,8 +18,15 @@ import {
 } from "../lib/health-connect-body";
 
 const bodyStore = readFileSync(resolve(process.cwd(), "lib/body-store.tsx"), "utf8");
-const bodyScreen = readFileSync(resolve(process.cwd(), "app/(tabs)/body.tsx"), "utf8");
-const settings = readFileSync(resolve(process.cwd(), "app/settings.tsx"), "utf8");
+const bodyScreen = readFileSync(resolve(process.cwd(), "app/(tabs)/body.tsx"), "utf8") + readFileSync(resolve(process.cwd(), "lib/i18n/domains/body.ts"), "utf8");
+// Русские подписи экрана настроек живут в словаре домена settings,
+// поэтому экран проверяется вместе со своим словарём локализации.
+const settings =
+  readFileSync(resolve(process.cwd(), "app/settings.tsx"), "utf8") +
+  readFileSync(
+    resolve(process.cwd(), "lib/i18n/domains/settings.ts"),
+    "utf8",
+  );
 const layout = readFileSync(resolve(process.cwd(), "app/_layout.tsx"), "utf8");
 
 const kg = (value: number) => ({ value, unit: "kilograms" as const });

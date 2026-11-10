@@ -15,11 +15,13 @@ export type ExerciseImageSource = string | number;
 export type Exercise = {
 id: string;
 name: string;
+  /** Английское название: показывается при lang === "en". */
+  nameEn?: string;
 group: MuscleGroup;
   equipment: string;
   description: string;
   image: ExerciseImageSource;
-  photoAngles?: { id: string; label: string; url: ExerciseImageSource }[];
+  photoAngles?: { id: string; label: string; labelEn?: string; url: ExerciseImageSource }[];
   videoUrl: string;
   recordKg: number;
   recordReps: number;
@@ -93,6 +95,7 @@ export function getSetVolumeWithDropSubsets(input: { weightKg: number; reps: num
 
 import { expandedExercises } from "./catalog-expansion";
 import { getExerciseIllustration } from "./exercise-art";
+import { DEFAULT_LANG, translate, type Lang } from "./i18n";
 
 export const DEFAULT_BETWEEN_SET_REST_SECONDS = 90;
 export const MIN_BETWEEN_SET_REST_SECONDS = 5;
@@ -139,13 +142,19 @@ export function estimateProgramDurationSeconds(programExercises: Pick<ProgramExe
   return Math.round(exerciseSeconds + transitionRestSeconds);
 }
 
-export function formatProgramDuration(seconds: number) {
+/**
+ * Длительность программы «мин / сек». Язык — необязательный параметр:
+ * без него подпись остаётся русской, поэтому прежние вызовы не меняются.
+ */
+export function formatProgramDuration(seconds: number, lang: Lang = DEFAULT_LANG) {
   const roundedSeconds = Math.max(0, Math.round(seconds));
   const minutes = Math.floor(roundedSeconds / 60);
   const remainingSeconds = roundedSeconds % 60;
-  if (!minutes) return `${remainingSeconds} сек`;
-  if (!remainingSeconds) return `${minutes} мин`;
-  return `${minutes} мин ${remainingSeconds} сек`;
+  const minutesLabel = translate(lang, "common.duration.minutes");
+  const secondsLabel = translate(lang, "common.duration.seconds");
+  if (!minutes) return `${remainingSeconds} ${secondsLabel}`;
+  if (!remainingSeconds) return `${minutes} ${minutesLabel}`;
+  return `${minutes} ${minutesLabel} ${remainingSeconds} ${secondsLabel}`;
 }
 
 /**
@@ -204,7 +213,11 @@ export function getProgramRestBlockAfterExercise(
 export type WorkoutProgram = {
   id: string;
   name: string;
+  /** Английское название: показывается при lang === "en". */
+  nameEn?: string;
   description: string;
+  /** Английское описание: показывается при lang === "en". */
+  descriptionEn?: string;
   exercises: ProgramExercise[];
   restBlocks?: ProgramRestBlock[];
   coverImage?: string;
@@ -214,9 +227,20 @@ export type WorkoutProgram = {
 
 const defaultProgramCreatedAt = "2026-08-01T12:00:00.000Z";
 
-export function formatProgramCreatedAt(createdAt?: string) {
+/**
+ * Дата создания программы. Язык — необязательный параметр: без него
+ * возвращается прежняя русская подпись, поэтому старые вызовы не меняются.
+ */
+export function formatProgramCreatedAt(createdAt?: string, lang: Lang = DEFAULT_LANG) {
   const date = new Date(createdAt ?? defaultProgramCreatedAt);
-  return `Создано ${new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "short", year: "numeric" }).format(date)}`;
+  const locale = lang === "en" ? "en-US" : "ru-RU";
+  return translate(lang, "programs.tab.createdAt", { date: new Intl.DateTimeFormat(locale, { day: "numeric", month: "short", year: "numeric" }).format(date) });
+}
+
+/** Описание программы под выбранный язык: descriptionEn, иначе русское. */
+export function programDescription(program: Pick<WorkoutProgram, "description" | "descriptionEn">, lang: Lang): string {
+  if (lang !== "en") return program.description;
+  return program.descriptionEn?.trim() ? program.descriptionEn : program.description;
 }
 
 export function sortProgramsByCreatedAt(programs: WorkoutProgram[], direction: "newest" | "oldest" = "newest") {
@@ -234,10 +258,10 @@ export function getProgramCoverImage(program: WorkoutProgram) {
 }
 
 export const programCoverIllustrationLibrary = [
-  { id: "strength", label: "Сила", url: getExerciseIllustration("program-cover-strength", "Сила", "Штанга") },
-  { id: "volume", label: "Объём", url: getExerciseIllustration("program-cover-volume", "Объём", "Гантели") },
-  { id: "full-body", label: "Full Body", url: getExerciseIllustration("program-cover-full-body", "Full Body", "Тренажёр") },
-  { id: "conditioning", label: "Выносливость", url: getExerciseIllustration("program-cover-conditioning", "Выносливость", "Кардио") },
+  { id: "strength", label: "Сила", labelEn: "Strength", url: getExerciseIllustration("program-cover-strength", "Сила", "Штанга") },
+  { id: "volume", label: "Объём", labelEn: "Volume", url: getExerciseIllustration("program-cover-volume", "Объём", "Гантели") },
+  { id: "full-body", label: "Full Body", labelEn: "Full body", url: getExerciseIllustration("program-cover-full-body", "Full Body", "Тренажёр") },
+  { id: "conditioning", label: "Выносливость", labelEn: "Endurance", url: getExerciseIllustration("program-cover-conditioning", "Выносливость", "Кардио") },
 ];
 
 export type ScheduledWorkout = {
@@ -376,8 +400,10 @@ const images = {
 };
 
 export const generatedExerciseIllustrationLibrary = [
-  ...Object.entries(individualAiExerciseIllustrations).map(([exerciseId, url]) => ({ exerciseId, url, label: "Отдельная AI-иллюстрация" })),
-  ...Object.entries(generatedTechniqueImages).map(([exerciseId, url]) => ({ exerciseId, url, label: "Ранее созданная иллюстрация техники" })),
+  ...Object.entries(individualAiExerciseIllustrations).map(([exerciseId, url]) => ({ exerciseId, url, label: "Отдельная AI-иллюстрация", labelEn: "Dedicated AI illustration" })),
+  ...Object.entries(generatedTechniqueImages).map(([exerciseId, url]) => ({ exerciseId, url, label: "Ранее созданная иллюстрация техники", labelEn: "Previously generated technique illustration" })),
+  // labelEn у групп не заполняем: подпись содержит название группы из данных,
+  // её переводит candidateLabel() в lib/i18n/exercise-labels.ts.
   ...Object.entries(aiGroupExerciseIllustrations).map(([group, url]) => ({ exerciseId: `group-${group}`, url, label: `AI-иллюстрация группы: ${group}` })),
 ];
 
@@ -400,20 +426,20 @@ const individualAi = individualAiExerciseIllustrations[exercise.id];
   const openPhoto = exerciseOpenPhoto(exercise);
   const hasDedicatedOpenPhoto = Boolean(freeExerciseDbPhotos[exercise.id]);
 const defaultIllustration = exerciseTechniqueImage(exercise);
-const candidates: { id: string; label: string; url: ExerciseImageSource }[] = [];
-  const addCandidate = (id: string, label: string, url?: ExerciseImageSource) => {
-    if (url && !candidates.some((candidate) => candidate.url === url)) candidates.push({ id, label, url });
+const candidates: { id: string; label: string; labelEn?: string; url: ExerciseImageSource }[] = [];
+  const addCandidate = (id: string, label: string, labelEn: string | undefined, url?: ExerciseImageSource) => {
+    if (url && !candidates.some((candidate) => candidate.url === url)) candidates.push({ id, label, labelEn, url });
   };
-  addCandidate(`ai-${exercise.id}`, "Отдельная AI-иллюстрация", individualAi);
-  addCandidate(`generated-${exercise.id}`, "Ранее созданная иллюстрация техники", generated);
-  addCandidate(`open-photo-${exercise.id}`, hasDedicatedOpenPhoto ? "Открытое фото упражнения · free-exercise-db" : "Открытое фото группы · free-exercise-db", openPhoto);
-  addCandidate(`ai-${exercise.group}`, "AI-иллюстрация группы", aiGroupImage);
-  addCandidate("ai-arms", "AI-иллюстрация рук", aiArmsImage);
-  addCandidate(`illustration-${exercise.id}`, "Иллюстрация упражнения", defaultIllustration);
+  addCandidate(`ai-${exercise.id}`, "Отдельная AI-иллюстрация", "Dedicated AI illustration", individualAi);
+  addCandidate(`generated-${exercise.id}`, "Ранее созданная иллюстрация техники", "Previously generated technique illustration", generated);
+  addCandidate(`open-photo-${exercise.id}`, hasDedicatedOpenPhoto ? "Открытое фото упражнения · free-exercise-db" : "Открытое фото группы · free-exercise-db", hasDedicatedOpenPhoto ? "Open exercise photo · free-exercise-db" : "Open group photo · free-exercise-db", openPhoto);
+  addCandidate(`ai-${exercise.group}`, "AI-иллюстрация группы", "AI group illustration", aiGroupImage);
+  addCandidate("ai-arms", "AI-иллюстрация рук", "AI arm illustration", aiArmsImage);
+  addCandidate(`illustration-${exercise.id}`, "Иллюстрация упражнения", "Exercise illustration", defaultIllustration);
   return candidates;
 }
 
-export type ExerciseLibraryCandidate = { id: string; label: string; url: string };
+export type ExerciseLibraryCandidate = { id: string; label: string; labelEn?: string; url: string };
 
 /**
  * Candidates that are safe to store as a user-selected image: only plain URLs.
@@ -425,26 +451,26 @@ export function getExerciseLibraryCandidates(exercise: Exercise): ExerciseLibrar
 }
 
 const catalogExercises: Exercise[] = [
-  { id: "bench-press", name: "Жим штанги лёжа", group: "Грудь", equipment: "Штанга", description: "Базовое упражнение для грудных мышц. Сводите лопатки, удерживайте стопы на полу и опускайте гриф к нижней части груди.", image: images.benchPress, videoUrl: "https://rutube.ru/search/?query=жим+штанги+лежа+техника", recordKg: 92.5, recordReps: 5 },
-  { id: "incline-db-press", name: "Жим гантелей на наклонной", group: "Грудь", equipment: "Гантели", description: "Работает по верхней части груди. Двигайте гантели по естественной дуге и не разгибайте локти до щелчка.", image: images.inclinePress, videoUrl: "https://rutube.ru/search/?query=жим+гантелей+на+наклонной+скамье", recordKg: 34, recordReps: 8 },
-  { id: "lat-pulldown", name: "Тяга верхнего блока", group: "Спина", equipment: "Тренажёр", description: "Тяните рукоять к верхней части груди, направляя локти вниз. Не раскачивайте корпус.", image: images.latPulldown, videoUrl: "https://rutube.ru/search/?query=тяга+верхнего+блока+техника", recordKg: 70, recordReps: 8 },
-  { id: "barbell-row", name: "Тяга штанги в наклоне", group: "Спина", equipment: "Штанга", description: "Сохраняйте нейтральную спину, подтягивайте гриф к поясу и контролируйте опускание.", image: images.barbellRow, videoUrl: "https://rutube.ru/search/?query=тяга+штанги+в+наклоне+техника", recordKg: 85, recordReps: 6 },
-  { id: "squat", name: "Приседания со штангой", group: "Ноги", equipment: "Штанга", description: "Опускайтесь до комфортной глубины, держите колени по направлению носков и сохраняйте напряжение корпуса.", image: images.squat, videoUrl: "https://rutube.ru/search/?query=приседания+со+штангой+техника", recordKg: 120, recordReps: 4 },
-  { id: "leg-press", name: "Жим ногами", group: "Ноги", equipment: "Тренажёр", description: "Плотно прижмите таз к спинке и не блокируйте колени в верхней точке.", image: images.legPress, videoUrl: "https://rutube.ru/search/?query=жим+ногами+техника", recordKg: 210, recordReps: 8 },
-  { id: "shoulder-press", name: "Жим гантелей сидя", group: "Плечи", equipment: "Гантели", description: "Начинайте движение от уровня ушей, держите запястья над локтями и не прогибайтесь в пояснице.", image: images.shoulderPress, videoUrl: "https://rutube.ru/search/?query=жим+гантелей+сидя+техника", recordKg: 26, recordReps: 8 },
-  { id: "lateral-raise", name: "Разведения гантелей в стороны", group: "Плечи", equipment: "Гантели", description: "Поднимайте руки до уровня плеч с мягким локтем, не используя инерцию.", image: images.lateralRaise, videoUrl: "https://rutube.ru/search/?query=разведения+гантелей+в+стороны", recordKg: 12, recordReps: 12 },
-  { id: "biceps-curl", name: "Сгибания рук со штангой", group: "Бицепс", equipment: "Штанга", description: "Зафиксируйте локти возле корпуса и поднимайте вес без раскачивания плечами.", image: images.bicepsCurl, videoUrl: "https://rutube.ru/search/?query=сгибания+рук+со+штангой", recordKg: 42.5, recordReps: 8 },
-  { id: "triceps-pushdown", name: "Разгибания на блоке", group: "Трицепс", equipment: "Тренажёр", description: "Прижмите локти к корпусу и полностью разгибайте руки, сохраняя плечи неподвижными.", image: images.tricepsPushdown, videoUrl: "https://rutube.ru/search/?query=разгибания+рук+на+верхнем+блоке", recordKg: 45, recordReps: 10 },
-  { id: "plank", name: "Планка на локтях", group: "Корпус", equipment: "Без оборудования", description: "Создайте прямую линию от плеч до пяток, напрягите пресс и спокойно дышите.", image: images.plank, videoUrl: "https://rutube.ru/search/?query=планка+на+локтях+техника", recordKg: 0, recordReps: 90, measurement: "minutes" },
-  { id: "treadmill", name: "Беговая дорожка", group: "Кардио", equipment: "Тренажёр", description: "Начните с лёгкой ходьбы, постепенно увеличьте темп и завершите заминкой.", image: images.treadmill, videoUrl: "https://rutube.ru/search/?query=беговая+дорожка+техника", recordKg: 0, recordReps: 25, measurement: "minutes" },
-  { id: "dumbbell-row", name: "Тяга гантели к поясу", group: "Спина", equipment: "Гантели", description: "Упритесь свободной рукой в скамью, тяните локоть к тазу и не разворачивайте плечо.", image: images.dumbbellRow, videoUrl: "https://rutube.ru/search/?query=тяга+гантели+к+поясу+техника", recordKg: 36, recordReps: 10 },
-  { id: "romanian-deadlift", name: "Румынская тяга", group: "Ноги", equipment: "Штанга", description: "Отводите таз назад, держите гриф близко к ногам и сохраняйте нейтральную спину.", image: images.romanianDeadlift, videoUrl: "https://rutube.ru/search/?query=румынская+тяга+техника", recordKg: 100, recordReps: 8 },
-  { id: "walking-lunge", name: "Выпады с гантелями", group: "Ноги", equipment: "Гантели", description: "Делайте контролируемый шаг, опускайте заднее колено к полу и сохраняйте корпус устойчивым.", image: images.walkingLunge, videoUrl: "https://rutube.ru/search/?query=выпады+с+гантелями+техника", recordKg: 22, recordReps: 12 },
-  { id: "dips", name: "Отжимания на брусьях", group: "Грудь", equipment: "Вес тела", description: "Опускайтесь контролируемо, слегка наклоняйте корпус вперёд и не проваливайтесь в плечах.", image: images.dips, videoUrl: "https://rutube.ru/search/?query=отжимания+на+брусьях+техника", recordKg: 0, recordReps: 12 },
-  { id: "leg-curl", name: "Сгибания ног в тренажёре", group: "Ноги", equipment: "Тренажёр", description: "Фиксируйте таз, сгибайте ноги плавно и задерживайтесь в точке сокращения.", image: images.legCurl, videoUrl: "https://rutube.ru/search/?query=сгибание+ног+в+тренажере+техника", recordKg: 55, recordReps: 12 },
-  { id: "calf-raise", name: "Подъёмы на носки стоя", group: "Ноги", equipment: "Тренажёр", description: "Опускайте пятки до растяжения и поднимайтесь на носки с полной амплитудой.", image: images.calfRaise, videoUrl: "https://rutube.ru/search/?query=подъем+на+носки+стоя+техника", recordKg: 80, recordReps: 15 },
-  { id: "cable-crunch", name: "Скручивания на верхнем блоке", group: "Корпус", equipment: "Тренажёр", description: "Скручивайте корпус за счёт пресса, не тяните рукоять руками и не округляйте поясницу чрезмерно.", image: images.cableCrunch, videoUrl: "https://rutube.ru/search/?query=скручивания+на+верхнем+блоке+техника", recordKg: 42, recordReps: 12 },
-  { id: "rower", name: "Гребной тренажёр", group: "Кардио", equipment: "Тренажёр", description: "Отталкивайтесь ногами, затем подключайте корпус и руки; возвращайтесь в обратном порядке.", image: images.rower, videoUrl: "https://rutube.ru/search/?query=гребной+тренажер+техника", recordKg: 0, recordReps: 20, measurement: "minutes" },
+  { id: "bench-press", name: "Жим штанги лёжа", nameEn: "Barbell bench press", group: "Грудь", equipment: "Штанга", description: "Базовое упражнение для грудных мышц. Сводите лопатки, удерживайте стопы на полу и опускайте гриф к нижней части груди.", image: images.benchPress, videoUrl: "https://rutube.ru/search/?query=жим+штанги+лежа+техника", recordKg: 92.5, recordReps: 5 },
+  { id: "incline-db-press", name: "Жим гантелей на наклонной", nameEn: "Incline dumbbell press", group: "Грудь", equipment: "Гантели", description: "Работает по верхней части груди. Двигайте гантели по естественной дуге и не разгибайте локти до щелчка.", image: images.inclinePress, videoUrl: "https://rutube.ru/search/?query=жим+гантелей+на+наклонной+скамье", recordKg: 34, recordReps: 8 },
+  { id: "lat-pulldown", name: "Тяга верхнего блока", nameEn: "Lat pulldown", group: "Спина", equipment: "Тренажёр", description: "Тяните рукоять к верхней части груди, направляя локти вниз. Не раскачивайте корпус.", image: images.latPulldown, videoUrl: "https://rutube.ru/search/?query=тяга+верхнего+блока+техника", recordKg: 70, recordReps: 8 },
+  { id: "barbell-row", name: "Тяга штанги в наклоне", nameEn: "Bent-over barbell row", group: "Спина", equipment: "Штанга", description: "Сохраняйте нейтральную спину, подтягивайте гриф к поясу и контролируйте опускание.", image: images.barbellRow, videoUrl: "https://rutube.ru/search/?query=тяга+штанги+в+наклоне+техника", recordKg: 85, recordReps: 6 },
+  { id: "squat", name: "Приседания со штангой", nameEn: "Barbell squat", group: "Ноги", equipment: "Штанга", description: "Опускайтесь до комфортной глубины, держите колени по направлению носков и сохраняйте напряжение корпуса.", image: images.squat, videoUrl: "https://rutube.ru/search/?query=приседания+со+штангой+техника", recordKg: 120, recordReps: 4 },
+  { id: "leg-press", name: "Жим ногами", nameEn: "Leg press", group: "Ноги", equipment: "Тренажёр", description: "Плотно прижмите таз к спинке и не блокируйте колени в верхней точке.", image: images.legPress, videoUrl: "https://rutube.ru/search/?query=жим+ногами+техника", recordKg: 210, recordReps: 8 },
+  { id: "shoulder-press", name: "Жим гантелей сидя", nameEn: "Seated dumbbell press", group: "Плечи", equipment: "Гантели", description: "Начинайте движение от уровня ушей, держите запястья над локтями и не прогибайтесь в пояснице.", image: images.shoulderPress, videoUrl: "https://rutube.ru/search/?query=жим+гантелей+сидя+техника", recordKg: 26, recordReps: 8 },
+  { id: "lateral-raise", name: "Разведения гантелей в стороны", nameEn: "Dumbbell lateral raise", group: "Плечи", equipment: "Гантели", description: "Поднимайте руки до уровня плеч с мягким локтем, не используя инерцию.", image: images.lateralRaise, videoUrl: "https://rutube.ru/search/?query=разведения+гантелей+в+стороны", recordKg: 12, recordReps: 12 },
+  { id: "biceps-curl", name: "Сгибания рук со штангой", nameEn: "Barbell curl", group: "Бицепс", equipment: "Штанга", description: "Зафиксируйте локти возле корпуса и поднимайте вес без раскачивания плечами.", image: images.bicepsCurl, videoUrl: "https://rutube.ru/search/?query=сгибания+рук+со+штангой", recordKg: 42.5, recordReps: 8 },
+  { id: "triceps-pushdown", name: "Разгибания на блоке", nameEn: "Triceps pushdown", group: "Трицепс", equipment: "Тренажёр", description: "Прижмите локти к корпусу и полностью разгибайте руки, сохраняя плечи неподвижными.", image: images.tricepsPushdown, videoUrl: "https://rutube.ru/search/?query=разгибания+рук+на+верхнем+блоке", recordKg: 45, recordReps: 10 },
+  { id: "plank", name: "Планка на локтях", nameEn: "Forearm plank", group: "Корпус", equipment: "Без оборудования", description: "Создайте прямую линию от плеч до пяток, напрягите пресс и спокойно дышите.", image: images.plank, videoUrl: "https://rutube.ru/search/?query=планка+на+локтях+техника", recordKg: 0, recordReps: 90, measurement: "minutes" },
+  { id: "treadmill", name: "Беговая дорожка", nameEn: "Treadmill", group: "Кардио", equipment: "Тренажёр", description: "Начните с лёгкой ходьбы, постепенно увеличьте темп и завершите заминкой.", image: images.treadmill, videoUrl: "https://rutube.ru/search/?query=беговая+дорожка+техника", recordKg: 0, recordReps: 25, measurement: "minutes" },
+  { id: "dumbbell-row", name: "Тяга гантели к поясу", nameEn: "One-arm dumbbell row", group: "Спина", equipment: "Гантели", description: "Упритесь свободной рукой в скамью, тяните локоть к тазу и не разворачивайте плечо.", image: images.dumbbellRow, videoUrl: "https://rutube.ru/search/?query=тяга+гантели+к+поясу+техника", recordKg: 36, recordReps: 10 },
+  { id: "romanian-deadlift", name: "Румынская тяга", nameEn: "Romanian deadlift", group: "Ноги", equipment: "Штанга", description: "Отводите таз назад, держите гриф близко к ногам и сохраняйте нейтральную спину.", image: images.romanianDeadlift, videoUrl: "https://rutube.ru/search/?query=румынская+тяга+техника", recordKg: 100, recordReps: 8 },
+  { id: "walking-lunge", name: "Выпады с гантелями", nameEn: "Dumbbell walking lunge", group: "Ноги", equipment: "Гантели", description: "Делайте контролируемый шаг, опускайте заднее колено к полу и сохраняйте корпус устойчивым.", image: images.walkingLunge, videoUrl: "https://rutube.ru/search/?query=выпады+с+гантелями+техника", recordKg: 22, recordReps: 12 },
+  { id: "dips", name: "Отжимания на брусьях", nameEn: "Chest dips", group: "Грудь", equipment: "Вес тела", description: "Опускайтесь контролируемо, слегка наклоняйте корпус вперёд и не проваливайтесь в плечах.", image: images.dips, videoUrl: "https://rutube.ru/search/?query=отжимания+на+брусьях+техника", recordKg: 0, recordReps: 12 },
+  { id: "leg-curl", name: "Сгибания ног в тренажёре", nameEn: "Lying leg curl", group: "Ноги", equipment: "Тренажёр", description: "Фиксируйте таз, сгибайте ноги плавно и задерживайтесь в точке сокращения.", image: images.legCurl, videoUrl: "https://rutube.ru/search/?query=сгибание+ног+в+тренажере+техника", recordKg: 55, recordReps: 12 },
+  { id: "calf-raise", name: "Подъёмы на носки стоя", nameEn: "Standing calf raise", group: "Ноги", equipment: "Тренажёр", description: "Опускайте пятки до растяжения и поднимайтесь на носки с полной амплитудой.", image: images.calfRaise, videoUrl: "https://rutube.ru/search/?query=подъем+на+носки+стоя+техника", recordKg: 80, recordReps: 15 },
+  { id: "cable-crunch", name: "Скручивания на верхнем блоке", nameEn: "Cable crunch", group: "Корпус", equipment: "Тренажёр", description: "Скручивайте корпус за счёт пресса, не тяните рукоять руками и не округляйте поясницу чрезмерно.", image: images.cableCrunch, videoUrl: "https://rutube.ru/search/?query=скручивания+на+верхнем+блоке+техника", recordKg: 42, recordReps: 12 },
+  { id: "rower", name: "Гребной тренажёр", nameEn: "Rowing machine", group: "Кардио", equipment: "Тренажёр", description: "Отталкивайтесь ногами, затем подключайте корпус и руки; возвращайтесь в обратном порядке.", image: images.rower, videoUrl: "https://rutube.ru/search/?query=гребной+тренажер+техника", recordKg: 0, recordReps: 20, measurement: "minutes" },
   ...expandedExercises,
 ];
 
@@ -453,6 +479,7 @@ export const exercises: Exercise[] = catalogExercises.map((exercise) => {
   const photoAngles = candidates.map((candidate, index) => ({
     id: index === 0 ? "main" : candidate.id,
     label: index === 0 ? "Техника" : candidate.label,
+    labelEn: index === 0 ? "Technique" : candidate.labelEn,
     url: candidate.url,
   }));
   return { ...exercise, image: photoAngles[0]?.url ?? exerciseTechniqueImage(exercise), photoAngles };
@@ -473,7 +500,7 @@ export function createCustomExercise(draft: CustomExerciseDraft, id: string): Ex
     equipment: draft.equipment.trim() || "Без оборудования",
     description: draft.description?.trim() || "Пользовательское упражнение. Добавьте заметку по технике в карточке упражнения.",
     image,
-    photoAngles: [{ id: "main", label: "Техника", url: image }],
+    photoAngles: [{ id: "main", label: "Техника", labelEn: "Technique", url: image }],
     videoUrl: `https://rutube.ru/search/?query=${encodeURIComponent(`${draft.name} техника выполнения`)}`,
     recordKg: 0,
     recordReps: 0,
@@ -485,49 +512,49 @@ export function getAllExercises() {
 }
 
 export const defaultPrograms: WorkoutProgram[] = [
-  { id: "upper-strength", name: "Верх тела · Сила", description: "Тяжёлые базовые движения на грудь, спину и плечи", exercises: [
+  { id: "upper-strength", name: "Верх тела · Сила", nameEn: "Upper body · Strength", description: "Тяжёлые базовые движения на грудь, спину и плечи", descriptionEn: "Heavy compound lifts for chest, back and shoulders", exercises: [
     { exerciseId: "bench-press", sets: 4, reps: 6, weight: 80, rest: 120 }, { exerciseId: "barbell-row", sets: 4, reps: 6, weight: 70, rest: 120 }, { exerciseId: "shoulder-press", sets: 3, reps: 8, weight: 22, rest: 90 },
   ] },
-  { id: "leg-day", name: "Ноги · Объём", description: "Квадрицепсы, бицепс бедра и икры в среднем диапазоне повторов", exercises: [
+  { id: "leg-day", name: "Ноги · Объём", nameEn: "Legs · Volume", description: "Квадрицепсы, бицепс бедра и икры в среднем диапазоне повторов", descriptionEn: "Quads, hamstrings and calves in a moderate rep range", exercises: [
     { exerciseId: "squat", sets: 4, reps: 8, weight: 90, rest: 150 }, { exerciseId: "leg-press", sets: 3, reps: 10, weight: 160, rest: 120 }, { exerciseId: "leg-curl", sets: 3, reps: 12, weight: 55, rest: 75 }, { exerciseId: "calf-raise", sets: 3, reps: 15, weight: 80, rest: 60 },
   ] },
-  { id: "full-body-start", name: "Full body · Старт", description: "Мягкое знакомство с базовыми движениями всего тела", exercises: [
+  { id: "full-body-start", name: "Full body · Старт", nameEn: "Full body · Start", description: "Мягкое знакомство с базовыми движениями всего тела", descriptionEn: "A gentle introduction to full-body compound movements", exercises: [
     { exerciseId: "squat", sets: 3, reps: 10, weight: 45, rest: 90 }, { exerciseId: "bench-press", sets: 3, reps: 10, weight: 40, rest: 90 }, { exerciseId: "lat-pulldown", sets: 3, reps: 10, weight: 40, rest: 75 }, { exerciseId: "plank", sets: 3, reps: 40, weight: 0, rest: 45 },
   ] },
-  { id: "full-body-strength", name: "Full body · Сила", description: "Пять базовых упражнений для развития общей силы", exercises: [
+  { id: "full-body-strength", name: "Full body · Сила", nameEn: "Full body · Strength", description: "Пять базовых упражнений для развития общей силы", descriptionEn: "Five compound lifts for overall strength", exercises: [
     { exerciseId: "squat", sets: 5, reps: 5, weight: 95, rest: 180 }, { exerciseId: "bench-press", sets: 5, reps: 5, weight: 82.5, rest: 150 }, { exerciseId: "barbell-row", sets: 4, reps: 6, weight: 72.5, rest: 120 }, { exerciseId: "romanian-deadlift", sets: 3, reps: 6, weight: 95, rest: 120 },
   ] },
-  { id: "push-power", name: "Push · Мощность", description: "Грудь, плечи и трицепс с акцентом на силовые подходы", exercises: [
+  { id: "push-power", name: "Push · Мощность", nameEn: "Push · Power", description: "Грудь, плечи и трицепс с акцентом на силовые подходы", descriptionEn: "Chest, shoulders and triceps with a focus on heavy sets", exercises: [
     { exerciseId: "bench-press", sets: 5, reps: 4, weight: 85, rest: 180 }, { exerciseId: "shoulder-press", sets: 4, reps: 6, weight: 24, rest: 120 }, { exerciseId: "dips", sets: 3, reps: 8, weight: 0, rest: 90 }, { exerciseId: "triceps-pushdown", sets: 3, reps: 10, weight: 45, rest: 60 },
   ] },
-  { id: "pull-power", name: "Pull · Сила", description: "Спина и бицепс: тяги для мощного верха тела", exercises: [
+  { id: "pull-power", name: "Pull · Сила", nameEn: "Pull · Strength", description: "Спина и бицепс: тяги для мощного верха тела", descriptionEn: "Back and biceps: pulls for a powerful upper body", exercises: [
     { exerciseId: "barbell-row", sets: 5, reps: 5, weight: 75, rest: 150 }, { exerciseId: "lat-pulldown", sets: 4, reps: 8, weight: 65, rest: 90 }, { exerciseId: "dumbbell-row", sets: 3, reps: 10, weight: 32, rest: 75 }, { exerciseId: "biceps-curl", sets: 3, reps: 8, weight: 40, rest: 60 },
   ] },
-  { id: "upper-hypertrophy", name: "Верх тела · Гипертрофия", description: "Объёмная тренировка верха в диапазоне 8–15 повторов", exercises: [
+  { id: "upper-hypertrophy", name: "Верх тела · Гипертрофия", nameEn: "Upper body · Hypertrophy", description: "Объёмная тренировка верха в диапазоне 8–15 повторов", descriptionEn: "High-volume upper body work in the 8–15 rep range", exercises: [
     { exerciseId: "incline-db-press", sets: 4, reps: 10, weight: 28, rest: 90 }, { exerciseId: "lat-pulldown", sets: 4, reps: 12, weight: 55, rest: 75 }, { exerciseId: "lateral-raise", sets: 4, reps: 15, weight: 10, rest: 45 }, { exerciseId: "triceps-pushdown", sets: 3, reps: 14, weight: 35, rest: 45 }, { exerciseId: "biceps-curl", sets: 3, reps: 12, weight: 30, rest: 45 },
   ] },
-  { id: "lower-hypertrophy", name: "Низ тела · Гипертрофия", description: "Объём для ног и ягодиц с контролируемой техникой", exercises: [
+  { id: "lower-hypertrophy", name: "Низ тела · Гипертрофия", nameEn: "Lower body · Hypertrophy", description: "Объём для ног и ягодиц с контролируемой техникой", descriptionEn: "Volume for legs and glutes with controlled technique", exercises: [
     { exerciseId: "leg-press", sets: 4, reps: 12, weight: 140, rest: 90 }, { exerciseId: "romanian-deadlift", sets: 4, reps: 10, weight: 80, rest: 90 }, { exerciseId: "walking-lunge", sets: 3, reps: 12, weight: 16, rest: 75 }, { exerciseId: "leg-curl", sets: 3, reps: 15, weight: 45, rest: 60 }, { exerciseId: "calf-raise", sets: 4, reps: 15, weight: 70, rest: 45 },
   ] },
-  { id: "endurance-circuit", name: "Круговая · Выносливость", description: "Круг из всего тела с коротким отдыхом и высоким пульсом", exercises: [
+  { id: "endurance-circuit", name: "Круговая · Выносливость", nameEn: "Circuit · Endurance", description: "Круг из всего тела с коротким отдыхом и высоким пульсом", descriptionEn: "A full-body circuit with short rest and a high heart rate", exercises: [
     { exerciseId: "walking-lunge", sets: 3, reps: 16, weight: 10, rest: 30 }, { exerciseId: "dips", sets: 3, reps: 10, weight: 0, rest: 30 }, { exerciseId: "lat-pulldown", sets: 3, reps: 15, weight: 40, rest: 30 }, { exerciseId: "cable-crunch", sets: 3, reps: 15, weight: 30, rest: 30 }, { exerciseId: "treadmill", sets: 3, reps: 4, weight: 0, rest: 60 },
   ] },
-  { id: "cardio-conditioning", name: "Кардио · Кондиция", description: "Интервалы для сердца и общей работоспособности", exercises: [
+  { id: "cardio-conditioning", name: "Кардио · Кондиция", nameEn: "Cardio · Conditioning", description: "Интервалы для сердца и общей работоспособности", descriptionEn: "Intervals for heart health and overall conditioning", exercises: [
     { exerciseId: "treadmill", sets: 6, reps: 3, weight: 0, rest: 60 }, { exerciseId: "rower", sets: 5, reps: 2, weight: 0, rest: 45 }, { exerciseId: "plank", sets: 4, reps: 45, weight: 0, rest: 45 },
   ] },
-  { id: "posterior-chain", name: "Задняя цепь · Сила", description: "Ягодицы, бицепс бедра и мышцы спины", exercises: [
+  { id: "posterior-chain", name: "Задняя цепь · Сила", nameEn: "Posterior chain · Strength", description: "Ягодицы, бицепс бедра и мышцы спины", descriptionEn: "Glutes, hamstrings and back muscles", exercises: [
     { exerciseId: "romanian-deadlift", sets: 5, reps: 6, weight: 100, rest: 150 }, { exerciseId: "barbell-row", sets: 4, reps: 8, weight: 67.5, rest: 90 }, { exerciseId: "leg-curl", sets: 4, reps: 10, weight: 55, rest: 75 }, { exerciseId: "dumbbell-row", sets: 3, reps: 10, weight: 34, rest: 60 },
   ] },
-  { id: "chest-shoulders", name: "Грудь и плечи · Рельеф", description: "Наклонный жим, плечи и контролируемый объём", exercises: [
+  { id: "chest-shoulders", name: "Грудь и плечи · Рельеф", nameEn: "Chest and shoulders · Definition", description: "Наклонный жим, плечи и контролируемый объём", descriptionEn: "Incline press, shoulders and controlled volume", exercises: [
     { exerciseId: "incline-db-press", sets: 4, reps: 12, weight: 24, rest: 75 }, { exerciseId: "bench-press", sets: 3, reps: 10, weight: 60, rest: 90 }, { exerciseId: "shoulder-press", sets: 3, reps: 12, weight: 18, rest: 75 }, { exerciseId: "lateral-raise", sets: 4, reps: 15, weight: 8, rest: 45 },
   ] },
-  { id: "arms-core", name: "Руки и корпус", description: "Добивка бицепса, трицепса и мышц пресса", exercises: [
+  { id: "arms-core", name: "Руки и корпус", nameEn: "Arms and core", description: "Добивка бицепса, трицепса и мышц пресса", descriptionEn: "Finisher for biceps, triceps and abs", exercises: [
     { exerciseId: "biceps-curl", sets: 4, reps: 12, weight: 30, rest: 60 }, { exerciseId: "triceps-pushdown", sets: 4, reps: 12, weight: 35, rest: 60 }, { exerciseId: "dips", sets: 3, reps: 10, weight: 0, rest: 60 }, { exerciseId: "cable-crunch", sets: 4, reps: 15, weight: 35, rest: 45 }, { exerciseId: "plank", sets: 3, reps: 50, weight: 0, rest: 45 },
   ] },
-  { id: "five-by-five", name: "5×5 · База", description: "Минималистичная силовая схема с прогрессией веса", exercises: [
+  { id: "five-by-five", name: "5×5 · База", nameEn: "5×5 · Base", description: "Минималистичная силовая схема с прогрессией веса", descriptionEn: "A minimalist strength scheme with weight progression", exercises: [
     { exerciseId: "squat", sets: 5, reps: 5, weight: 90, rest: 180 }, { exerciseId: "bench-press", sets: 5, reps: 5, weight: 80, rest: 150 }, { exerciseId: "barbell-row", sets: 5, reps: 5, weight: 70, rest: 120 },
   ] },
-  { id: "active-recovery", name: "Активное восстановление", description: "Лёгкая работа, мобильность и техника между тяжёлыми днями", exercises: [
+  { id: "active-recovery", name: "Активное восстановление", nameEn: "Active recovery", description: "Лёгкая работа, мобильность и техника между тяжёлыми днями", descriptionEn: "Light work, mobility and technique between heavy days", exercises: [
     { exerciseId: "treadmill", sets: 1, reps: 25, weight: 0, rest: 60, setType: "warmup" }, { exerciseId: "rower", sets: 2, reps: 8, weight: 0, rest: 60 }, { exerciseId: "walking-lunge", sets: 2, reps: 12, weight: 0, rest: 45 }, { exerciseId: "plank", sets: 3, reps: 35, weight: 0, rest: 45 },
   ] },
 ];
@@ -645,7 +672,15 @@ export function recommendWorkingWeight(input: { history: ExerciseHistoryEntry[];
   const reason = changeKg > 0 ? `последний лучший подход ${bestSet.weight} кг × ${bestSet.reps}; можно повысить нагрузку` : changeKg < 0 ? `последний подход ${bestSet.weight} кг × ${bestSet.reps}; лучше закрепить технику` : `последний подход ${bestSet.weight} кг × ${bestSet.reps}; повтори рабочий вес`;
   return { weightKg, changeKg, reason, latestWeightKg: bestSet.weight, latestReps: bestSet.reps, estimatedOneRmKg: estimatedOneRm, targetIntensityPercent: 85 };
 }
-export function formatDuration(minutes: number) { return `${Math.floor(minutes / 60)} ч ${minutes % 60} мин`; }
+/**
+ * Длительность «ч / мин». Язык — необязательный параметр: без него
+ * подпись остаётся русской, поэтому прежние вызовы работают как раньше.
+ */
+export function formatDuration(minutes: number, lang: Lang = DEFAULT_LANG) {
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  return `${hours} ${translate(lang, "common.duration.hours")} ${rest} ${translate(lang, "common.duration.minutes")}`;
+}
 
 export function getMonthCalendarDays(year: number, monthIndex: number) {
   const first = new Date(year, monthIndex, 1);

@@ -31,16 +31,24 @@ class RestTimerCompletionReceiver : BroadcastReceiver() {
     val nextSetIndex = intent.getIntExtra(EXTRA_NEXT_SET_INDEX, -1)
     val nextSetWeight = intent.getStringExtra(EXTRA_NEXT_SET_WEIGHT) ?: ""
     val nextSetReps = intent.getStringExtra(EXTRA_NEXT_SET_REPS) ?: ""
+    // Язык пришёл из JS в payload отсчёта и сохранён в extras действия:
+    // финальное уведомление повторяет язык исходного.
+    val lang = intent.getStringExtra(EXTRA_LANG) ?: "ru"
     val finishExercise = nextActionKind == "finish-exercise"
-    val primaryActionLabel = if (finishExercise) "Следующее упражнение" else "Следующий подход"
+    val primaryActionLabel =
+      if (finishExercise) RestTimerStrings.nextExercise(lang) else RestTimerStrings.nextSet(lang)
     val primaryActionIcon = if (finishExercise) android.R.drawable.ic_menu_save else android.R.drawable.ic_media_play
-    Log.d(REST_TIMER_LOG_TAG, "rest completed: action=$nextActionKind exerciseId=$exerciseId nextSetIndex=$nextSetIndex")
+    Log.d(REST_TIMER_LOG_TAG, "rest completed: action=$nextActionKind exerciseId=$exerciseId nextSetIndex=$nextSetIndex lang=$lang")
     val soundUri = completionSoundUri(context, completionSound)
-    val channelId = ensureCompletionChannel(context, completionSound, completionVibrationEnabled, completionVibrationPattern, soundUri)
+    val channelId = ensureCompletionChannel(context, completionSound, completionVibrationEnabled, completionVibrationPattern, soundUri, lang)
     val builder = NotificationCompat.Builder(context, channelId)
       .setSmallIcon(R.drawable.ironrise_notification)
-      .setContentTitle("Отдых завершён")
-      .setContentText((if (finishExercise) "Последний подход завершён." else "Время следующего подхода.") + nextSetSummary(nextSetIndex, nextSetWeight, nextSetReps))
+      .setContentTitle(RestTimerStrings.restCompletedTitle(lang))
+      .setContentText(
+        (if (finishExercise) RestTimerStrings.restCompletedBodyLastSet(lang)
+        else RestTimerStrings.restCompletedBodyNextSet(lang)) +
+          nextSetSummary(nextSetIndex, nextSetWeight, nextSetReps, lang)
+      )
       .setAutoCancel(true)
       .setCategory(NotificationCompat.CATEGORY_ALARM)
       .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
@@ -49,12 +57,12 @@ class RestTimerCompletionReceiver : BroadcastReceiver() {
     builder.addAction(
       primaryActionIcon,
       primaryActionLabel,
-      restActionPendingIntent(context, ACTION_START, System.currentTimeMillis(), "", 0, 0, START_REQUEST_CODE, completionSound, completionVolume, completionVibrationEnabled, completionVibrationPattern, nextActionKind, exerciseId, nextSetIndex, nextSetWeight, nextSetReps)
+      restActionPendingIntent(context, ACTION_START, System.currentTimeMillis(), "", 0, 0, START_REQUEST_CODE, completionSound, completionVolume, completionVibrationEnabled, completionVibrationPattern, nextActionKind, exerciseId, nextSetIndex, nextSetWeight, nextSetReps, lang)
     )
     builder.addAction(
       android.R.drawable.ic_input_add,
-      "+30 секунд",
-      restActionPendingIntent(context, ACTION_EXTEND, restEndAt, "", 0, 0, EXTEND_REQUEST_CODE, completionSound, completionVolume, completionVibrationEnabled, completionVibrationPattern, nextActionKind, exerciseId, nextSetIndex, nextSetWeight, nextSetReps)
+      RestTimerStrings.extend30(lang),
+      restActionPendingIntent(context, ACTION_EXTEND, restEndAt, "", 0, 0, EXTEND_REQUEST_CODE, completionSound, completionVolume, completionVibrationEnabled, completionVibrationPattern, nextActionKind, exerciseId, nextSetIndex, nextSetWeight, nextSetReps, lang)
     )
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) soundUri?.let { builder.setSound(it) }
     NotificationManagerCompat.from(context).notify(COMPLETION_NOTIFICATION_ID, builder.build())
@@ -89,11 +97,11 @@ class RestTimerCompletionReceiver : BroadcastReceiver() {
     }
   }
 
-  private fun ensureCompletionChannel(context: Context, completionSound: String, vibrationEnabled: Boolean, vibrationPatternId: String, soundUri: android.net.Uri?): String {
+  private fun ensureCompletionChannel(context: Context, completionSound: String, vibrationEnabled: Boolean, vibrationPatternId: String, soundUri: android.net.Uri?, lang: String = "ru"): String {
     val channelId = "$COMPLETION_CHANNEL-$completionSound-${if (vibrationEnabled) vibrationPatternId else "silent"}"
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return channelId
     val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-    val channel = NotificationChannel(channelId, "Отдых завершён", NotificationManager.IMPORTANCE_HIGH).apply {
+    val channel = NotificationChannel(channelId, RestTimerStrings.restCompletedChannel(lang), NotificationManager.IMPORTANCE_HIGH).apply {
       lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
       enableVibration(vibrationEnabled)
       if (vibrationEnabled) vibrationPattern = completionVibrationPattern(vibrationPatternId)

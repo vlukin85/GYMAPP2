@@ -6,6 +6,8 @@ import { IconSymbol } from "@/components/ui/icon-symbol";
 import { ESTIMATED_SECONDS_PER_REP, MAX_BETWEEN_SET_REST_SECONDS, MAX_PROGRAM_REST_BLOCK_SECONDS, MIN_BETWEEN_SET_REST_SECONDS, MIN_PROGRAM_REST_BLOCK_SECONDS, estimateProgramDurationSeconds, exercises, formatProgramDuration, muscleGroups, normalizeBetweenSetRestSeconds, normalizeProgramRestBlocks, type MuscleGroup, type ProgramExercise, type ProgramRestBlock, type SetType } from "@/lib/workout-data";
 import { useWorkoutStore } from "@/lib/workout-store";
 import { useColors } from "@/hooks/use-colors";
+import { useLanguage } from "@/lib/i18n";
+import { equipmentLabel, exerciseName, muscleGroupLabel } from "@/lib/i18n/exercise-labels";
 
 const EMPTY_EXERCISE_SETTINGS = { sets: "", reps: "", weight: "", restBetweenSets: "" };
 
@@ -31,20 +33,25 @@ function ensureProgramRestBlocks(value: unknown, exerciseIds: string[]) {
   });
 }
 
-const types: { id: SetType; label: string }[] = [
-  { id: "warmup", label: "Разминка" },
-  { id: "working", label: "Рабочий" },
-  { id: "drop", label: "Дроп-сет" },
-  { id: "failure", label: "Отказной" },
-];
+const types: { id: SetType }[] = [{ id: "warmup" }, { id: "working" }, { id: "drop" }, { id: "failure" }];
+
+/** Ключи словаря для типов подходов: подпись выбирается по текущему языку. */
+const setTypeLabelKeys = {
+  warmup: "programs.builder.setType.warmup",
+  working: "programs.builder.setType.working",
+  drop: "programs.builder.setType.drop",
+  failure: "programs.builder.setType.failure",
+} as const;
 
 export default function NewProgramScreen() {
   const colors = useColors();
+  const { lang, t } = useLanguage();
+  const locale = lang === "en" ? "en-US" : "ru-RU";
   const params = useLocalSearchParams<{ exerciseId?: string; programId?: string }>();
   const { addProgram, updateProgram, programs, customExercises } = useWorkoutStore();
   const editingProgram = programs.find((program) => program.id === params.programId);
   const initialSelected = editingProgram?.exercises.map((item) => item.exerciseId) ?? (params.exerciseId ? [params.exerciseId] : []);
-  const [name, setName] = useState(editingProgram?.name ?? "Моя тренировка");
+  const [name, setName] = useState(editingProgram?.name ?? t("programs.builder.defaultName"));
   const [selected, setSelected] = useState<string[]>(initialSelected);
   const [search, setSearch] = useState("");
   const [catalogGroup, setCatalogGroup] = useState<MuscleGroup | "Все">("Все");
@@ -70,17 +77,17 @@ export default function NewProgramScreen() {
   }), [catalog, selected]);
   const restBlockByExerciseId = useMemo(() => new Map(restBlocks.map((block) => [block.afterExerciseId, block])), [restBlocks]);
   const matchingExercises = useMemo(() => {
-    const query = search.trim().toLocaleLowerCase("ru");
+    const query = search.trim().toLocaleLowerCase(locale);
     return catalog.filter((exercise) => {
-      const matchesSearch = `${exercise.name} ${exercise.group} ${exercise.equipment}`.toLocaleLowerCase("ru").includes(query);
+      const matchesSearch = `${exerciseName(exercise, lang)} ${exercise.name} ${muscleGroupLabel(exercise.group, lang)} ${exercise.group} ${equipmentLabel(exercise.equipment, lang)} ${exercise.equipment}`.toLocaleLowerCase(locale).includes(query);
       const matchesGroup = catalogGroup === "Все" || exercise.group === catalogGroup;
       return matchesSearch && matchesGroup && !selectedIds.has(exercise.id);
     });
-  }, [catalog, catalogGroup, search, selectedIds]);
+  }, [catalog, catalogGroup, lang, locale, search, selectedIds]);
 
   const save = () => {
     if (!name.trim() || !selected.length) {
-      Alert.alert("Проверьте программу", "Укажите название и добавьте хотя бы одно упражнение.");
+      Alert.alert(t("programs.builder.validationTitle"), t("programs.builder.validationMessage"));
       return;
     }
     const invalidExercise = selectedExercises.find((exercise) => {
@@ -95,7 +102,7 @@ export default function NewProgramScreen() {
         || !settings.restBetweenSets.trim() || !Number.isInteger(restValue) || restValue < MIN_BETWEEN_SET_REST_SECONDS || restValue > MAX_BETWEEN_SET_REST_SECONDS;
     });
     if (invalidExercise) {
-      Alert.alert("Заполните параметры", `Укажите сеты, повторы, вес и отдых между подходами для упражнения «${invalidExercise.name}».`);
+      Alert.alert(t("programs.builder.paramsTitle"), t("programs.builder.paramsMessage", { name: exerciseName(invalidExercise, lang) }));
       return;
     }
     const missingTransitionRest = selectedExercises.slice(0, -1).find((exercise) => {
@@ -103,7 +110,7 @@ export default function NewProgramScreen() {
       return !Number.isInteger(duration) || duration < MIN_PROGRAM_REST_BLOCK_SECONDS || duration > MAX_PROGRAM_REST_BLOCK_SECONDS;
     });
     if (missingTransitionRest) {
-      Alert.alert("Заполните интервалы отдыха", `Укажите отдых между «${missingTransitionRest.name}» и следующим упражнением.`);
+      Alert.alert(t("programs.builder.restTitle"), t("programs.builder.restMessage", { name: exerciseName(missingTransitionRest, lang) }));
       return;
     }
     const items: ProgramExercise[] = selected.map((id, index) => {
@@ -126,7 +133,7 @@ export default function NewProgramScreen() {
       };
     });
     const savedRestBlocks = normalizeProgramRestBlocks(restBlocks, selected).filter((block) => block.afterExerciseId !== selected[selected.length - 1]);
-    const description = `${selected.length} упражнения · ${savedRestBlocks.length ? `${savedRestBlocks.length} блока отдыха · ` : ""}${supersetEnabled ? "1 суперсет · " : ""}собственный план`;
+    const description = t("programs.builder.description", { count: selected.length, rest: savedRestBlocks.length ? t("programs.builder.descriptionRest", { count: savedRestBlocks.length }) : "", superset: supersetEnabled ? t("programs.builder.descriptionSuperset") : "" });
     if (editingProgram) updateProgram(editingProgram.id, { name, description, exercises: items, restBlocks: savedRestBlocks });
     else addProgram({ id: `custom-${Date.now()}`, name, description, exercises: items, restBlocks: savedRestBlocks });
     router.replace("/(tabs)/programs");
@@ -167,18 +174,18 @@ export default function NewProgramScreen() {
     <ScreenContainer edges={["top", "left", "right", "bottom"]} className="px-5" containerClassName="bg-background">
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <View style={styles.nav}>
-          <Pressable onPress={() => router.back()}><IconSymbol name="chevron.left" size={27} color={colors.foreground} /></Pressable>
-          <Text style={[styles.navTitle, { color: colors.foreground }]}>{editingProgram ? "Редактирование" : "Новая программа"}</Text>
-          <Pressable onPress={save}><Text style={[styles.saveTop, { color: colors.primary }]}>Сохранить</Text></Pressable>
+          <Pressable onPress={() => router.back()} accessibilityLabel={t("programs.builder.backA11y")}><IconSymbol name="chevron.left" size={27} color={colors.foreground} /></Pressable>
+          <Text style={[styles.navTitle, { color: colors.foreground }]}>{editingProgram ? t("programs.builder.navEdit") : t("programs.builder.navNew")}</Text>
+          <Pressable onPress={save}><Text style={[styles.saveTop, { color: colors.primary }]}>{t("programs.builder.saveTop")}</Text></Pressable>
         </View>
 
-        <Text style={[styles.title, { color: colors.foreground }]}>{editingProgram ? "Настрой программу" : "Собери свой план"}</Text>
-        <Text style={[styles.subtitle, { color: colors.muted }]}>Добавьте упражнения из каталога и заполните параметры прямо в каждой карточке.</Text>
+        <Text style={[styles.title, { color: colors.foreground }]}>{editingProgram ? t("programs.builder.titleEdit") : t("programs.builder.titleNew")}</Text>
+        <Text style={[styles.subtitle, { color: colors.muted }]}>{t("programs.builder.subtitle")}</Text>
 
-        <Text style={[styles.label, { color: colors.muted }]}>НАЗВАНИЕ</Text>
+        <Text style={[styles.label, { color: colors.muted }]}>{t("programs.builder.nameLabel")}</Text>
         <TextInput value={name} onChangeText={setName} style={[styles.nameInput, { backgroundColor: colors.surface, color: colors.foreground }]} maxLength={60} returnKeyType="done" />
 
-        <Text style={[styles.section, { color: colors.foreground }]}>Упражнения · {selected.length}</Text>
+        <Text style={[styles.section, { color: colors.foreground }]}>{t("programs.builder.exercises", { count: selected.length })}</Text>
         {selectedExercises.length > 0 && (() => {
           const hasCompleteParameters = selectedExercises.every((exercise) => {
             const settings = exerciseSettings[exercise.id] ?? EMPTY_EXERCISE_SETTINGS;
@@ -192,16 +199,16 @@ export default function NewProgramScreen() {
             const duration = restBlockByExerciseId.get(exercise.id)?.durationSeconds ?? 0;
             return Number.isInteger(duration) && duration >= MIN_PROGRAM_REST_BLOCK_SECONDS && duration <= MAX_PROGRAM_REST_BLOCK_SECONDS;
           });
-          if (!hasCompleteParameters || !hasCompleteTransitionRest) return <View style={[styles.durationCard, { backgroundColor: colors.surface, borderColor: colors.border }]}><Text style={[styles.durationTitle, { color: colors.foreground }]}>Расчётное время тренировки</Text><Text style={[styles.durationHint, { color: colors.muted }]}>Заполните все параметры и интервалы отдыха, чтобы рассчитать длительность.</Text></View>;
+          if (!hasCompleteParameters || !hasCompleteTransitionRest) return <View style={[styles.durationCard, { backgroundColor: colors.surface, borderColor: colors.border }]}><Text style={[styles.durationTitle, { color: colors.foreground }]}>{t("programs.builder.durationTitle")}</Text><Text style={[styles.durationHint, { color: colors.muted }]}>{t("programs.builder.durationIncomplete")}</Text></View>;
           const estimateItems = selectedExercises.map((exercise) => {
             const settings = exerciseSettings[exercise.id];
             return { sets: Number(settings.sets.replace(",", ".")), reps: Number(settings.reps.replace(",", ".")), rest: Number(settings.restBetweenSets.replace(",", ".")), restBetweenSets: Number(settings.restBetweenSets.replace(",", ".")) };
           });
-          return <View style={[styles.durationCard, { backgroundColor: `${colors.primary}14`, borderColor: `${colors.primary}66` }]}><Text style={[styles.durationTitle, { color: colors.foreground }]}>Расчётное время тренировки</Text><Text style={[styles.durationValue, { color: colors.primary }]}>{formatProgramDuration(estimateProgramDurationSeconds(estimateItems, restBlocks))}</Text><Text style={[styles.durationHint, { color: colors.muted }]}>С учётом примерно {ESTIMATED_SECONDS_PER_REP} сек на повторение, отдыха между подходами и между упражнениями.</Text></View>;
+          return <View style={[styles.durationCard, { backgroundColor: `${colors.primary}14`, borderColor: `${colors.primary}66` }]}><Text style={[styles.durationTitle, { color: colors.foreground }]}>{t("programs.builder.durationTitle")}</Text><Text style={[styles.durationValue, { color: colors.primary }]}>{formatProgramDuration(estimateProgramDurationSeconds(estimateItems, restBlocks), lang)}</Text><Text style={[styles.durationHint, { color: colors.muted }]}>{t("programs.builder.durationHint", { seconds: ESTIMATED_SECONDS_PER_REP })}</Text></View>;
         })()}
         {selectedExercises.length > 0 && (
           <View style={[styles.selectedPanel, { backgroundColor: `${colors.primary}0E`, borderColor: `${colors.primary}5C` }]}>
-            <Text style={[styles.selectedHint, { color: colors.muted }]}>Заполните все поля в карточках. Нажмите ×, чтобы убрать упражнение из программы.</Text>
+            <Text style={[styles.selectedHint, { color: colors.muted }]}>{t("programs.builder.selectedHint")}</Text>
             {selectedExercises.map((exercise, index) => {
                 const settings = exerciseSettings[exercise.id] ?? { sets: "", reps: "", weight: "", restBetweenSets: "" };
               return <View key={exercise.id} style={styles.programSequenceItem}>
@@ -209,17 +216,17 @@ export default function NewProgramScreen() {
                   <View style={styles.exerciseSettingsHeader}>
                     <View style={[styles.order, { backgroundColor: colors.primary }]}><Text style={styles.orderText}>{index + 1}</Text></View>
                     <View style={{ flex: 1 }}>
-                      <Text style={[styles.exerciseSettingsName, { color: colors.foreground }]} numberOfLines={1}>{exercise.name}{supersetEnabled && index < 2 ? " · SS A" : ""}</Text>
-                      <Text style={[styles.exerciseGroup, { color: colors.muted }]}>{exercise.group} · {exercise.equipment}{customExerciseIds.has(exercise.id) ? " · Моё" : ""}</Text>
+                      <Text style={[styles.exerciseSettingsName, { color: colors.foreground }]} numberOfLines={1}>{exerciseName(exercise, lang)}{supersetEnabled && index < 2 ? t("programs.builder.supersetBadge") : ""}</Text>
+                      <Text style={[styles.exerciseGroup, { color: colors.muted }]}>{muscleGroupLabel(exercise.group, lang)} · {equipmentLabel(exercise.equipment, lang)}{customExerciseIds.has(exercise.id) ? t("programs.builder.mine") : ""}</Text>
                     </View>
                     <Pressable onPress={() => removeExerciseFromProgram(exercise.id)} hitSlop={8}><Text style={[styles.restBlockRemove, { color: colors.error }]}>×</Text></Pressable>
                   </View>
                   <View style={styles.exerciseSettingsFields}>
                     {([
-                      ["sets", "Сеты", settings.sets],
-                      ["reps", "Повторы", settings.reps],
-                      ["weight", "Вес, кг", settings.weight],
-                      ["restBetweenSets", "Отдых, сек", settings.restBetweenSets],
+                      ["sets", t("programs.builder.sets"), settings.sets],
+                      ["reps", t("programs.builder.reps"), settings.reps],
+                      ["weight", t("programs.builder.weightKg"), settings.weight],
+                      ["restBetweenSets", t("programs.builder.restSec"), settings.restBetweenSets],
                     ] as const).map(([field, label, value]) => <View key={field} style={styles.exerciseSettingField}>
                       <Text style={[styles.exerciseSettingLabel, { color: colors.muted }]}>{label}</Text>
                       <TextInput value={value} onChangeText={(nextValue) => updateExerciseSetting(exercise.id, field, nextValue)} keyboardType="decimal-pad" style={[styles.exerciseSettingInput, { color: colors.foreground, backgroundColor: colors.surface, borderColor: colors.border }]} />
@@ -230,8 +237,8 @@ export default function NewProgramScreen() {
                   const restBlock = restBlockByExerciseId.get(exercise.id);
                   if (!restBlock) return null;
                   return <View style={[styles.restBlock, { backgroundColor: colors.surface, borderColor: `${colors.primary}66` }]}>
-                    <View style={styles.restBlockCopy}><Text style={[styles.restBlockTitle, { color: colors.foreground }]}>Отдых между упражнениями</Text><Text style={[styles.restBlockHint, { color: colors.muted }]}>Обязательный интервал после последнего подхода</Text></View>
-                    <TextInput value={restBlock.durationSeconds > 0 ? String(restBlock.durationSeconds) : ""} placeholder="сек" placeholderTextColor={colors.muted} onChangeText={(value) => updateRestBlockDuration(exercise.id, value)} keyboardType="number-pad" returnKeyType="done" style={[styles.restBlockInput, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.background }]} /><Text style={[styles.restBlockUnit, { color: colors.muted }]}>сек</Text>
+                    <View style={styles.restBlockCopy}><Text style={[styles.restBlockTitle, { color: colors.foreground }]}>{t("programs.builder.restBetweenTitle")}</Text><Text style={[styles.restBlockHint, { color: colors.muted }]}>{t("programs.builder.restBetweenHint")}</Text></View>
+                    <TextInput value={restBlock.durationSeconds > 0 ? String(restBlock.durationSeconds) : ""} placeholder={t("programs.builder.secPlaceholder")} placeholderTextColor={colors.muted} onChangeText={(value) => updateRestBlockDuration(exercise.id, value)} keyboardType="number-pad" returnKeyType="done" style={[styles.restBlockInput, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.background }]} /><Text style={[styles.restBlockUnit, { color: colors.muted }]}>{t("programs.builder.sec")}</Text>
                   </View>;
                 })()}
               </View>;
@@ -242,27 +249,27 @@ export default function NewProgramScreen() {
         {selected.length >= 2 && (
           <Pressable onPress={() => setSupersetEnabled((value) => !value)} style={[styles.supersetToggle, { borderColor: supersetEnabled ? colors.primary : colors.border, backgroundColor: supersetEnabled ? `${colors.primary}14` : colors.surface }]}>
             <View>
-              <Text style={[styles.supersetTitle, { color: colors.foreground }]}>{supersetEnabled ? "Суперсет A включён" : "Объединить первые два упражнения"}</Text>
-              <Text style={[styles.supersetHint, { color: colors.muted }]}>{supersetEnabled ? "Они выполняются подряд без отдыха между ними." : "Нажмите, чтобы создать суперсет A."}</Text>
+              <Text style={[styles.supersetTitle, { color: colors.foreground }]}>{supersetEnabled ? t("programs.builder.supersetOn") : t("programs.builder.supersetOff")}</Text>
+              <Text style={[styles.supersetHint, { color: colors.muted }]}>{supersetEnabled ? t("programs.builder.supersetOnHint") : t("programs.builder.supersetOffHint")}</Text>
             </View>
             <IconSymbol name={supersetEnabled ? "checkmark" : "plus"} size={20} color={colors.primary} />
           </Pressable>
         )}
 
         <View style={styles.catalogHeader}>
-          <Text style={[styles.catalogTitle, { color: colors.foreground }]}>Добавить из каталога</Text>
-          <Text style={[styles.catalogHint, { color: colors.muted }]}>В списке только ещё не выбранные упражнения. Параметры заполняются после добавления.</Text>
+          <Text style={[styles.catalogTitle, { color: colors.foreground }]}>{t("programs.builder.catalogTitle")}</Text>
+          <Text style={[styles.catalogHint, { color: colors.muted }]}>{t("programs.builder.catalogHint")}</Text>
         </View>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.groupFilters} keyboardShouldPersistTaps="handled">
           {muscleGroups.map((group) => (
             <Pressable key={group} onPress={() => setCatalogGroup(group)} style={({ pressed }) => [styles.groupFilter, { borderColor: catalogGroup === group ? colors.primary : colors.border, backgroundColor: catalogGroup === group ? colors.primary : colors.surface, opacity: pressed ? 0.75 : 1 }]}>
-              <Text style={[styles.groupFilterText, { color: catalogGroup === group ? "#101412" : colors.foreground }]}>{group}</Text>
+              <Text style={[styles.groupFilterText, { color: catalogGroup === group ? "#101412" : colors.foreground }]}>{muscleGroupLabel(group, lang)}</Text>
             </Pressable>
           ))}
         </ScrollView>
         <View style={[styles.search, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <Text style={{ color: colors.muted, fontSize: 18 }}>⌕</Text>
-          <TextInput value={search} onChangeText={setSearch} placeholder="Поиск упражнения" placeholderTextColor={colors.muted} style={[styles.searchInput, { color: colors.foreground }]} returnKeyType="search" />
+          <TextInput value={search} onChangeText={setSearch} placeholder={t("programs.builder.searchPlaceholder")} placeholderTextColor={colors.muted} style={[styles.searchInput, { color: colors.foreground }]} returnKeyType="search" />
         </View>
         {matchingExercises.map((exercise) => (
           <Pressable
@@ -272,22 +279,22 @@ export default function NewProgramScreen() {
           >
             <View style={[styles.addMark, { backgroundColor: `${colors.primary}16` }]}><IconSymbol name="plus" size={18} color={colors.primary} /></View>
             <View style={{ flex: 1 }}>
-              <Text style={[styles.exerciseName, { color: colors.foreground }]}>{exercise.name}</Text>
-              <Text style={[styles.exerciseGroup, { color: colors.muted }]}>{exercise.group} · {exercise.equipment}{customExerciseIds.has(exercise.id) ? " · Моё" : ""}</Text>
+              <Text style={[styles.exerciseName, { color: colors.foreground }]}>{exerciseName(exercise, lang)}</Text>
+              <Text style={[styles.exerciseGroup, { color: colors.muted }]}>{muscleGroupLabel(exercise.group, lang)} · {equipmentLabel(exercise.equipment, lang)}{customExerciseIds.has(exercise.id) ? t("programs.builder.mine") : ""}</Text>
             </View>
           </Pressable>
         ))}
-        {!matchingExercises.length && <Text style={[styles.empty, { color: colors.muted }]}>{search.trim() ? "Ничего не найдено. Измените запрос или добавьте упражнение в каталоге." : "Все доступные упражнения уже добавлены в программу."}</Text>}
+        {!matchingExercises.length && <Text style={[styles.empty, { color: colors.muted }]}>{search.trim() ? t("programs.builder.emptySearch") : t("programs.builder.emptyAll")}</Text>}
 
-        <Text style={[styles.label, { color: colors.muted }]}>ТИП НОВЫХ ПОДХОДОВ</Text>
+        <Text style={[styles.label, { color: colors.muted }]}>{t("programs.builder.setTypeLabel")}</Text>
         <View style={styles.typeRow}>
           {types.map((type) => (
             <Pressable key={type.id} onPress={() => setSetType(type.id)} style={[styles.type, { borderColor: setType === type.id ? colors.primary : colors.border, backgroundColor: setType === type.id ? `${colors.primary}16` : colors.surface }]}>
-              <Text style={[styles.typeText, { color: setType === type.id ? colors.primary : colors.muted }]}>{type.label}</Text>
+              <Text style={[styles.typeText, { color: setType === type.id ? colors.primary : colors.muted }]}>{t(setTypeLabelKeys[type.id])}</Text>
             </Pressable>
           ))}
         </View>
-        <Pressable onPress={save} style={[styles.button, { backgroundColor: colors.primary }]}><Text style={styles.buttonText}>{editingProgram ? "Сохранить изменения" : "Сохранить программу"}</Text></Pressable>
+        <Pressable onPress={save} style={[styles.button, { backgroundColor: colors.primary }]}><Text style={styles.buttonText}>{editingProgram ? t("programs.builder.saveChanges") : t("programs.builder.saveProgram")}</Text></Pressable>
       </ScrollView>
     </ScreenContainer>
   );

@@ -26,7 +26,6 @@ import { useNutritionStore } from "@/lib/nutrition-store";
 import { type HomeWidgetId, useHomeWidgets } from "@/lib/home-widgets";
 import { useWorkoutStore } from "@/lib/workout-store";
 import {
-  formatDuration,
   getCurrentTrainingPeriodStats,
   getExercise,
   getProgram,
@@ -36,7 +35,13 @@ import {
   buildHomeWorkoutTrend,
   type HomeWorkoutTrendPoint,
 } from "@/lib/home-workout-trend";
-import { getDailyAthleteQuote } from "@/lib/daily-athlete-quote";
+import {
+  athleteQuoteAuthor,
+  athleteQuoteText,
+  getDailyAthleteQuote,
+} from "@/lib/daily-athlete-quote";
+import { useLanguage, type DictKey, type TFunction } from "@/lib/i18n";
+import { exerciseName } from "@/lib/i18n/exercise-labels";
 import { useBodyStore } from "@/lib/body-store";
 import { calculateDailyEnergy } from "@/lib/workout-energy";
 import {
@@ -55,17 +60,29 @@ import {
 const dateKey = (date: Date) => date.toISOString().slice(0, 10);
 const titleCase = (value: string) =>
   value ? value[0].toUpperCase() + value.slice(1) : value;
-const greetingByHour = (hour: number) =>
+// Приветствие — это ключ словаря, а выбор по часу остаётся в коде.
+const greetingKeyByHour = (hour: number): DictKey =>
   hour < 5
-    ? "Доброй ночи"
+    ? "tabs.hero.greetingNight"
     : hour < 12
-      ? "Доброе утро"
+      ? "tabs.hero.greetingMorning"
       : hour < 18
-        ? "Добрый день"
-        : "Добрый вечер";
+        ? "tabs.hero.greetingDay"
+        : "tabs.hero.greetingEvening";
+// Длительность в часах и минутах: единицы измерения берутся из словаря.
+const formatHomeDuration = (minutes: number, t: TFunction) => {
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  return rest
+    ? t("tabs.metrics.duration", { hours, minutes: rest })
+    : t("tabs.metrics.durationHours", { hours });
+};
 
 export default function HomeScreen() {
   const colors = useColors();
+  const { lang, t } = useLanguage();
+  // Даты форматируются по выбранному языку, а не жёстко по ru-RU.
+  const locale = lang === "en" ? "en-US" : "ru-RU";
   const { programs, completed, scheduled, startWorkout, bodyWeightKg } =
     useWorkoutStore();
   const { profile, heightCm, ageYears, measurements, activityLevel } =
@@ -84,13 +101,13 @@ export default function HomeScreen() {
     ? (getProgram(todaySchedule.programId) ??
       programs.find((program) => program.id === todaySchedule.programId))
     : undefined;
-  const workoutTrend = buildHomeWorkoutTrend(completed);
+  const workoutTrend = buildHomeWorkoutTrend(completed, 7, lang);
   const weekVolume = completed.reduce((sum, item) => sum + item.totalVolume, 0);
   const dayLabel = titleCase(
-    now.toLocaleDateString("ru-RU", { weekday: "long" }),
+    now.toLocaleDateString(locale, { weekday: "long" }),
   );
-  const monthLabel = now.toLocaleDateString("ru-RU", { month: "long" });
-  const greeting = greetingByHour(now.getHours());
+  const monthLabel = now.toLocaleDateString(locale, { month: "long" });
+  const greeting = t(greetingKeyByHour(now.getHours()));
   const todayTotalSets =
     todayProgram?.exercises.reduce((sum, item) => sum + item.sets, 0) ?? 0;
   const todayEstimateMinutes = todayProgram
@@ -129,13 +146,18 @@ export default function HomeScreen() {
     activityLevel,
     workoutCalories: workoutCaloriesToday,
   });
-  const weeklyEnergyTrend = buildHomeEnergyTrend(now, completed, {
-    profile,
-    weightKg: currentWeightKg,
-    heightCm,
-    ageYears,
-    activityLevel,
-  });
+  const weeklyEnergyTrend = buildHomeEnergyTrend(
+    now,
+    completed,
+    {
+      profile,
+      weightKg: currentWeightKg,
+      heightCm,
+      ageYears,
+      activityLevel,
+    },
+    lang,
+  );
   const weeklyTrainingStats = getCurrentTrainingPeriodStats(completed, now).week;
 
   useEffect(() => {
@@ -164,20 +186,24 @@ export default function HomeScreen() {
       >
         <View style={styles.hero}>
           <Text style={[styles.heroEyebrow, { color: colors.primary }]}>
-            Дневник тренировок
+            {t("tabs.hero.eyebrow")}
           </Text>
           <Text style={[styles.heroGreeting, { color: colors.foreground }]}>
             {greeting}
           </Text>
           <Text style={[styles.heroDate, { color: colors.muted }]}>
-            {dayLabel.toLowerCase()}, {now.getDate()} {monthLabel}
+            {t("tabs.hero.date", {
+              weekday: dayLabel.toLowerCase(),
+              day: now.getDate(),
+              month: monthLabel,
+            })}
           </Text>
           <View style={styles.brandCredit}>
             <Text style={[styles.creditName, { color: colors.foreground }]}>
-              IronRise · by Vasily Lukin
+              {t("tabs.hero.brand")}
             </Text>
             <Text style={[styles.creditRights, { color: colors.muted }]}>
-              © All rights reserved
+              {t("tabs.hero.rights")}
             </Text>
           </View>
         </View>
@@ -204,7 +230,7 @@ export default function HomeScreen() {
             ]}
           >
             <Text style={[styles.todKicker, { color: colors.primary }]}>
-              Тренировка дня
+              {t("tabs.today.kicker")}
             </Text>
             <EmptyPlan colors={colors} />
           </View>
@@ -246,6 +272,7 @@ function HomeWidgetStack({
   dailyEnergy,
   weeklyEnergyTrend,
 }: any) {
+  const { lang, t } = useLanguage();
   const [draggingId, setDraggingId] = useState<HomeWidgetId | null>(null);
   const [dragTarget, setDragTarget] = useState<number | null>(null);
   const [previewOrder, setPreviewOrder] = useState<HomeWidgetId[] | null>(null);
@@ -334,7 +361,7 @@ function HomeWidgetStack({
             style={[styles.quoteAccent, { backgroundColor: colors.primary }]}
           />
           <Text style={[styles.quoteKicker, { color: colors.primary }]}>
-            ЦИТАТА ДНЯ
+            {t("tabs.quote.kicker")}
           </Text>
           <Text
             numberOfLines={compact ? 2 : undefined}
@@ -344,11 +371,13 @@ function HomeWidgetStack({
               { color: colors.foreground },
             ]}
           >
-            «{dailyQuote.quote}»
+            {t("tabs.quote.text", { quote: athleteQuoteText(dailyQuote, lang) })}
           </Text>
           <Text style={[styles.quoteAuthor, { color: colors.muted }]}>
-            {dailyQuote.athlete.toUpperCase()} ·{" "}
-            {dailyQuote.discipline.toUpperCase()}
+            {t("tabs.quote.author", {
+              athlete: athleteQuoteAuthor(dailyQuote, lang).athlete.toUpperCase(),
+              discipline: athleteQuoteAuthor(dailyQuote, lang).discipline.toUpperCase(),
+            })}
           </Text>
         </View>
       );
@@ -388,7 +417,7 @@ function HomeWidgetStack({
         >
           <View style={styles.chartTopline}>
             <Text style={[styles.analyticsTitle, { color: colors.foreground }]}>
-              ОБЪЁМ · КГ
+              {t("tabs.trend.title")}
             </Text>
             <Pressable
               onPress={() => router.push("/(tabs)/stats")}
@@ -398,12 +427,12 @@ function HomeWidgetStack({
               ]}
             >
               <Text style={[styles.chartLinkText, { color: colors.primary }]}>
-                Статистика
+                {t("tabs.trend.statsLink")}
               </Text>
             </Pressable>
           </View>
           <Text style={[styles.chartCaption, { color: colors.muted }]}>
-            ЗАВЕРШЁННЫЕ ТРЕНИРОВКИ
+            {t("tabs.trend.caption")}
           </Text>
           <CompletedWorkoutChart
             points={workoutTrend}
@@ -428,27 +457,28 @@ function HomeWidgetStack({
           <View style={[styles.dataRow, compact && compactStyles.dataRow]}>
             <Metric
               compact={compact}
-              label="ТРЕНИРОВОК"
+              label={t("tabs.metrics.workouts")}
               value={String(completed.length)}
               suffix=""
               colors={colors}
             />
             <Metric
               compact={compact}
-              label="ОБЪЁМ"
+              label={t("tabs.metrics.volume")}
               value={`${(weekVolume / 1000).toFixed(1)}`}
-              suffix=" т"
+              suffix={t("tabs.metrics.volumeSuffix")}
               colors={colors}
             />
             <Metric
               compact={compact}
-              label="ВРЕМЯ"
-              value={formatDuration(
+              label={t("tabs.metrics.time")}
+              value={formatHomeDuration(
                 completed.reduce(
                   (sum: number, item: any) => sum + item.durationMinutes,
                   0,
                 ),
-              ).replace(" ч 0 мин", " ч")}
+                t,
+              )}
               suffix=""
               colors={colors}
             />
@@ -469,7 +499,7 @@ function HomeWidgetStack({
           ]}
         >
           <Text style={[styles.actionText, { color: colors.foreground }]}>
-            Календарь
+            {t("tabs.actions.calendar")}
           </Text>
           <IconSymbol
             name="calendar"
@@ -486,7 +516,7 @@ function HomeWidgetStack({
           ]}
         >
           <Text style={[styles.actionText, { color: colors.foreground }]}>
-            Упражнения
+            {t("tabs.actions.exercises")}
           </Text>
           <IconSymbol
             name="dumbbell.fill"
@@ -536,6 +566,7 @@ function WidgetDragHint({
   colors: any;
   onDismiss: () => void;
 }) {
+  const { t } = useLanguage();
   return (
     <Modal transparent animationType="fade" visible onRequestClose={onDismiss}>
       <View style={styles.hintBackdrop}>
@@ -546,15 +577,13 @@ function WidgetDragHint({
           ]}
         >
           <Text style={[styles.hintEyebrow, { color: colors.primary }]}>
-            НАСТРОЙТЕ «СЕГОДНЯ» ПОД СЕБЯ
+            {t("tabs.dragHint.eyebrow")}
           </Text>
           <Text style={[styles.hintTitle, { color: colors.foreground }]}>
-            Перемещайте виджеты
+            {t("tabs.dragHint.title")}
           </Text>
           <Text style={[styles.hintText, { color: colors.muted }]}>
-            Зажмите маркер ⠿ на карточке и потяните её вверх или вниз. Соседние
-            блоки плавно освободят место, а новый порядок сохранится
-            автоматически.
+            {t("tabs.dragHint.text")}
           </Text>
           <Pressable
             onPress={onDismiss}
@@ -563,7 +592,7 @@ function WidgetDragHint({
               { backgroundColor: colors.primary, opacity: pressed ? pressedOpacity : 1 },
             ]}
           >
-            <Text style={[styles.hintButtonText, { color: colors.background }]}>ПОНЯТНО</Text>
+            <Text style={[styles.hintButtonText, { color: colors.background }]}>{t("tabs.dragHint.cta")}</Text>
           </Pressable>
         </View>
       </View>
@@ -592,6 +621,7 @@ function DraggableHomeWidget({
   onDragEnd: (index: number) => void;
   children: React.ReactNode;
 }) {
+  const { t } = useLanguage();
   const currentTargetRef = useMemo(() => ({ value: index }), [index]);
   const lift = useRef(new Animated.Value(0)).current;
   useEffect(() => {
@@ -656,7 +686,7 @@ function DraggableHomeWidget({
       <View pointerEvents="box-none">{children}</View>
       <View
         accessibilityRole="adjustable"
-        accessibilityLabel="Перетащить виджет"
+        accessibilityLabel={t("tabs.widget.handleA11y")}
         style={[
           styles.widgetHandle,
           {
@@ -680,10 +710,11 @@ function DraggableHomeWidget({
 }
 
 function EmptyPlan({ colors }: { colors: any }) {
+  const { t } = useLanguage();
   return (
     <View style={styles.emptyPlan}>
       <Text style={[styles.emptyPlanText, { color: colors.muted }]}>
-        На сегодня программа не запланирована.
+        {t("tabs.today.emptyText")}
       </Text>
       <Pressable
         onPress={() => router.push("/(tabs)/calendar")}
@@ -697,7 +728,7 @@ function EmptyPlan({ colors }: { colors: any }) {
         ]}
       >
         <Text style={[styles.planButtonText, { color: colors.foreground }]}>
-          Запланировать
+          {t("tabs.today.emptyCta")}
         </Text>
       </Pressable>
     </View>
@@ -717,6 +748,7 @@ function TodayWorkoutCard({
   estimateMinutes: number;
   onStart: () => void;
 }) {
+  const { lang, t } = useLanguage();
   const chips = program.exercises.slice(0, 5);
   return (
     <View
@@ -732,7 +764,7 @@ function TodayWorkoutCard({
       />
       <View style={styles.todTop}>
         <Text style={[styles.todKicker, { color: colors.primary }]}>
-          Тренировка дня
+          {t("tabs.today.kicker")}
         </Text>
         <View
           style={[
@@ -744,7 +776,7 @@ function TodayWorkoutCard({
           ]}
         >
           <Text style={[styles.todBadgeText, { color: colors.warning }]}>
-            {totalSets} подходов
+            {t("tabs.today.setsBadge", { count: totalSets })}
           </Text>
         </View>
       </View>
@@ -752,31 +784,14 @@ function TodayWorkoutCard({
         numberOfLines={2}
         style={[styles.todName, { color: colors.foreground }]}
       >
-        {program.name}
+        {lang === "en" ? (program.nameEn ?? program.name) : program.name}
       </Text>
       <View style={styles.todMeta}>
         <Text style={[styles.todMetaText, { color: colors.muted }]}>
-          <Text
-            style={[
-              styles.todMetaValue,
-              { color: colors.foreground, fontVariant: ["tabular-nums"] },
-            ]}
-          >
-            {program.exercises.length}
-          </Text>{" "}
-          упражнений
+          {t("tabs.today.exerciseCount", { count: program.exercises.length })}
         </Text>
         <Text style={[styles.todMetaText, { color: colors.muted }]}>
-          ≈{" "}
-          <Text
-            style={[
-              styles.todMetaValue,
-              { color: colors.foreground, fontVariant: ["tabular-nums"] },
-            ]}
-          >
-            {estimateMinutes}
-          </Text>{" "}
-          мин
+          {t("tabs.today.estimateMinutes", { minutes: estimateMinutes })}
         </Text>
       </View>
       <View style={styles.todExList}>
@@ -795,7 +810,7 @@ function TodayWorkoutCard({
               numberOfLines={1}
               style={[styles.todExChipText, { color: colors.muted }]}
             >
-              {getExercise(exercise.exerciseId)?.name ?? "Упражнение"}
+              {exerciseName(getExercise(exercise.exerciseId), lang) || t("tabs.today.exerciseFallback")}
             </Text>
           </View>
         ))}
@@ -810,7 +825,7 @@ function TodayWorkoutCard({
             ]}
           >
             <Text style={[styles.todExChipText, { color: colors.muted }]}>
-              + ещё {program.exercises.length - chips.length}
+              {t("tabs.today.moreExercises", { count: program.exercises.length - chips.length })}
             </Text>
           </View>
         )}
@@ -823,10 +838,10 @@ function TodayWorkoutCard({
           shadows.raised,
         ]}
         accessibilityRole="button"
-        accessibilityLabel="Начать тренировку"
+        accessibilityLabel={t("tabs.today.startA11y")}
       >
         <Text style={[styles.todCtaText, { color: colors.background }]}>
-          Начать тренировку
+          {t("tabs.today.startCta")}
         </Text>
       </Pressable>
     </View>
@@ -846,6 +861,8 @@ function WeekStrip({
   colors: any;
   compact: boolean;
 }) {
+  const { lang, t } = useLanguage();
+  const locale = lang === "en" ? "en-US" : "ru-RU";
   const monday = new Date(now);
   const day = (monday.getDay() + 6) % 7;
   monday.setDate(monday.getDate() - day);
@@ -867,7 +884,7 @@ function WeekStrip({
       today: key === dateKey(now),
     };
   });
-  const rangeLabel = `${monday.getDate()}–${new Date(monday.getTime() + 6 * 86_400_000).getDate()} ${monday.toLocaleDateString("ru-RU", { month: "short" }).replace(".", "")}`;
+  const rangeLabel = `${monday.getDate()}–${new Date(monday.getTime() + 6 * 86_400_000).getDate()} ${monday.toLocaleDateString(locale, { month: "short" }).replace(".", "")}`;
   const weekWorkouts = cells.filter((cell) => cell.done).length;
   const weekVolume = cells.reduce((sum, cell) => sum + cell.volume, 0);
   const weekMinutes = completed
@@ -875,15 +892,15 @@ function WeekStrip({
     .reduce((sum, item) => sum + Math.max(0, item.durationMinutes ?? 0), 0);
   const maxVolume = Math.max(1, ...cells.map((cell) => cell.volume));
   const stats = [
-    { value: String(weekWorkouts), label: "Тренировки", tone: colors.primary },
+    { value: String(weekWorkouts), label: t("tabs.week.workouts"), tone: colors.primary },
     {
-      value: `${(weekVolume / 1000).toFixed(1)}т`,
-      label: "Объём, кг",
+      value: t("tabs.week.volumeValue", { value: (weekVolume / 1000).toFixed(1) }),
+      label: t("tabs.week.volume"),
       tone: colors.warning,
     },
     {
       value: String(weekMinutes),
-      label: "Минуты",
+      label: t("tabs.week.minutes"),
       tone: colors.foreground,
     },
   ];
@@ -897,7 +914,7 @@ function WeekStrip({
     >
       <View style={styles.weekHead}>
         <Text style={[styles.weekKicker, { color: colors.primary }]}>
-          Неделя
+          {t("tabs.week.title")}
         </Text>
         <Text style={[styles.weekRange, { color: colors.muted }]}>
           {rangeLabel}
@@ -938,7 +955,7 @@ function WeekStrip({
               compact && compactStyles.weekBarCell,
               { opacity: pressed ? pressedOpacity : 1 },
             ]}
-            accessibilityLabel={`День ${cell.date.getDate()}`}
+            accessibilityLabel={t("tabs.week.dayA11y", { day: cell.date.getDate() })}
           >
             <View
               style={[
@@ -972,7 +989,7 @@ function WeekStrip({
               ]}
             >
               {cell.date
-                .toLocaleDateString("ru-RU", { weekday: "short" })
+                .toLocaleDateString(locale, { weekday: "short" })
                 .replace(".", "")
                 .toLowerCase()}
             </Text>
@@ -1044,6 +1061,8 @@ function DailyEnergyCard({
   colors: any;
   compact: boolean;
 }) {
+  const { lang, t } = useLanguage();
+  const locale = lang === "en" ? "en-US" : "ru-RU";
   return (
     <Pressable
       onPress={() => router.push("/(tabs)/body")}
@@ -1060,7 +1079,7 @@ function DailyEnergyCard({
       <View style={styles.energyHead}>
         <View>
           <Text style={[styles.energyKicker, { color: colors.primary }]}>
-            РАСХОД · СЕГОДНЯ
+            {t("tabs.energy.title")}
           </Text>
           <Text
             style={[
@@ -1069,8 +1088,8 @@ function DailyEnergyCard({
               { color: colors.foreground },
             ]}
           >
-            {estimate.totalCalories.toLocaleString("ru-RU")}{" "}
-            <Text style={styles.energySuffix}>ККАЛ</Text>
+            {estimate.totalCalories.toLocaleString(locale)}{" "}
+            <Text style={styles.energySuffix}>{t("tabs.energy.unit")}</Text>
           </Text>
         </View>
         <IconSymbol
@@ -1084,7 +1103,7 @@ function DailyEnergyCard({
           style={[styles.energyBreakdown, { borderTopColor: colors.border }]}
         >
           <Text style={[styles.energyPart, { color: colors.muted }]}>
-            Покой{" "}
+            {t("tabs.energy.resting")}{" "}
             <Text
               style={[styles.energyPartValue, { color: colors.foreground }]}
             >
@@ -1092,7 +1111,7 @@ function DailyEnergyCard({
             </Text>
           </Text>
           <Text style={[styles.energyPart, { color: colors.muted }]}>
-            Движение{" "}
+            {t("tabs.energy.movement")}{" "}
             <Text
               style={[styles.energyPartValue, { color: colors.foreground }]}
             >
@@ -1100,7 +1119,7 @@ function DailyEnergyCard({
             </Text>
           </Text>
           <Text style={[styles.energyPart, { color: colors.muted }]}>
-            Тренировка{" "}
+            {t("tabs.energy.workout")}{" "}
             <Text style={[styles.energyPartValue, { color: colors.primary }]}>
               {estimate.workoutCalories}
             </Text>
@@ -1109,8 +1128,8 @@ function DailyEnergyCard({
       )}
       <Text style={[styles.energyHint, { color: colors.muted }]}>
         {estimate.isPersonalizedRestingEstimate
-          ? "Основано на профиле тела и завершённых тренировках."
-          : "Добавьте рост и возраст в профиле для более точной оценки."}
+          ? t("tabs.energy.hintPersonal")
+          : t("tabs.energy.hintFillProfile")}
       </Text>
     </Pressable>
   );
@@ -1125,6 +1144,8 @@ function WeeklyEnergyTrend({
   colors: any;
   compact: boolean;
 }) {
+  const { lang, t } = useLanguage();
+  const locale = lang === "en" ? "en-US" : "ru-RU";
   const average = Math.round(
     points.reduce((sum, point) => sum + point.totalCalories, 0) /
       Math.max(1, points.length),
@@ -1161,11 +1182,11 @@ function WeeklyEnergyTrend({
       <View style={styles.energyTrendHead}>
         <View>
           <Text style={[styles.energyKicker, { color: colors.primary }]}>
-            РАСХОД · 7 ДНЕЙ
+            {t("tabs.energyTrend.title")}
           </Text>
           <Text style={[styles.energyTrendValue, { color: colors.foreground }]}>
-            {average.toLocaleString("ru-RU")}{" "}
-            <Text style={styles.energySuffix}>ККАЛ В СРЕДНЕМ</Text>
+            {average.toLocaleString(locale)}{" "}
+            <Text style={styles.energySuffix}>{t("tabs.energyTrend.average")}</Text>
           </Text>
         </View>
         <IconSymbol
@@ -1214,7 +1235,7 @@ function WeeklyEnergyTrend({
         ))}
       </View>
       <Text style={[styles.energyTrendHint, { color: colors.muted }]}>
-        Акцент — дни с завершённой тренировкой.
+        {t("tabs.energyTrend.hint")}
       </Text>
     </Pressable>
   );
@@ -1235,16 +1256,17 @@ function NutritionProgress({
   colors: any;
   compact: boolean;
 }) {
+  const { t } = useLanguage();
   const items = [
     {
-      label: "Б",
+      label: t("tabs.nutrition.proteinShort"),
       value: macros.protein,
       goal: macroGoals.protein,
       color: colors.primary,
     },
-    { label: "Ж", value: macros.fat, goal: macroGoals.fat, color: colors.warning },
+    { label: t("tabs.nutrition.fatShort"), value: macros.fat, goal: macroGoals.fat, color: colors.warning },
     {
-      label: "У",
+      label: t("tabs.nutrition.carbsShort"),
       value: macros.carbs,
       goal: macroGoals.carbs,
       color: colors.success,
@@ -1270,7 +1292,7 @@ function NutritionProgress({
       <View style={styles.nutritionHead}>
         <View>
           <Text style={[styles.nutritionKicker, { color: colors.primary }]}>
-            ПИТАНИЕ · ЦЕЛЬ ДНЯ
+            {t("tabs.nutrition.title")}
           </Text>
           <Text
             style={[
@@ -1281,7 +1303,7 @@ function NutritionProgress({
           >
             {calories}{" "}
             <Text style={styles.nutritionCaloriesSuffix}>
-              / {calorieGoal} ККАЛ
+              {t("tabs.nutrition.goalSuffix", { goal: calorieGoal })}
             </Text>
           </Text>
         </View>
@@ -1327,7 +1349,7 @@ function NutritionProgress({
                       { color: colors.foreground },
                     ]}
                   >
-                    {item.value}/{item.goal}г
+                    {t("tabs.nutrition.macroValue", { value: item.value, goal: item.goal })}
                   </Text>
                 </View>
                 <View
@@ -1361,6 +1383,7 @@ function CompletedWorkoutChart({
   colors: any;
   compact: boolean;
 }) {
+  const { t } = useLanguage();
   const width = 308;
   const height = compact ? 92 : 132;
   const baseline = compact ? 70 : 104;
@@ -1427,7 +1450,7 @@ function CompletedWorkoutChart({
   ) : (
     <View style={styles.chartEmpty}>
       <Text style={[styles.chartEmptyText, { color: colors.muted }]}>
-        Завершите тренировку, чтобы увидеть динамику объёма.
+        {t("tabs.trend.empty")}
       </Text>
     </View>
   );

@@ -1,4 +1,9 @@
-export type FoodProduct = { id: string; name: string; category: string; kcalPer100g: number; proteinPer100g: number; fatPer100g: number; carbsPer100g: number; barcode?: string; pieceWeightG?: number; pieceLabel?: string; imageUri?: string };
+import { NUTRITION_CATEGORY_EN, NUTRITION_NAME_EN, NUTRITION_PIECE_LABEL_EN } from "./nutrition-names-en";
+
+// name/category/pieceLabel — русские значения по умолчанию (их читают расчёты,
+// отчёты и сохранённые записи). nameEn/categoryEn/pieceLabelEn — английские
+// пары для интерфейса; выбираются через foodName()/foodCategory()/pieceLabelOf().
+export type FoodProduct = { id: string; name: string; nameEn?: string; category: string; categoryEn?: string; kcalPer100g: number; proteinPer100g: number; fatPer100g: number; carbsPer100g: number; barcode?: string; pieceWeightG?: number; pieceLabel?: string; pieceLabelEn?: string; imageUri?: string };
 export type MealType = "Завтрак" | "Обед" | "Ужин" | "Перекус";
 export type FoodEntry = { id: string; date: string; meal: MealType; productId: string; grams: number; pieces?: number; customProduct?: FoodProduct };
 export type MealTemplate = { id: string; name: string; meal: MealType; items: Array<Pick<FoodEntry, "productId" | "grams" | "customProduct">> };
@@ -68,10 +73,24 @@ const macroProfiles: Record<string, NutritionMacros> = {
   "Фрукты": { protein: 0.7, fat: 0.2, carbs: 14 }, "Ягоды": { protein: 0.8, fat: 0.4, carbs: 10 }, "Сухофрукты": { protein: 2, fat: 0.6, carbs: 65 }, "Овощи": { protein: 2, fat: 0.3, carbs: 5 }, "Мясо и рыба": { protein: 20, fat: 8, carbs: 0 }, "Молочные": { protein: 7, fat: 7, carbs: 5 }, "Крупы": { protein: 11, fat: 3, carbs: 70 }, "Хлеб": { protein: 8, fat: 3, carbs: 50 }, "Выпечка": { protein: 7, fat: 15, carbs: 55 }, "Орехи": { protein: 18, fat: 55, carbs: 18 }, "Масла": { protein: 0, fat: 100, carbs: 0 }, "Соусы": { protein: 2, fat: 20, carbs: 12 }, "Сладкое": { protein: 5, fat: 20, carbs: 60 }, "Спортпит": { protein: 55, fat: 6, carbs: 25 }, "Напитки": { protein: 0.5, fat: 0.2, carbs: 8 }, "Готовые блюда": { protein: 10, fat: 9, carbs: 17 }, "Бобовые": { protein: 17, fat: 5, carbs: 33 }, "Завтрак": { protein: 9, fat: 8, carbs: 45 }, "Фастфуд": { protein: 12, fat: 17, carbs: 25 }, "Салаты и роллы": { protein: 8, fat: 8, carbs: 14 }, "Мировая кухня": { protein: 10, fat: 12, carbs: 22 }, "Ингредиенты": { protein: 7, fat: 2, carbs: 72 }, "Супы": { protein: 4, fat: 3, carbs: 8 }, "Колбасные изделия": { protein: 13, fat: 30, carbs: 2 }
 };
 
-const toProduct = ([id, name, category, kcalPer100g]: FoodRow): FoodProduct => { const piece = pieceSpecs[id]; const macros = macroProfiles[category] ?? { protein: 0, fat: 0, carbs: 0 }; return { id, name, category, kcalPer100g, ...(macroProfiles[category] ?? { protein: 0, fat: 0, carbs: 0 }), proteinPer100g: macros.protein, fatPer100g: macros.fat, carbsPer100g: macros.carbs, ...(piece ? { pieceWeightG: piece.pieceWeightG, ...(piece.pieceLabel ? { pieceLabel: piece.pieceLabel } : {}) } : {}) }; };
+const toProduct = ([id, name, category, kcalPer100g]: FoodRow): FoodProduct => { const piece = pieceSpecs[id]; const macros = macroProfiles[category] ?? { protein: 0, fat: 0, carbs: 0 }; const nameEn = NUTRITION_NAME_EN[id]; const categoryEn = NUTRITION_CATEGORY_EN[category]; return { id, name, ...(nameEn ? { nameEn } : {}), category, ...(categoryEn ? { categoryEn } : {}), kcalPer100g, ...(macroProfiles[category] ?? { protein: 0, fat: 0, carbs: 0 }), proteinPer100g: macros.protein, fatPer100g: macros.fat, carbsPer100g: macros.carbs, ...(piece ? { pieceWeightG: piece.pieceWeightG, ...(piece.pieceLabel ? { pieceLabel: piece.pieceLabel, ...(NUTRITION_PIECE_LABEL_EN[piece.pieceLabel] ? { pieceLabelEn: NUTRITION_PIECE_LABEL_EN[piece.pieceLabel] } : {}) } : {}) } : {}) }; };
 
 export const defaultPieceLabel = "штука";
-export const pieceLabelOf = (product?: Pick<FoodProduct, "pieceLabel"> | null) => product?.pieceLabel ?? defaultPieceLabel;
+export const defaultPieceLabelEn = "piece";
+/** Язык подписи: английский с откатом на русский вариант. */
+type FoodLang = "ru" | "en";
+/** Подпись штуки у продукта под выбранный язык (по умолчанию — «штука»/«piece»). */
+export const pieceLabelOf = (product?: Pick<FoodProduct, "pieceLabel" | "pieceLabelEn"> | null, lang: FoodLang = "ru") => lang === "en" ? (product?.pieceLabelEn ?? product?.pieceLabel ?? defaultPieceLabelEn) : (product?.pieceLabel ?? defaultPieceLabel);
+/** Название продукта под выбранный язык; у своих продуктов английского варианта нет. */
+export const foodName = (product: Pick<FoodProduct, "name" | "nameEn"> | null | undefined, lang: FoodLang) => lang === "en" ? (product?.nameEn ?? product?.name ?? "") : (product?.name ?? "");
+/** Категория продукта под выбранный язык. */
+export const foodCategory = (product: Pick<FoodProduct, "category" | "categoryEn"> | null | undefined, lang: FoodLang) => lang === "en" ? (product?.categoryEn ?? product?.category ?? "") : (product?.category ?? "");
+/** Названия приёмов пищи на английском: в данных они хранятся по-русски. */
+export const MEAL_LABEL_EN: Record<MealType, string> = { "Завтрак": "Breakfast", "Обед": "Lunch", "Ужин": "Dinner", "Перекус": "Snack" };
+/** Подпись приёма пищи под выбранный язык. */
+export const mealLabel = (meal: MealType | string, lang: FoodLang) => lang === "en" ? (MEAL_LABEL_EN[meal as MealType] ?? meal) : meal;
+/** Все категории каталога на английском — для фильтров и группировки. */
+export const nutritionCategoryEn = NUTRITION_CATEGORY_EN;
 /** Граммы записи с учётом штук: pieces учитываются только у продуктов с известным весом штуки. */
 export const effectiveEntryGrams = (entry: Pick<FoodEntry, "grams" | "pieces">, product?: Pick<FoodProduct, "pieceWeightG">) => { const pieces = entry.pieces; if (product?.pieceWeightG && pieces !== undefined && Number.isFinite(pieces) && pieces > 0) return Math.round(pieces) * product.pieceWeightG; return entry.grams; };
 

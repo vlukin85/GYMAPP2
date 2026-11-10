@@ -2,9 +2,16 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
-const nutrition = readFileSync(resolve(process.cwd(), "app/(tabs)/nutrition.tsx"), "utf8");
+const nutrition = readFileSync(resolve(process.cwd(), "app/(tabs)/nutrition.tsx"), "utf8") + readFileSync(resolve(process.cwd(), "lib/i18n/domains/nutrition.ts"), "utf8");
 const tabs = readFileSync(resolve(process.cwd(), "app/(tabs)/_layout.tsx"), "utf8");
-const settings = readFileSync(resolve(process.cwd(), "app/settings.tsx"), "utf8");
+// Русские подписи экрана настроек живут в словаре домена settings,
+// поэтому экран проверяется вместе со своим словарём локализации.
+const settings =
+  readFileSync(resolve(process.cwd(), "app/settings.tsx"), "utf8") +
+  readFileSync(
+    resolve(process.cwd(), "lib/i18n/domains/settings.ts"),
+    "utf8",
+  );
 
 describe("nutrition journal ui", () => {
   it("shows meals, food search and a calendar on the nutrition tab", () => {
@@ -18,14 +25,17 @@ describe("nutrition journal ui", () => {
     expect(nutrition).toContain("ДОБАВИТЬ И ЕЩЁ");
   });
   it("shows a calorie goal delta and exposes its setting", () => {
-    expect(nutrition).toContain('calorieDelta >= 0 ? "ОСТАЛОСЬ" : "ПЕРЕБОР"');
+    // Подписи «ОСТАЛОСЬ»/«ПЕРЕБОР» живут в словаре домена nutrition.
+    expect(nutrition).toContain(
+      'calorieDelta >= 0 ? t("nutrition.total.left") : t("nutrition.total.over")',
+    );
     expect(settings).toContain("Плановый калораж за сутки");
     expect(settings).toContain("setDailyCalorieGoal");
   });
   it("shows daily protein, fat, carbohydrates and links to CSV import", () => {
     expect(nutrition).toContain("sumEntryMacros");
     expect(nutrition).toContain("ИМПОРТ CSV");
-    expect(nutrition).toContain("Б {dayMacros.protein}г");
+    expect(nutrition).toContain('t("nutrition.total.macroValue"');
   });
   it("keeps product category filters compact", () => {
     expect(nutrition).toContain('alignSelf:"flex-start"');
@@ -114,7 +124,9 @@ describe("nutrition journal ui", () => {
     expect(nutrition).toContain("food.imageUri ? <Image");
     expect(nutrition).toContain('source={{ uri: food.imageUri }}');
     expect(nutrition).toContain("getFoodIllustrationXml(food.id, food.category, food.name)");
-    expect(nutrition).toContain("<SvgXml accessibilityLabel={`Иллюстрация ${food.name}`}");
+    expect(nutrition).toContain(
+      'accessibilityLabel={t("nutrition.picker.illustrationA11y", { name: foodName(food, lang) })}',
+    );
     expect(nutrition).toContain("imageUri: customPhotoUri ?? undefined");
   });
 });

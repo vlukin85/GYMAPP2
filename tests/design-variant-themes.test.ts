@@ -16,10 +16,14 @@ const PALETTE_KEYS = [
   "error",
 ] as const;
 
-const settings = readFileSync(
-  resolve(process.cwd(), "app/settings.tsx"),
-  "utf8",
-);
+// Русские подписи экрана настроек живут в словаре домена settings,
+// поэтому экран проверяется вместе со своим словарём локализации.
+const settings =
+  readFileSync(resolve(process.cwd(), "app/settings.tsx"), "utf8") +
+  readFileSync(
+    resolve(process.cwd(), "lib/i18n/domains/settings.ts"),
+    "utf8",
+  );
 
 const DESIGN_VARIANTS = [
   {

@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
@@ -7,14 +7,10 @@ const rootLayout = readFileSync(
   resolve(process.cwd(), "app/_layout.tsx"),
   "utf8",
 );
-const hydrationGate = readFileSync(
-  resolve(process.cwd(), "components/hydration-gate.tsx"),
-  "utf8",
-);
-const settings = readFileSync(
-  resolve(process.cwd(), "app/settings.tsx"),
-  "utf8",
-);
+// Русские подписи экрана настроек живут в словаре домена settings.
+const settings =
+  readFileSync(resolve(process.cwd(), "app/settings.tsx"), "utf8") +
+  readFileSync(resolve(process.cwd(), "lib/i18n/domains/settings.ts"), "utf8");
 
 describe("native launch splash", () => {
   it("configures one square system splash icon per system theme", () => {
@@ -29,8 +25,28 @@ describe("native launch splash", () => {
       /dark:\s*\{\s*image:\s*"\.\/assets\/images\/splash-icon-android12\.png",\s*backgroundColor:\s*"#0B0F0D",?\s*\}/,
     );
     expect(appConfig).toContain('iconBackground: "#0D0F14"');
-    // Полнокадровый атлет показывается сразу после системного splash.
+  });
+
+  it("keeps the full-frame splash art out of the config and the bundle", () => {
+    // Полнокадровый арт заставки больше не используется ни в конфиге,
+    // ни в активах: остался только квадратный системный щит Android 12+.
     expect(appConfig).not.toContain("splash-full-");
+    expect(
+      existsSync(resolve(process.cwd(), "assets/images/splash-full-dark.png")),
+    ).toBe(false);
+    expect(
+      existsSync(resolve(process.cwd(), "assets/images/splash-full-light.png")),
+    ).toBe(false);
+    expect(
+      existsSync(
+        resolve(process.cwd(), "assets/images/splash-icon-android12.png"),
+      ),
+    ).toBe(true);
+    expect(
+      existsSync(
+        resolve(process.cwd(), "assets/images/splash-icon-android12-light.png"),
+      ),
+    ).toBe(true);
   });
 
   it("does not mount a second custom splash layer", () => {
@@ -38,25 +54,19 @@ describe("native launch splash", () => {
     expect(rootLayout).not.toContain("showLaunchSplash");
     expect(rootLayout).not.toContain("launchSplashDuration");
     expect(rootLayout).not.toContain("loadLaunchSplashDuration");
+    // Оверлей гидрации удалён вместе с компонентом: стартового экрана
+    // поверх приложения больше нет.
+    expect(rootLayout).not.toContain("HydrationGate");
+    expect(
+      existsSync(resolve(process.cwd(), "components/hydration-gate.tsx")),
+    ).toBe(false);
   });
 
-  it("shows a hydration indicator over the root layout while stores hydrate", () => {
-    expect(rootLayout).toContain("HydrationGate");
-    expect(hydrationGate).toContain("ActivityIndicator");
-    expect(hydrationGate).toContain("#C8F169");
-    expect(hydrationGate).toContain("#0B0F0D");
-    // Стартовый экран — полнокадровый арт с атлетом и надписью IRONRISE.
-    expect(hydrationGate).toContain("splash-full-dark.png");
-    expect(hydrationGate).toContain("splash-full-light.png");
-    expect(hydrationGate).toContain("resizeMode=\"contain\"");
-    expect(hydrationGate).toContain("useColorScheme");
-    // Гидрация не может удерживать оверлей дольше 2,5 с.
-    expect(hydrationGate).toContain("HYDRATION_TIMEOUT_MS = 2500");
-    // Оверлей читает факт гидрации основных хранилищ.
-    expect(hydrationGate).toContain("useWorkoutStore");
-    expect(hydrationGate).toContain("useNutritionStore");
-    expect(hydrationGate).toContain("useBodyStore");
-    expect(hydrationGate).toContain("recordLaunchDiagnostic");
+  it("mounts the language provider around the screen tree", () => {
+    expect(rootLayout).toContain("LanguageProvider");
+    expect(rootLayout).toMatch(
+      /<LanguageProvider>[\s\S]*?<\/LanguageProvider>/,
+    );
   });
 
   it("does not expose a stale second-splash duration setting", () => {

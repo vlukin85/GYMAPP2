@@ -12,7 +12,7 @@ const catalogExpansionText = readFileSync(path.join(root, "lib/catalog-expansion
 
 function parseCatalogIds() {
   const ids = new Set<string>();
-  for (const match of workoutDataText.matchAll(/id:\s*"([a-z0-9-]+)",\s*name:\s*"[^"]*",\s*group:/g)) ids.add(match[1]);
+  for (const match of workoutDataText.matchAll(/id:\s*"([a-z0-9-]+)",\s*name:\s*"[^"]*",\s*(?:nameEn:\s*"[^"]*",\s*)?group:/g)) ids.add(match[1]);
   for (const block of catalogExpansionText.matchAll(/makeEntries\("[^"]+",\s*\[([\s\S]*?)\]\)/g)) {
     for (const entry of block[1].matchAll(/\["([a-z0-9-]+)",/g)) ids.add(entry[1]);
   }

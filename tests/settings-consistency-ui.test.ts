@@ -2,10 +2,14 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
-const settings = readFileSync(
-  resolve(process.cwd(), "app/settings.tsx"),
-  "utf8",
-);
+// Русские подписи экрана настроек живут в словаре домена settings,
+// поэтому экран проверяется вместе со своим словарём локализации.
+const settings =
+  readFileSync(resolve(process.cwd(), "app/settings.tsx"), "utf8") +
+  readFileSync(
+    resolve(process.cwd(), "lib/i18n/domains/settings.ts"),
+    "utf8",
+  );
 
 describe("settings visual system", () => {
   it("keeps drag feedback controllable from widget settings", () => {
@@ -78,6 +82,26 @@ describe("settings visual system", () => {
     expect(settings).toContain("Длинная");
     expect(settings).toContain("Пульсирующая");
     expect(settings).toContain("restTimerVibrationPattern");
+  });
+
+  it("даёт переключить язык RU/EN в самом верху настроек", () => {
+    // Блок языка — первая карточка основных настроек: он выше первой секции
+    // и использует тот же редакционный стиль карточек.
+    expect(settings).toContain("LANGUAGE_OPTIONS");
+    expect(settings).toContain("useLanguage");
+    expect(settings).toContain("styles.languageCard");
+    expect(settings).toContain('t("settings.language.sectionTitle")');
+    expect(settings).toContain("setLang(option.id)");
+    expect(settings).toMatch(
+      /languageCard:\s*{\s*borderWidth:\s*1,\s*borderRadius:\s*0,\s*borderLeftWidth:\s*5/,
+    );
+    // Оба языка присутствуют в словаре и подписаны на самих языках.
+    expect(settings).toContain('"settings.language.optionRu": "Русский"');
+    expect(settings).toContain('"settings.language.optionEn": "English"');
+    const languageBlock = settings.indexOf("styles.languageCard");
+    const firstSection = settings.indexOf('isSectionVisible("training")');
+    expect(languageBlock).toBeGreaterThan(-1);
+    expect(firstSection).toBeGreaterThan(languageBlock);
   });
 
   it("показывает логотип и версию приложения в разделе «О приложении»", () => {

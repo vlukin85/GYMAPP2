@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 const calendar = readFileSync(
   resolve(process.cwd(), "app/(tabs)/calendar.tsx"),
   "utf8",
-);
+) + readFileSync(resolve(process.cwd(), "lib/i18n/domains/calendar.ts"), "utf8");
 
 describe("empty calendar date planning", () => {
   it("uses a dedicated empty state and searchable program choice", () => {

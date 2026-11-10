@@ -6,9 +6,16 @@ import { mapOpenFoodFactsProduct } from "../lib/open-food-facts";
 import { buildWeeklyNutritionReport } from "../lib/nutrition-weekly-report";
 
 const store = readFileSync(resolve(process.cwd(), "lib/nutrition-store.tsx"), "utf8");
-const home = readFileSync(resolve(process.cwd(), "app/(tabs)/index.tsx"), "utf8");
-const nutrition = readFileSync(resolve(process.cwd(), "app/(tabs)/nutrition.tsx"), "utf8");
-const settings = readFileSync(resolve(process.cwd(), "app/settings.tsx"), "utf8");
+const home = readFileSync(resolve(process.cwd(), "app/(tabs)/index.tsx"), "utf8") + readFileSync(resolve(process.cwd(), "lib/i18n/domains/tabs.ts"), "utf8");
+const nutrition = readFileSync(resolve(process.cwd(), "app/(tabs)/nutrition.tsx"), "utf8") + readFileSync(resolve(process.cwd(), "lib/i18n/domains/nutrition.ts"), "utf8");
+// Русские подписи экрана настроек живут в словаре домена settings,
+// поэтому экран проверяется вместе со своим словарём локализации.
+const settings =
+  readFileSync(resolve(process.cwd(), "app/settings.tsx"), "utf8") +
+  readFileSync(
+    resolve(process.cwd(), "lib/i18n/domains/settings.ts"),
+    "utf8",
+  );
 
 describe("nutrition goals, barcode lookup and weekly report", () => {
   it("maps Open Food Facts values per 100 grams without trusting missing products", () => {

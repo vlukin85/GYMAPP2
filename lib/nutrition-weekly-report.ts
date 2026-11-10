@@ -4,12 +4,13 @@ export type WeeklyNutritionPoint = { date: string; label: string; calories: numb
 
 const localDateKey = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 
-export function buildWeeklyNutritionReport(entries: FoodEntry[], endDate = new Date()): WeeklyNutritionPoint[] {
+export function buildWeeklyNutritionReport(entries: FoodEntry[], endDate = new Date(), lang: "ru" | "en" = "ru"): WeeklyNutritionPoint[] {
+  const locale = lang === "en" ? "en-US" : "ru-RU";
   return Array.from({ length: 7 }, (_, index) => {
     const date = new Date(endDate);
     date.setDate(endDate.getDate() - 6 + index);
     const key = localDateKey(date);
     const dayEntries = entries.filter((entry) => entry.date === key);
-    return { date: key, label: date.toLocaleDateString("ru-RU", { weekday: "short" }).replace(".", "").toUpperCase(), calories: dayEntries.reduce((sum, entry) => sum + entryCalories(entry), 0), macros: sumEntryMacros(dayEntries) };
+    return { date: key, label: date.toLocaleDateString(locale, { weekday: "short" }).replace(".", "").toUpperCase(), calories: dayEntries.reduce((sum, entry) => sum + entryCalories(entry), 0), macros: sumEntryMacros(dayEntries) };
   });
 }

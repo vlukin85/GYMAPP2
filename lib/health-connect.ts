@@ -1,6 +1,8 @@
 import { Platform } from "react-native";
 import { getGrantedPermissions, getSdkStatus, initialize, readRecords, requestPermission, SdkAvailabilityStatus } from "react-native-health-connect";
 
+import { DEFAULT_LANG, translate } from "./i18n";
+import type { Lang } from "./i18n";
 import { normalizeHeartRateSamples, summarizeHeartRate, type HeartRateSampleInput, type HeartRateSummary } from "./health-connect-heart-rate";
 import {
   ALL_HEALTH_CONNECT_PERMISSIONS,
@@ -25,62 +27,67 @@ export type DailyActivityReading = {
 
 const EMPTY_DAILY_ACTIVITY: DailyActivityReading = { heartRate: null };
 
-function nativeUnavailable(): HealthConnectStatus {
-  return { state: "unsupported", heartRateGranted: false, activityGranted: false, message: "Health Connect доступен только в Android-сборке IronRise." };
+function nativeUnavailable(lang: Lang): HealthConnectStatus {
+  return { state: "unsupported", heartRateGranted: false, activityGranted: false, message: translate(lang, "workoutServices.healthConnect.unsupported") };
 }
 
-export async function getHealthConnectStatus(): Promise<HealthConnectStatus> {
-  if (Platform.OS !== "android") return nativeUnavailable();
+/**
+ * Статус Health Connect вместе с сообщением для пользователя.
+ * Язык — необязательный параметр с дефолтом "ru": вызовы без него получают
+ * прежний русский текст, поэтому существующие экраны не ломаются.
+ */
+export async function getHealthConnectStatus(lang: Lang = DEFAULT_LANG): Promise<HealthConnectStatus> {
+  if (Platform.OS !== "android") return nativeUnavailable(lang);
   try {
     const sdkStatus = await getSdkStatus();
-    if (sdkStatus === SdkAvailabilityStatus.SDK_UNAVAILABLE_PROVIDER_UPDATE_REQUIRED) return { state: "update-required", heartRateGranted: false, activityGranted: false, message: "Обновите или установите Health Connect, затем повторите подключение." };
-    if (sdkStatus !== SdkAvailabilityStatus.SDK_AVAILABLE) return { state: "unavailable", heartRateGranted: false, activityGranted: false, message: "Health Connect недоступен на этом устройстве." };
+    if (sdkStatus === SdkAvailabilityStatus.SDK_UNAVAILABLE_PROVIDER_UPDATE_REQUIRED) return { state: "update-required", heartRateGranted: false, activityGranted: false, message: translate(lang, "workoutServices.healthConnect.updateRequired") };
+    if (sdkStatus !== SdkAvailabilityStatus.SDK_AVAILABLE) return { state: "unavailable", heartRateGranted: false, activityGranted: false, message: translate(lang, "workoutServices.healthConnect.unavailable") };
     const initialized = await initialize();
-    if (!initialized) return { state: "unavailable", heartRateGranted: false, activityGranted: false, message: "Не удалось запустить Health Connect на этом устройстве." };
+    if (!initialized) return { state: "unavailable", heartRateGranted: false, activityGranted: false, message: translate(lang, "workoutServices.healthConnect.initializeFailed") };
     const permissions = await getGrantedPermissions();
     const heartRateGranted = permissions.some((permission) => permission.accessType === "read" && permission.recordType === "HeartRate");
     const activityGranted = (["Steps", "TotalCaloriesBurned", "Distance"] as const).every((recordType) => permissions.some((permission) => permission.accessType === "read" && permission.recordType === recordType));
     if (heartRateGranted) {
       return activityGranted
-        ? { state: "ready", heartRateGranted: true, activityGranted: true, message: "Активность и пульс доступны через Health Connect." }
-        : { state: "ready", heartRateGranted: true, activityGranted: false, message: "Пульс доступен. Разрешите IronRise читать активность в Health Connect для виджета «Активность»." };
+        ? { state: "ready", heartRateGranted: true, activityGranted: true, message: translate(lang, "workoutServices.healthConnect.activityAndHeartRateReady") }
+        : { state: "ready", heartRateGranted: true, activityGranted: false, message: translate(lang, "workoutServices.healthConnect.activityPermissionHint") };
     }
     return activityGranted
-      ? { state: "permission-required", heartRateGranted: false, activityGranted: true, message: "Разрешите IronRise читать данные пульса в Health Connect." }
-      : { state: "permission-required", heartRateGranted: false, activityGranted: false, message: "Разрешите IronRise читать активность и пульс в Health Connect." };
+      ? { state: "permission-required", heartRateGranted: false, activityGranted: true, message: translate(lang, "workoutServices.healthConnect.heartRatePermission") }
+      : { state: "permission-required", heartRateGranted: false, activityGranted: false, message: translate(lang, "workoutServices.healthConnect.heartRateAndActivityPermission") };
   } catch {
-    return { state: "error", heartRateGranted: false, activityGranted: false, message: "Не удалось проверить Health Connect. Попробуйте ещё раз после открытия приложения Health Connect." };
+    return { state: "error", heartRateGranted: false, activityGranted: false, message: translate(lang, "workoutServices.healthConnect.checkFailed") };
   }
 }
 
-export async function connectHealthConnectHeartRate(): Promise<HealthConnectStatus> {
-  const status = await getHealthConnectStatus();
+export async function connectHealthConnectHeartRate(lang: Lang = DEFAULT_LANG): Promise<HealthConnectStatus> {
+  const status = await getHealthConnectStatus(lang);
   if (status.state !== "permission-required") return status;
   try {
     await requestPermission([HEART_RATE_PERMISSION]);
-    const refreshed = await getHealthConnectStatus();
-    if (!refreshed.heartRateGranted) return { ...refreshed, state: "permission-required", message: "Доступ к пульсу не предоставлен. Его можно включить в Health Connect." };
+    const refreshed = await getHealthConnectStatus(lang);
+    if (!refreshed.heartRateGranted) return { ...refreshed, state: "permission-required", message: translate(lang, "workoutServices.healthConnect.heartRateNotGranted") };
     return {
       ...refreshed,
       message: refreshed.activityGranted
-        ? "Доступ к пульсу предоставлен."
-        : "Доступ к пульсу предоставлен. Разрешите чтение активности в Health Connect.",
+        ? translate(lang, "workoutServices.healthConnect.heartRateGranted")
+        : translate(lang, "workoutServices.healthConnect.heartRateGrantedActivityHint"),
     };
   } catch {
-    return { state: "error", heartRateGranted: false, activityGranted: false, message: "Не удалось запросить доступ к данным пульса." };
+    return { state: "error", heartRateGranted: false, activityGranted: false, message: translate(lang, "workoutServices.healthConnect.heartRateRequestFailed") };
   }
 }
 
 /** Запрашивает все четыре типа данных: шаги, калории, дистанцию и пульс. */
-export async function connectHealthConnectActivity(): Promise<HealthConnectStatus> {
+export async function connectHealthConnectActivity(lang: Lang = DEFAULT_LANG): Promise<HealthConnectStatus> {
   try {
     await requestPermission([...ALL_HEALTH_CONNECT_PERMISSIONS]);
-    const status = await getHealthConnectStatus();
+    const status = await getHealthConnectStatus(lang);
     return status.heartRateGranted && status.activityGranted
-      ? { ...status, message: "Активность и пульс подключены." }
+      ? { ...status, message: translate(lang, "workoutServices.healthConnect.activityAndHeartRateConnected") }
       : status;
   } catch {
-    return { state: "error", heartRateGranted: false, activityGranted: false, message: "Не удалось запросить доступ к данным Health Connect." };
+    return { state: "error", heartRateGranted: false, activityGranted: false, message: translate(lang, "workoutServices.healthConnect.permissionsRequestFailed") };
   }
 }
 

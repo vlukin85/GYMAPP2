@@ -5,9 +5,16 @@ import { describe, expect, it } from "vitest";
 import { bmiLabel, calculateBmi, calculateDailyCalorieGuide, calculateMifflinStJeorBmr } from "../lib/body-calculations";
 
 const bodyStore = readFileSync(resolve(process.cwd(), "lib/body-store.tsx"), "utf8");
-const bodyScreen = readFileSync(resolve(process.cwd(), "app/(tabs)/body.tsx"), "utf8");
-const bodyVisuals = readFileSync(resolve(process.cwd(), "components/body-visuals.tsx"), "utf8");
-const settings = readFileSync(resolve(process.cwd(), "app/settings.tsx"), "utf8");
+const bodyScreen = readFileSync(resolve(process.cwd(), "app/(tabs)/body.tsx"), "utf8") + readFileSync(resolve(process.cwd(), "lib/i18n/domains/body.ts"), "utf8");
+const bodyVisuals = readFileSync(resolve(process.cwd(), "components/body-visuals.tsx"), "utf8") + readFileSync(resolve(process.cwd(), "lib/i18n/domains/body.ts"), "utf8");
+// Русские подписи экрана настроек живут в словаре домена settings,
+// поэтому экран проверяется вместе со своим словарём локализации.
+const settings =
+  readFileSync(resolve(process.cwd(), "app/settings.tsx"), "utf8") +
+  readFileSync(
+    resolve(process.cwd(), "lib/i18n/domains/settings.ts"),
+    "utf8",
+  );
 
 describe("body profile calculations", () => {
   it("calculates BMI from metric inputs and exposes a non-diagnostic label", () => {

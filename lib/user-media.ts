@@ -2,6 +2,8 @@ import * as DocumentPicker from "expo-document-picker";
 import * as FileSystem from "expo-file-system/legacy";
 import * as ImageManipulator from "expo-image-manipulator";
 import { Image, Platform } from "react-native";
+import { DEFAULT_LANG, translate } from "./i18n";
+import type { Lang } from "./i18n";
 import { getCropRect, isSupportedUserImage, type CropAdjustment, type CropPreset } from "./user-media-utils";
 
 export { DEFAULT_CROP_ADJUSTMENT, MAX_USER_IMAGE_BYTES, getCenteredCrop, getCropRect, isSupportedUserImage, type CropAdjustment, type CropPreset } from "./user-media-utils";
@@ -13,12 +15,15 @@ function getImageSize(uri: string) {
   return new Promise<{ width: number; height: number }>((resolve, reject) => Image.getSize(uri, (width, height) => resolve({ width, height }), reject));
 }
 
-/** Opens the system picker but does not persist anything until cropping is confirmed. */
-export async function pickUserImage(): Promise<PickedUserImage | null> {
+/**
+ * Opens the system picker but does not persist anything until cropping is confirmed.
+ * Язык — необязательный параметр: без него сообщение остаётся русским, как раньше.
+ */
+export async function pickUserImage(lang: Lang = DEFAULT_LANG): Promise<PickedUserImage | null> {
   const result = await DocumentPicker.getDocumentAsync({ type: "image/*", copyToCacheDirectory: true, multiple: false, base64: Platform.OS === "web" });
   if (result.canceled) return null;
   const asset = result.assets[0];
-  if (!isSupportedUserImage(asset)) throw new Error("Выберите изображение JPG, PNG, WEBP или HEIC размером до 8 МБ.");
+  if (!isSupportedUserImage(asset)) throw new Error(translate(lang, "common.userMedia.unsupported"));
   const uri = Platform.OS === "web" && asset.base64 ? `data:${asset.mimeType ?? "image/jpeg"};base64,${asset.base64}` : asset.uri;
   return { uri, name: asset.name, mimeType: asset.mimeType };
 }

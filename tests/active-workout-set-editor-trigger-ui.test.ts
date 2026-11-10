@@ -15,9 +15,10 @@ describe("открытие формы фактического подхода", 
   });
 
   it("не открывает форму при касании обычных полей и полей дроп-сета", () => {
+    // Границы секции заданы ключами словаря: сами подписи живут в домене workout.
     const setInputs = workout.slice(
-      workout.indexOf("Фактические подходы"),
-      workout.indexOf("ПОДХОД ВЫПОЛНЯЕТСЯ"),
+      workout.indexOf('"workout.editor.setsTitle"'),
+      workout.indexOf('"workout.editor.setRunning"'),
     );
     expect(setInputs).not.toContain("onFocus");
     expect(setInputs).not.toContain("openSetEditor(index, subsetIndex)");

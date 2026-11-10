@@ -99,7 +99,6 @@ import {
   loadTargetHeartRateZone,
   saveTargetHeartRateZone,
   shouldSignalHeartRateTargetBoundary,
-  targetZoneLabel,
   TARGET_HEART_RATE_ZONES,
   type HeartRateTargetState,
   type TargetHeartRateZoneId,
@@ -130,6 +129,8 @@ import {
   type NativeRestNextAction,
 } from "@/modules/ironrise-rest-timer";
 import { loadLockScreenHeartRateVisible } from "@/lib/lock-screen-heart-rate-privacy";
+import { getT, useLanguage } from "@/lib/i18n";
+import type { DictKey, TFunction } from "@/lib/i18n";
 
 type DropDraft = { reps: string; weight: string };
 type ActualSet = {
@@ -167,20 +168,59 @@ const WORKOUT_PROGRESS_CIRCUMFERENCE =
 const DRAG_AUTOSCROLL_EDGE_PX = 86;
 const DRAG_AUTOSCROLL_STEP_PX = 16;
 const DRAG_AUTOSCROLL_INTERVAL_MS = 34;
-const setTypes: { id: SetType; label: string }[] = [
-  { id: "warmup", label: "Разм." },
-  { id: "working", label: "Раб." },
-  { id: "drop", label: "Дроп" },
-  { id: "failure", label: "Отказ" },
+const setTypes: { id: SetType; labelKey: DictKey }[] = [
+  { id: "warmup", labelKey: "workout.setType.shortWarmup" },
+  { id: "working", labelKey: "workout.setType.shortWorking" },
+  { id: "drop", labelKey: "workout.setType.shortDrop" },
+  { id: "failure", labelKey: "workout.setType.shortFailure" },
 ];
 const selectableMuscleGroups = muscleGroups.filter(
   (group): group is MuscleGroup => group !== "Все",
 );
-const setTypeLabel: Record<SetType, string> = {
-  warmup: "Разминка",
-  working: "Рабочий",
-  drop: "Дроп-сет",
-  failure: "Отказной",
+const setTypeLabelKey: Record<SetType, DictKey> = {
+  warmup: "workout.setType.warmup",
+  working: "workout.setType.working",
+  drop: "workout.setType.drop",
+  failure: "workout.setType.failure",
+};
+
+// Группы мышц и оборудование — это данные каталога (значения остаются
+// русскими, на них завязаны фильтры и расчёт веса тела), но показываем их
+// подписями из словаря.
+const muscleGroupLabelKey: Record<string, DictKey> = {
+  "Все": "workout.muscleGroup.all",
+  "Грудь": "workout.muscleGroup.chest",
+  "Спина": "workout.muscleGroup.back",
+  "Ноги": "workout.muscleGroup.legs",
+  "Плечи": "workout.muscleGroup.shoulders",
+  "Бицепс": "workout.muscleGroup.biceps",
+  "Трицепс": "workout.muscleGroup.triceps",
+  "Корпус": "workout.muscleGroup.core",
+  "Кардио": "workout.muscleGroup.cardio",
+};
+
+const equipmentLabelKey: Record<string, DictKey> = {
+  "Штанга": "workout.equipment.barbell",
+  "Гантели": "workout.equipment.dumbbells",
+  "Тренажёр": "workout.equipment.machine",
+  "Вес тела": "workout.equipment.bodyweight",
+  "Без оборудования": "workout.equipment.none",
+  "Диск": "workout.equipment.plate",
+  "Ролик": "workout.equipment.wheel",
+  "Скамья": "workout.equipment.bench",
+  "Скакалка": "workout.equipment.rope",
+  "Сани": "workout.equipment.sled",
+  "Канаты": "workout.equipment.ropes",
+  "Платформа": "workout.equipment.platform",
+  "Бассейн": "workout.equipment.pool",
+  "Мешок": "workout.equipment.bag",
+  "Гиря": "workout.equipment.kettlebell",
+};
+
+const targetZoneLabelKey: Record<TargetHeartRateZoneId, DictKey> = {
+  easy: "workout.heartRate.zoneEasy",
+  aerobic: "workout.heartRate.zoneAerobic",
+  threshold: "workout.heartRate.zoneThreshold",
 };
 
 function formatTrackedSeconds(totalSeconds: number) {
@@ -189,10 +229,14 @@ function formatTrackedSeconds(totalSeconds: number) {
   return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
 }
 
-function formatHeartRateSummary(summary: HeartRateSummary) {
+function formatHeartRateSummary(summary: HeartRateSummary, tr: TFunction) {
   if (!summary.sampleCount || !summary.currentBpm)
-    return "Данные пульса ещё не поступили с часов.";
-  return `Сейчас ${summary.currentBpm} уд/мин · средний ${summary.averageBpm ?? "—"} · пик ${summary.peakBpm ?? "—"}`;
+    return tr("workout.heartRate.noSamples");
+  return tr("workout.heartRate.liveSummary", {
+    current: summary.currentBpm,
+    average: summary.averageBpm ?? "—",
+    peak: summary.peakBpm ?? "—",
+  });
 }
 
 function setParts(
@@ -259,15 +303,16 @@ function RestTimerOverlay({
   vibrationPattern: "short" | "long" | "pulse";
 }) {
   const restBottomInset = useBottomActionInset(32);
+  const { t } = useLanguage();
   if (rest <= 0 || totalRest <= 0) return null;
   const progress = getRestProgress(rest, totalRest);
   const dashOffset = REST_CIRCUMFERENCE * (1 - progress);
   const vibrationLabel =
     vibrationPattern === "long"
-      ? "длинная"
+      ? t("workout.rest.patternLong")
       : vibrationPattern === "pulse"
-        ? "пульсирующая"
-        : "короткая";
+        ? t("workout.rest.patternPulse")
+        : t("workout.rest.patternShort");
 
   return (
     <Modal
@@ -295,7 +340,7 @@ function RestTimerOverlay({
             01
           </Text>
           <Text style={[styles.restOverlayEyebrow, { color: colors.primary }]}>
-            ТАЙМЕР{`\n`}ОТДЫХА
+            {t("workout.rest.eyebrow")}
           </Text>
         </View>
         <View
@@ -333,7 +378,7 @@ function RestTimerOverlay({
             </Svg>
             <View style={styles.restCircleText} pointerEvents="none">
               <Text style={[styles.restCircleLabel, { color: colors.primary }]}>
-                ОТДЫХ
+                {t("workout.rest.circleLabel")}
               </Text>
               <Text
                 style={[styles.restCircleValue, { color: colors.foreground }]}
@@ -348,7 +393,7 @@ function RestTimerOverlay({
               {message}
             </Text>
             <Text style={[styles.restHint, { color: colors.muted }]}>
-              Отсчёт продолжится после блокировки экрана.
+              {t("workout.rest.hint")}
             </Text>
             <View
               style={[
@@ -371,8 +416,10 @@ function RestTimerOverlay({
                 ]}
               >
                 {soundEnabled
-                  ? `Звук ${Math.round(soundVolume * 100)}%`
-                  : "Звук выкл."}
+                  ? t("workout.rest.soundLevel", {
+                      percent: Math.round(soundVolume * 100),
+                    })
+                  : t("workout.rest.soundOff")}
               </Text>
               <SafeMaterialIcon
                 name="vibration"
@@ -386,8 +433,8 @@ function RestTimerOverlay({
                 ]}
               >
                 {vibrationEnabled
-                  ? `Вибрация: ${vibrationLabel}`
-                  : "Вибрация выкл."}
+                  ? t("workout.rest.vibrationLevel", { label: vibrationLabel })
+                  : t("workout.rest.vibrationOff")}
               </Text>
             </View>
           </View>
@@ -403,7 +450,7 @@ function RestTimerOverlay({
             <Text
               style={[styles.restSecondaryText, { color: colors.foreground }]}
             >
-              +30 сек
+              {t("workout.rest.addThirty")}
             </Text>
           </Pressable>
           <Pressable
@@ -414,7 +461,7 @@ function RestTimerOverlay({
             ]}
           >
             <Text style={[styles.restSkipText, { color: colors.background }]}>
-              Пропустить отдых
+              {t("workout.rest.skip")}
             </Text>
           </Pressable>
         </View>
@@ -442,6 +489,7 @@ function ExerciseDragHandle({
   onDragEnd: (fallbackTarget: number) => void;
   isDragging: boolean;
 }) {
+  const { t } = useLanguage();
   const latest = useRef({
     index,
     total,
@@ -512,7 +560,7 @@ function ExerciseDragHandle({
           borderColor: colors.border,
         },
       ]}
-      accessibilityLabel="Перетащите для изменения порядка"
+      accessibilityLabel={t("workout.exercise.dragA11y")}
     >
       <SafeMaterialIcon
         name="drag-handle"
@@ -556,6 +604,8 @@ function WorkoutProgressCard({
   onSelectTargetHeartRateZone: (zone: TargetHeartRateZoneId) => void;
   colors: ReturnType<typeof useColors>;
 }) {
+  const { t, lang } = useLanguage();
+  const locale = lang === "en" ? "en-US" : "ru-RU";
   const progress = getWorkoutProgress(completedSets, totalSets);
   const forecast = getWorkoutFinishForecast(
     elapsedSeconds,
@@ -577,15 +627,15 @@ function WorkoutProgressCard({
   }));
   const dashOffset = WORKOUT_PROGRESS_CIRCUMFERENCE * (1 - progress.ratio);
   const savedLabel = lastAutosavedAt
-    ? new Intl.DateTimeFormat("ru-RU", {
+    ? new Intl.DateTimeFormat(locale, {
         day: "numeric",
         month: "short",
         hour: "2-digit",
         minute: "2-digit",
       }).format(new Date(lastAutosavedAt))
-    : "ожидание первого сохранения";
+    : t("workout.progressCard.awaitingSave");
   const finishLabel = forecast.estimatedFinishAt
-    ? new Intl.DateTimeFormat("ru-RU", {
+    ? new Intl.DateTimeFormat(locale, {
         hour: "2-digit",
         minute: "2-digit",
       }).format(new Date(forecast.estimatedFinishAt))
@@ -605,12 +655,12 @@ function WorkoutProgressCard({
           : colors.muted;
   const targetLabel =
     targetStatus.state === "within"
-      ? "В ЦЕЛЕВОЙ ЗОНЕ"
+      ? t("workout.heartRate.stateWithin")
       : targetStatus.state === "above"
-        ? "ВЫШЕ ЦЕЛИ"
+        ? t("workout.heartRate.stateAbove")
         : targetStatus.state === "below"
-          ? "НИЖЕ ЦЕЛИ"
-          : "НУЖЕН ВОЗРАСТ И ПУЛЬС";
+          ? t("workout.heartRate.stateBelow")
+          : t("workout.heartRate.stateUnavailable");
   return (
     <View
       style={[
@@ -624,24 +674,42 @@ function WorkoutProgressCard({
           <Text
             style={[styles.workoutProgressEyebrow, { color: colors.primary }]}
           >
-            ПРОГРЕСС ТРЕНИРОВКИ
+            {t("workout.progressCard.eyebrow")}
           </Text>
           <Text
             style={[styles.workoutProgressCopy, { color: colors.foreground }]}
           >
-            {progress.completed} из {progress.total || "—"} подходов завершено
+            {t("workout.progressCard.setsDone", {
+              completed: progress.completed,
+              total: progress.total || "—",
+            })}
           </Text>
           <Text style={[styles.workoutProgressSaved, { color: colors.muted }]}>
-            Автосохранено: {savedLabel}
+            {t("workout.progressCard.autosaved", { time: savedLabel })}
           </Text>
           <Text style={[styles.workoutForecast, { color: colors.muted }]}>
             {finishLabel
-              ? `Текущий темп: ${formatForecastDuration(forecast.secondsRemaining)} · завершение к ${finishLabel}${forecast.restSecondsRemaining ? ` · отдых ${formatForecastDuration(forecast.restSecondsRemaining)}` : ""}`
-              : "Прогноз появится после первого завершённого подхода"}
+              ? t("workout.progressCard.forecast", {
+                  remaining:
+                    formatForecastDuration(forecast.secondsRemaining, t) ?? "",
+                  finish: finishLabel,
+                  rest: forecast.restSecondsRemaining
+                    ? t("workout.progressCard.forecastRest", {
+                        rest:
+                          formatForecastDuration(
+                            forecast.restSecondsRemaining,
+                            t,
+                          ) ?? "",
+                      })
+                    : "",
+                })
+              : t("workout.progressCard.forecastPending")}
           </Text>
           <Text style={[styles.workoutTimingSummary, { color: colors.muted }]}>
-            Факт: работа {formatTrackedSeconds(trackedActiveSeconds)} · отдых{" "}
-            {formatTrackedSeconds(trackedRestSeconds)}
+            {t("workout.progressCard.actual", {
+              active: formatTrackedSeconds(trackedActiveSeconds),
+              rest: formatTrackedSeconds(trackedRestSeconds),
+            })}
           </Text>
           <View
             style={[
@@ -656,13 +724,13 @@ function WorkoutProgressCard({
               <Text
                 style={[styles.heartRateEyebrow, { color: colors.primary }]}
               >
-                ПУЛЬС · HEALTH CONNECT
+                {t("workout.heartRate.eyebrow")}
               </Text>
               <Text
                 style={[styles.heartRateValue, { color: colors.foreground }]}
               >
                 {healthConnectStatus.state === "ready"
-                  ? formatHeartRateSummary(heartRate)
+                  ? formatHeartRateSummary(heartRate, t)
                   : healthConnectStatus.message}
               </Text>
             </View>
@@ -685,8 +753,8 @@ function WorkoutProgressCard({
                   ]}
                 >
                   {healthConnectStatus.state === "permission-required"
-                    ? "ПОДКЛЮЧИТЬ"
-                    : "ПРОВЕРИТЬ"}
+                    ? t("workout.heartRate.connect")
+                    : t("workout.heartRate.check")}
                 </Text>
               </Pressable>
             )}
@@ -706,7 +774,9 @@ function WorkoutProgressCard({
                   <Text
                     style={[styles.targetZoneEyebrow, { color: targetColor }]}
                   >
-                    ЦЕЛЬ · {targetZoneLabel(targetHeartRateZone).toUpperCase()}
+                    {t("workout.heartRate.target", {
+                      zone: t(targetZoneLabelKey[targetHeartRateZone]).toUpperCase(),
+                    })}
                   </Text>
                   <Text
                     style={[
@@ -715,8 +785,11 @@ function WorkoutProgressCard({
                     ]}
                   >
                     {targetStatus.fromBpm && targetStatus.toBpm
-                      ? `${targetStatus.fromBpm}–${targetStatus.toBpm} уд/мин`
-                      : "Укажите возраст в профиле тела"}
+                      ? t("workout.heartRate.zoneRange", {
+                          from: targetStatus.fromBpm,
+                          to: targetStatus.toBpm,
+                        })
+                      : t("workout.heartRate.needAge")}
                   </Text>
                 </View>
                 <Text style={[styles.targetZoneStatus, { color: targetColor }]}>
@@ -742,7 +815,9 @@ function WorkoutProgressCard({
                         opacity: pressed ? pressedOpacity : 1,
                       },
                     ]}
-                    accessibilityLabel={`Целевая зона: ${zone.label}`}
+                    accessibilityLabel={t("workout.heartRate.targetZoneA11y", {
+                      zone: t(targetZoneLabelKey[zone.id]),
+                    })}
                   >
                     <Text
                       style={[
@@ -755,7 +830,7 @@ function WorkoutProgressCard({
                         },
                       ]}
                     >
-                      {zone.label}
+                      {t(targetZoneLabelKey[zone.id])}
                     </Text>
                   </Pressable>
                 ))}
@@ -819,6 +894,17 @@ function WorkoutProgressCard({
 
 export default function WorkoutScreen() {
   const colors = useColors();
+  // Язык нативных уведомлений: Kotlin выбирает по нему строки заголовков,
+  // текстов и кнопок, поэтому текущий язык едет в каждом payload.
+  const { t, lang } = useLanguage();
+  const locale = lang === "en" ? "en-US" : "ru-RU";
+  // Группы мышц и оборудование — это данные каталога (значения остаются
+  // русскими, на них завязаны фильтры и расчёт веса тела), но показываем их
+  // подписями из словаря.
+  const groupLabel = (group: string) =>
+    muscleGroupLabelKey[group] ? t(muscleGroupLabelKey[group]) : group;
+  const equipmentLabel = (equipment: string) =>
+    equipmentLabelKey[equipment] ? t(equipmentLabelKey[equipment]) : equipment;
   const setEditorBottomInset = useBottomActionInset(24);
   const catalogListBottomInset = useBottomActionInset(32);
   const catalogCreateBottomInset = useBottomActionInset(20);
@@ -883,8 +969,8 @@ export default function WorkoutScreen() {
   const [restEndAt, setRestEndAt] = useState<number | null>(null);
   const [restStartedAt, setRestStartedAt] = useState<number | null>(null);
   const [completedRestSeconds, setCompletedRestSeconds] = useState(0);
-  const [restMessage, setRestMessage] = useState(
-    "Следующий подход — после сигнала",
+  const [restMessageKey, setRestMessageKey] = useState<DictKey>(
+    "workout.rest.nextSetAfterSignal",
   );
   const [restNotificationAction, setRestNotificationAction] =
     useState<NativeRestNextAction>({ kind: "start" });
@@ -949,7 +1035,7 @@ export default function WorkoutScreen() {
       state: "unsupported",
       heartRateGranted: false,
       activityGranted: false,
-      message: "Проверяем Health Connect…",
+      message: t("workout.heartRate.checking"),
     });
   const [heartRate, setHeartRate] = useState<HeartRateSummary>({
     sampleCount: 0,
@@ -1004,7 +1090,7 @@ export default function WorkoutScreen() {
   }));
 
   const refreshHeartRate = useCallback(async () => {
-    const status = await getHealthConnectStatus();
+    const status = await getHealthConnectStatus(lang);
     setHealthConnectStatus(status);
     if (status.heartRateGranted)
       setHeartRate(
@@ -1013,10 +1099,10 @@ export default function WorkoutScreen() {
           new Date().toISOString(),
         ),
       );
-  }, [started]);
+  }, [lang, started]);
 
   const connectHealthConnect = useCallback(async () => {
-    const status = await connectHealthConnectHeartRate();
+    const status = await connectHealthConnectHeartRate(lang);
     setHealthConnectStatus(status);
     if (status.heartRateGranted)
       setHeartRate(
@@ -1025,7 +1111,7 @@ export default function WorkoutScreen() {
           new Date().toISOString(),
         ),
       );
-  }, [started]);
+  }, [lang, started]);
 
   const selectTargetHeartRateZone = useCallback(
     (zone: TargetHeartRateZoneId) => {
@@ -1054,7 +1140,7 @@ export default function WorkoutScreen() {
       restEndRef.current = null;
       setRestEndAt(null);
       setRestTotal(0);
-      setRestMessage("Следующий подход — после сигнала");
+      setRestMessageKey("workout.rest.nextSetAfterSignal");
       setRestNotificationAction({ kind: "start" });
     }
   }, []);
@@ -1089,7 +1175,7 @@ export default function WorkoutScreen() {
           endTimestamp,
           target.fromBpm && target.toBpm
             ? {
-                label: targetZoneLabel(targetHeartRateZone),
+                label: getT(lang)(targetZoneLabelKey[targetHeartRateZone]),
                 fromBpm: target.fromBpm,
                 toBpm: target.toBpm,
                 currentBpm: lockScreenHeartRateVisible
@@ -1103,6 +1189,7 @@ export default function WorkoutScreen() {
           restTimerVibrationEnabled,
           restTimerVibrationPattern,
           nextAction,
+          lang,
         );
         if (restEndRef.current === endTimestamp)
           restNotificationIdsRef.current = ids;
@@ -1121,6 +1208,7 @@ export default function WorkoutScreen() {
       restTimerVibrationPattern,
       restNotificationAction,
       targetHeartRateZone,
+      lang,
     ],
   );
 
@@ -1128,7 +1216,7 @@ export default function WorkoutScreen() {
     (
       durationSeconds: number,
       nextAction: NativeRestNextAction,
-      message = "Следующий подход — после сигнала",
+      messageKey: DictKey = "workout.rest.nextSetAfterSignal",
     ) => {
       const seconds = Math.max(0, Math.round(durationSeconds));
       if (!seconds) return;
@@ -1141,7 +1229,7 @@ export default function WorkoutScreen() {
       setRestEndAt(endTimestamp);
       setRestTotal(seconds);
       setRest(seconds);
-      setRestMessage(message);
+      setRestMessageKey(messageKey);
       setRestNotificationAction(nextAction);
       console.info(`${REST_TIMER_LOG_TAG} rest-started`, {
         startedAt,
@@ -1186,7 +1274,7 @@ export default function WorkoutScreen() {
       setRestEndAt(null);
       setRestTotal(0);
       setRest(0);
-      setRestMessage("Следующий подход — после сигнала");
+      setRestMessageKey("workout.rest.nextSetAfterSignal");
       setRestNotificationAction({ kind: "start" });
       console.info(`${REST_TIMER_LOG_TAG} rest-finished`, {
         finishedAt: restFinishedAt,
@@ -1759,7 +1847,7 @@ export default function WorkoutScreen() {
               return {
                 id: `local-${workout.id}`,
                 date: new Date(workout.date)
-                  .toLocaleDateString("ru-RU", {
+                  .toLocaleDateString(locale, {
                     day: "numeric",
                     month: "short",
                   })
@@ -1771,7 +1859,7 @@ export default function WorkoutScreen() {
               };
             })
         : [],
-    [activeId, completed, replacements],
+    [activeId, completed, locale, replacements],
   );
   const history = (recordedHistory.length ? recordedHistory : localHistory).map(
     (entry) => ({
@@ -1964,9 +2052,7 @@ export default function WorkoutScreen() {
             weight: activeIsTimed ? undefined : nextSet?.weight,
             reps: activeIsTimed ? undefined : nextSet?.reps,
           },
-      programRestBlock
-        ? "Переход к следующему упражнению — после сигнала"
-        : undefined,
+      programRestBlock ? "workout.rest.nextExerciseAfterSignal" : undefined,
     );
   };
   const finishFocusedSet = () => {
@@ -2140,7 +2226,10 @@ export default function WorkoutScreen() {
       return;
     }
     showNativeActiveSetNotification({
-      exerciseName: activeExercise?.name ?? "Упражнение",
+      exerciseName:
+        (lang === "en"
+          ? (activeExercise?.nameEn ?? activeExercise?.name)
+          : activeExercise?.name) ?? t("workout.alert.workoutFallback"),
       setIndex: activeSet.setIndex,
       setsCount: Math.max(draft.length, activeSet.setIndex + 1),
       planWeightKg: Number(activePlan.weight) || 0,
@@ -2150,6 +2239,7 @@ export default function WorkoutScreen() {
       ),
       exercisesCount: sessionExercises.length,
       exerciseId: activeId,
+      lang,
     });
   }, [
     activeExercise,
@@ -2157,6 +2247,7 @@ export default function WorkoutScreen() {
     activePlan,
     activeSet,
     draft.length,
+    lang,
     sessionExercises,
   ]);
   useEffect(
@@ -2233,15 +2324,18 @@ export default function WorkoutScreen() {
     setActiveId(null);
   };
   const removeExerciseFromSession = (exerciseId: string) => {
+    const removedExercise = getExercise(actualExerciseId(exerciseId));
     const name =
-      getExercise(actualExerciseId(exerciseId))?.name ?? "это упражнение";
+      (lang === "en"
+        ? (removedExercise?.nameEn ?? removedExercise?.name)
+        : removedExercise?.name) ?? t("workout.alert.removeExerciseThis");
     Alert.alert(
-      "Удалить упражнение?",
-      `«${name}» будет удалено только из текущей тренировки. Исходная программа не изменится.`,
+      t("workout.alert.removeExerciseTitle"),
+      t("workout.alert.removeExerciseMessage", { name }),
       [
-        { text: "Отмена", style: "cancel" },
+        { text: t("workout.alert.cancel"), style: "cancel" },
         {
-          text: "Удалить",
+          text: t("workout.alert.delete"),
           style: "destructive",
           onPress: () => {
             setRemovedExerciseIds((current) => [...current, exerciseId]);
@@ -2269,8 +2363,11 @@ export default function WorkoutScreen() {
   const addExerciseToSession = (exercise: Exercise) => {
     if (sessionExercises.some((item) => item.exerciseId === exercise.id)) {
       Alert.alert(
-        "Упражнение уже в тренировке",
-        `«${exercise.name}» уже добавлено в эту активную тренировку.`,
+        t("workout.alert.alreadyAddedTitle"),
+        t("workout.alert.alreadyAddedMessage", {
+          name:
+            lang === "en" ? (exercise.nameEn ?? exercise.name) : exercise.name,
+        }),
       );
       return;
     }
@@ -2306,10 +2403,10 @@ export default function WorkoutScreen() {
     });
     if (!exerciseId) {
       Alert.alert(
-        "Не удалось добавить",
+        t("workout.alert.addFailedTitle"),
         customExerciseName.trim()
-          ? "Упражнение с таким названием уже есть в личном каталоге."
-          : "Укажите название упражнения.",
+          ? t("workout.alert.addFailedDuplicate")
+          : t("workout.alert.addFailedNameRequired"),
       );
       return;
     }
@@ -2451,8 +2548,8 @@ export default function WorkoutScreen() {
       );
     if (!persisted.length) {
       return Alert.alert(
-        "Нет выполненных подходов",
-        "Сначала сохраните хотя бы один реально выполненный подход. Незавершённые упражнения не будут записаны.",
+        t("workout.alert.noSetsTitle"),
+        t("workout.alert.noSetsMessage"),
       );
     }
     const recordSets = persisted.flatMap((set) =>
@@ -2568,12 +2665,12 @@ export default function WorkoutScreen() {
 
   const resetActiveWorkout = () => {
     Alert.alert(
-      "Сбросить текущую тренировку?",
-      "Черновик подходов, изменения порядка, замены и таймер будут удалены без возможности восстановления.",
+      t("workout.alert.resetTitle"),
+      t("workout.alert.resetMessage"),
       [
-        { text: "Отмена", style: "cancel" },
+        { text: t("workout.alert.cancel"), style: "cancel" },
         {
-          text: "Сбросить тренировку",
+          text: t("workout.alert.resetAction"),
           style: "destructive",
           onPress: () => {
             isDraftPersistenceEnabledRef.current = false;
@@ -2585,8 +2682,8 @@ export default function WorkoutScreen() {
               .catch(() => {
                 isDraftPersistenceEnabledRef.current = true;
                 Alert.alert(
-                  "Не удалось сбросить тренировку",
-                  "Данные не были удалены. Попробуйте ещё раз.",
+                  t("workout.alert.resetFailedTitle"),
+                  t("workout.alert.resetFailedMessage"),
                 );
               });
           },
@@ -2689,8 +2786,12 @@ export default function WorkoutScreen() {
       : undefined;
     updateActiveWorkoutWidget({
       active: true,
-      programName: program.name,
-      exerciseName: widgetExercise?.name ?? "Выберите упражнение в приложении",
+      programName:
+        lang === "en" ? (program.nameEn ?? program.name) : program.name,
+      exerciseName:
+        (lang === "en"
+          ? (widgetExercise?.nameEn ?? widgetExercise?.name)
+          : widgetExercise?.name) ?? t("workout.widget.pickExercise"),
       completedSets: widgetCompletedSets,
       totalSets: draft.length || activePlan?.sets || 0,
       exerciseId: activeId ?? "",
@@ -2706,9 +2807,11 @@ export default function WorkoutScreen() {
     activePlan,
     activeSet,
     draft.length,
+    lang,
     program.name,
     restEndAt,
     setTimings,
+    t,
     widgetCompletedSets,
     widgetNextSetIndex,
   ]);
@@ -2751,7 +2854,7 @@ export default function WorkoutScreen() {
                 opacity: pressed ? pressedOpacity : 1,
               },
             ]}
-            accessibilityLabel="Выйти из тренировки"
+            accessibilityLabel={t("workout.nav.exitA11y")}
           >
             <IconSymbol
               name="chevron.left"
@@ -2761,16 +2864,16 @@ export default function WorkoutScreen() {
           </Pressable>
           <View style={styles.navMid}>
             <Text style={[styles.navTitle, { color: colors.muted }]}>
-              Тренировка идёт
+              {t("workout.nav.inProgress")}
             </Text>
             <Text style={[styles.navProgram, { color: colors.foreground }]} numberOfLines={1}>
-              {program.name}
+              {lang === "en" ? (program.nameEn ?? program.name) : program.name}
             </Text>
           </View>
           <View style={styles.navActions}>
             <Pressable onPress={resetActiveWorkout} hitSlop={8}>
               <Text style={[styles.resetNavText, { color: colors.error }]}>
-                Сбросить
+                {t("workout.nav.reset")}
               </Text>
             </Pressable>
             <Text style={[styles.timer, { color: colors.primary }]}>
@@ -2780,8 +2883,7 @@ export default function WorkoutScreen() {
           </View>
         </View>
         <Text style={[styles.helper, { color: colors.muted }]}>
-          Сохраняйте только выполненные упражнения. Свайпните карточку влево для
-          удаления, перетащите маркер ⠿ для смены порядка.
+          {t("workout.session.helper")}
         </Text>
         <WorkoutProgressCard
           completedSets={completedSetCount}
@@ -2829,14 +2931,22 @@ export default function WorkoutScreen() {
                     },
                   ]}
                   accessibilityRole="button"
-                  accessibilityLabel={`Удалить ${exercise?.name ?? "упражнение"}`}
+                  accessibilityLabel={t("workout.session.removeA11y", {
+                    name:
+                      (lang === "en"
+                        ? (exercise?.nameEn ?? exercise?.name)
+                        : exercise?.name) ??
+                      t("workout.session.exerciseFallback"),
+                  })}
                 >
                   <SafeMaterialIcon
                     name="delete-outline"
                     size={26}
                     color="#FFFFFF"
                   />
-                  <Text style={styles.swipeDeleteText}>Удалить</Text>
+                  <Text style={styles.swipeDeleteText}>
+                    {t("workout.session.delete")}
+                  </Text>
                 </Pressable>
               )}
             >
@@ -2861,7 +2971,7 @@ export default function WorkoutScreen() {
                         { color: colors.background },
                       ]}
                     >
-                      Отпустите здесь
+                      {t("workout.session.dropHere")}
                     </Text>
                   </View>
                 )}
@@ -2869,7 +2979,9 @@ export default function WorkoutScreen() {
                   <Text
                     style={[styles.supersetFlag, { color: colors.primary }]}
                   >
-                    СУПЕРСЕТ {item.supersetGroup}
+                    {t("workout.session.superset", {
+                      group: item.supersetGroup ?? "",
+                    })}
                   </Text>
                 )}
                 <Pressable
@@ -2916,11 +3028,17 @@ export default function WorkoutScreen() {
                           { color: colors.foreground },
                         ]}
                       >
-                        {exercise?.name}
+                        {lang === "en"
+                          ? (exercise?.nameEn ?? exercise?.name)
+                          : exercise?.name}
                       </Text>
                       <Text style={[styles.plan, { color: colors.muted }]}>
-                        {item.sets} × {item.reps} · {item.weight} кг ·{" "}
-                        {setTypeLabel[item.setType ?? "working"]}
+                        {t("workout.session.planMeta", {
+                          sets: item.sets,
+                          reps: item.reps,
+                          weight: item.weight,
+                          type: t(setTypeLabelKey[item.setType ?? "working"]),
+                        })}
                       </Text>
                     </View>
                     <ExerciseDragHandle
@@ -2959,7 +3077,7 @@ export default function WorkoutScreen() {
                           { color: colors.primary },
                         ]}
                       >
-                        ПЕРЕМЕЩЕНИЕ УПРАЖНЕНИЯ
+                        {t("workout.session.movingLabel")}
                       </Text>
                     </View>
                   )}
@@ -2981,7 +3099,7 @@ export default function WorkoutScreen() {
                       { color: colors.primary },
                     ]}
                   >
-                    ⇄ Заменить упражнение
+                    {t("workout.session.replace")}
                   </Text>
                 </Pressable>
               </View>
@@ -3006,7 +3124,7 @@ export default function WorkoutScreen() {
             color={colors.primary}
           />
           <Text style={[styles.addExerciseText, { color: colors.primary }]}>
-            Добавить упражнение
+            {t("workout.session.addExercise")}
           </Text>
         </Pressable>
 
@@ -3020,11 +3138,10 @@ export default function WorkoutScreen() {
             <Text
               style={[styles.emptySessionTitle, { color: colors.foreground }]}
             >
-              В тренировке нет упражнений
+              {t("workout.session.emptyTitle")}
             </Text>
             <Text style={[styles.emptySessionText, { color: colors.muted }]}>
-              Вернитесь назад, чтобы выбрать другую программу, или завершите
-              текущую тренировку после сохранения хотя бы одного подхода.
+              {t("workout.session.emptyText")}
             </Text>
           </View>
         )}
@@ -3035,13 +3152,13 @@ export default function WorkoutScreen() {
           ]}
         >
           <Text style={[styles.totalLabel, { color: colors.muted }]}>
-            ТЕКУЩИЙ ОБЪЁМ
+            {t("workout.session.totalLabel")}
           </Text>
           <Text style={[styles.totalValue, { color: colors.foreground }]}>
-            {Math.round(total).toLocaleString("ru-RU")} кг
+            {Math.round(total).toLocaleString(locale)} {t("workout.unit.kg")}
           </Text>
           <Text style={[styles.totalHint, { color: colors.muted }]}>
-            При завершении в историю попадут только сохранённые подходы.
+            {t("workout.session.totalHint")}
           </Text>
         </View>
         <Pressable
@@ -3053,7 +3170,7 @@ export default function WorkoutScreen() {
           ]}
         >
           <Text style={[styles.completeText, { color: colors.background }]}>
-            Завершить и сохранить выполненное
+            {t("workout.session.complete")}
           </Text>
         </Pressable>
       </ScrollView>
@@ -3065,7 +3182,7 @@ export default function WorkoutScreen() {
           totalRest={restTotal}
           onAddTime={extendRestTimer}
           onSkip={skipRest}
-          message={restMessage}
+          message={t(restMessageKey)}
           soundEnabled={restTimerSoundEnabled}
           soundVolume={restTimerCompletionVolume}
           vibrationEnabled={restTimerVibrationEnabled}
@@ -3094,16 +3211,15 @@ export default function WorkoutScreen() {
             <Text
               style={[styles.editConfirmEyebrow, { color: colors.primary }]}
             >
-              ПОДТВЕРЖДЕНИЕ
+              {t("workout.editConfirm.eyebrow")}
             </Text>
             <Text
               style={[styles.editConfirmTitle, { color: colors.foreground }]}
             >
-              Изменить завершённый подход?
+              {t("workout.editConfirm.title")}
             </Text>
             <Text style={[styles.editConfirmText, { color: colors.muted }]}>
-              Поля снова станут редактируемыми. Время подхода и отдых останутся
-              сохранёнными.
+              {t("workout.editConfirm.text")}
             </Text>
             <View style={styles.editConfirmActions}>
               <Pressable
@@ -3119,7 +3235,7 @@ export default function WorkoutScreen() {
                     { color: colors.foreground },
                   ]}
                 >
-                  ОТМЕНА
+                  {t("workout.editConfirm.cancel")}
                 </Text>
               </Pressable>
               <Pressable
@@ -3138,7 +3254,7 @@ export default function WorkoutScreen() {
                     { color: colors.background },
                   ]}
                 >
-                  Изменить
+                  {t("workout.editConfirm.accept")}
                 </Text>
               </Pressable>
             </View>
@@ -3161,18 +3277,18 @@ export default function WorkoutScreen() {
               style={({ pressed }) => [{ opacity: pressed ? pressedOpacity : 1 }]}
             >
               <Text style={[styles.catalogCancel, { color: colors.muted }]}>
-                Отмена
+                {t("workout.catalog.cancel")}
               </Text>
             </Pressable>
             <Text style={[styles.catalogTitle, { color: colors.foreground }]}>
-              Добавить упражнение
+              {t("workout.catalog.title")}
             </Text>
             <View style={styles.catalogHeaderSpacer} />
           </View>
           <TextInput
             value={catalogSearch}
             onChangeText={setCatalogSearch}
-            placeholder="Поиск по названию"
+            placeholder={t("workout.catalog.searchPlaceholder")}
             placeholderTextColor={colors.muted}
             style={[
               styles.catalogSearch,
@@ -3186,7 +3302,7 @@ export default function WorkoutScreen() {
           />
           <View style={styles.catalogFilterSummary}>
             <Text style={[styles.catalogFilterTitle, { color: colors.muted }]}>
-              ГРУППА МЫШЦ
+              {t("workout.catalog.groupTitle")}
             </Text>
             <Text
               style={[styles.catalogFilterCount, { color: colors.primary }]}
@@ -3225,7 +3341,7 @@ export default function WorkoutScreen() {
                     },
                   ]}
                 >
-                  {group}
+                  {groupLabel(group)}
                 </Text>
               </Pressable>
             ))}
@@ -3242,8 +3358,10 @@ export default function WorkoutScreen() {
               <View style={styles.catalogEmptyState}>
                 <Text style={[styles.catalogEmpty, { color: colors.muted }]}>
                   {catalogSearch.trim()
-                    ? `«${catalogSearch.trim()}» не найдено в каталоге.`
-                    : "Ничего не найдено. Измените поиск или группу мышц."}
+                    ? t("workout.catalog.emptyWithQuery", {
+                        query: catalogSearch.trim(),
+                      })
+                    : t("workout.catalog.empty")}
                 </Text>
                 {catalogSearch.trim().length > 0 && (
                   <Pressable
@@ -3267,7 +3385,7 @@ export default function WorkoutScreen() {
                         { color: colors.background },
                       ]}
                     >
-                      ДОБАВИТЬ НОВОЕ УПРАЖНЕНИЕ
+                      {t("workout.catalog.createCta")}
                     </Text>
                   </Pressable>
                 )}
@@ -3307,12 +3425,12 @@ export default function WorkoutScreen() {
                       { color: colors.foreground },
                     ]}
                   >
-                    {item.name}
+                    {lang === "en" ? (item.nameEn ?? item.name) : item.name}
                   </Text>
                   <Text
                     style={[styles.catalogItemMeta, { color: colors.muted }]}
                   >
-                    {item.group} · {item.equipment}
+                    {groupLabel(item.group)} · {equipmentLabel(item.equipment)}
                   </Text>
                 </View>
                 <SafeMaterialIcon
@@ -3347,22 +3465,21 @@ export default function WorkoutScreen() {
             <Text
               style={[styles.catalogCreateEyebrow, { color: colors.primary }]}
             >
-              ЛИЧНЫЙ КАТАЛОГ
+              {t("workout.custom.eyebrow")}
             </Text>
             <Text
               style={[styles.catalogCreateTitle, { color: colors.foreground }]}
             >
-              НОВОЕ УПРАЖНЕНИЕ
+              {t("workout.custom.title")}
             </Text>
             <Text style={[styles.catalogCreateHint, { color: colors.muted }]}>
-              Оно сохранится в базе упражнений и сразу появится в этой
-              тренировке.
+              {t("workout.custom.hint")}
             </Text>
             <TextInput
               value={customExerciseName}
               onChangeText={setCustomExerciseName}
               autoFocus
-              placeholder="Название упражнения"
+              placeholder={t("workout.custom.namePlaceholder")}
               placeholderTextColor={colors.muted}
               style={[
                 styles.catalogCreateInput,
@@ -3374,7 +3491,7 @@ export default function WorkoutScreen() {
               ]}
             />
             <Text style={[styles.catalogCreateLabel, { color: colors.muted }]}>
-              ГРУППА МЫШЦ
+              {t("workout.catalog.groupTitle")}
             </Text>
             <View style={styles.catalogCreateGroups}>
               {selectableMuscleGroups.map((group) => (
@@ -3407,7 +3524,7 @@ export default function WorkoutScreen() {
                       },
                     ]}
                   >
-                    {group}
+                    {groupLabel(group)}
                   </Text>
                 </Pressable>
               ))}
@@ -3415,7 +3532,7 @@ export default function WorkoutScreen() {
             <TextInput
               value={customExerciseEquipment}
               onChangeText={setCustomExerciseEquipment}
-              placeholder="Оборудование"
+              placeholder={t("workout.custom.equipmentPlaceholder")}
               placeholderTextColor={colors.muted}
               style={[
                 styles.catalogCreateInput,
@@ -3429,7 +3546,7 @@ export default function WorkoutScreen() {
             <TextInput
               value={customExerciseDescription}
               onChangeText={setCustomExerciseDescription}
-              placeholder="Подсказка по технике (необязательно)"
+              placeholder={t("workout.custom.descriptionPlaceholder")}
               placeholderTextColor={colors.muted}
               multiline
               style={[
@@ -3455,7 +3572,7 @@ export default function WorkoutScreen() {
                     { color: colors.foreground },
                   ]}
                 >
-                  ОТМЕНА
+                  {t("workout.editConfirm.cancel")}
                 </Text>
               </Pressable>
               <Pressable
@@ -3474,7 +3591,7 @@ export default function WorkoutScreen() {
                     { color: colors.background },
                   ]}
                 >
-                  СОЗДАТЬ И ДОБАВИТЬ
+                  {t("workout.custom.save")}
                 </Text>
               </Pressable>
             </View>
@@ -3504,15 +3621,17 @@ export default function WorkoutScreen() {
               }}
             >
               <Text style={[styles.cancel, { color: colors.muted }]}>
-                Отмена
+                {t("workout.editor.cancel")}
               </Text>
             </Pressable>
             <Text style={[styles.modalTitle, { color: colors.foreground }]}>
-              {activeExercise?.name ?? "Упражнение"}
+              {(lang === "en"
+                ? (activeExercise?.nameEn ?? activeExercise?.name)
+                : activeExercise?.name) ?? t("workout.editor.exerciseFallback")}
             </Text>
             <Pressable onPress={saveExercise}>
               <Text style={[styles.save, { color: colors.primary }]}>
-                Готово
+                {t("workout.editor.done")}
               </Text>
             </Pressable>
           </View>
@@ -3537,20 +3656,20 @@ export default function WorkoutScreen() {
                       { color: colors.background },
                     ]}
                   >
-                    Предполагаемый 1RM
+                    {t("workout.editor.oneRmLabel")}
                   </Text>
                   <Text
                     style={[styles.oneRmHint, { color: colors.background, opacity: 0.75 }]}
                   >
                     {oneRmFormula === "epley"
-                      ? "Формула Эпли"
-                      : "Формула Бржицки"}
+                      ? t("workout.editor.formulaEpley")
+                      : t("workout.editor.formulaBrzycki")}
                   </Text>
                 </View>
                 <Text
                   style={[styles.oneRmValue, { color: colors.background }]}
                 >
-                  {currentOneRm.toFixed(1)} кг
+                  {currentOneRm.toFixed(1)} {t("workout.unit.kg")}
                 </Text>
               </View>
             )}
@@ -3560,7 +3679,7 @@ export default function WorkoutScreen() {
                 <Text
                   style={[styles.sectionTitle, { color: colors.foreground }]}
                 >
-                  Целевые зоны нагрузки
+                  {t("workout.editor.loadZones")}
                 </Text>
                 <View style={styles.zones}>
                   {getLoadZones(currentOneRm).map((zone) => (
@@ -3589,7 +3708,7 @@ export default function WorkoutScreen() {
                           zone.weight,
                           plateStepKg,
                         ).toFixed(1)}{" "}
-                        кг
+                        {t("workout.unit.kg")}
                       </Text>
                     </View>
                   ))}
@@ -3598,12 +3717,12 @@ export default function WorkoutScreen() {
             )}
 
             <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
-              Настройки и заметки
+              {t("workout.editor.settingsTitle")}
             </Text>
             <TextInput
               value={machineSetup}
               onChangeText={setMachineSetup}
-              placeholder="Настройка тренажёра: сиденье, пин, спинка"
+              placeholder={t("workout.editor.machinePlaceholder")}
               placeholderTextColor={colors.muted}
               style={[
                 styles.noteInput,
@@ -3617,7 +3736,7 @@ export default function WorkoutScreen() {
             <TextInput
               value={note}
               onChangeText={setNote}
-              placeholder="Личная заметка: хват, темп, техника"
+              placeholder={t("workout.editor.notePlaceholder")}
               placeholderTextColor={colors.muted}
               multiline
               style={[
@@ -3632,7 +3751,7 @@ export default function WorkoutScreen() {
             />
 
             <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
-              Прошлые результаты
+              {t("workout.editor.historyTitle")}
             </Text>
             {history.length ? (
               <View
@@ -3671,8 +3790,16 @@ export default function WorkoutScreen() {
                           style={[styles.historyMeta, { color: colors.muted }]}
                         >
                           {activeIsTimed
-                            ? ` ${entry.sets.reduce((sum, set) => sum + set.reps, 0)} мин`
-                            : ` ${entry.volume.toFixed(0)} кг · 1RM ${entry.oneRm.toFixed(1)} кг`}
+                            ? t("workout.editor.historyTimedMeta", {
+                                reps: entry.sets.reduce(
+                                  (sum, set) => sum + set.reps,
+                                  0,
+                                ),
+                              })
+                            : t("workout.editor.historyMeta", {
+                                volume: entry.volume.toFixed(0),
+                                oneRm: entry.oneRm.toFixed(1),
+                              })}
                         </Text>
                       </View>
                       <IconSymbol
@@ -3703,10 +3830,18 @@ export default function WorkoutScreen() {
                             ]}
                           >
                             {activeIsTimed
-                              ? `${set.reps} мин.`
+                              ? t("workout.editor.historySetTimed", {
+                                  reps: set.reps,
+                                })
                               : set.drop?.length
-                                ? `дроп: ${set.drop.map((part) => `${part.weight}×${part.reps}`).join(" → ")}`
-                                : `${set.reps} повт.`}
+                                ? t("workout.editor.historySetDrop", {
+                                    parts: set.drop
+                                      .map((part) => `${part.weight}×${part.reps}`)
+                                      .join(" → "),
+                                  })
+                                : t("workout.editor.historySetReps", {
+                                    reps: set.reps,
+                                  })}
                           </Text>
                           {!activeIsTimed && (
                             <Text
@@ -3715,7 +3850,11 @@ export default function WorkoutScreen() {
                                 { color: colors.foreground },
                               ]}
                             >
-                              {set.drop?.length ? "" : `${set.weight} кг`}
+                              {set.drop?.length
+                                ? ""
+                                : t("workout.editor.historySetWeight", {
+                                    weight: set.weight,
+                                  })}
                             </Text>
                           )}
                         </View>
@@ -3725,19 +3864,19 @@ export default function WorkoutScreen() {
               </View>
             ) : (
               <Text style={[styles.empty, { color: colors.muted }]}>
-                Это первое зафиксированное выполнение.
+                {t("workout.editor.firstExecution")}
               </Text>
             )}
 
             <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
-              Фактические подходы
+              {t("workout.editor.setsTitle")}
             </Text>
             <Text style={[styles.fieldHint, { color: colors.muted }]}>
               {activeIsTimed
                 ? activeTracksDistance
-                  ? "Укажите длительность в минутах и дистанцию в километрах. После завершения подхода таймер отдыха запускается автоматически."
-                  : "Укажите длительность в минутах. После завершения подхода таймер отдыха запускается автоматически."
-                : "Пустые поля выделены серым. После ввода повтора и веса таймер отдыха запускается автоматически."}
+                  ? t("workout.editor.hintTimedDistance")
+                  : t("workout.editor.hintTimed")
+                : t("workout.editor.hintReps")}
             </Text>
             {draft.map((set, index) => (
               <View
@@ -3764,7 +3903,9 @@ export default function WorkoutScreen() {
                         editable={!isSetCompleted(index)}
                         keyboardType="decimal-pad"
                         returnKeyType="done"
-                        placeholder={`план ${activePlan?.reps ?? "—"} мин`}
+                        placeholder={t("workout.editor.planMinutes", {
+                          reps: activePlan?.reps ?? "—",
+                        })}
                         placeholderTextColor={colors.muted}
                         style={[
                           fieldStyle(set.reps),
@@ -3783,7 +3924,7 @@ export default function WorkoutScreen() {
                           editable={!isSetCompleted(index)}
                           keyboardType="decimal-pad"
                           returnKeyType="done"
-                          placeholder="дистанция, км"
+                          placeholder={t("workout.editor.distancePlaceholder")}
                           placeholderTextColor={colors.muted}
                           style={[
                             fieldStyle(set.distance ?? ""),
@@ -3806,7 +3947,9 @@ export default function WorkoutScreen() {
                           editable={!isSetCompleted(index)}
                           keyboardType="number-pad"
                           returnKeyType="done"
-                          placeholder={`план ${activePlan?.reps ?? "—"}`}
+                          placeholder={t("workout.editor.planReps", {
+                            reps: activePlan?.reps ?? "—",
+                          })}
                           placeholderTextColor={colors.muted}
                           style={[
                             fieldStyle(set.reps),
@@ -3824,7 +3967,9 @@ export default function WorkoutScreen() {
                           editable={!isSetCompleted(index)}
                           keyboardType="decimal-pad"
                           returnKeyType="done"
-                          placeholder={`план ${activePlan?.weight ?? "—"} кг`}
+                          placeholder={t("workout.editor.planWeight", {
+                            weight: activePlan?.weight ?? "—",
+                          })}
                           placeholderTextColor={colors.muted}
                           style={[
                             fieldStyle(set.weight),
@@ -3867,7 +4012,7 @@ export default function WorkoutScreen() {
                             },
                           ]}
                         >
-                          {type.label}
+                          {t(type.labelKey)}
                         </Text>
                       </Pressable>
                     ))}
@@ -3888,13 +4033,14 @@ export default function WorkoutScreen() {
                         <Text
                           style={[styles.dropTitle, { color: colors.primary }]}
                         >
-                          Подподходы дроп-сета
+                          {t("workout.editor.dropTitle")}
                         </Text>
                         <Text
                           style={[styles.dropHint, { color: colors.muted }]}
                         >
-                          Укажи до {MAX_DROP_SUBSETS} последовательных снижений
-                          веса.
+                          {t("workout.editor.dropHint", {
+                            count: MAX_DROP_SUBSETS,
+                          })}
                         </Text>
                       </View>
                       <Text
@@ -3924,7 +4070,9 @@ export default function WorkoutScreen() {
                           editable={!isSetCompleted(index)}
                           keyboardType="number-pad"
                           returnKeyType="done"
-                          placeholder={`план ${activePlan?.reps ?? "—"}`}
+                          placeholder={t("workout.editor.planReps", {
+                            reps: activePlan?.reps ?? "—",
+                          })}
                           placeholderTextColor={colors.muted}
                           style={[
                             subsetFieldStyle(part.reps),
@@ -3944,7 +4092,9 @@ export default function WorkoutScreen() {
                           editable={!isSetCompleted(index)}
                           keyboardType="decimal-pad"
                           returnKeyType="done"
-                          placeholder={`план ${activePlan?.weight ?? "—"} кг`}
+                          placeholder={t("workout.editor.planWeight", {
+                            weight: activePlan?.weight ?? "—",
+                          })}
                           placeholderTextColor={colors.muted}
                           style={[
                             subsetFieldStyle(part.weight),
@@ -3987,21 +4137,21 @@ export default function WorkoutScreen() {
                             { color: colors.primary },
                           ]}
                         >
-                          ＋ Добавить подподход
+                          {t("workout.editor.dropAdd")}
                         </Text>
                       </Pressable>
                     )}
                     <Text style={[styles.dropVolume, { color: colors.muted }]}>
-                      Объём дроп-сета:{" "}
-                      {Math.round(
-                        getSetVolumeWithDropSubsets({
-                          weightKg: Number(set.weight) || 0,
-                          reps: Number(set.reps) || 0,
-                          setType: "drop",
-                          dropSubsets: setParts(set),
-                        }),
-                      ).toLocaleString("ru-RU")}{" "}
-                      кг
+                      {t("workout.editor.dropVolume", {
+                        volume: Math.round(
+                          getSetVolumeWithDropSubsets({
+                            weightKg: Number(set.weight) || 0,
+                            reps: Number(set.reps) || 0,
+                            setType: "drop",
+                            dropSubsets: setParts(set),
+                          }),
+                        ).toLocaleString(locale),
+                      })}
                     </Text>
                   </View>
                 )}
@@ -4021,8 +4171,11 @@ export default function WorkoutScreen() {
                             { color: colors.primary },
                           ]}
                         >
-                          ПОДХОД ВЫПОЛНЯЕТСЯ ·{" "}
-                          {formatTrackedSeconds(activeSetElapsedSeconds)}
+                          {t("workout.editor.setRunning", {
+                            time: formatTrackedSeconds(
+                              activeSetElapsedSeconds,
+                            ),
+                          })}
                         </Text>
                         <Pressable
                           onPress={() => openFinishSetEditor(index)}
@@ -4041,7 +4194,7 @@ export default function WorkoutScreen() {
                               { color: colors.background },
                             ]}
                           >
-                            Завершить подход
+                            {t("workout.editor.finishSet")}
                           </Text>
                         </Pressable>
                       </>
@@ -4058,8 +4211,8 @@ export default function WorkoutScreen() {
                           ]}
                         >
                           {isSetReadOnly(index)
-                            ? "ТОЛЬКО ПРОСМОТР · "
-                            : "РЕЖИМ ИЗМЕНЕНИЯ · "}
+                            ? t("workout.editor.readOnly")
+                            : t("workout.editor.editingMode")}
                           {formatTrackedSeconds(
                             setTimings[setTimingKey(activeId, index)]
                               .activeSeconds,
@@ -4082,7 +4235,9 @@ export default function WorkoutScreen() {
                               },
                             ]}
                           >
-                            {isSetReadOnly(index) ? "ИЗМЕНИТЬ" : "ГОТОВО"}
+                            {isSetReadOnly(index)
+                              ? t("workout.editor.change")
+                              : t("workout.editor.doneShort")}
                           </Text>
                         </Pressable>
                       </View>
@@ -4104,7 +4259,7 @@ export default function WorkoutScreen() {
                             { color: colors.primary },
                           ]}
                         >
-                          Начать подход
+                          {t("workout.editor.startSet")}
                         </Text>
                       </Pressable>
                     )}
@@ -4127,7 +4282,7 @@ export default function WorkoutScreen() {
               style={[styles.addSet, { borderColor: colors.primary }]}
             >
               <Text style={[styles.addSetText, { color: colors.primary }]}>
-                ＋ Добавить подход
+                {t("workout.editor.addSet")}
               </Text>
             </Pressable>
             <Pressable
@@ -4138,7 +4293,9 @@ export default function WorkoutScreen() {
                 shadows.card,
               ]}
             >
-              <Text style={[styles.saveButtonText, { color: colors.background }]}>Завершить упражнение</Text>
+              <Text style={[styles.saveButtonText, { color: colors.background }]}>
+                {t("workout.editor.finishExercise")}
+              </Text>
             </Pressable>
           </ScrollView>
           <RestTimerOverlay
@@ -4147,7 +4304,7 @@ export default function WorkoutScreen() {
             totalRest={restTotal}
             onAddTime={extendRestTimer}
             onSkip={skipRest}
-            message={restMessage}
+            message={t(restMessageKey)}
             soundEnabled={restTimerSoundEnabled}
             soundVolume={restTimerCompletionVolume}
             vibrationEnabled={restTimerVibrationEnabled}
@@ -4188,8 +4345,13 @@ export default function WorkoutScreen() {
                         ]}
                       >
                         {focusedSubsetIndex === null
-                          ? `ФАКТИЧЕСКИЙ ПОДХОД ${focusedSetIndex + 1}`
-                          : `ДРОП-СЕТ ${focusedSetIndex + 1} · ПОДПОДХОД ${focusedSubsetIndex + 1}`}
+                          ? t("workout.setEditor.eyebrowSet", {
+                              number: focusedSetIndex + 1,
+                            })
+                          : t("workout.setEditor.eyebrowDrop", {
+                              number: focusedSetIndex + 1,
+                              subset: focusedSubsetIndex + 1,
+                            })}
                       </Text>
                       <Text
                         style={[
@@ -4197,7 +4359,7 @@ export default function WorkoutScreen() {
                           { color: colors.foreground },
                         ]}
                       >
-                        Запишите результат
+                        {t("workout.setEditor.title")}
                       </Text>
                     </View>
                     <Pressable
@@ -4206,7 +4368,7 @@ export default function WorkoutScreen() {
                         styles.setEditorClose,
                         { backgroundColor: colors.surface },
                       ]}
-                      accessibilityLabel="Закрыть форму ввода"
+                      accessibilityLabel={t("workout.setEditor.closeA11y")}
                     >
                       <Text
                         style={[
@@ -4227,7 +4389,9 @@ export default function WorkoutScreen() {
                             { color: colors.muted },
                           ]}
                         >
-                          {activeIsTimed ? "МИНУТЫ" : "ПОВТОРЫ"}
+                          {activeIsTimed
+                            ? t("workout.setEditor.minutes")
+                            : t("workout.setEditor.reps")}
                         </Text>
                         <TextInput
                           autoFocus
@@ -4239,7 +4403,15 @@ export default function WorkoutScreen() {
                             activeIsTimed ? "decimal-pad" : "number-pad"
                           }
                           returnKeyType="done"
-                          placeholder={`план ${activePlan?.reps ?? "—"}${activeIsTimed ? " мин" : ""}`}
+                          placeholder={
+                            activeIsTimed
+                              ? t("workout.editor.planMinutes", {
+                                  reps: activePlan?.reps ?? "—",
+                                })
+                              : t("workout.editor.planReps", {
+                                  reps: activePlan?.reps ?? "—",
+                                })
+                          }
                           placeholderTextColor={colors.muted}
                           style={[
                             styles.setEditorInput,
@@ -4265,14 +4437,14 @@ export default function WorkoutScreen() {
                               { color: colors.muted },
                             ]}
                           >
-                            ДИСТАНЦИЯ, КМ
+                            {t("workout.setEditor.distanceLabel")}
                           </Text>
                           <TextInput
                             value={focusedSet.distance ?? ""}
                             onChangeText={updateFocusedDistance}
                             keyboardType="decimal-pad"
                             returnKeyType="done"
-                            placeholder="например, 5"
+                            placeholder={t("workout.setEditor.distancePlaceholder")}
                             placeholderTextColor={colors.muted}
                             style={[
                               styles.setEditorInput,
@@ -4301,7 +4473,7 @@ export default function WorkoutScreen() {
                               { color: colors.muted },
                             ]}
                           >
-                            ВЕС, КГ
+                            {t("workout.setEditor.weightLabel")}
                           </Text>
                           <TextInput
                             value={focusedPart.weight}
@@ -4310,7 +4482,9 @@ export default function WorkoutScreen() {
                             }
                             keyboardType="decimal-pad"
                             returnKeyType="done"
-                            placeholder={`план ${activePlan?.weight ?? "—"}`}
+                            placeholder={t("workout.editor.planReps", {
+                              reps: activePlan?.weight ?? "—",
+                            })}
                             placeholderTextColor={colors.muted}
                             style={[
                               styles.setEditorInput,
@@ -4339,8 +4513,8 @@ export default function WorkoutScreen() {
                           ]}
                         >
                           {hasHistoricalWeights
-                            ? "ВЕС ИЗ ПРОШЛЫХ ТРЕНИРОВОК"
-                            : "БЫСТРЫЙ ВЫБОР ВЕСА"}
+                            ? t("workout.setEditor.historicalWeights")
+                            : t("workout.setEditor.quickWeights")}
                         </Text>
                         <View style={styles.quickWeightRow}>
                           {quickWeightOptions.map((weight) => (
@@ -4375,7 +4549,7 @@ export default function WorkoutScreen() {
                                   },
                                 ]}
                               >
-                                {weight} кг
+                                {weight} {t("workout.unit.kg")}
                               </Text>
                             </Pressable>
                           ))}
@@ -4404,7 +4578,7 @@ export default function WorkoutScreen() {
                           { color: colors.background },
                         ]}
                       >
-                        Завершить подход
+                        {t("workout.editor.finishSet")}
                       </Text>
                     </Pressable>
                   </View>

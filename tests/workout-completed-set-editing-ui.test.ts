@@ -2,7 +2,14 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
-const workout = readFileSync(resolve(process.cwd(), "app/workout.tsx"), "utf8");
+// Русские подписи живут в словаре домена workout, поэтому экран проверяется
+// вместе со своим словарём локализации (как экран настроек с доменом settings).
+const workoutDict = readFileSync(
+  resolve(process.cwd(), "lib/i18n/domains/workout.ts"),
+  "utf8",
+);
+
+const workout = readFileSync(resolve(process.cwd(), "app/workout.tsx"), "utf8") + workoutDict;
 
 describe("редактирование завершённого подхода", () => {
   it("не даёт открыть форму или изменить поля завершённого подхода без явной команды", () => {

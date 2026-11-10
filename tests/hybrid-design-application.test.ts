@@ -13,7 +13,7 @@ const themeProvider = readFileSync(
 const home = readFileSync(
   resolve(process.cwd(), "app/(tabs)/index.tsx"),
   "utf8",
-);
+) + readFileSync(resolve(process.cwd(), "lib/i18n/domains/tabs.ts"), "utf8");
 const tabLayout = readFileSync(
   resolve(process.cwd(), "app/(tabs)/_layout.tsx"),
   "utf8",
@@ -22,15 +22,19 @@ const workout = readFileSync(resolve(process.cwd(), "app/workout.tsx"), "utf8");
 const programs = readFileSync(
   resolve(process.cwd(), "app/(tabs)/programs.tsx"),
   "utf8",
-);
+) + readFileSync(resolve(process.cwd(), "lib/i18n/domains/programs.ts"), "utf8");
 const stats = readFileSync(
   resolve(process.cwd(), "app/(tabs)/stats.tsx"),
   "utf8",
-);
-const settings = readFileSync(
-  resolve(process.cwd(), "app/settings.tsx"),
-  "utf8",
-);
+) + readFileSync(resolve(process.cwd(), "lib/i18n/domains/stats.ts"), "utf8");
+// Русские подписи экрана настроек живут в словаре домена settings,
+// поэтому экран проверяется вместе со своим словарём локализации.
+const settings =
+  readFileSync(resolve(process.cwd(), "app/settings.tsx"), "utf8") +
+  readFileSync(
+    resolve(process.cwd(), "lib/i18n/domains/settings.ts"),
+    "utf8",
+  );
 
 describe("IronRise editorial reference design", () => {
   it("keeps the legacy poster palette selectable and defaults to Dark Energy", () => {
@@ -49,9 +53,13 @@ describe("IronRise editorial reference design", () => {
   });
 
   it("uses compact text-led section names in the redesigned bottom navigation", () => {
-    expect(tabLayout).toContain('title: "ГЛАВНОЕ"');
-    expect(tabLayout).toContain('title: "ПЛАН"');
-    expect(tabLayout).toContain('title: "ПРОГРЕСС"');
+    // Подписи панели берутся из данных вкладок: layout показывает t(titleKey),
+    // а русский текст лежит в lib/main-tab-preferences.ts и домене common.
+    expect(tabLayout).toContain("useLanguage");
+    expect(tabLayout).toContain("title: t(TAB_TITLE_KEYS.today)");
+    expect(tabLayout).toContain("title: t(TAB_TITLE_KEYS.calendar)");
+    expect(tabLayout).toContain("title: t(TAB_TITLE_KEYS.stats)");
+    expect(tabLayout).not.toContain('title: "ГЛАВНОЕ"');
   });
 
   it("extends the Dark Energy tokens to workout, programs and statistics", () => {

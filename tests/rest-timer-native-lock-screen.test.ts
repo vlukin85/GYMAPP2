@@ -13,6 +13,13 @@ const nativeModule = readFileSync(
   ),
   "utf8",
 );
+const strings = readFileSync(
+  resolve(
+    process.cwd(),
+    "modules/ironrise-rest-timer/android/src/main/java/expo/modules/ironriseresttimer/RestTimerStrings.kt",
+  ),
+  "utf8",
+);
 const nativeBridge = readFileSync(
   resolve(process.cwd(), "modules/ironrise-rest-timer/src/index.ts"),
   "utf8",
@@ -53,7 +60,7 @@ const workoutScreen = readFileSync(
 describe("таймер отдыха на заблокированном Android-экране", () => {
   it("передаёт обратный отсчёт нативному модулю и не дублирует Expo-уведомление", () => {
     expect(notificationService).toMatch(
-      /showNativeRestCountdown\(\s*restEndAt,\s*target,\s*completionSound,\s*completionVolume,\s*completionVibrationEnabled,\s*completionVibrationPattern,\s*nextAction,?\s*\)/,
+      /showNativeRestCountdown\(\s*restEndAt,\s*target,\s*completionSound,\s*completionVolume,\s*completionVibrationEnabled,\s*completionVibrationPattern,\s*nextAction,\s*lang,?\s*\)/,
     );
     expect(notificationService).toMatch(
       /nativeCountdownStarted\s*\?\s*undefined/,
@@ -94,9 +101,16 @@ describe("таймер отдыха на заблокированном Android-
   });
 
   it("даёт управлять отдыхом и видеть целевую зону на экране блокировки", () => {
-    expect(nativeModule).toContain('"Пропустить"');
-    expect(nativeModule).toContain('"+30 секунд"');
-    expect(nativeModule).toContain("Цель пульса:");
+    // Тексты нативных уведомлений — в RestTimerStrings на обоих языках,
+    // выбор идёт по lang из payload.
+    expect(strings).toContain('"Пропустить"');
+    expect(strings).toContain('"Skip"');
+    expect(strings).toContain('"+30 секунд"');
+    expect(strings).toContain('"+30 sec"');
+    expect(strings).toContain("Цель пульса:");
+    expect(strings).toContain("Target HR:");
+    expect(nativeModule).toContain("RestTimerStrings.skip(lang)");
+    expect(nativeModule).toContain("RestTimerStrings.extend30(lang)");
     expect(actionReceiver).toContain("ACTION_SKIP");
     expect(actionReceiver).toContain("ACTION_EXTEND");
     expect(actionReceiver).toContain("savePendingAction");
@@ -107,7 +121,9 @@ describe("таймер отдыха на заблокированном Android-
   });
 
   it("добавляет приватную текущую ЧСС и действие начала подхода", () => {
-    expect(nativeModule).toContain('"Следующий подход"');
+    expect(strings).toContain('"Следующий подход"');
+    expect(strings).toContain('"Next set"');
+    expect(nativeModule).toContain("RestTimerStrings.nextSet(lang)");
     expect(nativeModule).toContain("currentHeartRateBpm");
     expect(actionReceiver).toContain("ACTION_START");
     expect(actionReceiver).toContain(
@@ -128,8 +144,8 @@ describe("таймер отдыха на заблокированном Android-
     expect(actionReceiver).not.toContain('"update-set"');
     expect(receiver).not.toContain("buildEditSetAction(");
     expect(workoutScreen).not.toContain("applySetUpdateFromNativeRestAction");
-    expect(nativeModule).toContain('"+30 секунд"');
-    expect(receiver).toContain('"+30 секунд"');
+    expect(nativeModule).toContain("RestTimerStrings.extend30(lang)");
+    expect(receiver).toContain("RestTimerStrings.extend30(lang)");
     expect(workoutScreen).toContain(
       "setIndex: activeIsTimed ? undefined : setIndex + 1",
     );
@@ -138,9 +154,12 @@ describe("таймер отдыха на заблокированном Android-
   it("показывает завершение упражнения после последнего подхода в обоих Android-уведомлениях", () => {
     expect(nativeBridge).toContain('kind: "start" | "finish-exercise"');
     expect(nativeModule).toContain('nextActionKind == "finish-exercise"');
-    expect(nativeModule).toContain('"Следующее упражнение"');
+    expect(strings).toContain('"Следующее упражнение"');
+    expect(strings).toContain('"Next exercise"');
     expect(receiver).toContain('nextActionKind == "finish-exercise"');
-    expect(receiver).toContain('"Последний подход завершён."');
+    expect(strings).toContain('"Последний подход завершён."');
+    expect(strings).toContain('"Last set completed."');
+    expect(receiver).toContain("RestTimerStrings.restCompletedBodyLastSet(lang)");
     expect(workoutScreen).toContain(
       "const isLastSet = setIndex === sourceDraft.length - 1",
     );
@@ -213,7 +232,7 @@ describe("таймер отдыха на заблокированном Android-
         ),
       ),
     ).toBe(true);
-    expect(receiver).toContain('"Следующий подход"');
+    expect(receiver).toContain("RestTimerStrings.nextSet(lang)");
     expect(receiver).toContain("ACTION_START");
     expect(receiver).toContain("ironrise-rest-complete-v3");
     expect(receiver).toContain("AudioAttributes.USAGE_ALARM");
@@ -222,7 +241,7 @@ describe("таймер отдыха на заблокированном Android-
   });
 
   it("позволяет продлить паузу из финального уведомления", () => {
-    expect(receiver).toContain('"+30 секунд"');
+    expect(receiver).toContain("RestTimerStrings.extend30(lang)");
     expect(receiver).toContain("ACTION_EXTEND");
     expect(receiver).toContain("EXTRA_REST_END_AT");
   });

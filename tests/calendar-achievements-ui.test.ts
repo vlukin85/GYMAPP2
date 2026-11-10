@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 const calendarScreen = readFileSync(
   resolve(process.cwd(), "app/(tabs)/calendar.tsx"),
   "utf8",
-);
+) + readFileSync(resolve(process.cwd(), "lib/i18n/domains/calendar.ts"), "utf8");
 
 describe("calendar result achievements", () => {
   it("shows records earned in the selected workout and provides a share action", () => {

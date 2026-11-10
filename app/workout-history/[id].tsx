@@ -8,6 +8,7 @@ import { useColors } from "@/hooks/use-colors";
 import { getExercise, isTimeBasedExercise } from "@/lib/workout-data";
 import { groupWorkoutHistoryExercises } from "@/lib/workout-history";
 import { useWorkoutStore } from "@/lib/workout-store";
+import { useLanguage } from "@/lib/i18n";
 
 type HistorySetDraft = { exerciseId: string; reps: string; weight: string; distanceKm: string };
 type EditorDraftSnapshot = { duration: string; note: string; sets: HistorySetDraft[] };
@@ -18,6 +19,8 @@ function toDecimal(value: string) {
 
 export default function WorkoutHistoryScreen() {
   const colors = useColors();
+  const { t, lang } = useLanguage();
+  const locale = lang === "en" ? "en-US" : "ru-RU";
   const { id, edit } = useLocalSearchParams<{ id: string; edit?: string }>();
   const { completed, programs, deleteCompletedWorkout, updateCompletedWorkout } = useWorkoutStore();
   const [loading, setLoading] = useState(true);
@@ -91,9 +94,9 @@ export default function WorkoutHistoryScreen() {
   };
 
   const removeDraftSet = (index: number) => {
-    Alert.alert("Удалить подход?", "Этот фактический подход будет исключён из результата тренировки. Объём и рекорды пересчитаются после сохранения.", [
-      { text: "Отмена", style: "cancel" },
-      { text: "Удалить подход", style: "destructive", onPress: () => { takeUndoSnapshot(); setSetsDraft((current) => current.filter((_set, setIndex) => setIndex !== index)); } },
+    Alert.alert(t("workout.history.deleteSetTitle"), t("workout.history.deleteSetMessage"), [
+      { text: t("workout.history.cancel"), style: "cancel" },
+      { text: t("workout.history.deleteSetAction"), style: "destructive", onPress: () => { takeUndoSnapshot(); setSetsDraft((current) => current.filter((_set, setIndex) => setIndex !== index)); } },
     ]);
   };
 
@@ -101,7 +104,10 @@ export default function WorkoutHistoryScreen() {
     if (!workout) return;
     const durationMinutes = toDecimal(durationDraft);
     if (!Number.isFinite(durationMinutes) || durationMinutes <= 0) {
-      Alert.alert("Проверьте длительность", "Укажите длительность тренировки в минутах.");
+      Alert.alert(
+        t("workout.history.durationErrorTitle"),
+        t("workout.history.durationErrorMessage"),
+      );
       return;
     }
     const sets = setsDraft.map((set) => {
@@ -113,7 +119,10 @@ export default function WorkoutHistoryScreen() {
       return { exerciseId: set.exerciseId, reps: Math.round(reps), weight, distanceKm };
     });
     if (sets.some((set) => !set)) {
-      Alert.alert("Проверьте подходы", "Для каждого оставшегося подхода укажите корректные значения. У кардио длительность вводится в минутах.");
+      Alert.alert(
+        t("workout.history.setsErrorTitle"),
+        t("workout.history.setsErrorMessage"),
+      );
       return;
     }
     updateCompletedWorkout(workout.id, { durationMinutes, sets: sets as NonNullable<typeof workout.sets>, notes: noteDraft });
@@ -122,54 +131,54 @@ export default function WorkoutHistoryScreen() {
 
   const deleteWorkout = () => {
     if (!workout) return;
-    Alert.alert("Удалить выполненную тренировку?", "Запись исчезнет из истории и календаря. Статистика и личные рекорды будут пересчитаны по оставшимся тренировкам.", [
-      { text: "Отмена", style: "cancel" },
-      { text: "Удалить тренировку", style: "destructive", onPress: () => { deleteCompletedWorkout(workout.id); router.back(); } },
+    Alert.alert(t("workout.history.deleteWorkoutTitle"), t("workout.history.deleteWorkoutMessage"), [
+      { text: t("workout.history.cancel"), style: "cancel" },
+      { text: t("workout.history.deleteWorkoutAction"), style: "destructive", onPress: () => { deleteCompletedWorkout(workout.id); router.back(); } },
     ]);
   };
 
   if (loading) return <HistorySkeleton colors={colors} pulse={pulse} />;
-  if (!workout) return <ScreenContainer className="px-5"><View style={styles.empty}><Text style={[styles.emptyTitle, { color: colors.foreground }]}>Тренировка не найдена</Text><Pressable onPress={() => router.back()}><Text style={[styles.link, { color: colors.primary }]}>Вернуться назад</Text></Pressable></View></ScreenContainer>;
+  if (!workout) return <ScreenContainer className="px-5"><View style={styles.empty}><Text style={[styles.emptyTitle, { color: colors.foreground }]}>{t("workout.history.notFoundTitle")}</Text><Pressable onPress={() => router.back()}><Text style={[styles.link, { color: colors.primary }]}>{t("workout.history.back")}</Text></Pressable></View></ScreenContainer>;
 
   const program = programs.find((item) => item.id === workout.programId);
-  const date = new Date(`${workout.date}T12:00:00`).toLocaleDateString("ru-RU", { day: "numeric", month: "long", year: "numeric" });
+  const date = new Date(`${workout.date}T12:00:00`).toLocaleDateString(locale, { day: "numeric", month: "long", year: "numeric" });
 
   return <ScreenContainer edges={["top", "left", "right", "bottom"]} className="px-5">
     <Animated.View style={{ flex: 1, opacity: fade, transform: [{ translateY: fade.interpolate({ inputRange: [0, 1], outputRange: [10, 0] }) }] }}>
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        <View style={styles.header}><Pressable onPress={() => router.back()}><IconSymbol name="chevron.left" size={27} color={colors.foreground} /></Pressable><Text style={[styles.headerTitle, { color: colors.foreground }]}>Завершённая тренировка</Text><View style={{ width: 27 }} /></View>
+        <View style={styles.header}><Pressable onPress={() => router.back()}><IconSymbol name="chevron.left" size={27} color={colors.foreground} /></Pressable><Text style={[styles.headerTitle, { color: colors.foreground }]}>{t("workout.history.headerTitle")}</Text><View style={{ width: 27 }} /></View>
         <View style={[styles.summary, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <Text style={[styles.eyebrow, { color: colors.success }]}>ИСТОРИЯ РЕЗУЛЬТАТА</Text>
-          <Text style={[styles.title, { color: colors.foreground }]}>{program?.name ?? "Тренировка"}</Text>
+          <Text style={[styles.eyebrow, { color: colors.success }]}>{t("workout.history.eyebrow")}</Text>
+          <Text style={[styles.title, { color: colors.foreground }]}>{(lang === "en" ? (program?.nameEn ?? program?.name) : program?.name) ?? t("workout.history.workoutFallback")}</Text>
           <Text style={[styles.date, { color: colors.muted }]}>{date}</Text>
-          <View style={styles.metrics}><Metric value={`${workout.durationMinutes} мин`} label="длительность" colors={colors} /><Metric value={`${Math.round(workout.totalVolume).toLocaleString("ru-RU")} кг`} label="объём" colors={colors} /><Metric value={String(workout.sets?.length ?? 0)} label="подходов" colors={colors} /></View>
+          <View style={styles.metrics}><Metric value={`${workout.durationMinutes} ${t("workout.unit.min")}`} label={t("workout.history.metricDuration")} colors={colors} /><Metric value={`${Math.round(workout.totalVolume).toLocaleString(locale)} ${t("workout.unit.kg")}`} label={t("workout.history.metricVolume")} colors={colors} /><Metric value={String(workout.sets?.length ?? 0)} label={t("workout.history.metricSets")} colors={colors} /></View>
         </View>
-        {workout.notes ? <View style={[styles.noteCard, { backgroundColor: `${colors.primary}0D`, borderColor: `${colors.primary}55` }]}><Text style={[styles.noteLabel, { color: colors.primary }]}>ЗАМЕТКА</Text><Text style={[styles.noteText, { color: colors.foreground }]}>{workout.notes}</Text></View> : null}
-        <View style={styles.actions}><Pressable onPress={openEditor} style={({ pressed }) => [styles.editButton, { backgroundColor: colors.primary, opacity: pressed ? 0.78 : 1 }]}><Text style={styles.editButtonText}>Редактировать</Text></Pressable><Pressable onPress={deleteWorkout} style={({ pressed }) => [styles.deleteButton, { backgroundColor: `${colors.error}12`, borderColor: `${colors.error}66`, opacity: pressed ? 0.72 : 1 }]}><Text style={[styles.deleteButtonText, { color: colors.error }]}>Удалить</Text></Pressable></View>
-        <Text style={[styles.actionHint, { color: colors.muted }]}>После сохранения объём, статистика и личные рекорды пересчитаются автоматически.</Text>
-        <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Упражнения</Text>
-        <Text style={[styles.hint, { color: colors.muted }]}>Нажмите упражнение, чтобы посмотреть все фактические подходы.</Text>
+        {workout.notes ? <View style={[styles.noteCard, { backgroundColor: `${colors.primary}0D`, borderColor: `${colors.primary}55` }]}><Text style={[styles.noteLabel, { color: colors.primary }]}>{t("workout.history.noteLabel")}</Text><Text style={[styles.noteText, { color: colors.foreground }]}>{workout.notes}</Text></View> : null}
+        <View style={styles.actions}><Pressable onPress={openEditor} style={({ pressed }) => [styles.editButton, { backgroundColor: colors.primary, opacity: pressed ? 0.78 : 1 }]}><Text style={styles.editButtonText}>{t("workout.history.editAction")}</Text></Pressable><Pressable onPress={deleteWorkout} style={({ pressed }) => [styles.deleteButton, { backgroundColor: `${colors.error}12`, borderColor: `${colors.error}66`, opacity: pressed ? 0.72 : 1 }]}><Text style={[styles.deleteButtonText, { color: colors.error }]}>{t("workout.history.deleteAction")}</Text></Pressable></View>
+        <Text style={[styles.actionHint, { color: colors.muted }]}>{t("workout.history.actionHint")}</Text>
+        <Text style={[styles.sectionTitle, { color: colors.foreground }]}>{t("workout.history.exercisesTitle")}</Text>
+        <Text style={[styles.hint, { color: colors.muted }]}>{t("workout.history.exercisesHint")}</Text>
         {exercises.length ? exercises.map((exercise) => {
           const item = getExercise(exercise.exerciseId);
-          return <Pressable key={exercise.exerciseId} onPress={() => router.push({ pathname: "/workout-history/exercise" as never, params: { workoutId: workout.id, exerciseId: exercise.exerciseId } })} style={({ pressed }) => [styles.exercise, { backgroundColor: colors.surface, borderColor: colors.border, opacity: pressed ? 0.72 : 1 }]}><View style={[styles.exerciseIcon, { backgroundColor: `${colors.primary}18` }]}><IconSymbol name="dumbbell.fill" size={19} color={colors.primary} /></View><View style={{ flex: 1 }}><Text style={[styles.exerciseName, { color: colors.foreground }]}>{item?.name ?? exercise.exerciseId}</Text><Text style={[styles.exerciseMeta, { color: colors.muted }]}>{exercise.sets.length} подходов · {Math.round(exercise.volume).toLocaleString("ru-RU")} кг</Text></View><IconSymbol name="chevron.right" size={18} color={colors.muted} /></Pressable>;
-        }) : <View style={[styles.noSets, { borderColor: colors.border }]}><Text style={{ color: colors.muted }}>В этой тренировке не сохранены подробные подходы. Длительность и заметку всё равно можно изменить.</Text></View>}
+          return <Pressable key={exercise.exerciseId} onPress={() => router.push({ pathname: "/workout-history/exercise" as never, params: { workoutId: workout.id, exerciseId: exercise.exerciseId } })} style={({ pressed }) => [styles.exercise, { backgroundColor: colors.surface, borderColor: colors.border, opacity: pressed ? 0.72 : 1 }]}><View style={[styles.exerciseIcon, { backgroundColor: `${colors.primary}18` }]}><IconSymbol name="dumbbell.fill" size={19} color={colors.primary} /></View><View style={{ flex: 1 }}><Text style={[styles.exerciseName, { color: colors.foreground }]}>{(lang === "en" ? (item?.nameEn ?? item?.name) : item?.name) ?? exercise.exerciseId}</Text><Text style={[styles.exerciseMeta, { color: colors.muted }]}>{t("workout.history.exerciseSets", { count: exercise.sets.length, volume: Math.round(exercise.volume).toLocaleString(locale) })}</Text></View><IconSymbol name="chevron.right" size={18} color={colors.muted} /></Pressable>;
+        }) : <View style={[styles.noSets, { borderColor: colors.border }]}><Text style={{ color: colors.muted }}>{t("workout.history.noSets")}</Text></View>}
       </ScrollView>
     </Animated.View>
     <Modal visible={isEditing} animationType="slide" presentationStyle="fullScreen" onRequestClose={() => setIsEditing(false)}>
       <ScreenContainer edges={["top", "left", "right", "bottom"]} className="px-5">
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-          <View style={styles.editorHeader}><Pressable onPress={() => setIsEditing(false)}><Text style={[styles.cancelText, { color: colors.muted }]}>Отмена</Text></Pressable><Text style={[styles.headerTitle, { color: colors.foreground }]}>Корректировка</Text><Pressable onPress={saveChanges}><Text style={[styles.saveText, { color: colors.primary }]}>Сохранить</Text></Pressable></View>
+          <View style={styles.editorHeader}><Pressable onPress={() => setIsEditing(false)}><Text style={[styles.cancelText, { color: colors.muted }]}>{t("workout.history.cancel")}</Text></Pressable><Text style={[styles.headerTitle, { color: colors.foreground }]}>{t("workout.history.editorTitle")}</Text><Pressable onPress={saveChanges}><Text style={[styles.saveText, { color: colors.primary }]}>{t("workout.history.saveAction")}</Text></Pressable></View>
           <ScrollView contentContainerStyle={styles.editorContent} keyboardShouldPersistTaps="handled">
-            <View style={[styles.editorLead, { backgroundColor: colors.surface, borderColor: colors.border }]}><Text style={[styles.eyebrow, { color: colors.primary }]}>ФАКТИЧЕСКИЙ РЕЗУЛЬТАТ</Text><Text style={[styles.editorTitle, { color: colors.foreground }]}>Исправьте длительность, подходы и заметку</Text><Text style={[styles.editorDescription, { color: colors.muted }]}>Удалите ошибочный подход до сохранения — итоговый объём, статистика и рекорды обновятся автоматически.</Text></View>
-            <Pressable disabled={!undoSnapshot} onPress={undoLastChange} style={({ pressed }) => [styles.undoButton, { borderColor: undoSnapshot ? colors.primary : colors.border, backgroundColor: undoSnapshot ? `${colors.primary}10` : colors.surface, opacity: pressed ? 0.72 : 1 }]}><Text style={[styles.undoButtonText, { color: undoSnapshot ? colors.primary : colors.muted }]}>↶ Отменить последнее изменение</Text></Pressable>
-            <View style={[styles.durationCard, { borderColor: colors.border }]}><Text style={[styles.fieldLabel, { color: colors.muted }]}>ДЛИТЕЛЬНОСТЬ, МИНУТЫ</Text><TextInput value={durationDraft} onChangeText={updateDuration} keyboardType="numeric" returnKeyType="done" style={[styles.durationInput, { color: colors.foreground, borderColor: colors.primary, backgroundColor: colors.background }]} /></View>
-            <View style={[styles.noteEditorCard, { borderColor: colors.border }]}><Text style={[styles.fieldLabel, { color: colors.muted }]}>ЗАМЕТКА К ТРЕНИРОВКЕ</Text><TextInput value={noteDraft} onChangeText={updateNote} placeholder="Самочувствие, техника, особенности выполнения…" placeholderTextColor={colors.muted} multiline textAlignVertical="top" style={[styles.noteInput, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.background }]} /></View>
-            {setsDraft.length ? <><Text style={[styles.editorSection, { color: colors.foreground }]}>Подходы</Text>{setsDraft.map((set, index) => {
+            <View style={[styles.editorLead, { backgroundColor: colors.surface, borderColor: colors.border }]}><Text style={[styles.eyebrow, { color: colors.primary }]}>{t("workout.history.editorEyebrow")}</Text><Text style={[styles.editorTitle, { color: colors.foreground }]}>{t("workout.history.editorHeading")}</Text><Text style={[styles.editorDescription, { color: colors.muted }]}>{t("workout.history.editorHint")}</Text></View>
+            <Pressable disabled={!undoSnapshot} onPress={undoLastChange} style={({ pressed }) => [styles.undoButton, { borderColor: undoSnapshot ? colors.primary : colors.border, backgroundColor: undoSnapshot ? `${colors.primary}10` : colors.surface, opacity: pressed ? 0.72 : 1 }]}><Text style={[styles.undoButtonText, { color: undoSnapshot ? colors.primary : colors.muted }]}>{t("workout.history.undoAction")}</Text></Pressable>
+            <View style={[styles.durationCard, { borderColor: colors.border }]}><Text style={[styles.fieldLabel, { color: colors.muted }]}>{t("workout.history.durationLabel")}</Text><TextInput value={durationDraft} onChangeText={updateDuration} keyboardType="numeric" returnKeyType="done" style={[styles.durationInput, { color: colors.foreground, borderColor: colors.primary, backgroundColor: colors.background }]} /></View>
+            <View style={[styles.noteEditorCard, { borderColor: colors.border }]}><Text style={[styles.fieldLabel, { color: colors.muted }]}>{t("workout.history.noteEditorLabel")}</Text><TextInput value={noteDraft} onChangeText={updateNote} placeholder={t("workout.history.notePlaceholder")} placeholderTextColor={colors.muted} multiline textAlignVertical="top" style={[styles.noteInput, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.background }]} /></View>
+            {setsDraft.length ? <><Text style={[styles.editorSection, { color: colors.foreground }]}>{t("workout.history.setsTitle")}</Text>{setsDraft.map((set, index) => {
               const exercise = getExercise(set.exerciseId);
               const isTimed = isTimeBasedExercise(exercise);
-              return <View key={`${set.exerciseId}-${index}`} style={[styles.setCard, { backgroundColor: colors.surface, borderColor: colors.border }]}><View style={styles.setTop}><Text style={[styles.setNumber, { color: colors.primary }]}>{String(index + 1).padStart(2, "0")}</Text><Text style={[styles.setExercise, { color: colors.foreground }]} numberOfLines={1}>{exercise?.name ?? set.exerciseId}</Text><Pressable onPress={() => removeDraftSet(index)} hitSlop={8} style={({ pressed }) => [styles.removeSetButton, { borderColor: `${colors.error}88`, opacity: pressed ? 0.65 : 1 }]}><Text style={[styles.removeSetText, { color: colors.error }]}>УДАЛИТЬ</Text></Pressable></View><View style={styles.setFields}><View style={[styles.fieldWrap, { flex: isTimed ? 1.4 : 1 }]}><Text style={[styles.fieldLabel, { color: colors.muted }]}>{isTimed ? "МИНУТЫ" : "ПОВТОРЫ"}</Text><TextInput value={set.reps} onChangeText={(value) => updateDraftSet(index, "reps", value)} keyboardType="decimal-pad" returnKeyType="done" style={[styles.setInput, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.background }]} /></View>{!isTimed && <View style={styles.fieldWrap}><Text style={[styles.fieldLabel, { color: colors.muted }]}>ВЕС, КГ</Text><TextInput value={set.weight} onChangeText={(value) => updateDraftSet(index, "weight", value)} keyboardType="decimal-pad" returnKeyType="done" style={[styles.setInput, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.background }]} /></View>}{isTimed && <View style={styles.fieldWrap}><Text style={[styles.fieldLabel, { color: colors.muted }]}>КМ</Text><TextInput value={set.distanceKm} onChangeText={(value) => updateDraftSet(index, "distanceKm", value)} placeholder="—" placeholderTextColor={colors.muted} keyboardType="decimal-pad" returnKeyType="done" style={[styles.setInput, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.background }]} /></View>}</View></View>;
-            })}</> : <View style={[styles.noSets, { borderColor: colors.border }]}><Text style={{ color: colors.muted }}>Подходов не осталось. При сохранении объём этой тренировки станет равен нулю.</Text></View>}
-            <Pressable onPress={saveChanges} style={({ pressed }) => [styles.saveButton, { backgroundColor: colors.primary, opacity: pressed ? 0.8 : 1 }]}><Text style={styles.saveButtonText}>Сохранить изменения</Text></Pressable>
+              return <View key={`${set.exerciseId}-${index}`} style={[styles.setCard, { backgroundColor: colors.surface, borderColor: colors.border }]}><View style={styles.setTop}><Text style={[styles.setNumber, { color: colors.primary }]}>{String(index + 1).padStart(2, "0")}</Text><Text style={[styles.setExercise, { color: colors.foreground }]} numberOfLines={1}>{exercise?.name ?? set.exerciseId}</Text><Pressable onPress={() => removeDraftSet(index)} hitSlop={8} style={({ pressed }) => [styles.removeSetButton, { borderColor: `${colors.error}88`, opacity: pressed ? 0.65 : 1 }]}><Text style={[styles.removeSetText, { color: colors.error }]}>{t("workout.history.setDelete")}</Text></Pressable></View><View style={styles.setFields}><View style={[styles.fieldWrap, { flex: isTimed ? 1.4 : 1 }]}><Text style={[styles.fieldLabel, { color: colors.muted }]}>{isTimed ? t("workout.setEditor.minutes") : t("workout.setEditor.reps")}</Text><TextInput value={set.reps} onChangeText={(value) => updateDraftSet(index, "reps", value)} keyboardType="decimal-pad" returnKeyType="done" style={[styles.setInput, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.background }]} /></View>{!isTimed && <View style={styles.fieldWrap}><Text style={[styles.fieldLabel, { color: colors.muted }]}>{t("workout.setEditor.weightLabel")}</Text><TextInput value={set.weight} onChangeText={(value) => updateDraftSet(index, "weight", value)} keyboardType="decimal-pad" returnKeyType="done" style={[styles.setInput, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.background }]} /></View>}{isTimed && <View style={styles.fieldWrap}><Text style={[styles.fieldLabel, { color: colors.muted }]}>{t("workout.unit.km")}</Text><TextInput value={set.distanceKm} onChangeText={(value) => updateDraftSet(index, "distanceKm", value)} placeholder="—" placeholderTextColor={colors.muted} keyboardType="decimal-pad" returnKeyType="done" style={[styles.setInput, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.background }]} /></View>}</View></View>;
+            })}</> : <View style={[styles.noSets, { borderColor: colors.border }]}><Text style={{ color: colors.muted }}>{t("workout.history.noSetsLeft")}</Text></View>}
+            <Pressable onPress={saveChanges} style={({ pressed }) => [styles.saveButton, { backgroundColor: colors.primary, opacity: pressed ? 0.8 : 1 }]}><Text style={styles.saveButtonText}>{t("workout.history.saveChanges")}</Text></Pressable>
           </ScrollView>
         </KeyboardAvoidingView>
       </ScreenContainer>

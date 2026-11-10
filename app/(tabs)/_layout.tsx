@@ -7,16 +7,29 @@ import { IconSymbol } from "@/components/ui/icon-symbol";
 import { MainTabSwipe } from "@/components/main-tab-swipe";
 import { OrderedMainTabBar } from "@/components/ordered-main-tab-bar";
 import { useColors } from "@/hooks/use-colors";
+import { useLanguage } from "@/lib/i18n";
 import { getMainTabIdFromPathname } from "@/lib/main-tab-navigation";
-import { MAIN_TABS, useMainTabPreferences } from "@/lib/main-tab-preferences";
+import {
+  MAIN_TABS,
+  useMainTabPreferences,
+  type MainTabId,
+} from "@/lib/main-tab-preferences";
+
+// Подписи нижней панели живут в данных вкладок (lib/main-tab-preferences.ts):
+// рядом с русским title у каждого элемента лежит ключ словаря домена common.
+// Здесь только собираем карту «вкладка → ключ», чтобы не дублировать строки.
+const TAB_TITLE_KEYS = Object.fromEntries(
+  MAIN_TABS.map((tab) => [tab.id, tab.titleKey]),
+) as Record<MainTabId, (typeof MAIN_TABS)[number]["titleKey"]>;
 
 export default function TabLayout() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const pathname = usePathname();
+  const { t } = useLanguage();
   const { visibility, order, compact } = useMainTabPreferences();
   const visibleTabs = order.filter((id) => visibility[id]);
-  const showTab = (id: (typeof MAIN_TABS)[number]["id"]) => visibility[id];
+  const showTab = (id: MainTabId) => visibility[id];
   return (
     <MainTabSwipe
       current={getMainTabIdFromPathname(pathname)}
@@ -52,7 +65,7 @@ export default function TabLayout() {
         <Tabs.Screen
           name="index"
           options={{
-            title: "ГЛАВНОЕ",
+            title: t(TAB_TITLE_KEYS.today),
             href: showTab("today") ? undefined : null,
             tabBarIcon: ({ color }) => (
               <IconSymbol name="house.fill" size={18} color={color} />
@@ -62,7 +75,7 @@ export default function TabLayout() {
         <Tabs.Screen
           name="calendar"
           options={{
-            title: "ПЛАН",
+            title: t(TAB_TITLE_KEYS.calendar),
             href: showTab("calendar") ? undefined : null,
             tabBarIcon: ({ color }) => (
               <IconSymbol name="calendar" size={18} color={color} />
@@ -72,7 +85,7 @@ export default function TabLayout() {
         <Tabs.Screen
           name="exercises"
           options={{
-            title: "УПРАЖНЕНИЯ",
+            title: t(TAB_TITLE_KEYS.exercises),
             href: showTab("exercises") ? undefined : null,
             tabBarIcon: ({ color }) => (
               <IconSymbol name="dumbbell.fill" size={18} color={color} />
@@ -82,7 +95,7 @@ export default function TabLayout() {
         <Tabs.Screen
           name="programs"
           options={{
-            title: "ПРОГРАММЫ",
+            title: t(TAB_TITLE_KEYS.programs),
             href: showTab("programs") ? undefined : null,
             tabBarIcon: ({ color }) => (
               <IconSymbol name="list.bullet" size={18} color={color} />
@@ -92,7 +105,7 @@ export default function TabLayout() {
         <Tabs.Screen
           name="nutrition"
           options={{
-            title: "ПИТАНИЕ",
+            title: t(TAB_TITLE_KEYS.nutrition),
             href: showTab("nutrition") ? undefined : null,
             tabBarIcon: ({ color }) => (
               <IconSymbol name="fork.knife" size={18} color={color} />
@@ -102,7 +115,7 @@ export default function TabLayout() {
         <Tabs.Screen
           name="stats"
           options={{
-            title: "ПРОГРЕСС",
+            title: t(TAB_TITLE_KEYS.stats),
             href: showTab("stats") ? undefined : null,
             tabBarIcon: ({ color }) => (
               <IconSymbol name="chart.bar.fill" size={18} color={color} />
@@ -112,7 +125,7 @@ export default function TabLayout() {
         <Tabs.Screen
           name="body"
           options={{
-            title: "ТЕЛО",
+            title: t(TAB_TITLE_KEYS.body),
             href: showTab("body") ? undefined : null,
             tabBarIcon: ({ color }) => (
               <IconSymbol name="figure.stand" size={18} color={color} />
@@ -122,7 +135,7 @@ export default function TabLayout() {
         <Tabs.Screen
           name="settings"
           options={{
-            title: "НАСТРОЙКИ",
+            title: t(TAB_TITLE_KEYS.settings),
             href: showTab("settings") ? undefined : null,
             tabBarIcon: ({ color }) => (
               <IconSymbol name="gearshape" size={18} color={color} />

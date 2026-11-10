@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 const screen = readFileSync(
   resolve(process.cwd(), "app/(tabs)/stats.tsx"),
   "utf8",
-);
+) + readFileSync(resolve(process.cwd(), "lib/i18n/domains/stats.ts"), "utf8");
 
 describe("advanced statistics UI", () => {
   it("shows an interactive 1RM history chart after an exercise is selected", () => {

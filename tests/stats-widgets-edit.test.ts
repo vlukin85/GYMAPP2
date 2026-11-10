@@ -9,8 +9,8 @@ import {
   normalizeStoredStatsWidgets,
 } from "../lib/stats-widgets-storage";
 
-const screen = readFileSync(resolve(process.cwd(), "app/(tabs)/stats.tsx"), "utf8");
-const home = readFileSync(resolve(process.cwd(), "app/(tabs)/index.tsx"), "utf8");
+const screen = readFileSync(resolve(process.cwd(), "app/(tabs)/stats.tsx"), "utf8") + readFileSync(resolve(process.cwd(), "lib/i18n/domains/stats.ts"), "utf8");
+const home = readFileSync(resolve(process.cwd(), "app/(tabs)/index.tsx"), "utf8") + readFileSync(resolve(process.cwd(), "lib/i18n/domains/tabs.ts"), "utf8");
 
 describe("stats widgets edit mode", () => {
   it("declares the manageable stats widget catalog in the on-screen order", () => {

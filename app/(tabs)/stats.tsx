@@ -24,6 +24,8 @@ import { useColors } from "@/hooks/use-colors";
 import { useBottomActionInset } from "@/lib/use-bottom-inset";
 import { minTouchTarget, pressedOpacity, radius, shadows, type as typeTokens } from "@/lib/design-tokens";
 import { getExercise, getMonthCalendarDays, shiftCalendarMonth } from "@/lib/workout-data";
+import { useLanguage, type DictKey } from "@/lib/i18n";
+import { exerciseName, muscleGroupLabel } from "@/lib/i18n/exercise-labels";
 import { filterWorkoutsByStatsFilter, getLatestPersonalRecordsByFilter, type StatsFilterMode } from "@/lib/stats-period";
 import { loadStatsPreferences, saveStatsPreferences } from "@/lib/stats-filter-storage";
 import { useWorkoutStore } from "@/lib/workout-store";
@@ -33,6 +35,8 @@ import {
   STATS_WIDGETS,
   loadStatsWidgets,
   saveStatsWidgets,
+  statsWidgetDescription,
+  statsWidgetTitle,
   type StatsWidgetId,
   type StatsWidgetPreferences,
 } from "@/lib/stats-widgets-storage";
@@ -44,21 +48,25 @@ import type { DailyActivityReading } from "@/lib/health-connect";
 import { getActivityStatus, getActivityToday, getActivityWeek, type ActivityProviderStatus } from "@/lib/activity-provider";
 import type { ActivityWeekDay } from "@/lib/health-connect-activity";
 
-const periodOptions: { id: StatsFilterMode; label: string }[] = [
-  { id: "week", label: "Неделя" },
-  { id: "month", label: "Месяц" },
-  { id: "year", label: "Год" },
-  { id: "date", label: "Дата" },
-  { id: "custom", label: "Диапазон" },
-  { id: "last30", label: "30 дней" },
-  { id: "last90", label: "90 дней" },
+// Подписи периодов и дней недели живут в словаре: здесь только идентификаторы.
+const periodOptions: { id: StatsFilterMode; labelKey: DictKey }[] = [
+  { id: "week", labelKey: "stats.period.week" },
+  { id: "month", labelKey: "stats.period.month" },
+  { id: "year", labelKey: "stats.period.year" },
+  { id: "date", labelKey: "stats.period.date" },
+  { id: "custom", labelKey: "stats.period.custom" },
+  { id: "last30", labelKey: "stats.period.last30" },
+  { id: "last90", labelKey: "stats.period.last90" },
 ];
-const weekDays = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
+const WEEKDAY_KEYS = ["stats.weekday.mon", "stats.weekday.tue", "stats.weekday.wed", "stats.weekday.thu", "stats.weekday.fri", "stats.weekday.sat", "stats.weekday.sun"] as const;
 const dateKey = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
-const formatPickerDate = (value: string) => new Date(`${value}T12:00:00`).toLocaleDateString("ru-RU", { day: "numeric", month: "short", year: "numeric" });
+const formatPickerDate = (value: string, locale: string) => new Date(`${value}T12:00:00`).toLocaleDateString(locale, { day: "numeric", month: "short", year: "numeric" });
 
 export default function StatsScreen() {
   const colors = useColors();
+  const { lang, t } = useLanguage();
+  // Даты, поиск и сортировка идут по выбранному языку, а не жёстко по ru-RU.
+  const locale = lang === "en" ? "en-US" : "ru-RU";
   const sheetBottomInset = useBottomActionInset(20);
   const { completed, personalRecords, oneRmFormula } = useWorkoutStore();
   const today = new Date().toISOString().slice(0, 10);
@@ -75,15 +83,15 @@ export default function StatsScreen() {
   const [calendarCursor, setCalendarCursor] = useState(new Date());
   const filter = useMemo(() => ({ mode: period, date: selectedDate, start: rangeStart, end: rangeEnd }), [period, rangeEnd, rangeStart, selectedDate]);
   const periodWorkouts = useMemo(() => filterWorkoutsByStatsFilter(completed, filter), [completed, filter]);
-  const exerciseOptions = useMemo(() => Array.from(new Set(completed.flatMap((workout) => (workout.sets ?? []).map((set) => set.exerciseId)))).map((id) => ({ id, name: getExercise(id)?.name ?? id })).sort((a, b) => a.name.localeCompare(b.name, "ru")), [completed]);
-  const visibleExerciseOptions = useMemo(() => { const query = exerciseQuery.trim().toLocaleLowerCase("ru"); return query ? exerciseOptions.filter((exercise) => exercise.name.toLocaleLowerCase("ru").includes(query)) : exerciseOptions; }, [exerciseOptions, exerciseQuery]);
+  const exerciseOptions = useMemo(() => Array.from(new Set(completed.flatMap((workout) => (workout.sets ?? []).map((set) => set.exerciseId)))).map((id) => ({ id, name: exerciseName(getExercise(id), lang) || id })).sort((a, b) => a.name.localeCompare(b.name, locale)), [completed, lang, locale]);
+  const visibleExerciseOptions = useMemo(() => { const query = exerciseQuery.trim().toLocaleLowerCase(locale); return query ? exerciseOptions.filter((exercise) => exercise.name.toLocaleLowerCase(locale).includes(query)) : exerciseOptions; }, [exerciseOptions, exerciseQuery, locale]);
   const selectedExercise = selectedExerciseId ? exerciseOptions.find((exercise) => exercise.id === selectedExerciseId) : undefined;
   const filteredWorkouts = useMemo(() => selectedExerciseId ? periodWorkouts.filter((workout) => (workout.sets ?? []).some((set) => set.exerciseId === selectedExerciseId)) : periodWorkouts, [periodWorkouts, selectedExerciseId]);
   const recentRecords = useMemo(() => getLatestPersonalRecordsByFilter(personalRecords, filter).filter((record) => !selectedExerciseId || record.exerciseId === selectedExerciseId), [filter, personalRecords, selectedExerciseId]);
   const metrics = useMemo(() => getStatsMetrics(completed, filter, selectedExerciseId), [completed, filter, selectedExerciseId]);
   const periodComparison = useMemo(() => getStatsPeriodComparison(completed, filter, selectedExerciseId), [completed, filter, selectedExerciseId]);
   const oneRmHistory = useMemo(() => selectedExerciseId ? getExercisePersonalRecordHistory(completed, selectedExerciseId, oneRmFormula) : [], [completed, oneRmFormula, selectedExerciseId]);
-  const weeklyCardio = useMemo(() => getWeeklyCardioMinutes(completed), [completed]);
+  const weeklyCardio = useMemo(() => getWeeklyCardioMinutes(completed, undefined, lang), [completed, lang]);
   // Виджет «Активность»: данные читаются провайдером (Google Fit — основной,
   // Health Connect — резерв) один раз при маунте, ошибки не блокируют экран.
   const [activityStatus, setActivityStatus] = useState<ActivityProviderStatus | null>(null);
@@ -111,7 +119,7 @@ export default function StatsScreen() {
     })();
     return () => { mounted = false; };
   }, []);
-  const periodLabel = period === "date" ? selectedDate : period === "custom" ? `${rangeStart} — ${rangeEnd}` : periodOptions.find((option) => option.id === period)?.label.toLocaleLowerCase("ru") ?? "месяц";
+  const periodLabel = period === "date" ? selectedDate : period === "custom" ? `${rangeStart} — ${rangeEnd}` : t(periodOptions.find((option) => option.id === period)?.labelKey ?? "stats.period.fallback").toLocaleLowerCase(locale);
   const calendarDays = useMemo(() => getMonthCalendarDays(calendarCursor.getFullYear(), calendarCursor.getMonth()), [calendarCursor]);
   useEffect(() => { let mounted = true; loadStatsPreferences({ filter, exerciseId: null }).then((saved) => { if (!mounted) return; setPeriod(saved.filter.mode); setSelectedDate(saved.filter.date ?? today); setRangeStart(saved.filter.start ?? today); setRangeEnd(saved.filter.end ?? today); setSelectedExerciseId(saved.exerciseId); setFilterLoaded(true); }); return () => { mounted = false; }; }, []);
   useEffect(() => { if (filterLoaded) void saveStatsPreferences({ filter, exerciseId: selectedExerciseId }); }, [filter, filterLoaded, selectedExerciseId]);
@@ -201,11 +209,11 @@ export default function StatsScreen() {
   };
   const renderStatsWidget = (id: StatsWidgetId) => {
     if (id === "summary")
-      return <View style={styles.bigStats}><Metric icon="dumbbell.fill" iconColor={colors.primary} value={String(metrics.workoutCount)} label={selectedExerciseId ? "сессий" : "тренировок"} colors={colors} /><Metric icon="chart.bar.fill" iconColor={colors.warning} value={`${(metrics.volume / 1000).toFixed(1)}т`} label={selectedExerciseId ? "объём упражнения" : "общий объём"} colors={colors} /><Metric icon="timer" iconColor={colors.success} value={String(metrics.minutes)} label="минут" colors={colors} /></View>;
+      return <View style={styles.bigStats}><Metric icon="dumbbell.fill" iconColor={colors.primary} value={String(metrics.workoutCount)} label={selectedExerciseId ? t("stats.summary.sessions") : t("stats.summary.workouts")} colors={colors} /><Metric icon="chart.bar.fill" iconColor={colors.warning} value={t("stats.summary.volumeValue", { value: (metrics.volume / 1000).toFixed(1) })} label={selectedExerciseId ? t("stats.summary.exerciseVolume") : t("stats.summary.totalVolume")} colors={colors} /><Metric icon="timer" iconColor={colors.success} value={String(metrics.minutes)} label={t("stats.summary.minutes")} colors={colors} /></View>;
     if (id === "comparison")
       return periodComparison ? <PeriodComparison comparison={periodComparison} period={period} colors={colors} /> : null;
     if (id === "oneRm")
-      return selectedExerciseId && selectedExercise ? <OneRmHistoryChart exerciseName={selectedExercise.name} points={oneRmHistory} colors={colors} /> : null;
+      return selectedExerciseId && selectedExercise ? <OneRmHistoryChart exerciseName={exerciseName(selectedExercise, lang)} points={oneRmHistory} colors={colors} /> : null;
     if (id === "cardio")
       return <WeeklyCardioChart points={weeklyCardio} colors={colors} />;
     if (id === "activity")
@@ -213,20 +221,20 @@ export default function StatsScreen() {
     if (id === "progress")
       return <ProgressOverview completed={completed} />;
     if (id === "records")
-      return <View><View style={styles.sectionRow}><View><Text style={[styles.section, { color: colors.foreground }]}>Личные рекорды</Text><Text style={[styles.hint, { color: colors.muted }]}>Последние зафиксированные или обновлённые за {periodLabel}.</Text></View><Text style={[styles.count, { color: colors.muted, fontVariant: ["tabular-nums"] }]}>{recentRecords.length}</Text></View>{recentRecords.length ? recentRecords.map((record) => {
+      return <View><View style={styles.sectionRow}><View><Text style={[styles.section, { color: colors.foreground }]}>{t("stats.records.title")}</Text><Text style={[styles.hint, { color: colors.muted }]}>{t("stats.records.hint", { period: periodLabel })}</Text></View><Text style={[styles.count, { color: colors.muted, fontVariant: ["tabular-nums"] }]}>{recentRecords.length}</Text></View>{recentRecords.length ? recentRecords.map((record) => {
       const exercise = getExercise(record.exerciseId);
-      const date = new Date(record.achievedAt).toLocaleDateString("ru-RU", { day: "numeric", month: "short" });
-      return <View key={record.exerciseId} style={[styles.record, { backgroundColor: colors.surface, borderColor: colors.border }]}><View style={[styles.recordIcon, { backgroundColor: colors.primary + "20" }]}><IconSymbol name="trophy" size={19} color={colors.primary} /></View><View style={{ flex: 1 }}><Text style={[styles.recordName, { color: colors.foreground }]}>{exercise?.name ?? record.exerciseId}</Text><Text style={[styles.recordGroup, { color: colors.muted }]}>{exercise?.group ?? "Упражнение"} · обновлён {date}</Text></View><View style={styles.recordValueWrap}><Text style={[styles.recordValue, { color: colors.foreground, fontVariant: ["tabular-nums"] }]}>{record.weight} кг × {record.reps}</Text><Text style={[styles.oneRm, { color: colors.primary, fontVariant: ["tabular-nums"] }]}>1RM {record.estimatedOneRepMax.toFixed(1)} кг</Text></View></View>;
-    }) : <View style={[styles.empty, { backgroundColor: colors.surface, borderColor: colors.border }]}><IconSymbol name="trophy" size={22} color={colors.muted} /><Text style={[styles.emptyTitle, { color: colors.foreground }]}>Нет обновлений за этот период</Text><Text style={[styles.emptyText, { color: colors.muted }]}>Завершите тренировку с новым результатом, и он появится здесь.</Text></View>}</View>;
+      const date = new Date(record.achievedAt).toLocaleDateString(locale, { day: "numeric", month: "short" });
+      return <View key={record.exerciseId} style={[styles.record, { backgroundColor: colors.surface, borderColor: colors.border }]}><View style={[styles.recordIcon, { backgroundColor: colors.primary + "20" }]}><IconSymbol name="trophy" size={19} color={colors.primary} /></View><View style={{ flex: 1 }}><Text style={[styles.recordName, { color: colors.foreground }]}>{exerciseName(exercise, lang) || record.exerciseId}</Text><Text style={[styles.recordGroup, { color: colors.muted }]}>{t("stats.records.meta", { group: muscleGroupLabel(exercise?.group, lang) || t("stats.records.groupFallback"), date })}</Text></View><View style={styles.recordValueWrap}><Text style={[styles.recordValue, { color: colors.foreground, fontVariant: ["tabular-nums"] }]}>{t("stats.records.weightReps", { weight: record.weight, reps: record.reps })}</Text><Text style={[styles.oneRm, { color: colors.primary, fontVariant: ["tabular-nums"] }]}>{t("stats.records.oneRm", { value: record.estimatedOneRepMax.toFixed(1) })}</Text></View></View>;
+    }) : <View style={[styles.empty, { backgroundColor: colors.surface, borderColor: colors.border }]}><IconSymbol name="trophy" size={22} color={colors.muted} /><Text style={[styles.emptyTitle, { color: colors.foreground }]}>{t("stats.records.emptyTitle")}</Text><Text style={[styles.emptyText, { color: colors.muted }]}>{t("stats.records.emptyText")}</Text></View>}</View>;
     return null;
   };
 
   return <ScreenContainer className="px-5" containerClassName="bg-background"><ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
-    <View style={[styles.topRow, { borderBottomColor: colors.border }]}><View><Text style={[styles.eyebrow, { color: colors.primary }]}>Анализ прогресса</Text><Text style={[styles.title, { color: colors.foreground }]}>Статистика</Text></View><View style={styles.headerActions}><Pressable onPress={() => setEditMode((current) => !current)} accessibilityRole="button" accessibilityLabel={editMode ? "Завершить редактирование виджетов" : "Редактировать виджеты статистики"} style={({ pressed }) => [styles.editButton, { borderColor: editMode ? colors.primary : colors.border, backgroundColor: editMode ? `${colors.primary}18` : colors.surface, opacity: pressed ? pressedOpacity : 1 }]}><Text style={[styles.editButtonText, { color: editMode ? colors.primary : colors.foreground }]}>{editMode ? "Готово" : "Редактировать"}</Text></Pressable><Pressable onPress={() => router.push("/(tabs)/settings")} style={({ pressed }) => [styles.settingsButton, { backgroundColor: colors.surface, opacity: pressed ? pressedOpacity : 1 }]}><IconSymbol name="gearshape" size={21} color={colors.foreground} /></Pressable></View></View>
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={[styles.filters, { backgroundColor: colors.surface, borderColor: colors.border }]}>{periodOptions.map((option) => <Pressable key={option.id} onPress={() => setPeriod(option.id)} style={({ pressed }) => [styles.filter, { minWidth: option.id === "custom" ? 92 : option.id.startsWith("last") ? 86 : 73, backgroundColor: period === option.id ? colors.primary : "transparent", opacity: pressed ? pressedOpacity : 1 }]}><Text style={[styles.filterText, { color: period === option.id ? colors.background : colors.muted }]}>{option.label}</Text></Pressable>)}</ScrollView>
-    <View style={[styles.exerciseFilterCard, { backgroundColor: colors.surface, borderColor: colors.border }]}><View style={{ flex: 1 }}><Text style={[styles.exerciseFilterLabel, { color: colors.muted }]}>УПРАЖНЕНИЕ</Text><Text style={[styles.exerciseFilterValue, { color: colors.foreground }]}>{selectedExercise?.name ?? "Все упражнения"}</Text></View><Pressable onPress={() => { setExerciseQuery(""); setExercisePickerOpen(true); }} style={({ pressed }) => [styles.exerciseFilterButton, { borderColor: colors.primary, opacity: pressed ? pressedOpacity : 1 }]}><Text style={[styles.exerciseFilterButtonText, { color: colors.primary }]}>Выбрать</Text></Pressable>{selectedExerciseId && <Pressable onPress={() => setSelectedExerciseId(null)} style={({ pressed }) => [styles.clearExercise, { opacity: pressed ? pressedOpacity : 1 }]}><Text style={[styles.clearExerciseText, { color: colors.error }]}>Сбросить</Text></Pressable>}</View>
-    {period === "date" && <View style={[styles.dateForm, { backgroundColor: colors.surface, borderColor: colors.border }]}><Text style={[styles.dateLabel, { color: colors.muted }]}>КОНКРЕТНАЯ ДАТА</Text><Pressable onPress={() => openCalendar("date")} style={({ pressed }) => [styles.calendarField, { backgroundColor: colors.background, borderColor: colors.border, opacity: pressed ? pressedOpacity : 1 }]}><IconSymbol name="calendar" size={17} color={colors.primary} /><Text style={[styles.calendarFieldText, { color: colors.foreground }]}>{formatPickerDate(selectedDate)}</Text><IconSymbol name="chevron.right" size={16} color={colors.muted} /></Pressable></View>}
-    {period === "custom" && <View style={[styles.dateForm, { backgroundColor: colors.surface, borderColor: colors.border }]}><Text style={[styles.dateLabel, { color: colors.muted }]}>ПОЛЬЗОВАТЕЛЬСКИЙ ДИАПАЗОН</Text><View style={styles.rangeCalendarFields}><Pressable onPress={() => openCalendar("start")} style={({ pressed }) => [styles.rangeCalendarField, { backgroundColor: colors.background, borderColor: colors.border, opacity: pressed ? pressedOpacity : 1 }]}><Text style={[styles.rangeFieldCaption, { color: colors.muted }]}>ОТ</Text><Text style={[styles.rangeFieldValue, { color: colors.foreground }]}>{formatPickerDate(rangeStart)}</Text></Pressable><Pressable onPress={() => openCalendar("end")} style={({ pressed }) => [styles.rangeCalendarField, { backgroundColor: colors.background, borderColor: colors.border, opacity: pressed ? pressedOpacity : 1 }]}><Text style={[styles.rangeFieldCaption, { color: colors.muted }]}>ДО</Text><Text style={[styles.rangeFieldValue, { color: colors.foreground }]}>{formatPickerDate(rangeEnd)}</Text></Pressable></View><Text style={[styles.rangeHint, { color: colors.muted }]}>Нажмите дату, чтобы выбрать её в календаре.</Text></View>}
+    <View style={[styles.topRow, { borderBottomColor: colors.border }]}><View><Text style={[styles.eyebrow, { color: colors.primary }]}>{t("stats.header.eyebrow")}</Text><Text style={[styles.title, { color: colors.foreground }]}>{t("stats.header.title")}</Text></View><View style={styles.headerActions}><Pressable onPress={() => setEditMode((current) => !current)} accessibilityRole="button" accessibilityLabel={editMode ? t("stats.header.editDoneA11y") : t("stats.header.editA11y")} style={({ pressed }) => [styles.editButton, { borderColor: editMode ? colors.primary : colors.border, backgroundColor: editMode ? `${colors.primary}18` : colors.surface, opacity: pressed ? pressedOpacity : 1 }]}><Text style={[styles.editButtonText, { color: editMode ? colors.primary : colors.foreground }]}>{editMode ? t("stats.header.editDone") : t("stats.header.edit")}</Text></Pressable><Pressable onPress={() => router.push("/(tabs)/settings")} style={({ pressed }) => [styles.settingsButton, { backgroundColor: colors.surface, opacity: pressed ? pressedOpacity : 1 }]}><IconSymbol name="gearshape" size={21} color={colors.foreground} /></Pressable></View></View>
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={[styles.filters, { backgroundColor: colors.surface, borderColor: colors.border }]}>{periodOptions.map((option) => <Pressable key={option.id} onPress={() => setPeriod(option.id)} style={({ pressed }) => [styles.filter, { minWidth: option.id === "custom" ? 92 : option.id.startsWith("last") ? 86 : 73, backgroundColor: period === option.id ? colors.primary : "transparent", opacity: pressed ? pressedOpacity : 1 }]}><Text style={[styles.filterText, { color: period === option.id ? colors.background : colors.muted }]}>{t(option.labelKey)}</Text></Pressable>)}</ScrollView>
+    <View style={[styles.exerciseFilterCard, { backgroundColor: colors.surface, borderColor: colors.border }]}><View style={{ flex: 1 }}><Text style={[styles.exerciseFilterLabel, { color: colors.muted }]}>{t("stats.exerciseFilter.label")}</Text><Text style={[styles.exerciseFilterValue, { color: colors.foreground }]}>{selectedExercise ? selectedExercise.name : t("stats.exerciseFilter.all")}</Text></View><Pressable onPress={() => { setExerciseQuery(""); setExercisePickerOpen(true); }} style={({ pressed }) => [styles.exerciseFilterButton, { borderColor: colors.primary, opacity: pressed ? pressedOpacity : 1 }]}><Text style={[styles.exerciseFilterButtonText, { color: colors.primary }]}>{t("stats.exerciseFilter.choose")}</Text></Pressable>{selectedExerciseId && <Pressable onPress={() => setSelectedExerciseId(null)} style={({ pressed }) => [styles.clearExercise, { opacity: pressed ? pressedOpacity : 1 }]}><Text style={[styles.clearExerciseText, { color: colors.error }]}>{t("stats.exerciseFilter.clear")}</Text></Pressable>}</View>
+    {period === "date" && <View style={[styles.dateForm, { backgroundColor: colors.surface, borderColor: colors.border }]}><Text style={[styles.dateLabel, { color: colors.muted }]}>{t("stats.dateForm.singleLabel")}</Text><Pressable onPress={() => openCalendar("date")} style={({ pressed }) => [styles.calendarField, { backgroundColor: colors.background, borderColor: colors.border, opacity: pressed ? pressedOpacity : 1 }]}><IconSymbol name="calendar" size={17} color={colors.primary} /><Text style={[styles.calendarFieldText, { color: colors.foreground }]}>{formatPickerDate(selectedDate, locale)}</Text><IconSymbol name="chevron.right" size={16} color={colors.muted} /></Pressable></View>}
+    {period === "custom" && <View style={[styles.dateForm, { backgroundColor: colors.surface, borderColor: colors.border }]}><Text style={[styles.dateLabel, { color: colors.muted }]}>{t("stats.dateForm.rangeLabel")}</Text><View style={styles.rangeCalendarFields}><Pressable onPress={() => openCalendar("start")} style={({ pressed }) => [styles.rangeCalendarField, { backgroundColor: colors.background, borderColor: colors.border, opacity: pressed ? pressedOpacity : 1 }]}><Text style={[styles.rangeFieldCaption, { color: colors.muted }]}>{t("stats.dateForm.from")}</Text><Text style={[styles.rangeFieldValue, { color: colors.foreground }]}>{formatPickerDate(rangeStart, locale)}</Text></Pressable><Pressable onPress={() => openCalendar("end")} style={({ pressed }) => [styles.rangeCalendarField, { backgroundColor: colors.background, borderColor: colors.border, opacity: pressed ? pressedOpacity : 1 }]}><Text style={[styles.rangeFieldCaption, { color: colors.muted }]}>{t("stats.dateForm.to")}</Text><Text style={[styles.rangeFieldValue, { color: colors.foreground }]}>{formatPickerDate(rangeEnd, locale)}</Text></Pressable></View><Text style={[styles.rangeHint, { color: colors.muted }]}>{t("stats.dateForm.rangeHint")}</Text></View>}
     {widgetsLoaded && editMode && !widgetPrefs.dragHintSeen && <StatsDragHint colors={colors} onDismiss={dismissStatsDragHint} />}
     {displayedWidgetIds.map((id, index) => {
       const content = renderStatsWidget(id);
@@ -254,13 +262,14 @@ export default function StatsScreen() {
         </DraggableStatsWidget>
       );
     })}
-    {editMode && <View style={[styles.hiddenWidgetsCard, { backgroundColor: colors.surface, borderColor: colors.border }]}><Text style={[styles.hiddenWidgetsTitle, { color: colors.foreground }]}>Скрытые виджеты</Text><Text style={[styles.hiddenWidgetsHint, { color: colors.muted }]}>Скрытые блоки не показываются на экране, вернуть можно в любой момент.</Text>{widgetPrefs.hidden.length ? widgetPrefs.hidden.map((id) => { const meta = STATS_WIDGETS.find((widget) => widget.id === id); return <View key={id} style={[styles.hiddenWidgetRow, { borderColor: colors.border }]}><View style={{ flex: 1 }}><Text style={[styles.hiddenWidgetTitle, { color: colors.foreground }]}>{meta?.title ?? id}</Text><Text style={[styles.hiddenWidgetDescription, { color: colors.muted }]}>{meta?.description}</Text></View><Pressable onPress={() => restoreStatsWidget(id)} accessibilityRole="button" accessibilityLabel={`Вернуть виджет «${meta?.title ?? id}»`} style={({ pressed }) => [styles.restoreButton, { borderColor: colors.primary, opacity: pressed ? pressedOpacity : 1 }]}><Text style={[styles.restoreButtonText, { color: colors.primary }]}>Вернуть</Text></Pressable></View>; }) : <Text style={[styles.hiddenWidgetEmpty, { color: colors.muted }]}>Скрытых виджетов нет — все блоки на месте.</Text>}</View>}
-  <Modal visible={exercisePickerOpen} transparent animationType="slide" onRequestClose={() => setExercisePickerOpen(false)}><View style={styles.backdrop}><View style={[styles.exerciseSheet, { backgroundColor: colors.background, paddingBottom: sheetBottomInset }]}><View style={styles.pickerHeader}><View><Text style={[styles.pickerTitle, { color: colors.foreground }]}>Фильтр упражнения</Text><Text style={[styles.pickerSubtitle, { color: colors.muted }]}>Показывает объём и рекорды выбранного движения.</Text></View><Pressable onPress={() => setExercisePickerOpen(false)} style={[styles.pickerClose, { backgroundColor: colors.surface }]}><Text style={[styles.pickerCloseText, { color: colors.foreground }]}>×</Text></Pressable></View><View style={[styles.exerciseSearch, { backgroundColor: colors.surface, borderColor: colors.border }]}><IconSymbol name="magnifyingglass" size={18} color={colors.muted} /><TextInput value={exerciseQuery} onChangeText={setExerciseQuery} placeholder="Поиск упражнения" placeholderTextColor={colors.muted} autoFocus style={[styles.exerciseSearchInput, { color: colors.foreground }]} /></View><ScrollView contentContainerStyle={styles.exerciseOptions}>{visibleExerciseOptions.map((exercise) => { const selected = exercise.id === selectedExerciseId; return <Pressable key={exercise.id} onPress={() => { setSelectedExerciseId(exercise.id); setExercisePickerOpen(false); }} style={[styles.exerciseOption, { backgroundColor: selected ? `${colors.primary}18` : colors.surface, borderColor: selected ? colors.primary : colors.border }]}><Text style={[styles.exerciseOptionText, { color: colors.foreground }]}>{exercise.name}</Text>{selected && <IconSymbol name="checkmark" size={18} color={colors.primary} />}</Pressable>; })}</ScrollView><Pressable onPress={() => { setSelectedExerciseId(null); setExercisePickerOpen(false); }} style={[styles.clearAllExercises, { borderColor: colors.border }]}><Text style={[styles.clearAllExercisesText, { color: colors.foreground }]}>Показать все упражнения</Text></Pressable></View></View></Modal>
-  <Modal visible={calendarOpen} transparent animationType="slide" onRequestClose={() => setCalendarOpen(false)}><View style={styles.backdrop}><View style={[styles.calendarSheet, { backgroundColor: colors.background, paddingBottom: sheetBottomInset }]}><View style={styles.pickerHeader}><View><Text style={[styles.pickerTitle, { color: colors.foreground }]}>{pickerTarget === "date" ? "Выберите дату" : pickerTarget === "start" ? "Начало диапазона" : "Конец диапазона"}</Text><Text style={[styles.pickerSubtitle, { color: colors.muted }]}>Статистика будет пересчитана автоматически</Text></View><Pressable onPress={() => setCalendarOpen(false)} style={[styles.pickerClose, { backgroundColor: colors.surface }]}><Text style={[styles.pickerCloseText, { color: colors.foreground }]}>×</Text></Pressable></View><View style={styles.pickerMonth}><Pressable onPress={() => setCalendarCursor((current) => shiftCalendarMonth(current, -1))}><IconSymbol name="chevron.left" size={22} color={colors.foreground} /></Pressable><Text style={[styles.pickerMonthText, { color: colors.foreground }]}>{calendarCursor.toLocaleDateString("ru-RU", { month: "long", year: "numeric" })}</Text><Pressable onPress={() => setCalendarCursor((current) => shiftCalendarMonth(current, 1))}><IconSymbol name="chevron.right" size={22} color={colors.foreground} /></Pressable></View><View style={styles.weekdays}>{weekDays.map((day) => <Text key={day} style={[styles.weekday, { color: colors.muted }]}>{day}</Text>)}</View><View style={styles.calendarGrid}>{calendarDays.map((day) => { const key = dateKey(day); const active = pickerTarget === "date" ? key === selectedDate : pickerTarget === "start" ? key === rangeStart : key === rangeEnd; const inMonth = day.getMonth() === calendarCursor.getMonth(); return <Pressable key={key} onPress={() => selectCalendarDate(key)} style={[styles.calendarDay, active && { backgroundColor: colors.primary }]}><Text style={{ color: active ? "#101412" : inMonth ? colors.foreground : colors.muted, fontWeight: active ? "900" : "700" }}>{day.getDate()}</Text></Pressable>; })}</View></View></View></Modal>
+    {editMode && <View style={[styles.hiddenWidgetsCard, { backgroundColor: colors.surface, borderColor: colors.border }]}><Text style={[styles.hiddenWidgetsTitle, { color: colors.foreground }]}>{t("stats.hidden.title")}</Text><Text style={[styles.hiddenWidgetsHint, { color: colors.muted }]}>{t("stats.hidden.hint")}</Text>{widgetPrefs.hidden.length ? widgetPrefs.hidden.map((id) => { const meta = STATS_WIDGETS.find((widget) => widget.id === id); return <View key={id} style={[styles.hiddenWidgetRow, { borderColor: colors.border }]}><View style={{ flex: 1 }}><Text style={[styles.hiddenWidgetTitle, { color: colors.foreground }]}>{statsWidgetTitle(meta, lang) || id}</Text><Text style={[styles.hiddenWidgetDescription, { color: colors.muted }]}>{statsWidgetDescription(meta, lang)}</Text></View><Pressable onPress={() => restoreStatsWidget(id)} accessibilityRole="button" accessibilityLabel={t("stats.hidden.restoreA11y", { title: statsWidgetTitle(meta, lang) || id })} style={({ pressed }) => [styles.restoreButton, { borderColor: colors.primary, opacity: pressed ? pressedOpacity : 1 }]}><Text style={[styles.restoreButtonText, { color: colors.primary }]}>{t("stats.hidden.restore")}</Text></Pressable></View>; }) : <Text style={[styles.hiddenWidgetEmpty, { color: colors.muted }]}>{t("stats.hidden.empty")}</Text>}</View>}
+  <Modal visible={exercisePickerOpen} transparent animationType="slide" onRequestClose={() => setExercisePickerOpen(false)}><View style={styles.backdrop}><View style={[styles.exerciseSheet, { backgroundColor: colors.background, paddingBottom: sheetBottomInset }]}><View style={styles.pickerHeader}><View><Text style={[styles.pickerTitle, { color: colors.foreground }]}>{t("stats.exercisePicker.title")}</Text><Text style={[styles.pickerSubtitle, { color: colors.muted }]}>{t("stats.exercisePicker.hint")}</Text></View><Pressable onPress={() => setExercisePickerOpen(false)} style={[styles.pickerClose, { backgroundColor: colors.surface }]}><Text style={[styles.pickerCloseText, { color: colors.foreground }]}>×</Text></Pressable></View><View style={[styles.exerciseSearch, { backgroundColor: colors.surface, borderColor: colors.border }]}><IconSymbol name="magnifyingglass" size={18} color={colors.muted} /><TextInput value={exerciseQuery} onChangeText={setExerciseQuery} placeholder={t("stats.exercisePicker.searchPlaceholder")} placeholderTextColor={colors.muted} autoFocus style={[styles.exerciseSearchInput, { color: colors.foreground }]} /></View><ScrollView contentContainerStyle={styles.exerciseOptions}>{visibleExerciseOptions.map((exercise) => { const selected = exercise.id === selectedExerciseId; return <Pressable key={exercise.id} onPress={() => { setSelectedExerciseId(exercise.id); setExercisePickerOpen(false); }} style={[styles.exerciseOption, { backgroundColor: selected ? `${colors.primary}18` : colors.surface, borderColor: selected ? colors.primary : colors.border }]}><Text style={[styles.exerciseOptionText, { color: colors.foreground }]}>{exercise.name}</Text>{selected && <IconSymbol name="checkmark" size={18} color={colors.primary} />}</Pressable>; })}</ScrollView><Pressable onPress={() => { setSelectedExerciseId(null); setExercisePickerOpen(false); }} style={[styles.clearAllExercises, { borderColor: colors.border }]}><Text style={[styles.clearAllExercisesText, { color: colors.foreground }]}>{t("stats.exercisePicker.showAll")}</Text></Pressable></View></View></Modal>
+  <Modal visible={calendarOpen} transparent animationType="slide" onRequestClose={() => setCalendarOpen(false)}><View style={styles.backdrop}><View style={[styles.calendarSheet, { backgroundColor: colors.background, paddingBottom: sheetBottomInset }]}><View style={styles.pickerHeader}><View><Text style={[styles.pickerTitle, { color: colors.foreground }]}>{pickerTarget === "date" ? t("stats.calendarSheet.titleDate") : pickerTarget === "start" ? t("stats.calendarSheet.titleStart") : t("stats.calendarSheet.titleEnd")}</Text><Text style={[styles.pickerSubtitle, { color: colors.muted }]}>{t("stats.calendarSheet.hint")}</Text></View><Pressable onPress={() => setCalendarOpen(false)} style={[styles.pickerClose, { backgroundColor: colors.surface }]}><Text style={[styles.pickerCloseText, { color: colors.foreground }]}>×</Text></Pressable></View><View style={styles.pickerMonth}><Pressable onPress={() => setCalendarCursor((current) => shiftCalendarMonth(current, -1))}><IconSymbol name="chevron.left" size={22} color={colors.foreground} /></Pressable><Text style={[styles.pickerMonthText, { color: colors.foreground }]}>{calendarCursor.toLocaleDateString(locale, { month: "long", year: "numeric" })}</Text><Pressable onPress={() => setCalendarCursor((current) => shiftCalendarMonth(current, 1))}><IconSymbol name="chevron.right" size={22} color={colors.foreground} /></Pressable></View><View style={styles.weekdays}>{WEEKDAY_KEYS.map((dayKey) => <Text key={dayKey} style={[styles.weekday, { color: colors.muted }]}>{t(dayKey)}</Text>)}</View><View style={styles.calendarGrid}>{calendarDays.map((day) => { const key = dateKey(day); const active = pickerTarget === "date" ? key === selectedDate : pickerTarget === "start" ? key === rangeStart : key === rangeEnd; const inMonth = day.getMonth() === calendarCursor.getMonth(); return <Pressable key={key} onPress={() => selectCalendarDate(key)} style={[styles.calendarDay, active && { backgroundColor: colors.primary }]}><Text style={{ color: active ? "#101412" : inMonth ? colors.foreground : colors.muted, fontWeight: active ? "900" : "700" }}>{day.getDate()}</Text></Pressable>; })}</View></View></View></Modal>
   </ScrollView></ScreenContainer>;
 }
 
 function DraggableStatsWidget({ id, index, total, dragging, editing, colors, onDragStart, onDragMove, onDragEnd, onHide, children }: { id: StatsWidgetId; index: number; total: number; dragging: boolean; editing: boolean; colors: any; onDragStart: () => void; onDragMove: (index: number) => void; onDragEnd: (index: number) => void; onHide: () => void; children: React.ReactNode }) {
+  const { lang, t } = useLanguage();
   const currentTargetRef = useMemo(() => ({ value: index }), [index]);
   const lift = useRef(new Animated.Value(0)).current;
   useEffect(() => {
@@ -306,12 +315,12 @@ function DraggableStatsWidget({ id, index, total, dragging, editing, colors, onD
       ]}
     >
       <View pointerEvents={editing ? "none" : "box-none"}>{children}</View>
-      {editing && <Pressable onPress={onHide} accessibilityRole="button" accessibilityLabel={`Скрыть виджет «${STATS_WIDGETS.find((widget) => widget.id === id)?.title ?? id}»`} style={[styles.widgetHideButton, { backgroundColor: colors.background, borderColor: colors.border }]}><Text style={[styles.widgetHideText, { color: colors.muted }]}>×</Text></Pressable>}
+      {editing && <Pressable onPress={onHide} accessibilityRole="button" accessibilityLabel={t("stats.hidden.hideA11y", { title: statsWidgetTitle(STATS_WIDGETS.find((widget) => widget.id === id), lang) || id })} style={[styles.widgetHideButton, { backgroundColor: colors.background, borderColor: colors.border }]}><Text style={[styles.widgetHideText, { color: colors.muted }]}>×</Text></Pressable>}
       {editing && (
         <View
           pointerEvents="box-only"
           accessibilityRole="adjustable"
-          accessibilityLabel="Перетащить виджет"
+          accessibilityLabel={t("stats.widget.handleA11y")}
           style={[
             styles.widgetHandle,
             {
@@ -329,15 +338,16 @@ function DraggableStatsWidget({ id, index, total, dragging, editing, colors, onD
 }
 
 function StatsDragHint({ colors, onDismiss }: { colors: any; onDismiss: () => void }) {
+  const { t } = useLanguage();
   return (
     <Modal transparent animationType="fade" visible onRequestClose={onDismiss}>
       <View style={styles.hintBackdrop}>
         <View style={[styles.hintCard, { backgroundColor: colors.background, borderColor: colors.primary }]}>
-          <Text style={[styles.hintEyebrow, { color: colors.primary }]}>НАСТРОЙТЕ СТАТИСТИКУ ПОД СЕБЯ</Text>
-          <Text style={[styles.hintTitle, { color: colors.foreground }]}>Перемещайте виджеты</Text>
-          <Text style={[styles.hintText, { color: colors.muted }]}>Зажмите маркер ⠿ на карточке и потяните её вверх или вниз. Кнопка × скрывает ненужный блок — вернуть его можно в списке «Скрытые виджеты». Новый порядок сохранится автоматически.</Text>
+          <Text style={[styles.hintEyebrow, { color: colors.primary }]}>{t("stats.dragHint.eyebrow")}</Text>
+          <Text style={[styles.hintTitle, { color: colors.foreground }]}>{t("stats.dragHint.title")}</Text>
+          <Text style={[styles.hintText, { color: colors.muted }]}>{t("stats.dragHint.text")}</Text>
           <Pressable onPress={onDismiss} style={({ pressed }) => [styles.hintButton, { backgroundColor: colors.primary, opacity: pressed ? pressedOpacity : 1 }]}>
-            <Text style={[styles.hintButtonText, { color: colors.background }]}>ПОНЯТНО</Text>
+            <Text style={[styles.hintButtonText, { color: colors.background }]}>{t("stats.dragHint.cta")}</Text>
           </Pressable>
         </View>
       </View>
@@ -348,12 +358,15 @@ function StatsDragHint({ colors, onDismiss }: { colors: any; onDismiss: () => vo
 function Metric({ icon, iconColor, value, label, colors }: { icon: any; iconColor: string; value: string; label: string; colors: any }) { return <View style={[styles.bigCard, { backgroundColor: colors.surface, borderColor: colors.border, borderLeftColor: iconColor, borderLeftWidth: 3, borderRadius: radius.card }, shadows.card]}><IconSymbol name={icon} size={20} color={iconColor} /><Text style={[styles.bigValue, { color: colors.foreground, fontVariant: ["tabular-nums"] }]}>{value}</Text><Text style={[styles.bigLabel, { color: colors.muted }]}>{label}</Text></View>; }
 
 function WeeklyCardioChart({ points, colors }: { points: ReturnType<typeof getWeeklyCardioMinutes>; colors: any }) {
+  const { t } = useLanguage();
   const max = Math.max(1, ...points.map((point) => point.minutes));
   const total = points.reduce((sum, point) => sum + point.minutes, 0);
-  return <View style={[styles.cardioChart, { backgroundColor: colors.surface, borderColor: colors.border }]}><View style={styles.cardioChartHeader}><View><Text style={[styles.cardioChartTitle, { color: colors.foreground }]}>КАРДИО · 7 ДНЕЙ</Text><Text style={[styles.cardioChartHint, { color: colors.muted }]}>Время кардио по дням недели</Text></View><Text style={[styles.cardioChartTotal, { color: colors.primary }]}>{total} МИН</Text></View><Svg width="100%" height={132} viewBox="0 0 328 132"><Line x1="18" x2="316" y1="103" y2="103" stroke={colors.border} strokeWidth="1" />{points.map((point, index) => { const height = point.minutes ? Math.max(5, (point.minutes / max) * 76) : 2; const x = 25 + index * 43; return <Fragment key={point.date}><Rect x={x} y={103 - height} width="25" height={height} fill={point.minutes ? colors.primary : colors.border} /><SvgText x={x + 12} y="121" textAnchor="middle" fill={colors.muted} fontSize="9" fontWeight="800">{point.label}</SvgText>{point.minutes > 0 && <SvgText x={x + 12} y={96 - height} textAnchor="middle" fill={colors.foreground} fontSize="9" fontWeight="900">{point.minutes}</SvgText>}</Fragment>; })}</Svg></View>;
+  return <View style={[styles.cardioChart, { backgroundColor: colors.surface, borderColor: colors.border }]}><View style={styles.cardioChartHeader}><View><Text style={[styles.cardioChartTitle, { color: colors.foreground }]}>{t("stats.cardio.title")}</Text><Text style={[styles.cardioChartHint, { color: colors.muted }]}>{t("stats.cardio.hint")}</Text></View><Text style={[styles.cardioChartTotal, { color: colors.primary }]}>{t("stats.cardio.total", { total })}</Text></View><Svg width="100%" height={132} viewBox="0 0 328 132"><Line x1="18" x2="316" y1="103" y2="103" stroke={colors.border} strokeWidth="1" />{points.map((point, index) => { const height = point.minutes ? Math.max(5, (point.minutes / max) * 76) : 2; const x = 25 + index * 43; return <Fragment key={point.date}><Rect x={x} y={103 - height} width="25" height={height} fill={point.minutes ? colors.primary : colors.border} /><SvgText x={x + 12} y="121" textAnchor="middle" fill={colors.muted} fontSize="9" fontWeight="800">{point.label}</SvgText>{point.minutes > 0 && <SvgText x={x + 12} y={96 - height} textAnchor="middle" fill={colors.foreground} fontSize="9" fontWeight="900">{point.minutes}</SvgText>}</Fragment>; })}</Svg></View>;
 }
 
 function ActivityTodayCard({ status, day, week, loaded, colors }: { status: ActivityProviderStatus | null; day: DailyActivityReading | null; week: ActivityWeekDay[]; loaded: boolean; colors: any }) {
+  const { lang, t } = useLanguage();
+  const locale = lang === "en" ? "en-US" : "ru-RU";
   const fromGoogleFit = status?.source === "google-fit";
   const sourceLabel = fromGoogleFit ? "Google Fit" : "Health Connect";
   const connected = Boolean(status?.connected);
@@ -361,51 +374,51 @@ function ActivityTodayCard({ status, day, week, loaded, colors }: { status: Acti
   const heartRate = day?.heartRate;
   const maxSteps = Math.max(1, ...week.map((entry) => entry.steps));
   const todayISO = week.at(-1)?.dateISO;
-  const formatCount = (value: number) => Math.round(value).toLocaleString("ru-RU");
-  const weekLabel = (dateISO: string) => new Date(`${dateISO}T12:00:00`).toLocaleDateString("ru-RU", { weekday: "short" }).replace(/^./, (char) => char.toLocaleUpperCase("ru"));
+  const formatCount = (value: number) => Math.round(value).toLocaleString(locale);
+  const weekLabel = (dateISO: string) => new Date(`${dateISO}T12:00:00`).toLocaleDateString(locale, { weekday: "short" }).replace(/^./, (char) => char.toLocaleUpperCase(locale));
   return (
     <View style={[styles.activityCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
       <View style={styles.activityHeader}>
         <View style={{ flex: 1 }}>
-          <Text style={[styles.activityTitle, { color: colors.foreground }]}>Активность · сегодня</Text>
-          <Text style={[styles.activityHint, { color: colors.muted }]}>Шаги, калории и пульс из {sourceLabel}</Text>
+          <Text style={[styles.activityTitle, { color: colors.foreground }]}>{t("stats.activity.title")}</Text>
+          <Text style={[styles.activityHint, { color: colors.muted }]}>{t("stats.activity.hint", { source: sourceLabel })}</Text>
         </View>
         <View style={[styles.activityBadge, { backgroundColor: `${colors.primary}18` }]}><Text style={[styles.activityBadgeText, { color: colors.primary }]}>{fromGoogleFit ? "GF" : "HC"}</Text></View>
       </View>
       {!loaded ? (
-        <View style={[styles.activityEmpty, { borderColor: colors.border }]}><Text style={[styles.activityEmptyText, { color: colors.muted }]}>Загружаем данные {sourceLabel}…</Text></View>
+        <View style={[styles.activityEmpty, { borderColor: colors.border }]}><Text style={[styles.activityEmptyText, { color: colors.muted }]}>{t("stats.activity.loading", { source: sourceLabel })}</Text></View>
       ) : !connected ? (
         <View style={[styles.activityEmpty, { borderColor: colors.border }]}>
-          <Text style={[styles.activityEmptyTitle, { color: colors.foreground }]}>{sourceLabel} не подключён</Text>
+          <Text style={[styles.activityEmptyTitle, { color: colors.foreground }]}>{t("stats.activity.notConnected", { source: sourceLabel })}</Text>
           {fromGoogleFit ? (
             <>
-              <Text style={[styles.activityEmptyText, { color: colors.muted }]}>Подключите Google Fit в настройках — он основной источник данных, Health Connect остаётся резервом.</Text>
-              <Pressable onPress={() => router.push("/(tabs)/settings")} accessibilityRole="button" accessibilityLabel="Подключить Google Fit в настройках" style={({ pressed }) => [styles.activityConnectButton, { borderColor: colors.primary, opacity: pressed ? pressedOpacity : 1 }]}>
-                <Text style={[styles.activityConnectButtonText, { color: colors.primary }]}>Подключить Google Fit</Text>
+              <Text style={[styles.activityEmptyText, { color: colors.muted }]}>{t("stats.activity.googleFitHint")}</Text>
+              <Pressable onPress={() => router.push("/(tabs)/settings")} accessibilityRole="button" accessibilityLabel={t("stats.activity.googleFitConnectA11y")} style={({ pressed }) => [styles.activityConnectButton, { borderColor: colors.primary, opacity: pressed ? pressedOpacity : 1 }]}>
+                <Text style={[styles.activityConnectButtonText, { color: colors.primary }]}>{t("stats.activity.googleFitConnect")}</Text>
               </Pressable>
             </>
           ) : (
             <>
-              <Text style={[styles.activityEmptyText, { color: colors.muted }]}>Разрешите IronRise читать активность и пульс — данные приходят из приложения «Здоровье».</Text>
-              <Pressable onPress={() => router.push("/(tabs)/settings")} accessibilityRole="button" accessibilityLabel="Настроить Health Connect в настройках" style={({ pressed }) => [styles.activityConnectButton, { borderColor: colors.primary, opacity: pressed ? pressedOpacity : 1 }]}>
-                <Text style={[styles.activityConnectButtonText, { color: colors.primary }]}>Настроить Health Connect</Text>
+              <Text style={[styles.activityEmptyText, { color: colors.muted }]}>{t("stats.activity.healthConnectHint")}</Text>
+              <Pressable onPress={() => router.push("/(tabs)/settings")} accessibilityRole="button" accessibilityLabel={t("stats.activity.healthConnectSetupA11y")} style={({ pressed }) => [styles.activityConnectButton, { borderColor: colors.primary, opacity: pressed ? pressedOpacity : 1 }]}>
+                <Text style={[styles.activityConnectButtonText, { color: colors.primary }]}>{t("stats.activity.healthConnectSetup")}</Text>
               </Pressable>
             </>
           )}
         </View>
       ) : !hasDayData ? (
         <View style={[styles.activityEmpty, { borderColor: colors.border }]}>
-          <Text style={[styles.activityEmptyTitle, { color: colors.foreground }]}>Нет данных за сегодня</Text>
-          <Text style={[styles.activityEmptyText, { color: colors.muted }]}>{fromGoogleFit ? "Откройте приложение Google Fit, чтобы оно синхронизировало шаги, калории и пульс." : "Откройте приложение «Здоровье», чтобы оно синхронизировало шаги, калории и пульс в Health Connect."}</Text>
+          <Text style={[styles.activityEmptyTitle, { color: colors.foreground }]}>{t("stats.activity.noDataTitle")}</Text>
+          <Text style={[styles.activityEmptyText, { color: colors.muted }]}>{fromGoogleFit ? t("stats.activity.noDataGoogleFit") : t("stats.activity.noDataHealthConnect")}</Text>
         </View>
       ) : (
         <>
           <View style={styles.activityMetrics}>
-            <ActivityMetric label="Шаги" value={formatCount(day?.steps ?? 0)} colors={colors} />
-            <ActivityMetric label="Активные ккал" value={formatCount(day?.activeKcal ?? 0)} colors={colors} />
-            <ActivityMetric label="Дистанция" value={`${(day?.distanceKm ?? 0).toFixed(1)} км`} colors={colors} />
+            <ActivityMetric label={t("stats.activity.steps")} value={formatCount(day?.steps ?? 0)} colors={colors} />
+            <ActivityMetric label={t("stats.activity.activeKcal")} value={formatCount(day?.activeKcal ?? 0)} colors={colors} />
+            <ActivityMetric label={t("stats.activity.distance")} value={t("stats.activity.distanceValue", { value: (day?.distanceKm ?? 0).toFixed(1) })} colors={colors} />
           </View>
-          {heartRate && <Text style={[styles.activityHeartRate, { color: colors.muted }]}>Пульс: сейчас {heartRate.currentBpm ?? "—"} · среднее {heartRate.averageBpm ?? "—"} · пик {heartRate.peakBpm ?? "—"}</Text>}
+          {heartRate && <Text style={[styles.activityHeartRate, { color: colors.muted }]}>{t("stats.activity.heartRate", { current: heartRate.currentBpm ?? "—", average: heartRate.averageBpm ?? "—", peak: heartRate.peakBpm ?? "—" })}</Text>}
           <View style={styles.activityWeek}>{week.map((entry) => {
             const isToday = entry.dateISO === todayISO;
             const height = entry.steps ? Math.max(6, (entry.steps / maxSteps) * 62) : 3;
@@ -428,28 +441,32 @@ function ActivityMetric({ label, value, colors }: { label: string; value: string
 }
 
 function PeriodComparison({ comparison, period, colors }: { comparison: NonNullable<ReturnType<typeof getStatsPeriodComparison>>; period: StatsFilterMode; colors: any }) {
-  const periodName = period === "week" ? "прошлой неделей" : "прошлым месяцем";
-  return <View style={[styles.comparisonCard, { backgroundColor: colors.surface, borderColor: colors.border }]}><View style={styles.comparisonHeader}><View><Text style={[styles.comparisonTitle, { color: colors.foreground }]}>Сравнение с {periodName}</Text><Text style={[styles.comparisonHint, { color: colors.muted }]}>Текущий период и предыдущий на одном экране</Text></View><View style={[styles.comparisonBadge, { backgroundColor: `${colors.primary}18` }]}><Text style={[styles.comparisonBadgeText, { color: colors.primary }]}>{period === "week" ? "НЕДЕЛЯ" : "МЕСЯЦ"}</Text></View></View><View style={styles.comparisonMetrics}><ComparisonMetric label={"Тренировки"} current={comparison.current.workoutCount} previous={comparison.previous.workoutCount} colors={colors} /><ComparisonMetric label={"Объём"} current={comparison.current.volume / 1000} previous={comparison.previous.volume / 1000} suffix=" т" decimals={1} colors={colors} /><ComparisonMetric label={"Время"} current={comparison.current.minutes} previous={comparison.previous.minutes} suffix=" мин" colors={colors} /></View></View>;
+  const { t } = useLanguage();
+  const periodName = period === "week" ? t("stats.comparison.periodWeek") : t("stats.comparison.periodMonth");
+  return <View style={[styles.comparisonCard, { backgroundColor: colors.surface, borderColor: colors.border }]}><View style={styles.comparisonHeader}><View><Text style={[styles.comparisonTitle, { color: colors.foreground }]}>{t("stats.comparison.title", { period: periodName })}</Text><Text style={[styles.comparisonHint, { color: colors.muted }]}>{t("stats.comparison.hint")}</Text></View><View style={[styles.comparisonBadge, { backgroundColor: `${colors.primary}18` }]}><Text style={[styles.comparisonBadgeText, { color: colors.primary }]}>{period === "week" ? t("stats.comparison.badgeWeek") : t("stats.comparison.badgeMonth")}</Text></View></View><View style={styles.comparisonMetrics}><ComparisonMetric label={t("stats.comparison.workouts")} current={comparison.current.workoutCount} previous={comparison.previous.workoutCount} colors={colors} /><ComparisonMetric label={t("stats.comparison.volume")} current={comparison.current.volume / 1000} previous={comparison.previous.volume / 1000} suffix={t("stats.comparison.volumeSuffix")} decimals={1} colors={colors} /><ComparisonMetric label={t("stats.comparison.time")} current={comparison.current.minutes} previous={comparison.previous.minutes} suffix={t("stats.comparison.timeSuffix")} colors={colors} /></View></View>;
 }
 
 function ComparisonMetric({ label, current, previous, suffix = "", decimals = 0, colors }: { label: string; current: number; previous: number; suffix?: string; decimals?: number; colors: any }) {
+  const { t } = useLanguage();
   const change = getPercentageChange(current, previous);
   const trend = change === null ? "new" : change > 0 ? "up" : change < 0 ? "down" : "same";
   const trendColor = trend === "up" ? colors.success : trend === "down" ? colors.error : colors.muted;
-  const trendText = change === null ? "Новые" : change === 0 ? "Без изменений" : `${change > 0 ? "↑" : "↓"} ${Math.abs(change).toFixed(0)}%`;
+  const trendText = change === null ? t("stats.comparison.trendNew") : change === 0 ? t("stats.comparison.trendSame") : t("stats.comparison.trendChange", { arrow: change > 0 ? "↑" : "↓", percent: Math.abs(change).toFixed(0) });
   const format = (value: number) => `${value.toFixed(decimals)}${suffix}`;
-  return <View style={[styles.comparisonMetric, { backgroundColor: colors.background, borderColor: colors.border }]}><Text style={[styles.comparisonMetricLabel, { color: colors.muted }]}>{label}</Text><Text style={[styles.comparisonCurrent, { color: colors.foreground }]}>{format(current)}</Text><Text style={[styles.comparisonPrevious, { color: colors.muted }]}>было {format(previous)}</Text><Text style={[styles.comparisonTrend, { color: trendColor }]}>{trendText}</Text></View>;
+  return <View style={[styles.comparisonMetric, { backgroundColor: colors.background, borderColor: colors.border }]}><Text style={[styles.comparisonMetricLabel, { color: colors.muted }]}>{label}</Text><Text style={[styles.comparisonCurrent, { color: colors.foreground }]}>{format(current)}</Text><Text style={[styles.comparisonPrevious, { color: colors.muted }]}>{t("stats.comparison.previous", { value: format(previous) })}</Text><Text style={[styles.comparisonTrend, { color: trendColor }]}>{trendText}</Text></View>;
 }
 
 function OneRmHistoryChart({ exerciseName, points, colors }: { exerciseName: string; points: PersonalRecordHistoryPoint[]; colors: any }) {
+  const { lang, t } = useLanguage();
+  const locale = lang === "en" ? "en-US" : "ru-RU";
   const width = 328; const height = 168; const paddingLeft = 37; const paddingRight = 15; const paddingTop = 24; const baseline = 126;
   const values = points.map((point) => point.estimatedOneRepMax); const minValue = values.length ? Math.min(...values) : 0; const maxValue = values.length ? Math.max(...values) : 0; const paddedMin = Math.max(0, minValue - Math.max(1, (maxValue - minValue) * 0.14)); const paddedMax = maxValue + Math.max(1, (maxValue - minValue) * 0.14); const range = Math.max(1, paddedMax - paddedMin);
   const chartWidth = width - paddingLeft - paddingRight;
   const coordinates = points.map((point, index) => ({ x: points.length === 1 ? paddingLeft + chartWidth / 2 : paddingLeft + (index / (points.length - 1)) * chartWidth, y: baseline - ((point.estimatedOneRepMax - paddedMin) / range) * (baseline - paddingTop), point }));
   const pointString = coordinates.map((point) => `${point.x},${point.y}`).join(" ");
-  const formatDate = (value: string) => new Date(`${value.slice(0, 10)}T12:00:00`).toLocaleDateString("ru-RU", { day: "numeric", month: "short" });
+  const formatDate = (value: string) => new Date(`${value.slice(0, 10)}T12:00:00`).toLocaleDateString(locale, { day: "numeric", month: "short" });
   const latest = points.at(-1);
-  return <View style={[styles.oneRmChartCard, { backgroundColor: colors.surface, borderColor: colors.border }]}><View style={styles.oneRmChartHeader}><View style={{ flex: 1 }}><Text style={[styles.oneRmChartTitle, { color: colors.foreground }]}>Динамика 1RM</Text><Text style={[styles.oneRmChartHint, { color: colors.muted }]}>{exerciseName} · точки — новые личные рекорды</Text></View>{latest && <View style={[styles.oneRmLatest, { backgroundColor: `${colors.primary}18` }]}><Text style={[styles.oneRmLatestLabel, { color: colors.primary }]}>ТЕКУЩИЙ</Text><Text style={[styles.oneRmLatestValue, { color: colors.foreground }]}>{latest.estimatedOneRepMax.toFixed(1)} кг</Text></View>}</View>{points.length ? <><Svg width="100%" height={height} viewBox={`0 0 ${width} ${height}`}><Line x1={paddingLeft} x2={width - paddingRight} y1={paddingTop} y2={paddingTop} stroke={colors.border} strokeWidth="1" strokeDasharray="4 4" /><Line x1={paddingLeft} x2={width - paddingRight} y1={baseline} y2={baseline} stroke={colors.border} strokeWidth="1" /><SvgText x="2" y={paddingTop + 4} fill={colors.muted} fontSize="9" fontWeight="800">{paddedMax.toFixed(1)}</SvgText><SvgText x="2" y={baseline + 3} fill={colors.muted} fontSize="9" fontWeight="800">{paddedMin.toFixed(1)}</SvgText><Polyline points={pointString} fill="none" stroke={colors.primary} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />{coordinates.map(({ x, y, point }) => <Circle key={point.workoutId} cx={x} cy={y} r="6" fill={colors.background} stroke={colors.primary} strokeWidth="3" onPress={() => router.push({ pathname: "/workout-history/[id]" as never, params: { id: point.workoutId, edit: "1" } })} />)}</Svg><View style={styles.oneRmAxis}><Text style={[styles.oneRmAxisLabel, { color: colors.muted }]}>{formatDate(points[0].date)}</Text><Text style={[styles.oneRmAxisLabel, { color: colors.muted }]}>Нажмите точку, чтобы редактировать</Text><Text style={[styles.oneRmAxisLabel, { color: colors.muted }]}>{formatDate(points[points.length - 1].date)}</Text></View></> : <View style={styles.oneRmEmpty}><IconSymbol name="chart.line.uptrend.xyaxis" size={24} color={colors.muted} /><Text style={[styles.oneRmEmptyTitle, { color: colors.foreground }]}>Пока нет личного рекорда</Text><Text style={[styles.oneRmEmptyText, { color: colors.muted }]}>Завершите подход с улучшением 1RM — точка появится на графике.</Text></View>}</View>;
+  return <View style={[styles.oneRmChartCard, { backgroundColor: colors.surface, borderColor: colors.border }]}><View style={styles.oneRmChartHeader}><View style={{ flex: 1 }}><Text style={[styles.oneRmChartTitle, { color: colors.foreground }]}>{t("stats.oneRm.title")}</Text><Text style={[styles.oneRmChartHint, { color: colors.muted }]}>{t("stats.oneRm.hint", { exercise: exerciseName })}</Text></View>{latest && <View style={[styles.oneRmLatest, { backgroundColor: `${colors.primary}18` }]}><Text style={[styles.oneRmLatestLabel, { color: colors.primary }]}>{t("stats.oneRm.current")}</Text><Text style={[styles.oneRmLatestValue, { color: colors.foreground }]}>{t("stats.oneRm.currentValue", { value: latest.estimatedOneRepMax.toFixed(1) })}</Text></View>}</View>{points.length ? <><Svg width="100%" height={height} viewBox={`0 0 ${width} ${height}`}><Line x1={paddingLeft} x2={width - paddingRight} y1={paddingTop} y2={paddingTop} stroke={colors.border} strokeWidth="1" strokeDasharray="4 4" /><Line x1={paddingLeft} x2={width - paddingRight} y1={baseline} y2={baseline} stroke={colors.border} strokeWidth="1" /><SvgText x="2" y={paddingTop + 4} fill={colors.muted} fontSize="9" fontWeight="800">{paddedMax.toFixed(1)}</SvgText><SvgText x="2" y={baseline + 3} fill={colors.muted} fontSize="9" fontWeight="800">{paddedMin.toFixed(1)}</SvgText><Polyline points={pointString} fill="none" stroke={colors.primary} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />{coordinates.map(({ x, y, point }) => <Circle key={point.workoutId} cx={x} cy={y} r="6" fill={colors.background} stroke={colors.primary} strokeWidth="3" onPress={() => router.push({ pathname: "/workout-history/[id]" as never, params: { id: point.workoutId, edit: "1" } })} />)}</Svg><View style={styles.oneRmAxis}><Text style={[styles.oneRmAxisLabel, { color: colors.muted }]}>{formatDate(points[0].date)}</Text><Text style={[styles.oneRmAxisLabel, { color: colors.muted }]}>{t("stats.oneRm.axisHint")}</Text><Text style={[styles.oneRmAxisLabel, { color: colors.muted }]}>{formatDate(points[points.length - 1].date)}</Text></View></> : <View style={styles.oneRmEmpty}><IconSymbol name="chart.line.uptrend.xyaxis" size={24} color={colors.muted} /><Text style={[styles.oneRmEmptyTitle, { color: colors.foreground }]}>{t("stats.oneRm.emptyTitle")}</Text><Text style={[styles.oneRmEmptyText, { color: colors.muted }]}>{t("stats.oneRm.emptyText")}</Text></View>}</View>;
 }
 
 const styles = StyleSheet.create({

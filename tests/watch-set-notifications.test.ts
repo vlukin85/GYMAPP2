@@ -9,6 +9,13 @@ const nativeModule = readFileSync(
   ),
   "utf8",
 );
+const strings = readFileSync(
+  resolve(
+    process.cwd(),
+    "modules/ironrise-rest-timer/android/src/main/java/expo/modules/ironriseresttimer/RestTimerStrings.kt",
+  ),
+  "utf8",
+);
 const actionReceiver = readFileSync(
   resolve(
     process.cwd(),
@@ -37,23 +44,27 @@ describe("управление тренировкой с часов Huawei че�
   it("показывает зеркало выполняющегося подхода с планом и действием завершения", () => {
     expect(nativeModule).toContain('Function("showActiveSetNotification")');
     expect(nativeModule).toContain('Function("clearActiveSetNotification")');
-    expect(nativeModule).toContain(
-      '"Подход ${state.setIndex + 1} из ${state.setsCount.coerceAtLeast(state.setIndex + 1)}',
-    );
-    expect(nativeModule).toContain(
-      '"План: ${formatSetWeightKg(state.planWeightKg)} кг × ${state.planReps}"',
-    );
-    expect(activeSetBuilder).toContain('"Завершить подход"');
+    // Тексты живут в RestTimerStrings: оба языка присутствуют, а билдер
+    // уведомления выбирает вариант по state.lang.
+    expect(strings).toContain("Подход $setNumber из $setsCount · $exerciseName");
+    expect(strings).toContain("Set $setNumber of $setsCount · $exerciseName");
+    expect(strings).toContain("План: $weight кг × $reps");
+    expect(strings).toContain("Plan: $weight kg × $reps");
+    expect(nativeModule).toContain("RestTimerStrings.activeSetTitle(");
+    expect(nativeModule).toContain("RestTimerStrings.planSummary(");
+    expect(activeSetBuilder).toContain("RestTimerStrings.finishSet(state.lang)");
     expect(activeSetBuilder).not.toContain("+30 секунд");
     expect(activeSetBuilder.match(/builder\.addAction/g)?.length).toBe(1);
     expect(nativeModule).toContain("ACTION_FINISH_SET");
   });
 
   it("после завершения подхода открывает ввод результата с текущими значениями", () => {
-    expect(nativeModule).toContain('"Результат подхода ${state.setIndex + 1}');
-    expect(setResultBuilder).toContain(
-      '"${formatSetWeightKg(state.currentWeightKg)} кг × ${state.currentReps}"',
-    );
+    expect(strings).toContain("Результат подхода $setNumber · $exerciseName");
+    expect(strings).toContain("Set result $setNumber · $exerciseName");
+    expect(nativeModule).toContain("RestTimerStrings.setResultTitle(");
+    expect(setResultBuilder).toContain("RestTimerStrings.setResultValue(");
+    expect(strings).toContain('"$weight кг × $reps"');
+    expect(strings).toContain('"$weight kg × $reps"');
     expect(actionReceiver).toContain("ACTION_FINISH_SET");
     expect(actionReceiver).toContain("showSetResultNotification(context");
     // Значения ввода результата хранятся в статике receiver'а.
@@ -64,13 +75,22 @@ describe("управление тренировкой с часов Huawei че�
 
   it("держит не более трёх действий в ряду и переключает раскладку кнопкой «Ещё»", () => {
     expect(setResultBuilder.match(/builder\.addAction/g)?.length).toBe(3);
-    expect(nativeModule).toContain('"Ещё"');
-    expect(nativeModule).toContain('"Готово"');
-    expect(nativeModule).toContain('"+5 кг"');
-    expect(nativeModule).toContain('"−5 кг"');
-    expect(nativeModule).toContain('"+1 повтор"');
-    expect(nativeModule).toContain('"−1 повтор"');
-    expect(nativeModule).toContain('"Отменить"');
+    expect(strings).toContain('"Ещё"');
+    expect(strings).toContain('"More"');
+    expect(strings).toContain('"Готово"');
+    expect(strings).toContain('"Done"');
+    expect(strings).toContain('"+5 кг"');
+    expect(strings).toContain('"+5 kg"');
+    expect(strings).toContain('"−5 кг"');
+    expect(strings).toContain('"−5 kg"');
+    expect(strings).toContain('"+1 повтор"');
+    expect(strings).toContain('"+1 rep"');
+    expect(strings).toContain('"−1 повтор"');
+    expect(strings).toContain('"−1 rep"');
+    expect(strings).toContain('"Отменить"');
+    expect(strings).toContain('"Cancel"');
+    expect(nativeModule).toContain("RestTimerStrings.more(state.lang)");
+    expect(nativeModule).toContain("RestTimerStrings.done(state.lang)");
     expect(nativeModule).toContain("ACTION_MORE");
     expect(nativeModule).toContain("SET_RESULT_LAYOUT_COUNT");
     expect(actionReceiver).toContain(
@@ -137,8 +157,12 @@ describe("управление тренировкой с часов Huawei че�
   });
 
   it("переключает упражнение из нативного уведомления отдыха", () => {
-    expect(nativeModule).toContain('"Следующий подход"');
-    expect(nativeModule).toContain('"Следующее упражнение"');
+    expect(strings).toContain('"Следующий подход"');
+    expect(strings).toContain('"Next set"');
+    expect(strings).toContain('"Следующее упражнение"');
+    expect(strings).toContain('"Next exercise"');
+    expect(nativeModule).toContain("RestTimerStrings.nextSet(lang)");
+    expect(nativeModule).toContain("RestTimerStrings.nextExercise(lang)");
     expect(actionReceiver).toContain("ACTION_START");
     expect(workoutScreen).toContain("setPendingExerciseAdvance(exerciseId)");
     expect(workoutScreen).toContain("openExercise(next.exerciseId)");
@@ -149,7 +173,11 @@ describe("управление тренировкой с часов Huawei че�
       'internal const val EXTRA_RESULT_INPUT = "ironrise_result_input"',
     );
     expect(setResultBuilder).toContain("RemoteInput.Builder(EXTRA_RESULT_INPUT)");
-    expect(setResultBuilder).toContain('"Вес × повторы, напр. 80 x 8"');
+    expect(setResultBuilder).toContain(
+      "RestTimerStrings.resultInputLabel(state.lang)",
+    );
+    expect(strings).toContain('"Вес × повторы, напр. 80 x 8"');
+    expect(strings).toContain('"Weight × reps, e.g. 80 x 8"');
     expect(setResultBuilder).toContain(".addRemoteInput(remoteInput)");
     // PendingIntent действия с RemoteInput обязан быть mutable: система
     // дописывает введённый текст в extras перед доставкой broadcast.

@@ -2,12 +2,12 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 
 export const HOME_WIDGETS = [
-  { id: "quote" as const, title: "Цитата дня", description: "Ежедневная мотивационная цитата спортсмена" },
-  { id: "week" as const, title: "Неделя", description: "План и статус тренировок на текущей неделе" },
-  { id: "nutrition" as const, title: "Питание", description: "Дневной прогресс калорий и БЖУ" },
-  { id: "trainingTrend" as const, title: "График тренировок", description: "Объём завершённых тренировок" },
-  { id: "metrics" as const, title: "Сводные показатели", description: "Количество тренировок, объём и время" },
-  { id: "shortcuts" as const, title: "Быстрый доступ", description: "Кнопки календаря и каталога упражнений" },
+  { id: "quote" as const, title: "Цитата дня", titleKey: "common.widget.quote.title", description: "Ежедневная мотивационная цитата спортсмена", descriptionKey: "common.widget.quote.description" },
+  { id: "week" as const, title: "Неделя", titleKey: "common.widget.week.title", description: "План и статус тренировок на текущей неделе", descriptionKey: "common.widget.week.description" },
+  { id: "nutrition" as const, title: "Питание", titleKey: "common.widget.nutrition.title", description: "Дневной прогресс калорий и БЖУ", descriptionKey: "common.widget.nutrition.description" },
+  { id: "trainingTrend" as const, title: "График тренировок", titleKey: "common.widget.trainingTrend.title", description: "Объём завершённых тренировок", descriptionKey: "common.widget.trainingTrend.description" },
+  { id: "metrics" as const, title: "Сводные показатели", titleKey: "common.widget.metrics.title", description: "Количество тренировок, объём и время", descriptionKey: "common.widget.metrics.description" },
+  { id: "shortcuts" as const, title: "Быстрый доступ", titleKey: "common.widget.shortcuts.title", description: "Кнопки календаря и каталога упражнений", descriptionKey: "common.widget.shortcuts.description" },
 ];
 
 export type HomeWidgetId = typeof HOME_WIDGETS[number]["id"];

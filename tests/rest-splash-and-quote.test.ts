@@ -4,11 +4,18 @@ import { describe, expect, it } from "vitest";
 
 import { getDailyAthleteQuote } from "../lib/daily-athlete-quote";
 
+// Русские подписи живут в словаре домена workout, поэтому экран проверяется
+// вместе со своим словарём локализации (как экран настроек с доменом settings).
+const workoutDict = readFileSync(
+  resolve(process.cwd(), "lib/i18n/domains/workout.ts"),
+  "utf8",
+);
+
 const workout = readFileSync(resolve(process.cwd(), "app/workout.tsx"), "utf8");
 const notifications = readFileSync(
   resolve(process.cwd(), "lib/workout-notifications.ts"),
   "utf8",
-);
+) + workoutDict;
 const rootLayout = readFileSync(
   resolve(process.cwd(), "app/_layout.tsx"),
   "utf8",
@@ -16,7 +23,7 @@ const rootLayout = readFileSync(
 const home = readFileSync(
   resolve(process.cwd(), "app/(tabs)/index.tsx"),
   "utf8",
-);
+) + readFileSync(resolve(process.cwd(), "lib/i18n/domains/tabs.ts"), "utf8");
 
 describe("rest feedback, launch screen and daily quote", () => {
   it("keeps the same verified quote for a given local calendar day and rotates later", () => {

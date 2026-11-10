@@ -4,8 +4,15 @@ import { describe, expect, it } from "vitest";
 import { getExercise, isTimeBasedExercise } from "../lib/workout-data";
 import { rebuildPersonalRecords } from "../lib/workout-store";
 
-const workoutScreen = readFileSync(resolve(process.cwd(), "app/workout.tsx"), "utf8");
-const historyScreen = readFileSync(resolve(process.cwd(), "app/workout-history/exercise.tsx"), "utf8");
+// Русские подписи живут в словаре домена workout, поэтому экран проверяется
+// вместе со своим словарём локализации (как экран настроек с доменом settings).
+const workoutDict = readFileSync(
+  resolve(process.cwd(), "lib/i18n/domains/workout.ts"),
+  "utf8",
+);
+
+const workoutScreen = readFileSync(resolve(process.cwd(), "app/workout.tsx"), "utf8") + workoutDict;
+const historyScreen = readFileSync(resolve(process.cwd(), "app/workout-history/exercise.tsx"), "utf8") + workoutDict;
 
 describe("time-based exercise entries", () => {
   it("marks cardio and explicit duration movements as minute-based", () => {
@@ -21,12 +28,15 @@ describe("time-based exercise entries", () => {
   });
 
   it("renders minutes without a weight editor and preserves minutes in history", () => {
-    expect(workoutScreen).toContain('activeIsTimed ? "МИНУТЫ" : "ПОВТОРЫ"');
-    expect(workoutScreen).toContain('placeholder={`план ${activePlan?.reps ?? "—"} мин`}');
+    // Подписи полей и подсказки плана берутся из домена workout.
+    expect(workoutScreen).toContain('t("workout.setEditor.minutes")');
+    expect(workoutScreen).toContain('t("workout.setEditor.reps")');
+    expect(workoutScreen).toContain('t("workout.editor.planMinutes"');
     expect(workoutScreen).toMatch(
       /!activeIsTimed\s*&&\s*\(\s*<View\s+style=\{styles\.setEditorFieldWrap\}/,
     );
-    expect(historyScreen).toContain('isTimed ? "Минуты" : "Повторы"');
-    expect(historyScreen).toContain('isTimed ? `${set.reps} мин` : set.reps');
+    expect(historyScreen).toContain('t("workout.historyExercise.minutes")');
+    expect(historyScreen).toContain('t("workout.historyExercise.reps")');
+    expect(historyScreen).toContain('t("workout.unit.min")');
   });
 });

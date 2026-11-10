@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 const screen = readFileSync(
   resolve(process.cwd(), "app/(tabs)/index.tsx"),
   "utf8",
-);
+) + readFileSync(resolve(process.cwd(), "lib/i18n/domains/tabs.ts"), "utf8");
 
 describe("home hero layout (Dark Energy redesign)", () => {
   it("opens with the diary eyebrow and time-aware greeting instead of a giant wordmark", () => {

@@ -1,3 +1,7 @@
+import type { TFunction } from "./i18n";
+
+type Translate = TFunction;
+
 export type WorkoutFinishForecast = {
   remainingSets: number;
   secondsPerSet: number | null;
@@ -17,9 +21,20 @@ export function getWorkoutFinishForecast(elapsedSeconds: number, completedSets: 
   return { remainingSets, secondsPerSet, restSecondsRemaining, secondsRemaining, estimatedFinishAt: now + secondsRemaining * 1000 };
 }
 
-export function formatForecastDuration(seconds: number | null) {
+/**
+ * Форматирует остаток времени тренировки. Без переводчика возвращает русский
+ * вариант (значение по умолчанию для тестов и старого кода), с переводчиком —
+ * строку из домена workout.
+ */
+export function formatForecastDuration(
+  seconds: number | null,
+  tr?: Translate,
+) {
   if (seconds === null) return null;
-  if (seconds < 60) return "меньше минуты";
+  if (seconds < 60)
+    return tr ? tr("workout.forecast.lessThanMinute") : "меньше минуты";
   const minutes = Math.max(1, Math.round(seconds / 60));
-  return `≈ ${minutes} мин`;
+  return tr
+    ? tr("workout.forecast.approxMinutes", { minutes })
+    : `≈ ${minutes} мин`;
 }

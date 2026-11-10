@@ -14,13 +14,23 @@ import { formatWorkoutSocialTemplate, getWorkoutRecordAchievements } from "@/lib
 import { formatCardioPace, getCardioWorkoutSummary } from "@/lib/cardio-metrics";
 import { getExercise, getProgram } from "@/lib/workout-data";
 import { useWorkoutStore } from "@/lib/workout-store";
+import { useLanguage } from "@/lib/i18n";
 
 function formatInterval(seconds: number) {
   const safeSeconds = Math.max(0, Math.round(seconds));
   return `${String(Math.floor(safeSeconds / 60)).padStart(2, "0")}:${String(safeSeconds % 60).padStart(2, "0")}`;
 }
 
+const heartRateZoneKeys = {
+  recovery: "workout.summary.zoneRecovery",
+  easy: "workout.summary.zoneEasy",
+  aerobic: "workout.summary.zoneAerobic",
+  threshold: "workout.summary.zoneThreshold",
+  maximum: "workout.summary.zoneMaximum",
+} as const;
+
 function HeartRateInsights({ samples, zones, maximumBpm, colors }: { samples: { time: string; beatsPerMinute: number }[]; zones: { id: string; seconds: number; fromBpm: number; toBpm: number }[]; maximumBpm?: number; colors: ReturnType<typeof useColors> }) {
+  const { t } = useLanguage();
   const activeZones = zones.filter((zone) => zone.seconds > 0);
   const width = 320;
   const height = 128;
@@ -35,11 +45,13 @@ function HeartRateInsights({ samples, zones, maximumBpm, colors }: { samples: { 
     const y = height - padY - ((sample.beatsPerMinute - floor) / Math.max(1, ceiling - floor)) * (height - padY * 2);
     return `${index ? "L" : "M"}${x.toFixed(1)} ${y.toFixed(1)}`;
   }).join(" ");
-  return <View style={[styles.heartInsights, { backgroundColor: colors.surface, borderColor: colors.border }]}><View style={styles.heartInsightsHeader}><View><Text style={[styles.timingEyebrow, { color: colors.primary }]}>ПУЛЬС · ИНТЕНСИВНОСТЬ</Text><Text style={[styles.heartInsightsHint, { color: colors.muted }]}>{maximumBpm ? `Зоны от расчётной ЧССмакс ${maximumBpm} уд/мин` : "Добавьте возраст в профиле, чтобы увидеть зоны."}</Text></View><Text style={[styles.heartSamplesCount, { color: colors.primary }]}>{samples.length || "—"}<Text style={[styles.heartSamplesLabel, { color: colors.muted }]}> ТОЧЕК</Text></Text></View>{samples.length >= 2 ? <><Svg width="100%" height={height} viewBox={`0 0 ${width} ${height}`}><Line x1={padX} x2={width - padX} y1={height - padY} y2={height - padY} stroke={colors.border} strokeWidth="1" /><Line x1={padX} x2={width - padX} y1={padY} y2={padY} stroke={colors.border} strokeWidth="1" strokeDasharray="3 4" /><Path d={path} stroke={colors.primary} strokeWidth="3" fill="none" strokeLinecap="square" strokeLinejoin="round" /></Svg><View style={styles.heartChartAxis}><Text style={[styles.heartAxisText, { color: colors.muted }]}>{floor} уд/мин</Text><Text style={[styles.heartAxisText, { color: colors.muted }]}>{ceiling} уд/мин</Text></View></> : <Text style={[styles.heartEmpty, { color: colors.muted }]}>Недостаточно точек пульса для графика. Продолжайте синхронизацию часов с Health Connect.</Text>}{activeZones.length > 0 && <View style={[styles.zoneList, { borderTopColor: colors.border }]}>{activeZones.map((zone) => <View key={zone.id} style={styles.zoneRow}><View style={[styles.zoneMark, { backgroundColor: zone.id === "maximum" ? colors.error : zone.id === "threshold" ? colors.warning : zone.id === "aerobic" ? colors.success : colors.primary }]} /><Text style={[styles.zoneName, { color: colors.foreground }]}>{zone.id === "recovery" ? "Восстановление" : zone.id === "easy" ? "Лёгкая" : zone.id === "aerobic" ? "Аэробная" : zone.id === "threshold" ? "Пороговая" : "Максимальная"} · {zone.fromBpm}–{zone.toBpm}</Text><Text style={[styles.zoneDuration, { color: colors.primary }]}>{formatInterval(zone.seconds)}</Text></View>)}</View>}</View>;
+  return <View style={[styles.heartInsights, { backgroundColor: colors.surface, borderColor: colors.border }]}><View style={styles.heartInsightsHeader}><View><Text style={[styles.timingEyebrow, { color: colors.primary }]}>{t("workout.summary.heartRateEyebrow")}</Text><Text style={[styles.heartInsightsHint, { color: colors.muted }]}>{maximumBpm ? t("workout.summary.zonesFromMax", { bpm: maximumBpm }) : t("workout.summary.zonesNeedAge")}</Text></View><Text style={[styles.heartSamplesCount, { color: colors.primary }]}>{samples.length || "—"}<Text style={[styles.heartSamplesLabel, { color: colors.muted }]}> {t("workout.summary.pointsShort")}</Text></Text></View>{samples.length >= 2 ? <><Svg width="100%" height={height} viewBox={`0 0 ${width} ${height}`}><Line x1={padX} x2={width - padX} y1={height - padY} y2={height - padY} stroke={colors.border} strokeWidth="1" /><Line x1={padX} x2={width - padX} y1={padY} y2={padY} stroke={colors.border} strokeWidth="1" strokeDasharray="3 4" /><Path d={path} stroke={colors.primary} strokeWidth="3" fill="none" strokeLinecap="square" strokeLinejoin="round" /></Svg><View style={styles.heartChartAxis}><Text style={[styles.heartAxisText, { color: colors.muted }]}>{t("workout.summary.bpmAxis", { value: floor })}</Text><Text style={[styles.heartAxisText, { color: colors.muted }]}>{t("workout.summary.bpmAxis", { value: ceiling })}</Text></View></> : <Text style={[styles.heartEmpty, { color: colors.muted }]}>{t("workout.summary.chartEmpty")}</Text>}{activeZones.length > 0 && <View style={[styles.zoneList, { borderTopColor: colors.border }]}>{activeZones.map((zone) => <View key={zone.id} style={styles.zoneRow}><View style={[styles.zoneMark, { backgroundColor: zone.id === "maximum" ? colors.error : zone.id === "threshold" ? colors.warning : zone.id === "aerobic" ? colors.success : colors.primary }]} /><Text style={[styles.zoneName, { color: colors.foreground }]}>{t(heartRateZoneKeys[zone.id as keyof typeof heartRateZoneKeys] ?? "workout.summary.zoneMaximum")} · {zone.fromBpm}–{zone.toBpm}</Text><Text style={[styles.zoneDuration, { color: colors.primary }]}>{formatInterval(zone.seconds)}</Text></View>)}</View>}</View>;
 }
 
 export default function WorkoutSummaryScreen() {
   const colors = useColors();
+  const { t, lang } = useLanguage();
+  const locale = lang === "en" ? "en-US" : "ru-RU";
   const shareContentBottomInset = useBottomActionInset(8);
   const { completed, personalRecords, programs } = useWorkoutStore();
   const { workoutId, programId, volume = "0", minutes = "0", durationSeconds = "0", activeSeconds = "0", restSeconds = "0", calories = "0", averageHeartRateBpm = "", peakHeartRateBpm = "", records = "" } = useLocalSearchParams<{ workoutId?: string; programId: string; volume?: string; minutes?: string; durationSeconds?: string; activeSeconds?: string; restSeconds?: string; calories?: string; averageHeartRateBpm?: string; peakHeartRateBpm?: string; records?: string }>();
@@ -62,38 +74,39 @@ export default function WorkoutSummaryScreen() {
   };
   const recordIds = records.split(",").filter(Boolean);
   const shareRecords = useMemo(
-    () => completedWorkout ? getWorkoutRecordAchievements(completedWorkout, personalRecords).map((record) => ({ ...record, name: getExercise(record.exerciseId)?.name ?? record.exerciseId })) : [],
+    () => completedWorkout ? getWorkoutRecordAchievements(completedWorkout, personalRecords).map((record) => ({ ...record, name: (lang === "en" ? (getExercise(record.exerciseId)?.nameEn ?? getExercise(record.exerciseId)?.name) : getExercise(record.exerciseId)?.name) ?? record.exerciseId })) : [],
     [completedWorkout, personalRecords],
   );
+  const programName = (lang === "en" ? (program?.nameEn ?? program?.name) : program?.name) ?? t("workout.summary.workoutFallback");
   const shareText = useMemo(
-    () => completedWorkout ? formatWorkoutSocialTemplate("telegram", { workout: completedWorkout, programName: program?.name ?? "Тренировка", records: shareRecords }) : "",
-    [completedWorkout, program?.name, shareRecords],
+    () => completedWorkout ? formatWorkoutSocialTemplate("telegram", { workout: completedWorkout, programName: programName, records: shareRecords, lang }) : "",
+    [completedWorkout, lang, program?.name, shareRecords],
   );
   const cardio = useMemo(() => getCardioWorkoutSummary(completedWorkout?.sets), [completedWorkout?.sets]);
 
   const shareTextResult = async () => {
     if (!shareText) {
-      Alert.alert("Результат готовится", "Подождите секунду, пока новая тренировка появится в локальной истории.");
+      Alert.alert(t("workout.summary.resultPreparingTitle"), t("workout.summary.resultPreparingMessage"));
       return;
     }
     try {
       if (Platform.OS === "web") {
         if (typeof navigator !== "undefined" && "share" in navigator) {
-          await navigator.share({ title: `IronRise · ${program?.name ?? "Тренировка"}`, text: shareText });
+          await navigator.share({ title: `IronRise · ${programName}`, text: shareText });
           return;
         }
-        Alert.alert("Текст для публикации", shareText);
+        Alert.alert(t("workout.summary.publishTextTitle"), shareText);
         return;
       }
-      await Share.share({ title: `IronRise · ${program?.name ?? "Тренировка"}`, message: shareText });
+      await Share.share({ title: `IronRise · ${programName}`, message: shareText });
     } catch (error) {
-      if (!(error instanceof Error && error.name === "AbortError")) Alert.alert("Не удалось поделиться", "Попробуйте ещё раз — результаты сохранены.");
+      if (!(error instanceof Error && error.name === "AbortError")) Alert.alert(t("workout.summary.shareErrorTitle"), t("workout.summary.shareErrorMessage"));
     }
   };
 
   const shareVisualCard = async () => {
     if (!completedWorkout) {
-      Alert.alert("Карточка готовится", "Подождите секунду, пока сохранится результат тренировки.");
+      Alert.alert(t("workout.summary.cardPreparingTitle"), t("workout.summary.cardPreparingMessage"));
       return;
     }
     try {
@@ -102,13 +115,13 @@ export default function WorkoutSummaryScreen() {
         return;
       }
       if (!(await Sharing.isAvailableAsync()) || !shareCardRef.current) {
-        Alert.alert("Обмен недоступен", "На этом устройстве не удалось открыть системное меню обмена.");
+        Alert.alert(t("workout.summary.shareUnavailableTitle"), t("workout.summary.shareUnavailableMessage"));
         return;
       }
       const uri = await shareCardRef.current.capture();
-      await Sharing.shareAsync(uri, { dialogTitle: "Поделиться карточкой IronRise", mimeType: "image/png" });
+      await Sharing.shareAsync(uri, { dialogTitle: t("workout.summary.shareCardDialog"), mimeType: "image/png" });
     } catch {
-      Alert.alert("Не удалось подготовить карточку", "Попробуйте поделиться текстовым шаблоном.");
+      Alert.alert(t("workout.summary.cardErrorTitle"), t("workout.summary.cardErrorMessage"));
     }
   };
 
@@ -117,34 +130,34 @@ export default function WorkoutSummaryScreen() {
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={[styles.header, { borderBottomColor: colors.border }]}>
           <Text style={[styles.headerIndex, { color: colors.primary, fontVariant: ["tabular-nums"] }]}>01</Text>
-          <Text style={[styles.headerLabel, { color: colors.primary }]}>ТРЕНИРОВКА{`\n`}ЗАВЕРШЕНА</Text>
+          <Text style={[styles.headerLabel, { color: colors.primary }]}>{t("workout.summary.headerLabel")}</Text>
         </View>
-        <Text style={[styles.heroWord, { color: colors.foreground }]}>Готово.</Text>
-        <Text style={[styles.programName, { color: colors.foreground }]}>{program?.name ?? "Тренировка"}</Text>
-        <Text style={[styles.programCopy, { color: colors.muted }]}>Результаты сохранены в локальной истории. Данные сразу учтены в статистике и личных рекордах.</Text>
+        <Text style={[styles.heroWord, { color: colors.foreground }]}>{t("workout.summary.heroWord")}</Text>
+        <Text style={[styles.programName, { color: colors.foreground }]}>{programName}</Text>
+        <Text style={[styles.programCopy, { color: colors.muted }]}>{t("workout.summary.programCopy")}</Text>
 
         <View style={styles.metrics}>
-          <View style={[styles.metric, { backgroundColor: colors.surface, borderColor: colors.border, borderRightColor: colors.border }]}><Text style={[styles.metricValue, { color: colors.foreground, fontVariant: ["tabular-nums"] }]}>{Number(volume).toLocaleString("ru-RU")}</Text><Text style={[styles.metricLabel, { color: colors.muted }]}>ОБЪЁМ · КГ</Text></View>
-          <View style={[styles.metric, { backgroundColor: colors.surface, borderColor: colors.border, borderRightColor: colors.border }]}><Text style={[styles.metricValue, { color: colors.primary, fontVariant: ["tabular-nums"] }]}>{formatInterval(energy.durationSeconds)}</Text><Text style={[styles.metricLabel, { color: colors.muted }]}>ВРЕМЯ · ММ:СС</Text></View>
-          <View style={[styles.metric, styles.metricLast, { backgroundColor: colors.surface, borderColor: colors.border }]}><Text style={[styles.metricValue, { color: colors.warning, fontVariant: ["tabular-nums"] }]}>{energy.caloriesBurned}</Text><Text style={[styles.metricLabel, { color: colors.muted }]}>ККАЛ</Text></View>
+          <View style={[styles.metric, { backgroundColor: colors.surface, borderColor: colors.border, borderRightColor: colors.border }]}><Text style={[styles.metricValue, { color: colors.foreground, fontVariant: ["tabular-nums"] }]}>{Number(volume).toLocaleString(locale)}</Text><Text style={[styles.metricLabel, { color: colors.muted }]}>{t("workout.summary.metricVolume")}</Text></View>
+          <View style={[styles.metric, { backgroundColor: colors.surface, borderColor: colors.border, borderRightColor: colors.border }]}><Text style={[styles.metricValue, { color: colors.primary, fontVariant: ["tabular-nums"] }]}>{formatInterval(energy.durationSeconds)}</Text><Text style={[styles.metricLabel, { color: colors.muted }]}>{t("workout.summary.metricTime")}</Text></View>
+          <View style={[styles.metric, styles.metricLast, { backgroundColor: colors.surface, borderColor: colors.border }]}><Text style={[styles.metricValue, { color: colors.warning, fontVariant: ["tabular-nums"] }]}>{energy.caloriesBurned}</Text><Text style={[styles.metricLabel, { color: colors.muted }]}>{t("workout.summary.metricCalories")}</Text></View>
         </View>
 
         <View style={[styles.timingPanel, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <Text style={[styles.timingEyebrow, { color: colors.primary }]}>ИНТЕРВАЛЫ ПО ФАКТУ</Text>
-          <Text style={[styles.timingHint, { color: colors.muted }]}>Общее время {formatInterval(energy.durationSeconds)} · разбивка {formatInterval(energy.activeSeconds + energy.restSeconds)}</Text>
-          <Text style={[styles.timingValue, { color: colors.foreground }]}>Работа {formatInterval(energy.activeSeconds)} · отдых {formatInterval(energy.restSeconds)}</Text>
-          <Text style={[styles.timingHint, { color: colors.muted }]}>{completedWorkout?.caloriesMethod === "heart-rate" ? `Расход уточнён по пульсу часов; базовая оценка по интервалам — ${completedWorkout.metCalories ?? "—"} ккал.` : "Расход энергии рассчитан по измеренному времени подходов и пауз."}</Text>
+          <Text style={[styles.timingEyebrow, { color: colors.primary }]}>{t("workout.summary.timingEyebrow")}</Text>
+          <Text style={[styles.timingHint, { color: colors.muted }]}>{t("workout.summary.timingTotal", { total: formatInterval(energy.durationSeconds), split: formatInterval(energy.activeSeconds + energy.restSeconds) })}</Text>
+          <Text style={[styles.timingValue, { color: colors.foreground }]}>{t("workout.summary.timingSplit", { active: formatInterval(energy.activeSeconds), rest: formatInterval(energy.restSeconds) })}</Text>
+          <Text style={[styles.timingHint, { color: colors.muted }]}>{completedWorkout?.caloriesMethod === "heart-rate" ? t("workout.summary.caloriesByHeartRate", { kcal: completedWorkout.metCalories ?? "—" }) : t("workout.summary.caloriesByIntervals")}</Text>
         </View>
 
-        {(heartRate.averageBpm || heartRate.peakBpm) && <View style={[styles.heartRatePanel, { backgroundColor: colors.surface, borderColor: colors.border }]}><View><Text style={[styles.timingEyebrow, { color: colors.primary }]}>ПУЛЬС · HEALTH CONNECT</Text><Text style={[styles.heartRateHint, { color: colors.muted }]}>Данные часов за время тренировки</Text></View><View style={styles.heartRateMetrics}><Text style={[styles.heartRateValue, { color: colors.foreground }]}>{heartRate.averageBpm ?? "—"}<Text style={[styles.heartRateUnit, { color: colors.muted }]}> СР.</Text></Text><Text style={[styles.heartRateValue, { color: colors.primary }]}>{heartRate.peakBpm ?? "—"}<Text style={[styles.heartRateUnit, { color: colors.muted }]}> ПИК</Text></Text></View></View>}
+        {(heartRate.averageBpm || heartRate.peakBpm) && <View style={[styles.heartRatePanel, { backgroundColor: colors.surface, borderColor: colors.border }]}><View><Text style={[styles.timingEyebrow, { color: colors.primary }]}>{t("workout.summary.heartRatePanel")}</Text><Text style={[styles.heartRateHint, { color: colors.muted }]}>{t("workout.summary.heartRatePanelHint")}</Text></View><View style={styles.heartRateMetrics}><Text style={[styles.heartRateValue, { color: colors.foreground }]}>{heartRate.averageBpm ?? "—"}<Text style={[styles.heartRateUnit, { color: colors.muted }]}> {t("workout.summary.averageShort")}</Text></Text><Text style={[styles.heartRateValue, { color: colors.primary }]}>{heartRate.peakBpm ?? "—"}<Text style={[styles.heartRateUnit, { color: colors.muted }]}> {t("workout.summary.peakShort")}</Text></Text></View></View>}
         {completedWorkout && <HeartRateInsights samples={completedWorkout.heartRateSamples ?? []} zones={completedWorkout.heartRateZones ?? []} maximumBpm={completedWorkout.estimatedMaxHeartRateBpm} colors={colors} />}
 
-        {cardio.minutes > 0 && <View style={[styles.cardioPanel, { backgroundColor: colors.surface, borderColor: colors.border }]}><View><Text style={[styles.cardioEyebrow, { color: colors.primary }]}>КАРДИО · РЕЗУЛЬТАТ</Text><Text style={[styles.cardioTitle, { color: colors.foreground, fontVariant: ["tabular-nums"] }]}>{cardio.minutes} мин{cardio.distanceKm > 0 ? ` · ${cardio.distanceKm.toFixed(2)} км` : ""}</Text></View><View style={styles.cardioPace}><Text style={[styles.cardioPaceValue, { color: colors.primary, fontVariant: ["tabular-nums"] }]}>{formatCardioPace(cardio.paceSecondsPerKm)}</Text><Text style={[styles.cardioPaceLabel, { color: colors.muted }]}>СРЕДНИЙ ТЕМП</Text></View></View>}
-        <View style={[styles.recordPanel, { backgroundColor: colors.surface, borderColor: colors.border }]}><View style={styles.recordPanelHeader}><IconSymbol name="trophy" size={23} color={colors.primary} /><Text style={[styles.recordPanelTitle, { color: colors.foreground }]}>ЛИЧНЫЕ РЕКОРДЫ</Text><Text style={[styles.recordCount, { color: colors.primary, fontVariant: ["tabular-nums"] }]}>{recordIds.length}</Text></View>{recordIds.length ? recordIds.map((id, index) => <View key={id} style={[styles.recordRow, index > 0 && { borderTopColor: colors.border, borderTopWidth: StyleSheet.hairlineWidth }]}><Text style={[styles.recordNumber, { color: colors.primary, fontVariant: ["tabular-nums"] }]}>{String(index + 1).padStart(2, "0")}</Text><Text style={[styles.recordName, { color: colors.foreground }]}>{getExercise(id)?.name ?? id}</Text><IconSymbol name="arrow.up.right" size={18} color={colors.primary} /></View>) : <Text style={[styles.noRecords, { color: colors.muted }]}>Сегодня без нового рекорда. Последовательность — уже прогресс.</Text>}</View>
-        <View style={styles.actions}><Pressable onPress={() => setShareOpen(true)} style={({ pressed }) => [styles.shareAction, { borderColor: colors.primary, opacity: pressed ? pressedOpacity : 1 }]}><Text style={[styles.shareActionText, { color: colors.primary }]}>ПОДЕЛИТЬСЯ РЕЗУЛЬТАТОМ</Text><IconSymbol name="square.and.arrow.up" size={19} color={colors.primary} /></Pressable><Pressable onPress={() => router.replace("/(tabs)/stats")} style={({ pressed }) => [styles.primaryAction, { backgroundColor: colors.primary, opacity: pressed ? pressedOpacity : 1 }, shadows.raised]}><Text style={[styles.primaryActionText, { color: colors.background }]}>ОТКРЫТЬ СТАТИСТИКУ</Text><IconSymbol name="chart.bar.fill" size={19} color={colors.background} /></Pressable><Pressable onPress={() => router.replace("/(tabs)")} style={({ pressed }) => [styles.secondaryAction, { borderColor: colors.border, opacity: pressed ? pressedOpacity : 1 }]}><Text style={[styles.secondaryActionText, { color: colors.foreground }]}>К ПЛАНУ</Text><IconSymbol name="house.fill" size={19} color={colors.foreground} /></Pressable></View>
+        {cardio.minutes > 0 && <View style={[styles.cardioPanel, { backgroundColor: colors.surface, borderColor: colors.border }]}><View><Text style={[styles.cardioEyebrow, { color: colors.primary }]}>{t("workout.summary.cardioEyebrow")}</Text><Text style={[styles.cardioTitle, { color: colors.foreground, fontVariant: ["tabular-nums"] }]}>{cardio.minutes} {t("workout.unit.min")}{cardio.distanceKm > 0 ? t("workout.summary.cardioDistance", { km: cardio.distanceKm.toFixed(2) }) : ""}</Text></View><View style={styles.cardioPace}><Text style={[styles.cardioPaceValue, { color: colors.primary, fontVariant: ["tabular-nums"] }]}>{formatCardioPace(cardio.paceSecondsPerKm, lang)}</Text><Text style={[styles.cardioPaceLabel, { color: colors.muted }]}>{t("workout.summary.cardioPaceLabel")}</Text></View></View>}
+        <View style={[styles.recordPanel, { backgroundColor: colors.surface, borderColor: colors.border }]}><View style={styles.recordPanelHeader}><IconSymbol name="trophy" size={23} color={colors.primary} /><Text style={[styles.recordPanelTitle, { color: colors.foreground }]}>{t("workout.summary.recordsTitle")}</Text><Text style={[styles.recordCount, { color: colors.primary, fontVariant: ["tabular-nums"] }]}>{recordIds.length}</Text></View>{recordIds.length ? recordIds.map((id, index) => <View key={id} style={[styles.recordRow, index > 0 && { borderTopColor: colors.border, borderTopWidth: StyleSheet.hairlineWidth }]}><Text style={[styles.recordNumber, { color: colors.primary, fontVariant: ["tabular-nums"] }]}>{String(index + 1).padStart(2, "0")}</Text><Text style={[styles.recordName, { color: colors.foreground }]}>{lang === "en" ? (getExercise(id)?.nameEn ?? getExercise(id)?.name ?? id) : (getExercise(id)?.name ?? id)}</Text><IconSymbol name="arrow.up.right" size={18} color={colors.primary} /></View>) : <Text style={[styles.noRecords, { color: colors.muted }]}>{t("workout.summary.noRecords")}</Text>}</View>
+        <View style={styles.actions}><Pressable onPress={() => setShareOpen(true)} style={({ pressed }) => [styles.shareAction, { borderColor: colors.primary, opacity: pressed ? pressedOpacity : 1 }]}><Text style={[styles.shareActionText, { color: colors.primary }]}>{t("workout.summary.shareResult")}</Text><IconSymbol name="square.and.arrow.up" size={19} color={colors.primary} /></Pressable><Pressable onPress={() => router.replace("/(tabs)/stats")} style={({ pressed }) => [styles.primaryAction, { backgroundColor: colors.primary, opacity: pressed ? pressedOpacity : 1 }, shadows.raised]}><Text style={[styles.primaryActionText, { color: colors.background }]}>{t("workout.summary.openStats")}</Text><IconSymbol name="chart.bar.fill" size={19} color={colors.background} /></Pressable><Pressable onPress={() => router.replace("/(tabs)")} style={({ pressed }) => [styles.secondaryAction, { borderColor: colors.border, opacity: pressed ? pressedOpacity : 1 }]}><Text style={[styles.secondaryActionText, { color: colors.foreground }]}>{t("workout.summary.toPlan")}</Text><IconSymbol name="house.fill" size={19} color={colors.foreground} /></Pressable></View>
       </ScrollView>
 
-      <Modal visible={shareOpen} transparent animationType="slide" onRequestClose={() => setShareOpen(false)}><View style={styles.backdrop}><View style={[styles.shareSheet, { backgroundColor: colors.background }]}><View style={styles.shareSheetHeader}><View><Text style={[styles.shareSheetTitle, { color: colors.foreground }]}>ПОДЕЛИТЬСЯ РЕЗУЛЬТАТОМ</Text><Text style={[styles.shareSheetHint, { color: colors.muted }]}>Карточка и текст готовы для публикации</Text></View><Pressable onPress={() => setShareOpen(false)} style={[styles.close, { backgroundColor: colors.surface }]}><Text style={[styles.closeText, { color: colors.foreground }]}>×</Text></Pressable></View>{completedWorkout ? <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.shareContent, { paddingBottom: shareContentBottomInset }]}><View style={[styles.themePicker, { backgroundColor: colors.surface, borderColor: colors.border }]}>{(["dark", "light"] as const).map((theme) => <Pressable key={theme} onPress={() => setShareTheme(theme)} style={[styles.themeOption, { backgroundColor: shareTheme === theme ? colors.primary : "transparent" }]}><Text style={[styles.themeText, { color: shareTheme === theme ? colors.background : colors.muted }]}>{theme === "dark" ? "Тёмная" : "Светлая"}</Text></Pressable>)}</View><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.shareCardScroll}><WorkoutShareCard captureRef={shareCardRef} workout={completedWorkout} programName={program?.name ?? "Тренировка"} records={shareRecords} theme={shareTheme} note={shareNote} /></ScrollView><TextInput value={shareNote} onChangeText={setShareNote} maxLength={120} multiline placeholder="Личная заметка на карточке" placeholderTextColor={colors.muted} style={[styles.noteInput, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.surface }]} /><Text style={[styles.sharePreview, { color: colors.foreground, backgroundColor: colors.surface, borderColor: colors.border }]}>{shareText}</Text><Pressable onPress={shareVisualCard} style={[styles.shareImageButton, { backgroundColor: colors.primary }]}><Text style={[styles.shareImageButtonText, { color: colors.background }]}>ПОДЕЛИТЬСЯ КАРТОЧКОЙ PNG</Text></Pressable><Pressable onPress={shareTextResult} style={[styles.shareTextButton, { borderColor: colors.border }]}><Text style={[styles.shareTextButtonText, { color: colors.foreground }]}>ПОДЕЛИТЬСЯ ТЕКСТОМ</Text></Pressable></ScrollView> : <View style={styles.shareUnavailable}><Text style={[styles.shareSheetHint, { color: colors.muted }]}>Результат всё ещё сохраняется. Нажмите «Поделиться» через секунду.</Text></View>}</View></View></Modal>
+      <Modal visible={shareOpen} transparent animationType="slide" onRequestClose={() => setShareOpen(false)}><View style={styles.backdrop}><View style={[styles.shareSheet, { backgroundColor: colors.background }]}><View style={styles.shareSheetHeader}><View><Text style={[styles.shareSheetTitle, { color: colors.foreground }]}>{t("workout.summary.shareResult")}</Text><Text style={[styles.shareSheetHint, { color: colors.muted }]}>{t("workout.summary.shareSheetHint")}</Text></View><Pressable onPress={() => setShareOpen(false)} style={[styles.close, { backgroundColor: colors.surface }]}><Text style={[styles.closeText, { color: colors.foreground }]}>×</Text></Pressable></View>{completedWorkout ? <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.shareContent, { paddingBottom: shareContentBottomInset }]}><View style={[styles.themePicker, { backgroundColor: colors.surface, borderColor: colors.border }]}>{(["dark", "light"] as const).map((theme) => <Pressable key={theme} onPress={() => setShareTheme(theme)} style={[styles.themeOption, { backgroundColor: shareTheme === theme ? colors.primary : "transparent" }]}><Text style={[styles.themeText, { color: shareTheme === theme ? colors.background : colors.muted }]}>{theme === "dark" ? t("workout.summary.themeDark") : t("workout.summary.themeLight")}</Text></Pressable>)}</View><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.shareCardScroll}><WorkoutShareCard captureRef={shareCardRef} workout={completedWorkout} programName={programName} records={shareRecords} theme={shareTheme} note={shareNote} lang={lang} /></ScrollView><TextInput value={shareNote} onChangeText={setShareNote} maxLength={120} multiline placeholder={t("workout.summary.notePlaceholder")} placeholderTextColor={colors.muted} style={[styles.noteInput, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.surface }]} /><Text style={[styles.sharePreview, { color: colors.foreground, backgroundColor: colors.surface, borderColor: colors.border }]}>{shareText}</Text><Pressable onPress={shareVisualCard} style={[styles.shareImageButton, { backgroundColor: colors.primary }]}><Text style={[styles.shareImageButtonText, { color: colors.background }]}>{t("workout.summary.shareImageCta")}</Text></Pressable><Pressable onPress={shareTextResult} style={[styles.shareTextButton, { borderColor: colors.border }]}><Text style={[styles.shareTextButtonText, { color: colors.foreground }]}>{t("workout.summary.shareTextCta")}</Text></Pressable></ScrollView> : <View style={styles.shareUnavailable}><Text style={[styles.shareSheetHint, { color: colors.muted }]}>{t("workout.summary.stillSaving")}</Text></View>}</View></View></Modal>
     </ScreenContainer>
   );
 }

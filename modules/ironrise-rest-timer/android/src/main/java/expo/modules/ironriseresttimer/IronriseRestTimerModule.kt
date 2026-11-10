@@ -67,6 +67,7 @@ internal const val EXTRA_EXERCISES_COUNT = "exercisesCount"
 internal const val EXTRA_CURRENT_WEIGHT_KG = "currentWeightKg"
 internal const val EXTRA_CURRENT_REPS = "currentReps"
 internal const val EXTRA_RESULT_LAYOUT = "resultLayout"
+internal const val EXTRA_LANG = "lang"
 internal const val EXTRA_RESULT_INPUT = "ironrise_result_input"
 internal const val SET_RESULT_WEIGHT_STEP_KG = 5.0
 internal const val SET_RESULT_LAYOUT_COUNT = 5
@@ -94,7 +95,8 @@ class IronriseRestTimerModule : Module() {
         exerciseId = payload["exerciseId"] as? String ?: "",
         nextSetIndex = (payload["nextSetIndex"] as? Number)?.toInt() ?: -1,
         nextSetWeight = payload["nextSetWeight"] as? String ?: "",
-        nextSetReps = payload["nextSetReps"] as? String ?: ""
+        nextSetReps = payload["nextSetReps"] as? String ?: "",
+        lang = payload["lang"] as? String ?: "ru"
       )
     }
 
@@ -139,7 +141,8 @@ class IronriseRestTimerModule : Module() {
         planReps = (payload["planReps"] as? Number)?.toInt() ?: 0,
         exerciseIndex = (payload["exerciseIndex"] as? Number)?.toInt() ?: -1,
         exercisesCount = (payload["exercisesCount"] as? Number)?.toInt() ?: 0,
-        exerciseId = payload["exerciseId"] as? String ?: ""
+        exerciseId = payload["exerciseId"] as? String ?: "",
+        lang = payload["lang"] as? String ?: "ru"
       )
     }
 
@@ -168,7 +171,8 @@ internal fun showCountdownNotification(
   exerciseId: String = "",
   nextSetIndex: Int = -1,
   nextSetWeight: String = "",
-  nextSetReps: String = ""
+  nextSetReps: String = "",
+  lang: String = "ru"
 ) {
   val remaining = restEndAt - System.currentTimeMillis()
   if (remaining <= 0) {
@@ -176,24 +180,27 @@ internal fun showCountdownNotification(
     clearCountdownNotification(context)
     return
   }
-  ensureCountdownChannel(context)
+  ensureCountdownChannel(context, lang)
   val finishExercise = nextActionKind == "finish-exercise"
-  val primaryActionLabel = if (finishExercise) "Следующее упражнение" else "Следующий подход"
+  val primaryActionLabel =
+    if (finishExercise) RestTimerStrings.nextExercise(lang) else RestTimerStrings.nextSet(lang)
   val primaryActionIcon = if (finishExercise) android.R.drawable.ic_menu_save else android.R.drawable.ic_media_play
-  Log.d(REST_TIMER_LOG_TAG, "countdown shown: endAt=$restEndAt action=$nextActionKind exerciseId=$exerciseId nextSetIndex=$nextSetIndex")
+  Log.d(REST_TIMER_LOG_TAG, "countdown shown: endAt=$restEndAt action=$nextActionKind exerciseId=$exerciseId nextSetIndex=$nextSetIndex lang=$lang")
   // Отдых означает, что предыдущий подход завершён: снимаем зеркала подхода и ввода результата.
   NotificationManagerCompat.from(context).cancel(ACTIVE_SET_NOTIFICATION_ID)
   NotificationManagerCompat.from(context).cancel(SET_RESULT_NOTIFICATION_ID)
 
   val content = when {
-    targetLabel.isBlank() -> "До следующего подхода"
-    currentHeartRateBpm > 0 -> "ЧСС $currentHeartRateBpm · цель $targetLabel $targetFromBpm–$targetToBpm"
-    else -> "Цель пульса: $targetLabel · $targetFromBpm–$targetToBpm уд/мин"
-  } + nextSetSummary(nextSetIndex, nextSetWeight, nextSetReps)
+    targetLabel.isBlank() -> RestTimerStrings.countdownUntilNextSet(lang)
+    currentHeartRateBpm > 0 -> RestTimerStrings.heartRateWithTarget(
+      lang, currentHeartRateBpm, targetLabel, targetFromBpm, targetToBpm
+    )
+    else -> RestTimerStrings.heartRateTarget(lang, targetLabel, targetFromBpm, targetToBpm)
+  } + nextSetSummary(nextSetIndex, nextSetWeight, nextSetReps, lang)
 
   val builder = NotificationCompat.Builder(context, COUNTDOWN_CHANNEL)
     .setSmallIcon(R.drawable.ironrise_notification)
-    .setContentTitle("Отдых между подходами")
+    .setContentTitle(RestTimerStrings.countdownTitle(lang))
     .setContentText(content)
     .setWhen(restEndAt)
     .setShowWhen(true)
@@ -210,25 +217,32 @@ internal fun showCountdownNotification(
   }
   builder.addAction(
     android.R.drawable.ic_menu_close_clear_cancel,
-    "Пропустить",
-    restActionPendingIntent(context, ACTION_SKIP, restEndAt, targetLabel, targetFromBpm, targetToBpm, SKIP_REQUEST_CODE, completionSound, completionVolume, completionVibrationEnabled, completionVibrationPattern, nextActionKind, exerciseId, nextSetIndex, nextSetWeight, nextSetReps)
+    RestTimerStrings.skip(lang),
+    restActionPendingIntent(context, ACTION_SKIP, restEndAt, targetLabel, targetFromBpm, targetToBpm, SKIP_REQUEST_CODE, completionSound, completionVolume, completionVibrationEnabled, completionVibrationPattern, nextActionKind, exerciseId, nextSetIndex, nextSetWeight, nextSetReps, lang)
   )
   builder.addAction(
     android.R.drawable.ic_input_add,
-    "+30 секунд",
-    restActionPendingIntent(context, ACTION_EXTEND, restEndAt, targetLabel, targetFromBpm, targetToBpm, EXTEND_REQUEST_CODE, completionSound, completionVolume, completionVibrationEnabled, completionVibrationPattern, nextActionKind, exerciseId, nextSetIndex, nextSetWeight, nextSetReps)
+    RestTimerStrings.extend30(lang),
+    restActionPendingIntent(context, ACTION_EXTEND, restEndAt, targetLabel, targetFromBpm, targetToBpm, EXTEND_REQUEST_CODE, completionSound, completionVolume, completionVibrationEnabled, completionVibrationPattern, nextActionKind, exerciseId, nextSetIndex, nextSetWeight, nextSetReps, lang)
   )
   builder.addAction(
     primaryActionIcon,
     primaryActionLabel,
-    restActionPendingIntent(context, ACTION_START, restEndAt, targetLabel, targetFromBpm, targetToBpm, START_REQUEST_CODE, completionSound, completionVolume, completionVibrationEnabled, completionVibrationPattern, nextActionKind, exerciseId, nextSetIndex, nextSetWeight, nextSetReps)
+    restActionPendingIntent(context, ACTION_START, restEndAt, targetLabel, targetFromBpm, targetToBpm, START_REQUEST_CODE, completionSound, completionVolume, completionVibrationEnabled, completionVibrationPattern, nextActionKind, exerciseId, nextSetIndex, nextSetWeight, nextSetReps, lang)
   )
   NotificationManagerCompat.from(context).notify(COUNTDOWN_NOTIFICATION_ID, builder.build())
-  scheduleCompletionAlarm(context, restEndAt, completionSound, completionVolume, completionVibrationEnabled, completionVibrationPattern, nextActionKind, exerciseId, nextSetIndex, nextSetWeight, nextSetReps)
+  scheduleCompletionAlarm(context, restEndAt, completionSound, completionVolume, completionVibrationEnabled, completionVibrationPattern, nextActionKind, exerciseId, nextSetIndex, nextSetWeight, nextSetReps, lang)
 }
 
-internal fun nextSetSummary(nextSetIndex: Int, weight: String, reps: String): String =
-  if (nextSetIndex >= 0 && (weight.isNotBlank() || reps.isNotBlank())) " · Далее: $weight кг × $reps" else ""
+internal fun nextSetSummary(
+  nextSetIndex: Int,
+  weight: String,
+  reps: String,
+  lang: String = "ru"
+): String =
+  if (nextSetIndex >= 0 && (weight.isNotBlank() || reps.isNotBlank()))
+    RestTimerStrings.nextSetSummary(lang, weight, reps)
+  else ""
 
 internal fun clearCountdownNotification(context: Context) {
   Log.d(REST_TIMER_LOG_TAG, "countdown cleared")
@@ -239,10 +253,10 @@ internal fun clearCountdownNotification(context: Context) {
   earlyWarningPendingIntent(context, PendingIntent.FLAG_NO_CREATE)?.let { alarmManager.cancel(it) }
 }
 
-private fun ensureCountdownChannel(context: Context) {
+private fun ensureCountdownChannel(context: Context, lang: String = "ru") {
   if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
   val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-  val channel = NotificationChannel(COUNTDOWN_CHANNEL, "Таймер отдыха", NotificationManager.IMPORTANCE_LOW).apply {
+  val channel = NotificationChannel(COUNTDOWN_CHANNEL, RestTimerStrings.restTimerChannel(lang), NotificationManager.IMPORTANCE_LOW).apply {
     lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
     setShowBadge(false)
     enableVibration(false)
@@ -266,7 +280,8 @@ internal fun restActionPendingIntent(
   exerciseId: String = "",
   nextSetIndex: Int = -1,
   nextSetWeight: String = "",
-  nextSetReps: String = ""
+  nextSetReps: String = "",
+  lang: String = "ru"
 ): PendingIntent {
   val intent = Intent(context, RestTimerActionReceiver::class.java).apply {
     this.action = action
@@ -283,6 +298,7 @@ internal fun restActionPendingIntent(
     putExtra(EXTRA_NEXT_SET_INDEX, nextSetIndex)
     putExtra(EXTRA_NEXT_SET_WEIGHT, nextSetWeight)
     putExtra(EXTRA_NEXT_SET_REPS, nextSetReps)
+    putExtra(EXTRA_LANG, lang)
   }
   val mutabilityFlag =
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) PendingIntent.FLAG_IMMUTABLE else 0
@@ -341,7 +357,8 @@ internal fun completionPendingIntent(
   exerciseId: String = "",
   nextSetIndex: Int = -1,
   nextSetWeight: String = "",
-  nextSetReps: String = ""
+  nextSetReps: String = "",
+  lang: String = "ru"
 ): PendingIntent {
   val intent = Intent(context, RestTimerCompletionReceiver::class.java).apply {
     action = "expo.modules.ironriseresttimer.COMPLETE"
@@ -355,6 +372,7 @@ internal fun completionPendingIntent(
     putExtra(EXTRA_NEXT_SET_INDEX, nextSetIndex)
     putExtra(EXTRA_NEXT_SET_WEIGHT, nextSetWeight)
     putExtra(EXTRA_NEXT_SET_REPS, nextSetReps)
+    putExtra(EXTRA_LANG, lang)
   }
   return PendingIntent.getBroadcast(context, ALARM_REQUEST_CODE, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE or flags)
 }
@@ -370,10 +388,11 @@ internal fun scheduleCompletionAlarm(
   exerciseId: String,
   nextSetIndex: Int,
   nextSetWeight: String,
-  nextSetReps: String
+  nextSetReps: String,
+  lang: String = "ru"
 ) {
   val manager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
-  val pendingIntent = completionPendingIntent(context, 0, completionSound, restEndAt, completionVolume, completionVibrationEnabled, completionVibrationPattern, nextActionKind, exerciseId, nextSetIndex, nextSetWeight, nextSetReps)
+  val pendingIntent = completionPendingIntent(context, 0, completionSound, restEndAt, completionVolume, completionVibrationEnabled, completionVibrationPattern, nextActionKind, exerciseId, nextSetIndex, nextSetWeight, nextSetReps, lang)
   val earlyWarningAt = restEndAt - 10_000L
   if (earlyWarningAt > System.currentTimeMillis()) {
     val earlyWarning = earlyWarningPendingIntent(context, 0, completionSound, completionVolume, completionVibrationEnabled, completionVibrationPattern)
@@ -441,7 +460,8 @@ internal data class ActiveSetNotificationState(
   val exerciseId: String,
   val currentWeightKg: Double,
   val currentReps: Int,
-  val resultLayout: Int
+  val resultLayout: Int,
+  val lang: String = "ru"
 )
 
 internal fun formatSetWeightKg(weightKg: Double): String =
@@ -449,8 +469,15 @@ internal fun formatSetWeightKg(weightKg: Double): String =
   else String.format(java.util.Locale.US, "%.1f", weightKg)
 
 internal fun setPlanSummary(state: ActiveSetNotificationState): String {
-  val plan = "План: ${formatSetWeightKg(state.planWeightKg)} кг × ${state.planReps}"
-  val position = if (state.exerciseIndex >= 0 && state.exercisesCount > 0) " · Упражнение ${state.exerciseIndex + 1} из ${state.exercisesCount}" else ""
+  val plan = RestTimerStrings.planSummary(
+    state.lang,
+    formatSetWeightKg(state.planWeightKg),
+    state.planReps
+  )
+  val position =
+    if (state.exerciseIndex >= 0 && state.exercisesCount > 0)
+      RestTimerStrings.exercisePosition(state.lang, state.exerciseIndex + 1, state.exercisesCount)
+    else ""
   return plan + position
 }
 
@@ -463,13 +490,14 @@ internal fun showActiveSetNotification(
   planReps: Int,
   exerciseIndex: Int,
   exercisesCount: Int,
-  exerciseId: String
+  exerciseId: String,
+  lang: String = "ru"
 ) {
   if (setIndex < 0) {
     Log.d(REST_TIMER_LOG_TAG, "active set notification ignored: setIndex=$setIndex")
     return
   }
-  ensureActiveSetChannel(context)
+  ensureActiveSetChannel(context, lang)
   val state = ActiveSetNotificationState(
     exerciseName = exerciseName,
     setIndex = setIndex,
@@ -481,9 +509,10 @@ internal fun showActiveSetNotification(
     exerciseId = exerciseId,
     currentWeightKg = planWeightKg,
     currentReps = planReps,
-    resultLayout = 0
+    resultLayout = 0,
+    lang = lang
   )
-  Log.d(REST_TIMER_LOG_TAG, "active set shown: exerciseId=$exerciseId setIndex=$setIndex sets=$setsCount")
+  Log.d(REST_TIMER_LOG_TAG, "active set shown: exerciseId=$exerciseId setIndex=$setIndex sets=$setsCount lang=$lang")
   NotificationManagerCompat.from(context).cancel(SET_RESULT_NOTIFICATION_ID)
   NotificationManagerCompat.from(context).notify(ACTIVE_SET_NOTIFICATION_ID, buildActiveSetNotification(context, state))
 }
@@ -491,7 +520,14 @@ internal fun showActiveSetNotification(
 internal fun buildActiveSetNotification(context: Context, state: ActiveSetNotificationState): android.app.Notification {
   val builder = NotificationCompat.Builder(context, ACTIVE_SET_CHANNEL)
     .setSmallIcon(R.drawable.ironrise_notification)
-    .setContentTitle("Подход ${state.setIndex + 1} из ${state.setsCount.coerceAtLeast(state.setIndex + 1)} · ${state.exerciseName.ifBlank { "Упражнение" }}")
+    .setContentTitle(
+      RestTimerStrings.activeSetTitle(
+        state.lang,
+        state.setIndex + 1,
+        state.setsCount.coerceAtLeast(state.setIndex + 1),
+        state.exerciseName.ifBlank { RestTimerStrings.exerciseFallback(state.lang) }
+      )
+    )
     .setContentText(setPlanSummary(state))
     // Не ongoing: Huawei Health зеркалирует на часы только обычные
     // уведомления панели; постоянные до часов не доходят. Уведомление
@@ -503,20 +539,32 @@ internal fun buildActiveSetNotification(context: Context, state: ActiveSetNotifi
     .setPriority(NotificationCompat.PRIORITY_LOW)
   builder.addAction(
     android.R.drawable.ic_media_play,
-    "Завершить подход",
+    RestTimerStrings.finishSet(state.lang),
     setActionPendingIntent(context, ACTION_FINISH_SET, state, FINISH_SET_REQUEST_CODE)
   )
   return builder.build()
 }
 
 internal fun showSetResultNotification(context: Context, state: ActiveSetNotificationState) {
-  ensureActiveSetChannel(context)
+  ensureActiveSetChannel(context, state.lang)
   Log.d(REST_TIMER_LOG_TAG, "set result shown: exerciseId=${state.exerciseId} setIndex=${state.setIndex} weight=${state.currentWeightKg} reps=${state.currentReps} layout=${state.resultLayout}")
   NotificationManagerCompat.from(context).cancel(ACTIVE_SET_NOTIFICATION_ID)
   val builder = NotificationCompat.Builder(context, ACTIVE_SET_CHANNEL)
     .setSmallIcon(R.drawable.ironrise_notification)
-    .setContentTitle("Результат подхода ${state.setIndex + 1} · ${state.exerciseName.ifBlank { "Упражнение" }}")
-    .setContentText("${formatSetWeightKg(state.currentWeightKg)} кг × ${state.currentReps}")
+    .setContentTitle(
+      RestTimerStrings.setResultTitle(
+        state.lang,
+        state.setIndex + 1,
+        state.exerciseName.ifBlank { RestTimerStrings.exerciseFallback(state.lang) }
+      )
+    )
+    .setContentText(
+      RestTimerStrings.setResultValue(
+        state.lang,
+        formatSetWeightKg(state.currentWeightKg),
+        state.currentReps
+      )
+    )
     // Не ongoing по той же причине: обычное уведомление зеркалируется на часы.
     .setOngoing(false)
     .setOnlyAlertOnce(true)
@@ -527,11 +575,11 @@ internal fun showSetResultNotification(context: Context, state: ActiveSetNotific
   // «Ещё» переключает раскладку корректировок по кругу:
   // +5 кг → −5 кг → +1 повтор → −1 повтор → Отменить.
   val primaryLabel = when (state.resultLayout % SET_RESULT_LAYOUT_COUNT) {
-    1 -> "−5 кг"
-    2 -> "+1 повтор"
-    3 -> "−1 повтор"
-    4 -> "Отменить"
-    else -> "+5 кг"
+    1 -> RestTimerStrings.weightDown(state.lang)
+    2 -> RestTimerStrings.repsUp(state.lang)
+    3 -> RestTimerStrings.repsDown(state.lang)
+    4 -> RestTimerStrings.cancelSet(state.lang)
+    else -> RestTimerStrings.weightUp(state.lang)
   }
   val primaryAction = when (state.resultLayout % SET_RESULT_LAYOUT_COUNT) {
     1 -> ACTION_ADJUST_WEIGHT_DOWN
@@ -558,7 +606,7 @@ internal fun showSetResultNotification(context: Context, state: ActiveSetNotific
   )
   builder.addAction(
     android.R.drawable.ic_menu_manage,
-    "Ещё",
+    RestTimerStrings.more(state.lang),
     setActionPendingIntent(context, ACTION_MORE, state, MORE_REQUEST_CODE)
   )
   // «Готово» с RemoteInput: прямой ввод «вес × повторы» цифрами с клавиатуры
@@ -568,11 +616,11 @@ internal fun showSetResultNotification(context: Context, state: ActiveSetNotific
   // там остаются кнопки-корректировки. Extras intent'а уже содержат текущие
   // вес/повторы (совместимость со старым путём и восстановлением из extras).
   val remoteInput = RemoteInput.Builder(EXTRA_RESULT_INPUT)
-    .setLabel("Вес × повторы, напр. 80 x 8")
+    .setLabel(RestTimerStrings.resultInputLabel(state.lang))
     .build()
   val commitAction = NotificationCompat.Action.Builder(
     android.R.drawable.ic_menu_save,
-    "Готово",
+    RestTimerStrings.done(state.lang),
     setActionPendingIntent(context, ACTION_COMMIT_SET, state, COMMIT_SET_REQUEST_CODE, mutable = true)
   )
     .addRemoteInput(remoteInput)
@@ -607,6 +655,7 @@ internal fun setActionPendingIntent(
     putExtra(EXTRA_CURRENT_WEIGHT_KG, state.currentWeightKg)
     putExtra(EXTRA_CURRENT_REPS, state.currentReps)
     putExtra(EXTRA_RESULT_LAYOUT, state.resultLayout)
+    putExtra(EXTRA_LANG, state.lang)
   }
   // RemoteInput требует mutable PendingIntent: система дописывает введённый
   // текст в EXTRA_RESULT_INPUT перед доставкой broadcast.
@@ -631,13 +680,14 @@ internal fun activeSetStateFromIntent(intent: Intent): ActiveSetNotificationStat
     exerciseId = intent.getStringExtra(EXTRA_EXERCISE_ID) ?: "",
     currentWeightKg = intent.getDoubleExtra(EXTRA_CURRENT_WEIGHT_KG, 0.0),
     currentReps = intent.getIntExtra(EXTRA_CURRENT_REPS, 0),
-    resultLayout = intent.getIntExtra(EXTRA_RESULT_LAYOUT, 0)
+    resultLayout = intent.getIntExtra(EXTRA_RESULT_LAYOUT, 0),
+    lang = intent.getStringExtra(EXTRA_LANG) ?: "ru"
   )
 
-private fun ensureActiveSetChannel(context: Context) {
+private fun ensureActiveSetChannel(context: Context, lang: String = "ru") {
   if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
   val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-  val channel = NotificationChannel(ACTIVE_SET_CHANNEL, "Тренировка", NotificationManager.IMPORTANCE_LOW).apply {
+  val channel = NotificationChannel(ACTIVE_SET_CHANNEL, RestTimerStrings.workoutChannel(lang), NotificationManager.IMPORTANCE_LOW).apply {
     lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
     setShowBadge(false)
     enableVibration(false)

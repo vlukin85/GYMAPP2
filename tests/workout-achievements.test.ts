@@ -23,5 +23,14 @@ describe("workout achievements", () => {
     const text = formatWorkoutAchievementShare({ workout, programName: "Верх тела · Сила", records: [{ ...records.bench, name: "Жим лёжа" }] });
     expect(text).toContain("Жим лёжа: 90 кг × 5");
     expect(text).toContain("4 425 кг");
+    // Язык — необязательное поле: без него текст остаётся русским.
+    expect(text).toContain("Новые личные рекорды:");
+
+    const english = formatWorkoutAchievementShare({ workout, programName: "Upper body · Strength", records: [{ ...records.bench, name: "Bench press" }], lang: "en" });
+    expect(english).toContain("Workout: 55 min · 4,425 kg · 1 sets");
+    expect(english).toContain("New personal records:");
+    expect(english).toContain("• Bench press: 90 kg × 5 · 1RM 105.0 kg");
+    expect(english).toContain("#IronRise #Workout");
+    expect(/[А-Яа-яЁё]/.test(english)).toBe(false);
   });
 });

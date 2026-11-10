@@ -1,0 +1,93 @@
+PAIRS = [
+    # --- импорты -------------------------------------------------------------
+    ('import { BODY_METRICS, type BodyMeasurement, useBodyStore } from "@/lib/body-store";',
+     'import { BODY_METRICS, bodyMetricLabel, bodyMetricShort, bodyMetricUnit, type BodyMeasurement, useBodyStore } from "@/lib/body-store";'),
+    ('import { bmiLabel, calculateBmi } from "@/lib/body-calculations";',
+     'import { calculateBmi } from "@/lib/body-calculations";\nimport { useLanguage, type TFunction } from "@/lib/i18n";'),
+    # --- чистые хелперы вне компонентов получают переводчик ------------------
+    ('const compositionParts = (item: BodyMeasurement) => [item.muscleMassKg !== undefined && `Мышцы ${item.muscleMassKg} кг`, item.boneMassKg !== undefined && `Кости ${item.boneMassKg} кг`, item.waterMassKg !== undefined && `Вода ${item.waterMassKg} кг`, item.bmiKgM2 !== undefined && `ИМТ ${item.bmiKgM2}`]',
+     'const compositionParts = (item: BodyMeasurement, t: TFunction) => [item.muscleMassKg !== undefined && t("body.composition.muscle", { value: item.muscleMassKg }), item.boneMassKg !== undefined && t("body.composition.bone", { value: item.boneMassKg }), item.waterMassKg !== undefined && t("body.composition.water", { value: item.waterMassKg }), item.bmiKgM2 !== undefined && t("body.composition.bmi", { value: item.bmiKgM2 })]'),
+    ('const measurementSourceLabel = (item: BodyMeasurement) => item.sourceAtISO ? " · весы" : "";',
+     'const measurementSourceLabel = (item: BodyMeasurement, t: TFunction) => item.sourceAtISO ? t("body.history.sourceScale") : "";\n/** Категория ИМТ: пороги считает lib/body-calculations, подписи берём из словаря. */\nconst bmiCategoryLabel = (bmi: number, t: TFunction) => bmi < 18.5 ? t("body.bmi.categoryBelow") : bmi < 25 ? t("body.bmi.categoryNormal") : bmi < 30 ? t("body.bmi.categoryAbove") : t("body.bmi.categoryHigh");'),
+    # --- хук языка ----------------------------------------------------------
+    ('  const colors = useColors();\n  const sheetBottomInset = useBottomActionInset(18);',
+     '  const colors = useColors();\n  const { lang, t } = useLanguage();\n  // Даты форматируются по выбранному языку, а не жёстко по ru-RU.\n  const locale = lang === "en" ? "en-US" : "ru-RU";\n  const sheetBottomInset = useBottomActionInset(18);'),
+    # --- сохранение замера --------------------------------------------------
+    ('Alert.alert("Добавьте параметр", "Укажите хотя бы вес или один обхват.");',
+     'Alert.alert(t("body.editor.emptyValuesTitle"), t("body.editor.emptyValuesMessage"));'),
+    ('const formattedDate = useMemo(() => latest?.date ? new Date(`${latest.date}T12:00:00`).toLocaleDateString("ru-RU", { day: "numeric", month: "long" }) : "нет записей", [latest?.date]);',
+     'const formattedDate = useMemo(() => latest?.date ? new Date(`${latest.date}T12:00:00`).toLocaleDateString(locale, { day: "numeric", month: "long" }) : t("body.latest.noRecords"), [locale, latest?.date, t]);'),
+    # --- фото прогресса -----------------------------------------------------
+    ('Alert.alert("Не удалось добавить фото", error instanceof Error ? error.message : "Попробуйте выбрать другое изображение.");',
+     'Alert.alert(t("body.photos.addErrorTitle"), error instanceof Error ? error.message : t("body.photos.addErrorMessage"));'),
+    # --- шапка --------------------------------------------------------------
+    ('>ЛОКАЛЬНЫЙ ЖУРНАЛ</Text>', '>{t("body.header.eyebrow")}</Text>'),
+    ('>ТЕЛО</Text>', '>{t("body.header.title")}</Text>'),
+    ('>Вес, обхваты и композиция</Text>', '>{t("body.header.subtitle")}</Text>'),
+    ('>+ ЗАМЕР</Text>', '>{t("body.header.addCta")}</Text>'),
+    # --- последний замер ----------------------------------------------------
+    ('>ПОСЛЕДНИЙ ЗАМЕР · {formattedDate.toUpperCase()}</Text>',
+     '>{t("body.latest.kicker", { date: formattedDate.toUpperCase() })}</Text>'),
+    ('{latest[metric.id]}<Text style={styles.latestUnit}> {metric.unit}</Text>',
+     '{latest[metric.id]}<Text style={styles.latestUnit}> {bodyMetricUnit(metric, lang)}</Text>'),
+    ('{metric.short}</Text></View>)}</View>}{compositionParts(latest).length > 0 && <Text style={[styles.latestComposition, { color: colors.muted }]}>{compositionParts(latest).join(" · ")}</Text>',
+     '{bodyMetricShort(metric, lang)}</Text></View>)}</View>}{compositionParts(latest, t).length > 0 && <Text style={[styles.latestComposition, { color: colors.muted }]}>{compositionParts(latest, t).join(" · ")}</Text>'),
+    ('>Добавьте первый замер, чтобы видеть динамику тела.</Text>',
+     '>{t("body.latest.empty")}</Text>'),
+    # --- ИМТ ---------------------------------------------------------------
+    ('>ИНДЕКС МАССЫ ТЕЛА</Text>', '>{t("body.bmi.title")}</Text>'),
+    ('{bmi === undefined ? "Добавьте вес в замере и рост в настройках." : bmiLabel(bmi)}',
+     '{bmi === undefined ? t("body.bmi.hintMissing") : bmiCategoryLabel(bmi, t)}'),
+    ('>ИМТ</Text>', '>{t("body.bmi.unit")}</Text>'),
+    # --- фотографии ---------------------------------------------------------
+    ('>ВИЗУАЛЬНЫЙ ПРОГРЕСС</Text>', '>{t("body.photos.title")}</Text>'),
+    ('>Фото по датам замеров</Text>', '>{t("body.photos.subtitle")}</Text>'),
+    ('{new Date(`${photo.date}T12:00:00`).toLocaleDateString("ru-RU", { day: "numeric", month: "short" })}',
+     '{new Date(`${photo.date}T12:00:00`).toLocaleDateString(locale, { day: "numeric", month: "short" })}'),
+    ('Alert.alert("Удалить фотографию?", "Фото будет удалено из визуальной истории прогресса.", [{ text: "Отмена", style: "cancel" }, { text: "Удалить", style: "destructive"',
+     'Alert.alert(t("body.photos.deleteTitle"), t("body.photos.deleteMessage"), [{ text: t("body.common.cancel"), style: "cancel" }, { text: t("body.common.delete"), style: "destructive"'),
+    ('>Прикрепите фото к любой записи в истории, чтобы сравнивать изменения визуально.</Text>',
+     '>{t("body.photos.empty")}</Text>'),
+    # --- история ------------------------------------------------------------
+    ('>ИСТОРИЯ</Text>', '>{t("body.history.title")}</Text>'),
+    ('{measurementsCount} {measurementsCount === 1 ? "запись" : "записей"}',
+     '{measurementsCount === 1 ? t("body.history.countOne", { count: measurementsCount }) : t("body.history.countMany", { count: measurementsCount })}'),
+    ('Alert.alert("Удалить замер?", "Запись исчезнет только из локального журнала. Прикреплённые фото останутся в визуальной истории.", [{ text: "Отмена", style: "cancel" }, { text: "Удалить", style: "destructive"',
+     'Alert.alert(t("body.history.deleteTitle"), t("body.history.deleteMessage"), [{ text: t("body.common.cancel"), style: "cancel" }, { text: t("body.common.delete"), style: "destructive"'),
+    ('>История пока пуста.</Text>', '>{t("body.history.empty")}</Text>'),
+    # --- форма замера -------------------------------------------------------
+    ('>НОВАЯ ЗАПИСЬ</Text>', '>{t("body.editor.eyebrow")}</Text>'),
+    ('>Замеры тела</Text>', '>{t("body.editor.title")}</Text>'),
+    ('>Дата · ГГГГ-ММ-ДД</Text>', '>{t("body.editor.dateLabel")}</Text>'),
+    ('placeholder="2026-08-19"', 'placeholder={t("body.editor.datePlaceholder")}'),
+    ('>{metric.label}, {metric.unit}</Text>',
+     '>{bodyMetricLabel(metric, lang)}, {bodyMetricUnit(metric, lang)}</Text>'),
+    ('>СОХРАНИТЬ ЗАМЕР</Text>', '>{t("body.editor.saveCta")}</Text>'),
+    # --- строка истории -----------------------------------------------------
+    ('{new Date(`${item.date}T12:00:00`).toLocaleDateString("ru-RU", { day: "numeric", month: "short", year: "numeric" })}',
+     '{new Date(`${item.date}T12:00:00`).toLocaleDateString(locale, { day: "numeric", month: "short", year: "numeric" })}'),
+    ('{BODY_METRICS.filter((metric) => item[metric.id] !== undefined).map((metric) => `${metric.short} ${item[metric.id]} ${metric.unit}`).join(" · ")}{measurementSourceLabel(item)}',
+     '{BODY_METRICS.filter((metric) => item[metric.id] !== undefined).map((metric) => `${bodyMetricShort(metric, lang)} ${item[metric.id]} ${bodyMetricUnit(metric, lang)}`).join(" · ")}{measurementSourceLabel(item, t)}'),
+    ('>{uploading ? "ДОБАВЛЯЕМ ФОТО…" : "+ ФОТО К ЗАМЕРУ"}</Text>',
+     '>{uploading ? t("body.history.addPhotoBusy") : t("body.history.addPhoto")}</Text>'),
+    # --- карточка сравнения -------------------------------------------------
+    ('>СРАВНЕНИЕ ПРОГРЕССА</Text>', '>{t("body.comparison.title")}</Text>'),
+    ('>Две даты · реальные изменения</Text>', '>{t("body.comparison.subtitle")}</Text>'),
+    ('>ОТ</Text>', '>{t("body.comparison.from")}</Text>'),
+    ('>ДО</Text>', '>{t("body.comparison.to")}</Text>'),
+    ('const dateLabel = (date: string) => new Date(`${date}T12:00:00`).toLocaleDateString("ru-RU", { day: "numeric", month: "short" });',
+     'const dateLabel = (date: string) => new Date(`${date}T12:00:00`).toLocaleDateString(locale, { day: "numeric", month: "short" });\n  const metricOf = (metricId: string) => BODY_METRICS.find((metric) => metric.id === metricId);'),
+    ('<Text style={[comparisonStyles.metric, { color: colors.muted }]}>{row.label.toUpperCase()}</Text><Text style={[comparisonStyles.value, { color: colors.foreground }]}>{row.from} → {row.to} {row.unit}</Text>',
+     '<Text style={[comparisonStyles.metric, { color: colors.muted }]}>{bodyMetricLabel(metricOf(row.metricId) ?? BODY_METRICS[0], lang).toUpperCase()}</Text><Text style={[comparisonStyles.value, { color: colors.foreground }]}>{row.from} → {row.to} {bodyMetricUnit(metricOf(row.metricId) ?? BODY_METRICS[0], lang)}</Text>'),
+    ('{formatBodyDifference(row.difference, row.unit)}',
+     '{formatBodyDifference(row.difference, bodyMetricUnit(metricOf(row.metricId) ?? BODY_METRICS[0], lang))}'),
+    # --- фото в сравнении ---------------------------------------------------
+    ('>НЕТ{`\\n`}ФОТО</Text>', '>{t("body.comparison.noPhoto")}</Text>'),
+    # --- хуки в дочерних компонентах ---------------------------------------
+    ('function MeasurementRow({ item, colors, onDelete, onAddPhoto, uploading }: { item: BodyMeasurement; colors: any; onDelete: () => void; onAddPhoto: () => void; uploading: boolean }) { return',
+     'function MeasurementRow({ item, colors, onDelete, onAddPhoto, uploading }: { item: BodyMeasurement; colors: any; onDelete: () => void; onAddPhoto: () => void; uploading: boolean }) { const { lang, t } = useLanguage(); const locale = lang === "en" ? "en-US" : "ru-RU"; return'),
+    ('function BodyComparisonCard({ measurements, photos, colors }: { measurements: BodyMeasurement[]; photos: Array<{ id: string; date: string; uri: string }>; colors: any }) {\n',
+     'function BodyComparisonCard({ measurements, photos, colors }: { measurements: BodyMeasurement[]; photos: Array<{ id: string; date: string; uri: string }>; colors: any }) {\n  const { lang, t } = useLanguage();\n  const locale = lang === "en" ? "en-US" : "ru-RU";\n'),
+    ('function ComparePhoto({ photo, label, colors }: { photo?: string; label: string; colors: any }) { return',
+     'function ComparePhoto({ photo, label, colors }: { photo?: string; label: string; colors: any }) { const { t } = useLanguage(); return'),
+]

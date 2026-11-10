@@ -1,10 +1,12 @@
 import { Platform } from "react-native";
 import * as Notifications from "expo-notifications";
 import { getReminderTriggerDate } from "./workout-data";
+import { getT, t } from "./i18n";
 import {
   clearNativeRestCountdown,
   showNativeRestCountdown,
   type LockScreenHeartRateTarget,
+  type NativeLang,
   type NativeRestCompletionSound,
   type NativeRestNextAction,
 } from "@/modules/ironrise-rest-timer";
@@ -78,13 +80,15 @@ export async function scheduleRestTimerLockScreenNotification(
   completionVibrationEnabled = true,
   completionVibrationPattern = "short",
   nextAction: NativeRestNextAction = { kind: "start" },
+  lang: NativeLang = "ru",
 ): Promise<RestTimerNotificationIds | undefined> {
   if (Platform.OS === "web") return undefined;
+  const tr = getT(lang);
   const seconds = Math.max(1, Math.ceil((restEndAt - Date.now()) / 1000));
   if (
     !(await ensureLocalNotificationAccess(
       REST_TIMER_CHANNEL,
-      "Таймер отдыха",
+      tr("workout.notifications.restChannelName"),
       [0, 90],
     ))
   )
@@ -95,7 +99,7 @@ export async function scheduleRestTimerLockScreenNotification(
     : [];
   await ensureLocalNotificationAccess(
     completionChannelId,
-    "Отдых завершён",
+    tr("workout.notifications.restCompleteChannelName"),
     vibrationPattern,
     completionSound !== "silent",
   );
@@ -108,13 +112,16 @@ export async function scheduleRestTimerLockScreenNotification(
     completionVibrationEnabled,
     completionVibrationPattern,
     nextAction,
+    lang,
   );
   const activeId = nativeCountdownStarted
     ? undefined
     : await Notifications.scheduleNotificationAsync({
         content: {
-          title: "Отдых между подходами",
-          body: `Осталось ${formatRestNotificationTime(seconds)}. IronRise сообщит, когда можно продолжить.`,
+          title: tr("workout.notifications.restActiveTitle"),
+          body: tr("workout.notifications.restActiveBody", {
+            time: formatRestNotificationTime(seconds),
+          }),
           sticky: Platform.OS === "android",
           autoDismiss: Platform.OS !== "android",
           data: { kind: "rest-timer", restEndAt },
@@ -125,8 +132,8 @@ export async function scheduleRestTimerLockScreenNotification(
     ? undefined
     : await Notifications.scheduleNotificationAsync({
         content: {
-          title: "Отдых завершён",
-          body: "Время следующего подхода.",
+          title: tr("workout.notifications.restCompleteTitle"),
+          body: tr("workout.notifications.restCompleteBody"),
           sound: completionSound !== "silent",
           vibrate: completionVibrationEnabled ? vibrationPattern : undefined,
           data: { kind: "rest-timer-complete", restEndAt },
@@ -169,7 +176,7 @@ export async function scheduleWorkoutReminder(input: {
   if (Platform.OS === "web") return undefined;
   if (Platform.OS === "android")
     await Notifications.setNotificationChannelAsync("workouts", {
-      name: "Тренировки",
+      name: t("workout.notifications.workoutsChannelName"),
       importance: Notifications.AndroidImportance.HIGH,
       vibrationPattern: [0, 180, 100, 180],
       lightColor: "#FF4FD8",
@@ -189,8 +196,11 @@ export async function scheduleWorkoutReminder(input: {
   if (triggerDate.getTime() <= Date.now()) return undefined;
   return Notifications.scheduleNotificationAsync({
     content: {
-      title: "Скоро тренировка",
-      body: `${input.programName} — через ${input.reminderMinutes} мин.`,
+      title: t("workout.notifications.reminderTitle"),
+      body: t("workout.notifications.reminderBody", {
+        program: input.programName,
+        minutes: input.reminderMinutes,
+      }),
       sound: true,
       data: { date: input.date },
     },

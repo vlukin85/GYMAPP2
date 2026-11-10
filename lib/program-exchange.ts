@@ -1,3 +1,4 @@
+import { DEFAULT_LANG, translate, type Lang } from "./i18n";
 import {
   exercises,
   normalizeBetweenSetRestSeconds,
@@ -53,12 +54,16 @@ function normalizeProgram(value: unknown, validExerciseIds: Set<string>): Workou
   };
 }
 
-export function parseProgramExchange(content: string, existingPrograms: WorkoutProgram[]) {
+/**
+ * Разбирает файл обмена программами. Язык — необязательный параметр:
+ * без него текст ошибок остаётся русским, поэтому прежние вызовы не меняются.
+ */
+export function parseProgramExchange(content: string, existingPrograms: WorkoutProgram[], lang: Lang = DEFAULT_LANG) {
   const validExerciseIds = new Set(exercises.map((exercise) => exercise.id));
   let raw: unknown;
-  try { raw = JSON.parse(content); } catch { return { programs: [] as WorkoutProgram[], duplicateIds: [] as string[], error: "Файл не содержит корректный JSON." }; }
+  try { raw = JSON.parse(content); } catch { return { programs: [] as WorkoutProgram[], duplicateIds: [] as string[], error: translate(lang, "programs.exchange.invalidJson") }; }
   const payload = raw as Partial<ProgramExchangeFile>;
-  if (payload.format !== "gym-training-diary.programs" || (payload.version !== 1 && payload.version !== 2) || !Array.isArray(payload.programs)) return { programs: [] as WorkoutProgram[], duplicateIds: [] as string[], media: {} as Record<string, { mimeType: "image/jpeg"; base64: string }>, error: "Неподдерживаемый формат файла программ." };
+  if (payload.format !== "gym-training-diary.programs" || (payload.version !== 1 && payload.version !== 2) || !Array.isArray(payload.programs)) return { programs: [] as WorkoutProgram[], duplicateIds: [] as string[], media: {} as Record<string, { mimeType: "image/jpeg"; base64: string }>, error: translate(lang, "programs.exchange.unsupportedFormat") };
   const knownIds = new Set(existingPrograms.map((program) => program.id));
   const duplicateIds: string[] = [];
   const programs: WorkoutProgram[] = [];
@@ -69,5 +74,5 @@ export function parseProgramExchange(content: string, existingPrograms: WorkoutP
     programs.push(program);
   }
   const media = Object.fromEntries(Object.entries(payload.media ?? {}).filter(([, item]) => Boolean(item && typeof item === "object" && (item as { mimeType?: unknown }).mimeType === "image/jpeg" && typeof (item as { base64?: unknown }).base64 === "string"))) as Record<string, { mimeType: "image/jpeg"; base64: string }>;
-  return { programs, duplicateIds, media, error: programs.length || duplicateIds.length ? undefined : "В файле нет совместимых программ." };
+  return { programs, duplicateIds, media, error: programs.length || duplicateIds.length ? undefined : translate(lang, "programs.exchange.noCompatible") };
 }

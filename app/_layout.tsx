@@ -8,10 +8,10 @@ import "react-native-reanimated";
 import { Platform } from "react-native";
 import "@/lib/_core/nativewind-pressable";
 import { ThemeProvider } from "@/lib/theme-provider";
+import { LanguageProvider } from "@/lib/i18n";
 import { SvgIconThemeProvider } from "@/lib/svg-icon-theme";
 import { WorkoutReplacementOverlay } from "@/components/workout-replacement-overlay";
 import { ReleaseNotesOverlay } from "@/components/release-notes-overlay";
-import { HydrationGate } from "@/components/hydration-gate";
 import { StartupErrorBoundary } from "@/components/startup-error-boundary";
 import { WorkoutProvider } from "@/lib/workout-store";
 import { InterfaceDensityProvider } from "@/lib/interface-density-provider";
@@ -166,21 +166,23 @@ export default function RootLayout() {
       </Stack>
       <WorkoutReplacementOverlay />
       <ReleaseNotesOverlay />
-      {/* Оверлей гидрации рендерится внутри провайдеров: он читает ready
-          основных хранилищ и исчезает, как только AsyncStorage-загрузки
-          завершены (или по таймауту 2,5 с — запуск не блокируется). */}
-      <HydrationGate />
       <StatusBar style="auto" />
     </GestureHandlerRootView>
   );
 
   // On a wide browser canvas, keep the live Expo app inside a phone shell.
   // The component returns native full-screen content on physical mobile widths.
-  const content = Platform.OS === "web" ? (
-    <ExpoWebPhoneFrame>{appContent}</ExpoWebPhoneFrame>
-  ) : (
-    appContent
-  );
+  const framedContent =
+    Platform.OS === "web" ? (
+      <ExpoWebPhoneFrame>{appContent}</ExpoWebPhoneFrame>
+    ) : (
+      appContent
+    );
+
+  // Провайдер языка оборачивает всё дерево экранов: переключатель в настройках
+  // мгновенно перерисовывает любой экран, а сохранённый выбор читается при
+  // старте из AsyncStorage (ключ ironrise.app-language.v1).
+  const content = <LanguageProvider>{framedContent}</LanguageProvider>;
 
   const shouldOverrideSafeArea = Platform.OS === "web";
 

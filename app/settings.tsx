@@ -106,76 +106,92 @@ import {
 } from "@/lib/health-connect-body-sync";
 import { authorizeGoogleFit, getGoogleFitStatus, type GoogleFitStatus } from "@/lib/google-fit";
 import { HEALTH_SOURCE_OPTIONS, useHealthSource } from "@/lib/health-source";
+import { useLanguage } from "@/lib/i18n";
+import type { DictKey, Lang } from "@/lib/i18n";
 
+// Подписи опций живут в словаре домена settings: в массивах — только ключи,
+// текст подставляется через t() в момент отрисовки.
 const formulas: {
   id: OneRepMaxFormula;
-  title: string;
-  formula: string;
-  description: string;
+  titleKey: DictKey;
+  formulaKey: DictKey;
+  descriptionKey: DictKey;
 }[] = [
   {
     id: "epley",
-    title: "Эпли",
-    formula: "Вес × (1 + повторы / 30)",
-    description: "Универсальная оценка для большинства рабочих подходов.",
+    titleKey: "settings.strength.formula.epley.title",
+    formulaKey: "settings.strength.formula.epley.formula",
+    descriptionKey: "settings.strength.formula.epley.description",
   },
   {
     id: "brzycki",
-    title: "Бржицки",
-    formula: "Вес × 36 / (37 − повторы)",
-    description: "Удобна для небольшого числа повторений.",
+    titleKey: "settings.strength.formula.brzycki.title",
+    formulaKey: "settings.strength.formula.brzycki.formula",
+    descriptionKey: "settings.strength.formula.brzycki.description",
   },
 ];
 
 const hapticIntensityOptions: {
   id: SetHapticIntensity;
-  title: string;
-  description: string;
+  titleKey: DictKey;
+  descriptionKey: DictKey;
 }[] = [
   {
     id: "light",
-    title: "Лёгкая",
-    description: "Короткое деликатное подтверждение",
+    titleKey: "settings.hapticOption.light.title",
+    descriptionKey: "settings.hapticOption.light.description",
   },
-  { id: "medium", title: "Средняя", description: "Более заметный отклик" },
-  { id: "heavy", title: "Сильная", description: "Выраженное подтверждение" },
+  {
+    id: "medium",
+    titleKey: "settings.hapticOption.medium.title",
+    descriptionKey: "settings.hapticOption.medium.description",
+  },
+  {
+    id: "heavy",
+    titleKey: "settings.hapticOption.heavy.title",
+    descriptionKey: "settings.hapticOption.heavy.description",
+  },
 ];
 const restCompletionSoundOptions: {
   id: RestCompletionSound;
-  title: string;
-  description: string;
+  titleKey: DictKey;
+  descriptionKey: DictKey;
 }[] = [
   {
     id: "female",
-    title: "Женский голос",
-    description: "Короткая голосовая команда о завершении отдыха",
+    titleKey: "settings.restTimer.soundOption.female.title",
+    descriptionKey: "settings.restTimer.soundOption.female.description",
   },
   {
     id: "male",
-    title: "Мужской голос",
-    description: "Уверенная голосовая команда о следующем подходе",
+    titleKey: "settings.restTimer.soundOption.male.title",
+    descriptionKey: "settings.restTimer.soundOption.male.description",
   },
   {
     id: "siren",
-    title: "Сирена",
-    description: "Короткий заметный электронный сигнал",
+    titleKey: "settings.restTimer.soundOption.siren.title",
+    descriptionKey: "settings.restTimer.soundOption.siren.description",
   },
 ];
 const restCompletionVibrationOptions: {
   id: RestCompletionVibrationPattern;
-  title: string;
-  description: string;
+  titleKey: DictKey;
+  descriptionKey: DictKey;
 }[] = [
-  { id: "short", title: "Короткая", description: "Один короткий импульс" },
+  {
+    id: "short",
+    titleKey: "settings.restTimer.vibrationOption.short.title",
+    descriptionKey: "settings.restTimer.vibrationOption.short.description",
+  },
   {
     id: "long",
-    title: "Длинная",
-    description: "Один заметный длинный импульс",
+    titleKey: "settings.restTimer.vibrationOption.long.title",
+    descriptionKey: "settings.restTimer.vibrationOption.long.description",
   },
   {
     id: "pulse",
-    title: "Пульсирующая",
-    description: "Три коротких последовательных импульса",
+    titleKey: "settings.restTimer.vibrationOption.pulse.title",
+    descriptionKey: "settings.restTimer.vibrationOption.pulse.description",
   },
 ];
 
@@ -188,6 +204,7 @@ function CompletionVolumeSlider({
   onChange: (value: number) => void;
   colors: ReturnType<typeof useColors>;
 }) {
+  const { t } = useLanguage();
   const [width, setWidth] = useState(1);
   const updateVolume = (locationX: number) =>
     onChange(
@@ -206,7 +223,7 @@ function CompletionVolumeSlider({
     <View style={styles.volumeWrap}>
       <View style={styles.volumeHeader}>
         <Text style={[styles.vibrationTitle, { color: colors.foreground }]}>
-          Громкость сигнала
+          {t("settings.restTimer.volumeTitle")}
         </Text>
         <Text style={[styles.volumeValue, { color: colors.primary }]}>
           {Math.round(value * 100)}%
@@ -218,7 +235,9 @@ function CompletionVolumeSlider({
         }
         {...panResponder.panHandlers}
         style={[styles.volumeTrack, { backgroundColor: colors.border }]}
-        accessibilityLabel={`Громкость сигнала ${Math.round(value * 100)} процентов`}
+        accessibilityLabel={t("settings.restTimer.volumeA11y", {
+          percent: Math.round(value * 100),
+        })}
       >
         <View
           style={[
@@ -238,8 +257,7 @@ function CompletionVolumeSlider({
         />
       </View>
       <Text style={[styles.vibrationHint, { color: colors.muted }]}>
-        Регулирует громкость IronRise внутри доступного системного уровня
-        Android.
+        {t("settings.restTimer.volumeHint")}
       </Text>
     </View>
   );
@@ -282,12 +300,14 @@ type SettingsCategoryId =
   | "data";
 const SETTINGS_CATEGORIES: {
   id: SettingsCategoryId;
-  title: string;
+  titleKey: DictKey;
+  // Ключевые слова поиска не показываются в интерфейсе: здесь и русские,
+  // и английские синонимы, чтобы поиск настроек работал на обоих языках.
   keywords: string[];
 }[] = [
   {
     id: "training",
-    title: "Тренировка",
+    titleKey: "settings.category.training",
     keywords: [
       "тренировка",
       "подход",
@@ -298,11 +318,19 @@ const SETTINGS_CATEGORIES: {
       "отдых",
       "звук",
       "вибрация",
+      "training",
+      "set",
+      "weight",
+      "plates",
+      "timer",
+      "rest",
+      "sound",
+      "vibration",
     ],
   },
   {
     id: "home",
-    title: "Главный экран",
+    titleKey: "settings.category.home",
     keywords: [
       "главный",
       "сегодня",
@@ -313,11 +341,20 @@ const SETTINGS_CATEGORIES: {
       "перенос",
       "цитата",
       "вибрация",
+      "home",
+      "today",
+      "widget",
+      "tab",
+      "bottom bar",
+      "navigation",
+      "drag",
+      "quote",
+      "vibration",
     ],
   },
   {
     id: "appearance",
-    title: "Внешний вид",
+    titleKey: "settings.category.appearance",
     keywords: [
       "внешний",
       "стиль",
@@ -326,11 +363,18 @@ const SETTINGS_CATEGORIES: {
       "иконки",
       "плотность",
       "текст",
+      "appearance",
+      "style",
+      "theme",
+      "color",
+      "icons",
+      "density",
+      "text",
     ],
   },
   {
     id: "body",
-    title: "Питание и тело",
+    titleKey: "settings.category.body",
     keywords: [
       "питание",
       "калории",
@@ -346,16 +390,38 @@ const SETTINGS_CATEGORIES: {
       "возраст",
       "цель",
       "обхват",
+      "nutrition",
+      "calories",
+      "activity",
+      "movement",
+      "macros",
+      "protein",
+      "fat",
+      "carbs",
+      "body",
+      "height",
+      "age",
+      "goal",
+      "girth",
     ],
   },
   {
     id: "reminders",
-    title: "Напоминания",
-    keywords: ["напоминание", "уведомление", "время", "календарь"],
+    titleKey: "settings.category.reminders",
+    keywords: [
+      "напоминание",
+      "уведомление",
+      "время",
+      "календарь",
+      "reminder",
+      "notification",
+      "time",
+      "calendar",
+    ],
   },
   {
     id: "data",
-    title: "Данные и сервисы",
+    titleKey: "settings.category.data",
     keywords: [
       "данные",
       "хранилище",
@@ -374,12 +440,38 @@ const SETTINGS_CATEGORIES: {
       "инструменты",
       "приватность",
       "экран блокировки",
+      "язык",
+      "data",
+      "storage",
+      "photos",
+      "offline",
+      "export",
+      "import",
+      "pulse",
+      "heart rate",
+      "watch",
+      "scale",
+      "body composition",
+      "tools",
+      "privacy",
+      "lock screen",
+      "language",
     ],
   },
 ];
 
+// Переключатель языка: подписи языков показываются на самих языках,
+// поэтому их ключи ведут на одно и то же значение в обоих словарях.
+const LANGUAGE_OPTIONS: { id: Lang; labelKey: DictKey }[] = [
+  { id: "ru", labelKey: "settings.language.optionRu" },
+  { id: "en", labelKey: "settings.language.optionEn" },
+];
+
 export default function SettingsScreen() {
   const colors = useColors();
+  const { lang, setLang, t } = useLanguage();
+  // Даты и поиск форматируются по выбранному языку, а не жёстко по ru-RU.
+  const locale = lang === "en" ? "en-US" : "ru-RU";
   const keySheetBottomInset = useBottomActionInset(20);
   const store = useWorkoutStore();
   const { theme: svgIconTheme, setThemeId } = useSvgIconTheme();
@@ -479,7 +571,7 @@ export default function SettingsScreen() {
     loading: false,
     completed: 0,
     total: 0,
-    message: "Скачивай все фото по Wi‑Fi для просмотра без интернета.",
+    message: t("settings.offline.initialMessage"),
   });
   const [storageUsage, setStorageUsage] = useState<LocalStorageUsage | null>(
     null,
@@ -513,14 +605,14 @@ export default function SettingsScreen() {
       state: "unsupported",
       heartRateGranted: false,
       activityGranted: false,
-      message: "Проверяем Health Connect…",
+      message: t("settings.health.checking"),
     });
   const [lockScreenHeartRateVisible, setLockScreenHeartRateVisible] =
     useState(true);
   const [bodyScaleStatus, setBodyScaleStatus] = useState<BodyScaleStatus>({
     state: "unsupported",
     granted: false,
-    message: "Проверяем умные весы…",
+    message: t("settings.bodyScale.checking"),
   });
   const [bodyScaleSyncing, setBodyScaleSyncing] = useState(false);
   const [bodyScaleSyncMessage, setBodyScaleSyncMessage] = useState<
@@ -531,7 +623,7 @@ export default function SettingsScreen() {
   const { source: healthSource, setSource: setHealthSource } = useHealthSource();
   const [googleFitStatus, setGoogleFitStatus] = useState<GoogleFitStatus>({
     state: "unavailable",
-    message: "Проверяем Google Fit…",
+    message: t("settings.googleFit.checking"),
   });
   const [googleFitConnecting, setGoogleFitConnecting] = useState(false);
   const [settingsCategory, setSettingsCategory] =
@@ -548,38 +640,38 @@ export default function SettingsScreen() {
   );
   const links = [
     {
-      title: "Профиль штанги и блинов",
-      subtitle: "Вес грифа и доступные номиналы",
+      title: t("settings.links.barbell.title"),
+      subtitle: t("settings.links.barbell.subtitle"),
       route: "/barbell" as const,
     },
     {
-      title: "Рекомендации следующей тренировки",
-      subtitle: "Рабочий вес с объяснением расчёта",
+      title: t("settings.links.recommendations.title"),
+      subtitle: t("settings.links.recommendations.subtitle"),
       route: "/recommendations" as const,
     },
     {
-      title: "График прогресса 1RM",
-      subtitle: "Изменение силового показателя по датам",
+      title: t("settings.links.progress.title"),
+      subtitle: t("settings.links.progress.subtitle"),
       route: "/progress" as const,
     },
     {
-      title: "Экспорт истории CSV",
-      subtitle: "Файл для Excel и других таблиц",
+      title: t("settings.links.export.title"),
+      subtitle: t("settings.links.export.subtitle"),
       route: "/export" as const,
     },
     {
-      title: "Импорт истории CSV",
-      subtitle: "Загрузка подходов из других приложений",
+      title: t("settings.links.import.title"),
+      subtitle: t("settings.links.import.subtitle"),
       route: "/import" as const,
     },
     {
-      title: "Сравнение тренировок",
-      subtitle: "Объём, длительность и прогресс 1RM",
+      title: t("settings.links.compare.title"),
+      subtitle: t("settings.links.compare.subtitle"),
       route: "/compare" as const,
     },
     {
-      title: "Месячный PDF-отчёт",
-      subtitle: "Красивые итоги и таблица подходов",
+      title: t("settings.links.report.title"),
+      subtitle: t("settings.links.report.subtitle"),
       route: "/report" as const,
     },
   ];
@@ -629,7 +721,6 @@ export default function SettingsScreen() {
     void getGroqApiKey()
       .then((key) => setHasGroqKey(Boolean(key)))
       .catch(() => setHasGroqKey(false));
-    void getHealthConnectStatus().then(setHealthConnectStatus);
     void getGoogleFitStatus().then(setGoogleFitStatus);
     void loadLockScreenHeartRateVisible().then(setLockScreenHeartRateVisible);
     void getBodyScaleStatus().then(setBodyScaleStatus);
@@ -637,6 +728,12 @@ export default function SettingsScreen() {
       setBodyScaleAutoSync(state.autoSyncEnabled),
     );
   }, [refreshStorageUsage]);
+  // Статус Health Connect приходит вместе с текстом сообщения, поэтому
+  // запрашивается отдельно от остальных данных — при смене языка он
+  // перечитывается, а загрузка бэкапов и ключей повторно не запускается.
+  useEffect(() => {
+    void getHealthConnectStatus(lang).then(setHealthConnectStatus);
+  }, [lang]);
   useEffect(() => {
     setNotificationTime(defaultWorkoutTime);
   }, [defaultWorkoutTime]);
@@ -677,8 +774,8 @@ export default function SettingsScreen() {
       setKeySheetVisible(false);
     } catch (error) {
       Alert.alert(
-        "Не удалось сохранить ключ",
-        error instanceof Error ? error.message : "Повтори попытку.",
+        t("settings.groq.saveErrorTitle"),
+        error instanceof Error ? error.message : t("settings.common.retry"),
       );
     } finally {
       setSavingGroqKey(false);
@@ -686,25 +783,25 @@ export default function SettingsScreen() {
   };
   const deleteGroqKey = () =>
     Alert.alert(
-      "Удалить личный ключ Groq?",
-      "ИИ-режим станет недоступен, пока ты не добавишь новый ключ.",
+      t("settings.groq.deleteConfirmTitle"),
+      t("settings.groq.deleteConfirmMessage"),
       [
-        { text: "Отмена", style: "cancel" },
+        { text: t("settings.common.cancel"), style: "cancel" },
         {
-          text: "Удалить",
+          text: t("settings.common.delete"),
           style: "destructive",
           onPress: () => {
             void clearGroqApiKey()
               .then(() => setHasGroqKey(false))
               .catch(() =>
-                Alert.alert("Не удалось удалить ключ", "Повтори попытку."),
+                Alert.alert(t("settings.groq.deleteErrorTitle"), t("settings.common.retry")),
               );
           },
         },
       ],
     );
   const connectHealthConnect = () =>
-    void connectHealthConnectActivity().then(setHealthConnectStatus);
+    void connectHealthConnectActivity(lang).then(setHealthConnectStatus);
   const connectGoogleFit = () => {
     setGoogleFitConnecting(true);
     void authorizeGoogleFit()
@@ -712,7 +809,7 @@ export default function SettingsScreen() {
       .catch(() =>
         setGoogleFitStatus({
           state: "error",
-          message: "Не удалось авторизоваться в Google Fit. Проверь настройку OAuth-клиента и попробуй ещё раз.",
+          message: t("settings.googleFit.authError"),
         }),
       )
       .finally(() => setGoogleFitConnecting(false));
@@ -728,24 +825,24 @@ export default function SettingsScreen() {
                 granted: false,
                 message:
                   healthSource === "google-fit"
-                    ? "Подключите Google Fit — он основной источник взвешиваний. Health Connect остаётся резервом."
-                    : "Разрешите IronRise читать вес и состав тела в Health Connect.",
+                    ? t("settings.bodyScale.googleFitRequired")
+                    : t("settings.bodyScale.permissionRequired"),
               }
             : current,
         );
         setBodyScaleSyncMessage(
           result.granted === false
             ? healthSource === "google-fit"
-              ? "Подключи Google Fit, чтобы синхронизировать взвешивания."
-              : "Подключи весы, чтобы синхронизировать данные."
+              ? t("settings.bodyScale.syncNeedsFit")
+              : t("settings.bodyScale.syncNeedsScale")
             : result.created > 0
-              ? `Создано ${result.created} взвешиваний`
-              : "Новых взвешиваний нет.",
+              ? t("settings.bodyScale.syncCreated", { count: result.created })
+              : t("settings.bodyScale.syncNoNew"),
         );
       })
       .catch(() =>
         setBodyScaleSyncMessage(
-          "Не удалось синхронизировать данные весов. Попробуй ещё раз.",
+          t("settings.bodyScale.syncError"),
         ),
       )
       .finally(() => setBodyScaleSyncing(false));
@@ -762,12 +859,12 @@ export default function SettingsScreen() {
   const healthConnectFullyGranted =
     healthConnectStatus.heartRateGranted && healthConnectStatus.activityGranted;
   const healthConnectBadgeText = healthConnectFullyGranted
-    ? "ГОТОВО"
+    ? t("settings.health.badgeReady")
     : healthConnectStatus.heartRateGranted
-      ? "ПУЛЬС"
+      ? t("settings.health.badgeHeartRate")
       : healthConnectStatus.activityGranted
-        ? "АКТИВНОСТЬ"
-        : "НЕТ ДОСТУПА";
+        ? t("settings.health.badgeActivity")
+        : t("settings.health.badgeNoAccess");
   const healthConnectGrantedAny =
     healthConnectStatus.heartRateGranted || healthConnectStatus.activityGranted;
 
@@ -777,14 +874,14 @@ export default function SettingsScreen() {
       loading: true,
       completed: 0,
       total: 0,
-      message: "Проверяем подключение Wi‑Fi…",
+      message: t("settings.offline.checkingWifi"),
     }));
     const result = await cacheAllExercisePhotosOnWifi((completed, total) =>
       setBulkState((state) => ({
         ...state,
         completed,
         total,
-        message: `Загружено ${completed} из ${total} фотографий…`,
+        message: t("settings.offline.progress", { completed, total }),
       })),
     );
     setBulkState({
@@ -797,7 +894,7 @@ export default function SettingsScreen() {
   };
   const createBackup = async () => {
     setBackupBusy(true);
-    setBackupProgress({ value: 4, label: "Подготавливаем резервную копию…" });
+    setBackupProgress({ value: 4, label: t("settings.backup.progressCreating") });
     try {
       const backup = await createLocalBackup(setBackupProgress);
       const result = await recordSuccessfulLocalBackup({
@@ -810,13 +907,19 @@ export default function SettingsScreen() {
       setLastBackupRecord(result.record);
       setAvailableBackups(await listAvailableLocalBackups());
       Alert.alert(
-        "Резервная копия сохранена",
-        `Файл автоматически сохранён в выбранной папке. Его можно найти в списке резервных копий.${backup.deletedOldBackups ? ` Внутренняя папка очищена: удалено старых копий — ${backup.deletedOldBackups}.` : ""}`,
+        t("settings.backup.savedTitle"),
+        t("settings.backup.savedMessage", {
+          purged: backup.deletedOldBackups
+            ? t("settings.backup.purgedSuffix", {
+                count: backup.deletedOldBackups,
+              })
+            : "",
+        }),
       );
     } catch (error) {
       Alert.alert(
-        "Не удалось создать копию",
-        error instanceof Error ? error.message : "Попробуйте ещё раз.",
+        t("settings.backup.createErrorTitle"),
+        error instanceof Error ? error.message : t("settings.common.retryFormal"),
       );
     } finally {
       setBackupBusy(false);
@@ -836,14 +939,14 @@ export default function SettingsScreen() {
     } catch {
       setBackupReminderPreferences(previous);
       Alert.alert(
-        "Не удалось обновить напоминание",
-        "Проверьте разрешение на уведомления и повторите попытку.",
+        t("settings.backup.reminderUpdateErrorTitle"),
+        t("settings.backup.reminderUpdateErrorMessage"),
       );
     }
   };
   const applyBackup = async (backup: LocalBackupPayload) => {
     setBackupBusy(true);
-    setBackupProgress({ value: 4, label: "Подготавливаем восстановление…" });
+    setBackupProgress({ value: 4, label: t("settings.backup.progressRestoring") });
     try {
       await restoreLocalBackup(backup, setBackupProgress);
       setLastBackupPreview({
@@ -852,15 +955,15 @@ export default function SettingsScreen() {
         mediaFileCount: backup.mediaFileCount,
       });
       Alert.alert(
-        "Данные восстановлены",
-        "Полностью закройте и снова откройте IronRise, чтобы все экраны загрузили восстановленные данные.",
+        t("settings.backup.restoredTitle"),
+        t("settings.backup.restoredMessage"),
       );
     } catch (error) {
       Alert.alert(
-        "Не удалось восстановить данные",
+        t("settings.backup.restoreErrorTitle"),
         error instanceof Error
           ? error.message
-          : "Исходные данные не были изменены.",
+          : t("settings.backup.restoreErrorMessage"),
       );
     } finally {
       setBackupBusy(false);
@@ -873,12 +976,16 @@ export default function SettingsScreen() {
       const backup = await pickLocalBackup();
       if (!backup) return;
       Alert.alert(
-        "Восстановить эту копию?",
-        `Копия от ${new Date(backup.exportedAt).toLocaleString("ru-RU")}: ${backup.storageEntryCount} записей и ${backup.mediaFileCount} фото. Текущие локальные данные будут заменены.`,
+        t("settings.backup.confirmTitle"),
+        t("settings.backup.confirmMessage", {
+          date: new Date(backup.exportedAt).toLocaleString(locale),
+          entries: backup.storageEntryCount,
+          photos: backup.mediaFileCount,
+        }),
         [
-          { text: "Отмена", style: "cancel" },
+          { text: t("settings.common.cancel"), style: "cancel" },
           {
-            text: "Восстановить",
+            text: t("settings.backup.confirmRestore"),
             style: "destructive",
             onPress: () => void applyBackup(backup),
           },
@@ -886,10 +993,10 @@ export default function SettingsScreen() {
       );
     } catch (error) {
       Alert.alert(
-        "Файл не подходит",
+        t("settings.backup.badFileTitle"),
         error instanceof Error
           ? error.message
-          : "Выберите ZIP-файл резервной копии IronRise.",
+          : t("settings.backup.badFileMessage"),
       );
     } finally {
       setBackupBusy(false);
@@ -897,12 +1004,16 @@ export default function SettingsScreen() {
   };
   const confirmBackupRestore = (backup: LocalBackupPayload) => {
     Alert.alert(
-      "Восстановить эту копию?",
-      `Копия от ${new Date(backup.exportedAt).toLocaleString("ru-RU")}: ${backup.storageEntryCount} записей и ${backup.mediaFileCount} фото. Текущие локальные данные будут заменены.`,
+      t("settings.backup.confirmTitle"),
+      t("settings.backup.confirmMessage", {
+          date: new Date(backup.exportedAt).toLocaleString(locale),
+          entries: backup.storageEntryCount,
+          photos: backup.mediaFileCount,
+        }),
       [
-        { text: "Отмена", style: "cancel" },
+        { text: t("settings.common.cancel"), style: "cancel" },
         {
-          text: "Восстановить",
+          text: t("settings.backup.confirmRestore"),
           style: "destructive",
           onPress: () => void applyBackup(backup),
         },
@@ -915,8 +1026,8 @@ export default function SettingsScreen() {
       setAvailableBackups(await chooseLocalBackupFolder());
     } catch {
       Alert.alert(
-        "Не удалось открыть папку",
-        "Выберите папку с ZIP-копиями IronRise и повторите попытку.",
+        t("settings.backup.folderErrorTitle"),
+        t("settings.backup.folderErrorMessage"),
       );
     } finally {
       setBackupListBusy(false);
@@ -936,8 +1047,8 @@ export default function SettingsScreen() {
       availableBackups.find((item) => item.source === "app");
     if (!backup) {
       Alert.alert(
-        "Нет созданной копии",
-        "Сначала создайте резервную копию, затем её можно будет отправить в мессенджер или на почту.",
+        t("settings.backup.noCopyTitle"),
+        t("settings.backup.noCopyMessage"),
       );
       return;
     }
@@ -945,8 +1056,8 @@ export default function SettingsScreen() {
       await shareLocalBackupFile(backup);
     } catch (error) {
       Alert.alert(
-        "Не удалось открыть меню «Поделиться»",
-        error instanceof Error ? error.message : "Повторите попытку.",
+        t("settings.backup.shareErrorTitle"),
+        error instanceof Error ? error.message : t("settings.common.retryFormalShort"),
       );
     }
   };
@@ -1012,17 +1123,17 @@ export default function SettingsScreen() {
   };
   const normalizedSettingsQuery = settingsQuery
     .trim()
-    .toLocaleLowerCase("ru-RU");
+    .toLocaleLowerCase(locale);
   const matchingCategories = useMemo(
     () =>
       SETTINGS_CATEGORIES.filter(
         (category) =>
           !normalizedSettingsQuery ||
-          [category.title, ...category.keywords].some((term) =>
-            term.toLocaleLowerCase("ru-RU").includes(normalizedSettingsQuery),
+          [t(category.titleKey), ...category.keywords].some((term) =>
+            term.toLocaleLowerCase(locale).includes(normalizedSettingsQuery),
           ),
       ),
-    [normalizedSettingsQuery],
+    [locale, normalizedSettingsQuery, t],
   );
   const isSectionVisible = useCallback(
     (category: SettingsCategoryId) =>
@@ -1048,7 +1159,7 @@ export default function SettingsScreen() {
             />
           </Pressable>
           <Text style={[styles.headerTitle, { color: colors.foreground }]}>
-            Настройки
+            {t("settings.header.title")}
           </Text>
           <View style={{ width: 27 }} />
         </View>
@@ -1063,7 +1174,7 @@ export default function SettingsScreen() {
           <TextInput
             value={settingsQuery}
             onChangeText={setSettingsQuery}
-            placeholder="Поиск настроек"
+            placeholder={t("settings.search.placeholder")}
             placeholderTextColor={colors.muted}
             returnKeyType="done"
             style={[styles.settingsSearchInput, { color: colors.foreground }]}
@@ -1071,7 +1182,7 @@ export default function SettingsScreen() {
           {settingsQuery.length > 0 && (
             <Pressable
               onPress={() => setSettingsQuery("")}
-              accessibilityLabel="Очистить поиск настроек"
+              accessibilityLabel={t("settings.search.clearA11y")}
               style={({ pressed }) => [
                 styles.searchClear,
                 { opacity: pressed ? 0.62 : 1 },
@@ -1119,23 +1230,94 @@ export default function SettingsScreen() {
                     { color: active ? "#101412" : colors.foreground },
                   ]}
                 >
-                  {category.title}
+                  {t(category.titleKey)}
                 </Text>
               </Pressable>
             );
           })}
         </ScrollView>
+
+        <View
+          style={[
+            styles.languageCard,
+            { backgroundColor: colors.surface, borderColor: colors.border },
+          ]}
+        >
+          <Text style={[styles.iconThemeTitle, { color: colors.foreground }]}>
+            {t("settings.language.sectionTitle")}
+          </Text>
+          <View style={styles.languageOptions}>
+            {LANGUAGE_OPTIONS.map((option) => {
+              const selected = option.id === lang;
+              return (
+                <Pressable
+                  key={option.id}
+                  onPress={() => setLang(option.id)}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected }}
+                  accessibilityLabel={t("settings.language.selectedA11y", {
+                    language: t(option.labelKey),
+                  })}
+                  style={({ pressed }) => [
+                    styles.languageOption,
+                    {
+                      backgroundColor: selected
+                        ? `${colors.primary}18`
+                        : colors.background,
+                      borderColor: selected ? colors.primary : colors.border,
+                      opacity: pressed ? 0.72 : 1,
+                    },
+                  ]}
+                >
+                  <View
+                    style={[
+                      styles.radio,
+                      {
+                        borderColor: selected ? colors.primary : colors.muted,
+                      },
+                    ]}
+                  >
+                    {selected && (
+                      <View
+                        style={[
+                          styles.radioDot,
+                          { backgroundColor: colors.primary },
+                        ]}
+                      />
+                    )}
+                  </View>
+                  <Text
+                    style={[
+                      styles.languageOptionText,
+                      { color: colors.foreground },
+                    ]}
+                  >
+                    {t(option.labelKey)}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+          <Text style={[styles.iconThemeHint, { color: colors.muted }]}>
+            {t("settings.language.hint")}
+          </Text>
+        </View>
+
         {normalizedSettingsQuery.length > 0 && (
           <Text style={[styles.searchResultHint, { color: colors.muted }]}>
             {matchingCategories.length
-              ? `Подходящие категории: ${matchingCategories.map((category) => category.title).join(" · ")}`
-              : "Ничего не найдено. Попробуйте другой запрос."}
+              ? t("settings.search.resultHint", {
+                categories: matchingCategories
+                  .map((category) => t(category.titleKey))
+                  .join(" · "),
+              })
+              : t("settings.search.emptyHint")}
           </Text>
         )}
 
         <View style={!isSectionVisible("training") && styles.hiddenSection}>
           <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
-            Расчёт силы
+            {t("settings.strength.sectionTitle")}
           </Text>
           <View
             style={[
@@ -1144,10 +1326,10 @@ export default function SettingsScreen() {
             ]}
           >
             <Text style={[styles.iconThemeTitle, { color: colors.foreground }]}>
-              Формула 1RM
+              {t("settings.strength.formulaTitle")}
             </Text>
             <Text style={[styles.iconThemeHint, { color: colors.muted }]}>
-              Выбор применяется к зонам нагрузки, истории и личным рекордам.
+              {t("settings.strength.formulaHint")}
             </Text>
             <View style={styles.options}>
               {formulas.map((option) => {
@@ -1188,7 +1370,7 @@ export default function SettingsScreen() {
                           { color: colors.foreground },
                         ]}
                       >
-                        {option.title}
+                        {t(option.titleKey)}
                       </Text>
                       <Text
                         style={[
@@ -1196,7 +1378,7 @@ export default function SettingsScreen() {
                           { color: colors.primary },
                         ]}
                       >
-                        {option.formula}
+                        {t(option.formulaKey)}
                       </Text>
                       <Text
                         style={[
@@ -1204,7 +1386,7 @@ export default function SettingsScreen() {
                           { color: colors.muted },
                         ]}
                       >
-                        {option.description}
+                        {t(option.descriptionKey)}
                       </Text>
                     </View>
                   </Pressable>
@@ -1218,7 +1400,7 @@ export default function SettingsScreen() {
                 { color: colors.muted },
               ]}
             >
-              ШАГ ВЕСА
+              {t("settings.strength.stepWeightLabel")}
             </Text>
             <View style={styles.stepRow}>
               {[1.25, 2.5, 5].map((step) => (
@@ -1244,7 +1426,7 @@ export default function SettingsScreen() {
                       fontWeight: "900",
                     }}
                   >
-                    {step} кг
+                    {t("settings.strength.stepKg", { step })}
                   </Text>
                 </Pressable>
               ))}
@@ -1254,7 +1436,7 @@ export default function SettingsScreen() {
 
         <View style={!isSectionVisible("appearance") && styles.hiddenSection}>
           <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
-            Стиль интерфейса
+            {t("settings.appearance.themeTitle")}
           </Text>
           <View
             style={[
@@ -1263,11 +1445,10 @@ export default function SettingsScreen() {
             ]}
           >
             <Text style={[styles.iconThemeTitle, { color: colors.foreground }]}>
-              Светлая или тёмная тема
+              {t("settings.appearance.themeSubtitle")}
             </Text>
             <Text style={[styles.iconThemeHint, { color: colors.muted }]}>
-              Выберите режим оформления приложения. Выбор сохранится на устройстве
-              и применится ко всем экранам.
+              {t("settings.appearance.themeHint")}
             </Text>
             <View style={styles.appThemeGrid}>
               {themeModeChoices.map((theme) => {
@@ -1308,7 +1489,7 @@ export default function SettingsScreen() {
                           },
                         ]}
                       >
-                        {theme.id === "editorial" ? "СВЕТЛАЯ" : "ТЁМНАЯ"}
+                        {theme.id === "editorial" ? t("settings.appearance.themeLightBadge") : t("settings.appearance.themeDarkBadge")}
                       </Text>
                       <Text
                         style={[
@@ -1321,8 +1502,8 @@ export default function SettingsScreen() {
                         ]}
                       >
                         {theme.id === "editorial"
-                          ? "Кремовый фон и контрастный текст"
-                          : "Графитовый фон и мягкий свет"}
+                          ? t("settings.appearance.themeLightHint")
+                          : t("settings.appearance.themeDarkHint")}
                       </Text>
                     </View>
                     {selected && (
@@ -1345,11 +1526,10 @@ export default function SettingsScreen() {
             ]}
           >
             <Text style={[styles.iconThemeTitle, { color: colors.foreground }]}>
-              Варианты дизайна
+              {t("settings.appearance.variantsTitle")}
             </Text>
             <Text style={[styles.iconThemeHint, { color: colors.muted }]}>
-              Готовые оформления из кликабельных прототипов. Выбор сохранится на
-              устройстве и применится ко всем экранам.
+              {t("settings.appearance.variantsHint")}
             </Text>
             <View style={styles.appThemeGrid}>
               {designVariantChoices.map((theme) => {
@@ -1419,7 +1599,7 @@ export default function SettingsScreen() {
           </View>
 
           <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
-            Плотность интерфейса
+            {t("settings.appearance.densityTitle")}
           </Text>
           <View
             style={[
@@ -1428,11 +1608,10 @@ export default function SettingsScreen() {
             ]}
           >
             <Text style={[styles.iconThemeTitle, { color: colors.foreground }]}>
-              Размер текста и расстояние между блоками
+              {t("settings.appearance.densitySubtitle")}
             </Text>
             <Text style={[styles.iconThemeHint, { color: colors.muted }]}>
-              Выберите представление, которое комфортнее для тренировок и чтения
-              статистики.
+              {t("settings.appearance.densityHint")}
             </Text>
             <View style={styles.densityOptions}>
               {INTERFACE_DENSITY_PRESETS.map((option) => {
@@ -1505,7 +1684,7 @@ export default function SettingsScreen() {
 
         <View style={!isSectionVisible("body") && styles.hiddenSection}>
           <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
-            Питание
+            {t("settings.nutrition.sectionTitle")}
           </Text>
           <View
             style={[
@@ -1514,11 +1693,10 @@ export default function SettingsScreen() {
             ]}
           >
             <Text style={[styles.iconThemeTitle, { color: colors.foreground }]}>
-              Повседневная активность
+              {t("settings.nutrition.activityTitle")}
             </Text>
             <Text style={[styles.iconThemeHint, { color: colors.muted }]}>
-              Выбор влияет на строку «Движение» в суммарном расходе калорий на
-              главном экране. Тренировка учитывается отдельно.
+              {t("settings.nutrition.activityHint")}
             </Text>
             <View style={styles.options}>
               {DAILY_ACTIVITY_LEVELS.map((option) => {
@@ -1576,11 +1754,10 @@ export default function SettingsScreen() {
               })}
             </View>
             <Text style={[styles.iconThemeTitle, { color: colors.foreground }]}>
-              Дневные цели калорий и БЖУ
+              {t("settings.nutrition.goalsTitle")}
             </Text>
             <Text style={[styles.iconThemeHint, { color: colors.muted }]}>
-              Плановый калораж за сутки и цели БЖУ сохраняются на устройстве и
-              используются в визуальном прогрессе дневника питания.
+              {t("settings.nutrition.goalsHint")}
             </Text>
             <View
               style={[
@@ -1593,7 +1770,7 @@ export default function SettingsScreen() {
             >
               <View style={{ flex: 1 }}>
                 <Text style={[styles.fieldLabel, { color: colors.primary }]}>
-                  АВТОМАТИЧЕСКИЙ ОРИЕНТИР
+                  {t("settings.nutrition.autoGuideBadge")}
                 </Text>
                 <Text
                   style={[
@@ -1602,15 +1779,15 @@ export default function SettingsScreen() {
                   ]}
                 >
                   {calorieGuide === undefined
-                    ? "Нужны профиль, возраст, рост и вес"
-                    : `${calorieGuide} ккал / день`}
+                    ? t("settings.nutrition.autoGuideMissing")
+                    : t("settings.nutrition.autoGuideValue", { calories: calorieGuide })}
                 </Text>
                 <Text
                   style={[styles.calorieGuideHint, { color: colors.muted }]}
                 >
                   {calorieGuide === undefined
-                    ? "Вес берётся из последнего замера на вкладке «Тело»."
-                    : "Mifflin–St Jeor × 1,4 · ориентир поддержки, не медицинское назначение."}
+                    ? t("settings.nutrition.autoGuideWeightSource")
+                    : t("settings.nutrition.autoGuideFormula")}
                 </Text>
               </View>
               {calorieGuide !== undefined && (
@@ -1624,12 +1801,14 @@ export default function SettingsScreen() {
                     },
                   ]}
                 >
-                  <Text style={styles.applyGuideText}>ПРИМЕНИТЬ</Text>
+                  <Text style={styles.applyGuideText}>
+                    {t("settings.nutrition.applyGuide")}
+                  </Text>
                 </Pressable>
               )}
             </View>
             <Text style={[styles.fieldLabel, { color: colors.muted }]}>
-              Цель, ккал
+              {t("settings.nutrition.calorieGoalLabel")}
             </Text>
             <TextInput
               value={calorieGoalDraft}
@@ -1655,9 +1834,9 @@ export default function SettingsScreen() {
             <View style={styles.macroGoalRow}>
               {(
                 [
-                  ["protein", "Белки, г", "150"],
-                  ["fat", "Жиры, г", "70"],
-                  ["carbs", "Углеводы, г", "250"],
+                  ["protein", t("settings.nutrition.proteinLabel"), "150"],
+                  ["fat", t("settings.nutrition.fatLabel"), "70"],
+                  ["carbs", t("settings.nutrition.carbsLabel"), "250"],
                 ] as const
               ).map(([key, label, placeholder]) => (
                 <View key={key} style={styles.macroGoalField}>
@@ -1693,7 +1872,7 @@ export default function SettingsScreen() {
 
         <View style={!isSectionVisible("home") && styles.hiddenSection}>
           <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
-            Главный экран
+            {t("settings.home.sectionTitle")}
           </Text>
           <View
             style={[
@@ -1702,11 +1881,10 @@ export default function SettingsScreen() {
             ]}
           >
             <Text style={[styles.iconThemeTitle, { color: colors.foreground }]}>
-              Виджеты на экране «Сегодня»
+              {t("settings.home.widgetsTitle")}
             </Text>
             <Text style={[styles.iconThemeHint, { color: colors.muted }]}>
-              Тяните маркер ⠿, чтобы изменить порядок. Основной блок с планом
-              дня остаётся всегда.
+              {t("settings.home.widgetsHint")}
             </Text>
             <View
               style={[
@@ -1721,12 +1899,12 @@ export default function SettingsScreen() {
                 <Text
                   style={[styles.widgetTitle, { color: colors.foreground }]}
                 >
-                  Виброотклик при переносе
+                  {t("settings.home.dragHapticsTitle")}
                 </Text>
                 <Text style={[styles.widgetHint, { color: colors.muted }]}>
                   {dragHapticsEnabled
-                    ? "Лёгкое подтверждение при захвате виджета."
-                    : "Захват виджета проходит без вибрации."}
+                    ? t("settings.home.dragHapticsHintOn")
+                    : t("settings.home.dragHapticsHintOff")}
                 </Text>
               </View>
               <Switch
@@ -1758,12 +1936,12 @@ export default function SettingsScreen() {
             <Pressable
               onPress={() =>
                 Alert.alert(
-                  "Сбросить виджеты?",
-                  "Вернутся исходный порядок, обычный размер и видимость всех блоков.",
+                  t("settings.home.resetWidgetsConfirmTitle"),
+                  t("settings.home.resetWidgetsConfirmMessage"),
                   [
-                    { text: "Отмена", style: "cancel" },
+                    { text: t("settings.common.cancel"), style: "cancel" },
                     {
-                      text: "Сбросить",
+                      text: t("settings.home.resetWidgetsConfirmAction"),
                       style: "destructive",
                       onPress: resetWidgets,
                     },
@@ -1781,7 +1959,7 @@ export default function SettingsScreen() {
                   { color: colors.foreground },
                 ]}
               >
-                СБРОСИТЬ НАСТРОЙКИ ВИДЖЕТОВ
+                {t("settings.home.resetWidgetsCta")}
               </Text>
             </Pressable>
           </View>
@@ -1792,12 +1970,10 @@ export default function SettingsScreen() {
             ]}
           >
             <Text style={[styles.iconThemeTitle, { color: colors.foreground }]}>
-              Вкладки в нижней панели
+              {t("settings.home.tabsTitle")}
             </Text>
             <Text style={[styles.iconThemeHint, { color: colors.muted }]}>
-              Тяните маркер ⠿, чтобы менять порядок. Скрытые разделы исчезают из
-              нижней навигации и свайпов. «Главное», «План» и «Настройки»
-              остаются доступными всегда.
+              {t("settings.home.tabsHint")}
             </Text>
             <View
               style={[
@@ -1812,12 +1988,12 @@ export default function SettingsScreen() {
                 <Text
                   style={[styles.widgetTitle, { color: colors.foreground }]}
                 >
-                  Компактный режим
+                  {t("settings.home.compactMode")}
                 </Text>
                 <Text style={[styles.widgetHint, { color: colors.muted }]}>
                   {tabCompact
-                    ? "Только иконки — больше места для экранов."
-                    : "Иконки и короткие названия вкладок."}
+                    ? t("settings.home.compactHintOn")
+                    : t("settings.home.compactHintOff")}
                 </Text>
               </View>
               <Switch
@@ -1847,11 +2023,11 @@ export default function SettingsScreen() {
             <Pressable
               onPress={() =>
                 Alert.alert(
-                  "Вернуть все вкладки?",
-                  "Вернутся исходный порядок, подписи, а все необязательные разделы снова появятся в нижней панели.",
+                  t("settings.home.resetTabsConfirmTitle"),
+                  t("settings.home.resetTabsConfirmMessage"),
                   [
-                    { text: "Отмена", style: "cancel" },
-                    { text: "Вернуть", onPress: resetTabs },
+                    { text: t("settings.common.cancel"), style: "cancel" },
+                    { text: t("settings.home.resetTabsConfirmAction"), onPress: resetTabs },
                   ],
                 )
               }
@@ -1866,7 +2042,7 @@ export default function SettingsScreen() {
                   { color: colors.foreground },
                 ]}
               >
-                ПОКАЗАТЬ ВСЕ ВКЛАДКИ
+                {t("settings.home.showAllTabsCta")}
               </Text>
             </Pressable>
           </View>
@@ -1874,7 +2050,7 @@ export default function SettingsScreen() {
 
         <View style={!isSectionVisible("appearance") && styles.hiddenSection}>
           <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
-            SVG-иконки
+            {t("settings.appearance.svgTitle")}
           </Text>
           <View
             style={[
@@ -1883,11 +2059,10 @@ export default function SettingsScreen() {
             ]}
           >
             <Text style={[styles.iconThemeTitle, { color: colors.foreground }]}>
-              Цвет интерфейсных иконок
+              {t("settings.appearance.svgColorTitle")}
             </Text>
             <Text style={[styles.iconThemeHint, { color: colors.muted }]}>
-              Меняет акцентные SVG-иконки в web-версии без повторной загрузки
-              шрифтов.
+              {t("settings.appearance.svgColorHint")}
             </Text>
             <View style={styles.iconThemeOptions}>
               {SVG_ICON_THEMES.map((theme) => {
@@ -1947,7 +2122,7 @@ export default function SettingsScreen() {
 
         <View style={!isSectionVisible("training") && styles.hiddenSection}>
           <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
-            Таймер отдыха
+            {t("settings.restTimer.sectionTitle")}
           </Text>
           <View
             style={[
@@ -1959,12 +2134,12 @@ export default function SettingsScreen() {
               <Text
                 style={[styles.vibrationTitle, { color: colors.foreground }]}
               >
-                Звук окончания отдыха
+                {t("settings.restTimer.soundTitle")}
               </Text>
               <Text style={[styles.vibrationHint, { color: colors.muted }]}>
                 {restTimerSoundEnabled
-                  ? "Выберите сигнал для Android-уведомления по завершении отдыха."
-                  : "Окончание отдыха будет без звукового сигнала."}
+                  ? t("settings.restTimer.soundHintOn")
+                  : t("settings.restTimer.soundHintOff")}
               </Text>
             </View>
             <Switch
@@ -1984,7 +2159,7 @@ export default function SettingsScreen() {
               <Text
                 style={[styles.vibrationTitle, { color: colors.foreground }]}
               >
-                Сигнал завершения
+                {t("settings.restTimer.signalTitle")}
               </Text>
               <View style={styles.vibrationOptions}>
                 {restCompletionSoundOptions.map((option) => {
@@ -2032,7 +2207,7 @@ export default function SettingsScreen() {
                             { color: colors.foreground },
                           ]}
                         >
-                          {option.title}
+                          {t(option.titleKey)}
                         </Text>
                         <Text
                           style={[
@@ -2040,7 +2215,7 @@ export default function SettingsScreen() {
                             { color: colors.muted },
                           ]}
                         >
-                          {option.description}
+                          {t(option.descriptionKey)}
                         </Text>
                       </View>
                     </Pressable>
@@ -2063,7 +2238,7 @@ export default function SettingsScreen() {
                 ]}
               >
                 <Text style={styles.soundPreviewButtonText}>
-                  Предпрослушать сигнал
+                  {t("settings.restTimer.previewCta")}
                 </Text>
               </Pressable>
             </View>
@@ -2078,14 +2253,14 @@ export default function SettingsScreen() {
               <Text
                 style={[styles.vibrationTitle, { color: colors.foreground }]}
               >
-                Вибрация вместе со звуком
+                {t("settings.restTimer.vibrationTitle")}
               </Text>
               <Text style={[styles.vibrationHint, { color: colors.muted }]}>
                 {restTimerSoundEnabled
                   ? restTimerVibrationEnabled
-                    ? "Короткий тактильный сигнал дополнит звук окончания отдыха."
-                    : "Окончание отдыха пройдёт только со звуком."
-                  : "Сначала включите звуковой сигнал завершения отдыха."}
+                    ? t("settings.restTimer.vibrationHintOn")
+                    : t("settings.restTimer.vibrationHintOff")
+                  : t("settings.restTimer.vibrationHintDisabled")}
               </Text>
             </View>
             <Switch
@@ -2110,7 +2285,7 @@ export default function SettingsScreen() {
               <Text
                 style={[styles.vibrationTitle, { color: colors.foreground }]}
               >
-                Паттерн вибрации
+                {t("settings.restTimer.vibrationPatternTitle")}
               </Text>
               <View style={styles.vibrationOptions}>
                 {restCompletionVibrationOptions.map((option) => {
@@ -2158,7 +2333,7 @@ export default function SettingsScreen() {
                             { color: colors.foreground },
                           ]}
                         >
-                          {option.title}
+                          {t(option.titleKey)}
                         </Text>
                         <Text
                           style={[
@@ -2166,7 +2341,7 @@ export default function SettingsScreen() {
                             { color: colors.muted },
                           ]}
                         >
-                          {option.description}
+                          {t(option.descriptionKey)}
                         </Text>
                       </View>
                     </Pressable>
@@ -2182,11 +2357,10 @@ export default function SettingsScreen() {
             ]}
           >
             <Text style={[styles.vibrationTitle, { color: colors.foreground }]}>
-              Вибрация при завершении подхода
+              {t("settings.restTimer.setHapticTitle")}
             </Text>
             <Text style={[styles.vibrationHint, { color: colors.muted }]}>
-              Интенсивность сохраняется на этом устройстве. В веб-просмотре
-              вибрация не запускается.
+              {t("settings.restTimer.setHapticHint")}
             </Text>
             <View style={styles.vibrationOptions}>
               {hapticIntensityOptions.map((option) => {
@@ -2230,7 +2404,7 @@ export default function SettingsScreen() {
                           { color: colors.foreground },
                         ]}
                       >
-                        {option.title}
+                        {t(option.titleKey)}
                       </Text>
                       <Text
                         style={[
@@ -2238,7 +2412,7 @@ export default function SettingsScreen() {
                           { color: colors.muted },
                         ]}
                       >
-                        {option.description}
+                        {t(option.descriptionKey)}
                       </Text>
                     </View>
                   </Pressable>
@@ -2250,7 +2424,7 @@ export default function SettingsScreen() {
 
         <View style={!isSectionVisible("reminders") && styles.hiddenSection}>
           <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
-            Напоминания о тренировках
+            {t("settings.reminders.sectionTitle")}
           </Text>
           <View
             style={[
@@ -2263,12 +2437,12 @@ export default function SettingsScreen() {
                 <Text
                   style={[styles.vibrationTitle, { color: colors.foreground }]}
                 >
-                  Локальные уведомления
+                  {t("settings.reminders.localTitle")}
                 </Text>
                 <Text style={[styles.vibrationHint, { color: colors.muted }]}>
                   {notificationsEnabled
-                    ? "Новые планы в календаре получат напоминание по этим настройкам."
-                    : "Новые планы сохраняются без системного напоминания."}
+                    ? t("settings.reminders.localHintOn")
+                    : t("settings.reminders.localHintOff")}
                 </Text>
               </View>
               <Switch
@@ -2292,7 +2466,7 @@ export default function SettingsScreen() {
             <View style={styles.notificationFields}>
               <View style={{ flex: 1 }}>
                 <Text style={[styles.fieldLabel, { color: colors.muted }]}>
-                  Время по умолчанию
+                  {t("settings.reminders.defaultTime")}
                 </Text>
                 <TextInput
                   value={notificationTime}
@@ -2318,7 +2492,7 @@ export default function SettingsScreen() {
               </View>
               <View style={{ flex: 1.35 }}>
                 <Text style={[styles.fieldLabel, { color: colors.muted }]}>
-                  Напомнить за
+                  {t("settings.reminders.remindBefore")}
                 </Text>
                 <View style={styles.notificationMinutes}>
                   {[15, 30, 60, 120].map((minutes) => (
@@ -2356,7 +2530,7 @@ export default function SettingsScreen() {
                           fontWeight: "900",
                         }}
                       >
-                        {minutes}м
+                        {t("settings.reminders.minutesShort", { minutes })}
                       </Text>
                     </Pressable>
                   ))}
@@ -2368,16 +2542,15 @@ export default function SettingsScreen() {
 
         <View style={!isSectionVisible("training") && styles.hiddenSection}>
           <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
-            Упражнения с весом тела
+            {t("settings.bodyweight.sectionTitle")}
           </Text>
           <Text style={[styles.subtitle, { color: colors.muted }]}>
-            Для тоннажа приложение использует заданную долю массы тела:
-            например, приседания или отжимания.
+            {t("settings.bodyweight.hint")}
           </Text>
           <View style={styles.bodyFields}>
             <View style={{ flex: 1 }}>
               <Text style={[styles.fieldLabel, { color: colors.muted }]}>
-                Вес тела, кг
+                {t("settings.bodyweight.weightLabel")}
               </Text>
               <TextInput
                 value={bodyWeight}
@@ -2401,7 +2574,7 @@ export default function SettingsScreen() {
             </View>
             <View style={{ flex: 1 }}>
               <Text style={[styles.fieldLabel, { color: colors.muted }]}>
-                Учитывать, %
+                {t("settings.bodyweight.percentLabel")}
               </Text>
               <TextInput
                 value={bodyPercent}
@@ -2428,7 +2601,7 @@ export default function SettingsScreen() {
 
         <View style={!isSectionVisible("body") && styles.hiddenSection}>
           <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
-            Профиль тела
+            {t("settings.bodyProfile.sectionTitle")}
           </Text>
           <View
             style={[
@@ -2437,24 +2610,23 @@ export default function SettingsScreen() {
             ]}
           >
             <Text style={[styles.iconThemeTitle, { color: colors.foreground }]}>
-              Силуэт и расчёты
+              {t("settings.bodyProfile.cardTitle")}
             </Text>
             <Text style={[styles.iconThemeHint, { color: colors.muted }]}>
-              Профиль, рост и возраст используются только в локальных расчётах
-              ИМТ и калорийного ориентира.
+              {t("settings.bodyProfile.cardHint")}
             </Text>
             <View style={styles.bodyProfileChoices}>
               {(
                 [
                   {
                     id: "male",
-                    title: "Мужчина",
-                    hint: "Широкие плечи · узкая талия",
+                    title: t("settings.bodyProfile.male"),
+                    hint: t("settings.bodyProfile.maleHint"),
                   },
                   {
                     id: "female",
-                    title: "Женщина",
-                    hint: "Мягкая линия плеч · акцент на бёдра",
+                    title: t("settings.bodyProfile.female"),
+                    hint: t("settings.bodyProfile.femaleHint"),
                   },
                 ] as const
               ).map((option) => {
@@ -2511,7 +2683,7 @@ export default function SettingsScreen() {
             <View style={styles.bodyFields}>
               <View style={{ flex: 1 }}>
                 <Text style={[styles.fieldLabel, { color: colors.muted }]}>
-                  Рост, см
+                  {t("settings.bodyProfile.height")}
                 </Text>
                 <TextInput
                   value={heightDraft}
@@ -2532,7 +2704,7 @@ export default function SettingsScreen() {
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={[styles.fieldLabel, { color: colors.muted }]}>
-                  Возраст, лет
+                  {t("settings.bodyProfile.age")}
                 </Text>
                 <TextInput
                   value={ageDraft}
@@ -2555,7 +2727,7 @@ export default function SettingsScreen() {
           </View>
 
           <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
-            Цели параметров тела
+            {t("settings.bodyGoals.sectionTitle")}
           </Text>
           <View
             style={[
@@ -2564,11 +2736,10 @@ export default function SettingsScreen() {
             ]}
           >
             <Text style={[styles.iconThemeTitle, { color: colors.foreground }]}>
-              Вес и обхваты
+              {t("settings.bodyGoals.cardTitle")}
             </Text>
             <Text style={[styles.iconThemeHint, { color: colors.muted }]}>
-              Целевые линии появятся в графиках на вкладке «Тело». Оставьте поле
-              пустым, чтобы скрыть ориентир.
+              {t("settings.bodyGoals.hint")}
             </Text>
             <View style={styles.goalFields}>
               {BODY_METRICS.filter((metric) => metric.id !== "bodyFatPct").map(
@@ -2630,12 +2801,12 @@ export default function SettingsScreen() {
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={[styles.groqTitle, { color: colors.foreground }]}>
-                  Личный API-ключ Groq
+                  {t("settings.groq.sectionTitle")}
                 </Text>
                 <Text style={[styles.groqSubtitle, { color: colors.muted }]}>
                   {hasGroqKey
-                    ? "Ключ сохранён на этом устройстве. Можно заменить его в любой момент."
-                    : "Добавь ключ, чтобы создавать программы через Groq AI."}
+                    ? t("settings.groq.keySavedHint")
+                    : t("settings.groq.keyMissingHint")}
                 </Text>
               </View>
               <Text
@@ -2649,7 +2820,9 @@ export default function SettingsScreen() {
                   },
                 ]}
               >
-                {hasGroqKey ? "ГОТОВО" : "НЕТ КЛЮЧА"}
+                {hasGroqKey
+                  ? t("settings.groq.badgeReady")
+                  : t("settings.groq.badgeMissing")}
               </Text>
             </View>
             <View style={styles.groqActions}>
@@ -2661,7 +2834,7 @@ export default function SettingsScreen() {
                 ]}
               >
                 <Text style={styles.groqPrimaryText}>
-                  {hasGroqKey ? "Обновить ключ" : "Добавить ключ"}
+                  {hasGroqKey ? t("settings.groq.updateCta") : t("settings.groq.addCta")}
                 </Text>
               </Pressable>
               {hasGroqKey && (
@@ -2672,15 +2845,15 @@ export default function SettingsScreen() {
                   <Text
                     style={[styles.groqDeleteText, { color: colors.error }]}
                   >
-                    Удалить
+                    {t("settings.common.delete")}
                   </Text>
                 </Pressable>
               )}
             </View>
             <Text style={[styles.groqPrivacy, { color: colors.muted }]}>
               {Platform.OS === "web"
-                ? "Не вводи рабочий ключ в веб-просмотре."
-                : "Ключ хранится в защищённом системном хранилище Android и не добавляется в APK."}
+                ? t("settings.groq.webHint")
+                : t("settings.groq.storageHint")}
             </Text>
           </View>
 
@@ -2708,7 +2881,7 @@ export default function SettingsScreen() {
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={[styles.groqTitle, { color: colors.foreground }]}>
-                  Активность и вес из Google Fit
+                  {t("settings.googleFit.sectionTitle")}
                 </Text>
                 <Text style={[styles.groqSubtitle, { color: colors.muted }]}>
                   {googleFitStatus.message}
@@ -2730,10 +2903,10 @@ export default function SettingsScreen() {
                 ]}
               >
                 {googleFitStatus.state === "ready"
-                  ? "ГОТОВ"
+                  ? t("settings.googleFit.badgeReady")
                   : googleFitStatus.state === "unauthorized"
-                    ? "НЕ АВТОРИЗОВАН"
-                    : "НЕ НАСТРОЕНО"}
+                    ? t("settings.googleFit.badgeUnauthorized")
+                    : t("settings.googleFit.badgeNotConfigured")}
               </Text>
             </View>
             <View style={styles.groqActions}>
@@ -2747,10 +2920,10 @@ export default function SettingsScreen() {
               >
                 <Text style={styles.groqPrimaryText}>
                   {googleFitConnecting
-                    ? "Подключаем…"
+                    ? t("settings.googleFit.connecting")
                     : googleFitStatus.state === "ready"
-                      ? "Проверить Google Fit"
-                      : "Подключить Google Fit"}
+                      ? t("settings.googleFit.checkCta")
+                      : t("settings.googleFit.connectCta")}
                 </Text>
               </Pressable>
             </View>
@@ -2765,12 +2938,12 @@ export default function SettingsScreen() {
             >
               <View style={{ flex: 1 }}>
                 <Text style={[styles.widgetTitle, { color: colors.foreground }]}>
-                  Основной источник данных
+                  {t("settings.healthSource.title")}
                 </Text>
                 <Text style={[styles.widgetHint, { color: colors.muted }]}>
                   {healthSource === "google-fit"
-                    ? "Google Fit — основной источник, Health Connect остаётся резервом."
-                    : "Health Connect выбран как основной, Google Fit подключён как резерв."}
+                    ? t("settings.googleFit.sourcePrimaryHint")
+                    : t("settings.googleFit.sourceBackupHint")}
                 </Text>
               </View>
             </View>
@@ -2781,7 +2954,7 @@ export default function SettingsScreen() {
                   key={option.id}
                   onPress={() => setHealthSource(option.id)}
                   accessibilityRole="button"
-                  accessibilityLabel={`Основной источник данных: ${option.title}`}
+                  accessibilityLabel={t("settings.healthSource.a11y", { title: option.title })}
                   style={[
                     styles.healthSourceOption,
                     {
@@ -2818,10 +2991,7 @@ export default function SettingsScreen() {
               );
             })}
             <Text style={[styles.groqPrivacy, { color: colors.muted }]}>
-              Для OAuth нужен Client ID типа Android с package name и SHA-1
-              подписи — пошаговая инструкция в docs/setup-google-fit.md. Пока
-              клиент не настроен или Google Fit не авторизован, карточка
-              «Активность» и взвешивания читаются через Health Connect.
+              {t("settings.googleFit.oauthHint")}
             </Text>
           </View>
 
@@ -2849,7 +3019,7 @@ export default function SettingsScreen() {
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={[styles.groqTitle, { color: colors.foreground }]}>
-                  Пульс со смарт-часов
+                  {t("settings.health.sectionTitle")}
                 </Text>
                 <Text style={[styles.groqSubtitle, { color: colors.muted }]}>
                   {healthConnectStatus.message}
@@ -2881,8 +3051,8 @@ export default function SettingsScreen() {
               >
                 <Text style={styles.groqPrimaryText}>
                   {healthConnectStatus.state === "permission-required"
-                    ? "Подключить активность и пульс"
-                    : "Проверить Health Connect"}
+                    ? t("settings.health.connectCta")
+                    : t("settings.health.checkCta")}
                 </Text>
               </Pressable>
             </View>
@@ -2899,12 +3069,12 @@ export default function SettingsScreen() {
                 <Text
                   style={[styles.widgetTitle, { color: colors.foreground }]}
                 >
-                  Пульс на экране блокировки
+                  {t("settings.health.lockScreenTitle")}
                 </Text>
                 <Text style={[styles.widgetHint, { color: colors.muted }]}>
                   {lockScreenHeartRateVisible
-                    ? "Текущая ЧСС видна рядом с целью во время отдыха."
-                    : "ЧСС скрыта из уведомления таймера отдыха."}
+                    ? t("settings.health.lockScreenHintOn")
+                    : t("settings.health.lockScreenHintOff")}
                 </Text>
               </View>
               <Switch
@@ -2923,14 +3093,12 @@ export default function SettingsScreen() {
               />
             </View>
             <Text style={[styles.groqPrivacy, { color: colors.muted }]}>
-              IronRise читает шаги, активные калории, дистанцию и пульс и
-              сохраняет сводные значения локально. Записи появляются после
-              синхронизации приложения «Здоровье» с Health Connect.
+              {t("settings.health.hint")}
             </Text>
           </View>
 
           <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
-            Умные весы (OKOK · Health Connect)
+            {t("settings.bodyScale.sectionTitle")}
           </Text>
           <View
             style={[
@@ -2953,7 +3121,7 @@ export default function SettingsScreen() {
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={[styles.groqTitle, { color: colors.foreground }]}>
-                  Вес и состав тела с весов
+                  {t("settings.bodyScale.cardTitle")}
                 </Text>
                 <Text style={[styles.groqSubtitle, { color: colors.muted }]}>
                   {bodyScaleStatus.message}
@@ -2971,15 +3139,11 @@ export default function SettingsScreen() {
                   },
                 ]}
               >
-                {bodyScaleStatus.granted ? "ПОДКЛЮЧЕНЫ" : "НУЖНЫ РАЗРЕШЕНИЯ"}
+                {bodyScaleStatus.granted ? t("settings.bodyScale.badgeGranted") : t("settings.bodyScale.badgeNeedsPermission")}
               </Text>
             </View>
             <Text style={[styles.groqPrivacy, { color: colors.muted }]}>
-              Цепочка данных: весы → OKOK International → Google Fit →
-              Health Connect. Включите синхронизацию с Google Fit в настройках
-              OKOK и тумблер «Синхронизировать Fit с Health Connect» в Google
-              Fit — после этого взвешивания будут появляться здесь
-              автоматически после каждого взвешивания на весах.
+              {t("settings.bodyScale.chainHint")}
             </Text>
             <View style={styles.groqActions}>
               <Pressable
@@ -2991,8 +3155,8 @@ export default function SettingsScreen() {
               >
                 <Text style={styles.groqPrimaryText}>
                   {bodyScaleStatus.granted
-                    ? "Проверить весы"
-                    : "Подключить весы"}
+                    ? t("settings.bodyScale.checkCta")
+                    : t("settings.bodyScale.connectCta")}
                 </Text>
               </Pressable>
               <Pressable
@@ -3010,8 +3174,8 @@ export default function SettingsScreen() {
                   style={[styles.groqDeleteText, { color: colors.foreground }]}
                 >
                   {bodyScaleSyncing
-                    ? "Синхронизируем…"
-                    : "Синхронизировать сейчас"}
+                    ? t("settings.bodyScale.syncing")
+                    : t("settings.bodyScale.syncNowCta")}
                 </Text>
               </Pressable>
             </View>
@@ -3033,12 +3197,12 @@ export default function SettingsScreen() {
                 <Text
                   style={[styles.widgetTitle, { color: colors.foreground }]}
                 >
-                  Автосинхронизация при запуске
+                  {t("settings.bodyScale.autoSyncTitle")}
                 </Text>
                 <Text style={[styles.widgetHint, { color: colors.muted }]}>
                   {bodyScaleAutoSync
-                    ? "Взвешивания подтягиваются при запуске и на вкладке «Тело»."
-                    : "Данные весов загружаются только по кнопке «Синхронизировать сейчас»."}
+                    ? t("settings.bodyScale.autoSyncHintOn")
+                    : t("settings.bodyScale.autoSyncHintOff")}
                 </Text>
               </View>
               <Switch
@@ -3054,16 +3218,12 @@ export default function SettingsScreen() {
               />
             </View>
             <Text style={[styles.groqPrivacy, { color: colors.muted }]}>
-              Приложение OKOK International синхронизирует весы в Health
-              Connect, IronRise читает вес и состав тела (жир, мышцы, кости,
-              вода) и создаёт замеры автоматически. Если состав недоступен,
-              сохранится только вес. Дубликаты на ту же дату с тем же весом не
-              создаются.
+              {t("settings.bodyScale.appHint")}
             </Text>
           </View>
 
           <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
-            Локальное хранилище
+            {t("settings.storage.sectionTitle")}
           </Text>
           <View
             style={[
@@ -3088,19 +3248,19 @@ export default function SettingsScreen() {
                 <Text
                   style={[styles.storageTitle, { color: colors.foreground }]}
                 >
-                  Данные на этом устройстве
+                  {t("settings.storage.cardTitle")}
                 </Text>
                 <Text style={[styles.storageSubtitle, { color: colors.muted }]}>
                   {storageLoading
-                    ? "Считаем размер тренировок, фото и кэша…"
+                    ? t("settings.storage.calculating")
                     : storageError
-                      ? "Не удалось прочитать объём. Попробуйте обновить."
-                      : "Тренировки, настройки и офлайн-файлы хранятся только локально."}
+                      ? t("settings.storage.error")
+                      : t("settings.storage.hint")}
                 </Text>
               </View>
               <Pressable
                 onPress={refreshStorageUsage}
-                accessibilityLabel="Обновить объём хранилища"
+                accessibilityLabel={t("settings.storage.refreshA11y")}
                 style={({ pressed }) => [
                   styles.refreshStorage,
                   { borderColor: colors.border, opacity: pressed ? 0.65 : 1 },
@@ -3124,7 +3284,7 @@ export default function SettingsScreen() {
                         { color: colors.muted },
                       ]}
                     >
-                      ЗАНЯТО ПРИЛОЖЕНИЕМ
+                      {t("settings.storage.appUsed")}
                     </Text>
                     <Text
                       style={[
@@ -3142,7 +3302,7 @@ export default function SettingsScreen() {
                         { color: colors.muted },
                       ]}
                     >
-                      СВОБОДНО НА УСТРОЙСТВЕ
+                      {t("settings.storage.deviceFree")}
                     </Text>
                     <Text
                       style={[styles.storageFree, { color: colors.primary }]}
@@ -3185,16 +3345,19 @@ export default function SettingsScreen() {
                       ]}
                     />
                     <Text style={[styles.legendText, { color: colors.muted }]}>
-                      Приложение:{" "}
-                      {appSharePercent < 0.1 && storageUsage.appDataBytes
-                        ? "<0,1"
-                        : appSharePercent.toFixed(1)}
-                      %
+                      {t("settings.storage.appLine", {
+                        percent:
+                          appSharePercent < 0.1 && storageUsage.appDataBytes
+                            ? "<0,1"
+                            : appSharePercent.toFixed(1),
+                      })}
                     </Text>
                   </View>
                   <Text style={[styles.legendText, { color: colors.muted }]}>
-                    Устройство: {formatStorageBytes(deviceUsedBytes)} /{" "}
-                    {formatStorageBytes(storageUsage.totalBytes)}
+                    {t("settings.storage.deviceLine", {
+                      used: formatStorageBytes(deviceUsedBytes),
+                      total: formatStorageBytes(storageUsage.totalBytes),
+                    })}
                   </Text>
                 </View>
                 <View
@@ -3204,12 +3367,14 @@ export default function SettingsScreen() {
                   ]}
                 >
                   <Text style={[styles.breakdownText, { color: colors.muted }]}>
-                    Данные тренировок:{" "}
-                    {formatStorageBytes(storageUsage.asyncStorageBytes)}
+                    {t("settings.storage.workoutsLine", {
+                      size: formatStorageBytes(storageUsage.asyncStorageBytes),
+                    })}
                   </Text>
                   <Text style={[styles.breakdownText, { color: colors.muted }]}>
-                    Файлы и офлайн-фото:{" "}
-                    {formatStorageBytes(storageUsage.filesBytes)}
+                    {t("settings.storage.filesLine", {
+                      size: formatStorageBytes(storageUsage.filesBytes),
+                    })}
                   </Text>
                 </View>
               </>
@@ -3217,7 +3382,7 @@ export default function SettingsScreen() {
           </View>
 
           <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
-            Резервная копия
+            {t("settings.backup.sectionTitle")}
           </Text>
           <View
             style={[
@@ -3242,31 +3407,36 @@ export default function SettingsScreen() {
                 <Text
                   style={[styles.storageTitle, { color: colors.foreground }]}
                 >
-                  Файл для переноса данных
+                  {t("settings.backup.cardTitle")}
                 </Text>
                 <Text style={[styles.storageSubtitle, { color: colors.muted }]}>
-                  Сохраните ZIP через системное меню в «Загрузки» или другую
-                  папку телефона. Файл не удаляется вместе с приложением.
+                  {t("settings.backup.cardHint")}
                 </Text>
               </View>
             </View>
             {lastBackupPreview && (
               <Text style={[styles.backupMeta, { color: colors.muted }]}>
-                Последняя выбранная копия: {lastBackupPreview.storageEntryCount}{" "}
-                записей · {lastBackupPreview.mediaFileCount} фото
+                {t("settings.backup.lastPreview", {
+                  entries: lastBackupPreview.storageEntryCount,
+                  photos: lastBackupPreview.mediaFileCount,
+                })}
               </Text>
             )}
             <Text style={[styles.backupMeta, { color: colors.muted }]}>
               {lastBackupRecord
-                ? `Последняя успешная копия: ${new Date(lastBackupRecord.createdAt).toLocaleString("ru-RU")}`
-                : "Резервная копия ещё не создавалась."}
+                ? t("settings.backup.lastSuccess", {
+                  date: new Date(lastBackupRecord.createdAt).toLocaleString(
+                    locale,
+                  ),
+                })
+                : t("settings.backup.never")}
             </Text>
             <Text style={[styles.backupHint, { color: colors.muted }]}>
               {backupReminderPreferences.enabled
                 ? backupReminderPreferences.frequency === "weekly"
-                  ? "IronRise напомнит о новой копии раз в неделю системным уведомлением."
-                  : "IronRise напомнит о новой копии раз в месяц системным уведомлением."
-                : "Системные напоминания о резервной копии отключены."}
+                  ? t("settings.backup.reminderHintWeekly")
+                  : t("settings.backup.reminderHintMonthly")
+                : t("settings.backup.reminderHintOff")}
             </Text>
             <View
               style={[
@@ -3284,12 +3454,12 @@ export default function SettingsScreen() {
                     { color: colors.foreground },
                   ]}
                 >
-                  Напоминать о копии
+                  {t("settings.backup.reminderTitle")}
                 </Text>
                 <Text
                   style={[styles.backupReminderText, { color: colors.muted }]}
                 >
-                  Системное уведомление в 10:00 по местному времени.
+                  {t("settings.backup.reminderTime")}
                 </Text>
               </View>
               <Switch
@@ -3312,8 +3482,8 @@ export default function SettingsScreen() {
               <View style={styles.backupFrequencyRow}>
                 {(
                   [
-                    ["weekly", "Раз в неделю"],
-                    ["monthly", "Раз в месяц"],
+                    ["weekly", t("settings.backup.frequencyWeekly")],
+                    ["monthly", t("settings.backup.frequencyMonthly")],
                   ] as const
                 ).map(([frequency, title]) => {
                   const selected =
@@ -3412,7 +3582,7 @@ export default function SettingsScreen() {
               >
                 <SafeMaterialIcon name="save-alt" size={18} color="#FFFDF8" />
                 <Text style={styles.backupPrimaryText}>
-                  {backupBusy ? "ПОДГОТОВКА…" : "СОЗДАТЬ КОПИЮ"}
+                  {backupBusy ? t("settings.backup.busyCreating") : t("settings.backup.createCta")}
                 </Text>
               </Pressable>
               <Pressable
@@ -3437,7 +3607,7 @@ export default function SettingsScreen() {
                     { color: colors.foreground },
                   ]}
                 >
-                  ВОССТАНОВИТЬ ИЗ ФАЙЛА
+                  {t("settings.backup.restoreFromFileCta")}
                 </Text>
               </Pressable>
               <Pressable
@@ -3462,7 +3632,7 @@ export default function SettingsScreen() {
                     { color: colors.foreground },
                   ]}
                 >
-                  ПОДЕЛИТЬСЯ ПОСЛЕДНЕЙ КОПИЕЙ
+                  {t("settings.backup.shareLatestCta")}
                 </Text>
               </Pressable>
             </View>
@@ -3479,11 +3649,10 @@ export default function SettingsScreen() {
                     { color: colors.foreground },
                   ]}
                 >
-                  Три последние копии
+                  {t("settings.backup.recentTitle")}
                 </Text>
                 <Text style={[styles.backupFilesHint, { color: colors.muted }]}>
-                  Выберите папку «Загрузки» или другую папку с ZIP-файлами
-                  IronRise. В списке показываются только три самые новые копии.
+                  {t("settings.backup.recentHint")}
                 </Text>
               </View>
               <Pressable
@@ -3527,13 +3696,13 @@ export default function SettingsScreen() {
                 ]}
               >
                 {backupListBusy
-                  ? "ПРОВЕРЯЕМ ПАПКУ…"
-                  : "ВЫБРАТЬ ПАПКУ С КОПИЯМИ"}
+                  ? t("settings.backup.chooseFolderBusy")
+                  : t("settings.backup.chooseFolderCta")}
               </Text>
             </Pressable>
             {availableBackups.length === 0 ? (
               <Text style={[styles.backupFilesEmpty, { color: colors.muted }]}>
-                В доступных папках пока нет совместимых ZIP-копий.
+                {t("settings.backup.emptyList")}
               </Text>
             ) : (
               <View style={styles.backupFilesList}>
@@ -3559,14 +3728,16 @@ export default function SettingsScreen() {
                           { color: colors.foreground },
                         ]}
                       >
-                        {new Date(backup.exportedAt).toLocaleString("ru-RU")}
+                        {new Date(backup.exportedAt).toLocaleString(locale)}
                       </Text>
                       <Text
                         style={[styles.backupFileMeta, { color: colors.muted }]}
                       >
-                        {backup.storageEntryCount} записей ·{" "}
-                        {backup.mediaFileCount} фото ·{" "}
-                        {formatStorageBytes(backup.sizeBytes)}
+                        {t("settings.backup.itemMeta", {
+                          entries: backup.storageEntryCount,
+                          photos: backup.mediaFileCount,
+                          size: formatStorageBytes(backup.sizeBytes),
+                        })}
                       </Text>
                     </View>
                     <Text
@@ -3575,7 +3746,7 @@ export default function SettingsScreen() {
                         { color: colors.primary },
                       ]}
                     >
-                      {backup.source === "folder" ? "ПАПКА" : "В ПРИЛОЖЕНИИ"}
+                      {backup.source === "folder" ? t("settings.backup.sourceFolder") : t("settings.backup.sourceApp")}
                     </Text>
                   </Pressable>
                 ))}
@@ -3584,7 +3755,7 @@ export default function SettingsScreen() {
           </View>
 
           <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
-            Офлайн-фотографии
+            {t("settings.offline.sectionTitle")}
           </Text>
           <View
             style={[
@@ -3597,7 +3768,7 @@ export default function SettingsScreen() {
                 <Text
                   style={[styles.offlineTitle, { color: colors.foreground }]}
                 >
-                  Скачать все ракурсы по Wi‑Fi
+                  {t("settings.offline.downloadAll")}
                 </Text>
                 <Text style={[styles.offlineSubtitle, { color: colors.muted }]}>
                   {bulkState.message}
@@ -3606,7 +3777,7 @@ export default function SettingsScreen() {
               <Text style={[styles.offlinePercent, { color: colors.primary }]}>
                 {bulkState.loading || bulkState.total
                   ? `${photoProgress}%`
-                  : "Wi‑Fi"}
+                  : t("settings.offline.wifiBadge")}
               </Text>
             </View>
             <View
@@ -3635,18 +3806,17 @@ export default function SettingsScreen() {
             >
               <Text style={styles.downloadText}>
                 {bulkState.loading
-                  ? "Загружаем фотографии…"
-                  : "Скачать для офлайн-режима"}
+                  ? t("settings.offline.loading")
+                  : t("settings.offline.downloadCta")}
               </Text>
             </Pressable>
             <Text style={[styles.wifiHint, { color: colors.muted }]}>
-              Загрузка запускается только через Wi‑Fi с доступом в интернет.
-              Мобильные данные не используются.
+              {t("settings.offline.hint")}
             </Text>
           </View>
 
           <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
-            Данные и инструменты
+            {t("settings.tools.sectionTitle")}
           </Text>
           {links.map((link) => (
             <Pressable
@@ -3683,15 +3853,13 @@ export default function SettingsScreen() {
               color={colors.primary}
             />
             <Text style={[styles.noteText, { color: colors.muted }]}>
-              Тренировки, настройки, рекорды и экспортируемые файлы сохраняются
-              на этом устройстве. Для переноса используйте экспорт в CSV или
-              ZIP.
+              {t("settings.tools.note")}
             </Text>
           </View>
         </View>
 
         <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
-          О приложении
+          {t("settings.about.sectionTitle")}
         </Text>
         <View
           style={[
@@ -3708,10 +3876,12 @@ export default function SettingsScreen() {
               IronRise
             </Text>
             <Text style={[styles.aboutVersion, { color: colors.muted }]}>
-              Версия {Constants.expoConfig?.version ?? "1.0.4"}
+              {t("settings.about.version", {
+                version: Constants.expoConfig?.version ?? "1.0.4",
+              })}
             </Text>
             <Text style={[styles.aboutTagline, { color: colors.primary }]}>
-              Дневник тренировок, питания и прогресса
+              {t("settings.about.tagline")}
             </Text>
           </View>
         </View>
@@ -3723,10 +3893,10 @@ export default function SettingsScreen() {
             ]}
           >
             <Text style={[styles.iconThemeTitle, { color: colors.foreground }]}>
-              Ничего не найдено
+              {t("settings.search.emptyTitle")}
             </Text>
             <Text style={[styles.iconThemeHint, { color: colors.muted }]}>
-              Попробуйте «вибрация», «калории», «уведомления» или «экспорт».
+              {t("settings.search.emptyExamples")}
             </Text>
             <Pressable
               onPress={() => setSettingsQuery("")}
@@ -3741,7 +3911,7 @@ export default function SettingsScreen() {
                   { color: colors.primary },
                 ]}
               >
-                ОЧИСТИТЬ ПОИСК
+                {t("settings.search.clearCta")}
               </Text>
             </Pressable>
           </View>
@@ -3772,10 +3942,10 @@ export default function SettingsScreen() {
                   <Text
                     style={[styles.sheetTitle, { color: colors.foreground }]}
                   >
-                    {hasGroqKey ? "Обновить ключ Groq" : "Добавить ключ Groq"}
+                    {hasGroqKey ? t("settings.groq.sheetTitleUpdate") : t("settings.groq.sheetTitleAdd")}
                   </Text>
                   <Text style={[styles.sheetHint, { color: colors.muted }]}>
-                    Новый ключ заменит предыдущий на этом устройстве.
+                    {t("settings.groq.sheetHint")}
                   </Text>
                 </View>
                 <Pressable
@@ -3818,7 +3988,7 @@ export default function SettingsScreen() {
                 ]}
               >
                 <Text style={styles.saveKeyText}>
-                  {savingGroqKey ? "Сохраняем…" : "Сохранить на устройстве"}
+                  {savingGroqKey ? t("settings.groq.saving") : t("settings.groq.saveCta")}
                 </Text>
               </Pressable>
             </View>
@@ -3850,6 +4020,7 @@ function WidgetSettingsRow({
   onCompact: (id: HomeWidgetId, value: boolean) => void;
   onMove: (id: HomeWidgetId, position: number) => void;
 }) {
+  const { t } = useLanguage();
   const [dragging, setDragging] = useState(false);
   const pan = PanResponder.create({
     onStartShouldSetPanResponder: () => true,
@@ -3897,7 +4068,7 @@ function WidgetSettingsRow({
           {widget.description}
         </Text>
         <Text style={[widgetControlStyles.modeHint, { color: colors.muted }]}>
-          {compact ? "Компактный режим" : "Обычный размер"}
+          {compact ? t("settings.home.compactBadge") : t("settings.home.normalSizeBadge")}
         </Text>
       </View>
       <View style={widgetControlStyles.switches}>
@@ -3935,6 +4106,7 @@ function TabVisibilityRow({
   onVisible: (id: MainTabId, value: boolean) => void;
   onMove: (id: MainTabId, position: number) => void;
 }) {
+  const { t } = useLanguage();
   const [dragging, setDragging] = useState(false);
   const pan = PanResponder.create({
     onStartShouldSetPanResponder: () => true,
@@ -3993,7 +4165,7 @@ function TabVisibilityRow({
           <Text
             style={[widgetControlStyles.modeHint, { color: colors.primary }]}
           >
-            Всегда доступна
+            {t("settings.home.alwaysAvailable")}
           </Text>
         )}
       </View>
@@ -4123,6 +4295,25 @@ const styles = StyleSheet.create({
   },
   iconThemeTitle: { fontSize: 14, fontWeight: "900" },
   iconThemeHint: { fontSize: 11, lineHeight: 16 },
+  languageCard: {
+    borderWidth: 1,
+    borderRadius: 0,
+    borderLeftWidth: 5,
+    padding: 14,
+    gap: 10,
+  },
+  languageOptions: { flexDirection: "row", gap: 8 },
+  languageOption: {
+    flex: 1,
+    minHeight: 48,
+    borderWidth: 1,
+    borderRadius: 0,
+    paddingHorizontal: 11,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 9,
+  },
+  languageOptionText: { fontSize: 13, fontWeight: "900" },
   iconThemeOptions: { gap: 8 },
   iconThemeOption: {
     minHeight: 52,

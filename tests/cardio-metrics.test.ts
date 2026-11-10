@@ -6,7 +6,10 @@ describe("cardio metrics", () => {
     const summary = getCardioWorkoutSummary([{ exerciseId: "treadmill", reps: 25, distanceKm: 5 }]);
     expect(summary.minutes).toBe(25);
     expect(summary.distanceKm).toBe(5);
+    // Язык — необязательный параметр: без него прежний русский текст.
     expect(formatCardioPace(summary.paceSecondsPerKm)).toBe("5:00 мин/км");
+    expect(formatCardioPace(summary.paceSecondsPerKm, "ru")).toBe("5:00 мин/км");
+    expect(formatCardioPace(summary.paceSecondsPerKm, "en")).toBe("5:00 min/km");
   });
 
   it("builds a seven-day cardio series without counting non-cardio minutes", () => {

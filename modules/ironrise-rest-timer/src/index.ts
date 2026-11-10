@@ -48,6 +48,10 @@ export type ActiveWorkoutWidgetPayload = {
   openUrl: string;
 };
 
+// Язык нативных уведомлений: JS передаёт текущий язык приложения, Kotlin
+// выбирает по нему строки заголовков, текстов и кнопок (дефолт — русский).
+export type NativeLang = "ru" | "en";
+
 export type NativeRestTimerAction = {
   kind: "skip" | "extend" | "start" | "finish-exercise" | "commit-set";
   restEndAt: number;
@@ -65,6 +69,7 @@ export type NativeActiveSetPayload = {
   exerciseIndex: number;
   exercisesCount: number;
   exerciseId?: string;
+  lang?: NativeLang;
 };
 export type NativeRestNextAction = {
   kind: "start" | "finish-exercise";
@@ -98,6 +103,7 @@ type NativeRestCountdownPayload = {
   nextSetIndex: number;
   nextSetWeight: string;
   nextSetReps: string;
+  lang: NativeLang;
 };
 
 function getModule(): IronriseRestTimerNativeModule | null {
@@ -115,6 +121,7 @@ export function showNativeRestCountdown(
   completionVibrationEnabled = true,
   completionVibrationPattern = "short",
   nextAction: NativeRestNextAction = { kind: "start" },
+  lang: NativeLang = "ru",
 ) {
   const module = getModule();
   if (!module) return false;
@@ -134,6 +141,7 @@ export function showNativeRestCountdown(
     nextSetIndex: nextAction.setIndex ?? -1,
     nextSetWeight: nextAction.weight ?? "",
     nextSetReps: nextAction.reps ?? "",
+    lang,
   });
   return true;
 }
@@ -164,6 +172,7 @@ export function showNativeActiveSetNotification(
     exerciseIndex: payload.exerciseIndex,
     exercisesCount: payload.exercisesCount,
     exerciseId: payload.exerciseId ?? "",
+    lang: payload.lang ?? "ru",
   });
   return true;
 }

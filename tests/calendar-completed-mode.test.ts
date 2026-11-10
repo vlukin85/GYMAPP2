@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 const calendar = readFileSync(
   resolve(process.cwd(), "app/(tabs)/calendar.tsx"),
   "utf8",
-);
+) + readFileSync(resolve(process.cwd(), "lib/i18n/domains/calendar.ts"), "utf8");
 
 describe("calendar completed mode", () => {
   it("renders the completed-program card and confirmation-backed result deletion", () => {

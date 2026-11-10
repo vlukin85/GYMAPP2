@@ -58,8 +58,9 @@ class RestTimerActionReceiver : BroadcastReceiver() {
       val nextSetIndex = intent.getIntExtra(EXTRA_NEXT_SET_INDEX, -1)
       val nextSetWeight = intent.getStringExtra(EXTRA_NEXT_SET_WEIGHT) ?: ""
       val nextSetReps = intent.getStringExtra(EXTRA_NEXT_SET_REPS) ?: ""
-      Log.d(REST_TIMER_LOG_TAG, "rest extended: endAt=$extendedEndAt action=$nextActionKind exerciseId=$exerciseId")
-      showCountdownNotification(context, extendedEndAt, targetLabel, targetFrom, targetTo, 0, "", completionSound, completionVolume, completionVibrationEnabled, completionVibrationPattern, nextActionKind, exerciseId, nextSetIndex, nextSetWeight, nextSetReps)
+      val lang = intent.getStringExtra(EXTRA_LANG) ?: "ru"
+      Log.d(REST_TIMER_LOG_TAG, "rest extended: endAt=$extendedEndAt action=$nextActionKind exerciseId=$exerciseId lang=$lang")
+      showCountdownNotification(context, extendedEndAt, targetLabel, targetFrom, targetTo, 0, "", completionSound, completionVolume, completionVibrationEnabled, completionVibrationPattern, nextActionKind, exerciseId, nextSetIndex, nextSetWeight, nextSetReps, lang)
       savePendingAction(context, "extend", extendedEndAt)
       return
     }
@@ -134,7 +135,7 @@ class RestTimerActionReceiver : BroadcastReceiver() {
       currentWeightKg = state.planWeightKg
       currentReps = state.planReps
       resultLayout = 0
-      showActiveSetNotification(context, state.exerciseName, state.setIndex, state.setsCount, state.planWeightKg, state.planReps, state.exerciseIndex, state.exercisesCount, state.exerciseId)
+      showActiveSetNotification(context, state.exerciseName, state.setIndex, state.setsCount, state.planWeightKg, state.planReps, state.exerciseIndex, state.exercisesCount, state.exerciseId, state.lang)
     }
   }
 

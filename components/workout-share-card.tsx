@@ -5,6 +5,9 @@ import ViewShotComponent from "react-native-view-shot";
 
 import type { CompletedWorkout } from "@/lib/workout-data";
 import type { ShareableWorkoutRecord } from "@/lib/workout-achievements";
+import { heartRateZoneLabel, type HeartRateZoneId } from "@/lib/heart-rate-analysis";
+import { DEFAULT_LANG, getT } from "@/lib/i18n";
+import type { DictKey, Lang } from "@/lib/i18n";
 
 type WorkoutShareCardProps = {
   captureRef: React.RefObject<ViewShot | null>;
@@ -14,30 +17,46 @@ type WorkoutShareCardProps = {
   theme?: "dark" | "light";
   note?: string;
   photoUri?: string;
+  /**
+   * Язык карточки. Параметр необязательный: без него карточка остаётся
+   * русской, поэтому вызовы, которые ещё не переведены, работают как раньше.
+   */
+  lang?: Lang;
 };
 
-export function WorkoutShareCard({ captureRef, workout, programName, records, theme = "dark", note = "", photoUri }: WorkoutShareCardProps) {
-  const date = new Date(`${workout.date.slice(0, 10)}T12:00:00`).toLocaleDateString("ru-RU", { day: "numeric", month: "long", year: "numeric" });
-  const volume = Math.round(workout.totalVolume).toLocaleString("ru-RU").replace(/\u00a0/g, " ");
-  const calories = workout.caloriesBurned === undefined ? "—" : Math.max(0, Math.round(workout.caloriesBurned)).toLocaleString("ru-RU");
+/** Короткие подписи зон в строке «время по зонам» — только для PNG-карточки. */
+const zoneShortKeys: Record<HeartRateZoneId, DictKey> = {
+  recovery: "workoutServices.card.zoneShort.recovery",
+  easy: "workoutServices.card.zoneShort.easy",
+  aerobic: "workoutServices.card.zoneShort.aerobic",
+  threshold: "workoutServices.card.zoneShort.threshold",
+  maximum: "workoutServices.card.zoneShort.maximum",
+};
+
+export function WorkoutShareCard({ captureRef, workout, programName, records, theme = "dark", note = "", photoUri, lang = DEFAULT_LANG }: WorkoutShareCardProps) {
+  const tr = getT(lang);
+  const locale = lang === "en" ? "en-US" : "ru-RU";
+  const date = new Date(`${workout.date.slice(0, 10)}T12:00:00`).toLocaleDateString(locale, { day: "numeric", month: "long", year: "numeric" });
+  const volume = Math.round(workout.totalVolume).toLocaleString(locale).replace(/\u00a0/g, " ");
+  const calories = workout.caloriesBurned === undefined ? "—" : Math.max(0, Math.round(workout.caloriesBurned)).toLocaleString(locale);
   const activeZones = [...(workout.heartRateZones ?? [])].filter((zone) => zone.seconds > 0).sort((first, second) => second.seconds - first.seconds);
   const dominantZone = activeZones[0];
-  const zoneLabel = dominantZone?.id === "recovery" ? "Восстановление" : dominantZone?.id === "easy" ? "Лёгкая" : dominantZone?.id === "aerobic" ? "Аэробная" : dominantZone?.id === "threshold" ? "Пороговая" : dominantZone?.id === "maximum" ? "Максимальная" : undefined;
+  const zoneLabel = dominantZone ? heartRateZoneLabel(dominantZone.id as HeartRateZoneId, lang) : undefined;
   const formatZone = (seconds: number) => `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
   const light = theme === "light";
-  return <Pressable onPress={() => router.push({ pathname: "/share-workout" as never, params: { workoutId: workout.id } })} accessibilityRole="button" accessibilityLabel="Открыть студию публикации"><ViewShotComponent ref={captureRef} options={{ format: "png", quality: 1, result: "tmpfile" }} style={[styles.frame, light && styles.lightFrame]}>
+  return <Pressable onPress={() => router.push({ pathname: "/share-workout" as never, params: { workoutId: workout.id } })} accessibilityRole="button" accessibilityLabel={tr("workoutServices.card.a11yOpenStudio")}><ViewShotComponent ref={captureRef} options={{ format: "png", quality: 1, result: "tmpfile" }} style={[styles.frame, light && styles.lightFrame]}>
     <View style={[styles.haloOne, light && styles.lightHaloOne]} /><View style={[styles.haloTwo, light && styles.lightHaloTwo]} />
-    <Text style={[styles.brand, light && styles.lightBrand]}>IRONRISE · ДОСТИЖЕНИЕ</Text>
+    <Text style={[styles.brand, light && styles.lightBrand]}>{tr("workoutServices.card.brand")}</Text>
     <Text numberOfLines={2} style={[styles.title, light && styles.lightTitle]}>{programName}</Text>
     <Text style={[styles.date, light && styles.lightDate]}>{date}</Text>
     <View style={[styles.rule, light && styles.lightRule]} />
-    <View style={styles.metrics}><View><Text style={[styles.metricValue, light && styles.lightMetricValue]}>{workout.durationMinutes}</Text><Text style={[styles.metricUnit, light && styles.lightMetricUnit]}>МИНУТ</Text></View><View><Text style={[styles.metricValue, light && styles.lightMetricValue]}>{volume}</Text><Text style={[styles.metricUnit, light && styles.lightMetricUnit]}>КГ ОБЪЁМ</Text></View><View><Text style={[styles.metricValue, light && styles.lightMetricValue]}>{workout.sets?.length ?? 0}</Text><Text style={[styles.metricUnit, light && styles.lightMetricUnit]}>ПОДХОДОВ</Text></View><View><Text style={[styles.metricValue, light && styles.lightMetricValue]}>{calories}</Text><Text style={[styles.metricUnit, light && styles.lightMetricUnit]}>ККАЛ</Text></View></View>
-    {(workout.averageHeartRateBpm || zoneLabel) && <View style={[styles.heartRatePanel, light && styles.lightHeartRatePanel]}><View><Text style={[styles.heartRateEyebrow, light && styles.lightHeartRateEyebrow]}>ПУЛЬС · HEALTH CONNECT</Text><Text style={[styles.heartRateValue, light && styles.lightHeartRateValue]}>{workout.averageHeartRateBpm ?? "—"}<Text style={[styles.heartRateUnit, light && styles.lightHeartRateUnit]}> СР. УД/МИН</Text></Text></View><View style={styles.heartRateZone}><Text style={[styles.heartRateZoneLabel, light && styles.lightHeartRateUnit]}>ВЕДУЩАЯ ЗОНА</Text><Text style={[styles.heartRateZoneValue, light && styles.lightHeartRateValue]}>{zoneLabel ?? "—"}</Text>{dominantZone && <Text style={[styles.heartRateZoneMeta, light && styles.lightHeartRateUnit]}>{dominantZone.fromBpm}–{dominantZone.toBpm} УД/МИН</Text>}</View>{activeZones.length > 0 && <View style={[styles.shareZones, { borderTopColor: light ? "#21133524" : "#FFFFFF28" }]}><Text style={[styles.shareZonesLabel, light && styles.lightHeartRateUnit]}>ВРЕМЯ ПО ЗОНАМ</Text><Text numberOfLines={2} style={[styles.shareZonesValue, light && styles.lightHeartRateValue]}>{activeZones.slice(0, 3).map((zone) => `${zone.id === "recovery" ? "Восст." : zone.id === "easy" ? "Лёгкая" : zone.id === "aerobic" ? "Аэробная" : zone.id === "threshold" ? "Порог." : "Макс."} ${formatZone(zone.seconds)}`).join(" · ")}</Text></View>}</View>}
-    <View style={[styles.recordPanel, light && styles.lightRecordPanel]}><Text style={[styles.recordEyebrow, light && styles.lightRecordEyebrow]}>{records.length ? `НОВЫЕ ЛИЧНЫЕ РЕКОРДЫ · ${records.length}` : "ТРЕНИРОВКА ЗАВЕРШЕНА"}</Text>{records.length ? records.slice(0, 3).map((record) => <View key={record.exerciseId} style={styles.recordRow}><View style={{ flex: 1 }}><Text numberOfLines={1} style={[styles.recordName, light && styles.lightRecordName]}>{record.name}</Text><Text style={[styles.recordMeta, light && styles.lightRecordMeta]}>{record.weight} кг × {record.reps}</Text></View><Text style={styles.oneRm}>1RM {record.estimatedOneRepMax.toFixed(1)} кг</Text></View>) : <Text style={[styles.noRecords, light && styles.lightRecordMeta]}>Фиксируй фактические подходы — рекорды появятся здесь.</Text>}</View>
+    <View style={styles.metrics}><View><Text style={[styles.metricValue, light && styles.lightMetricValue]}>{workout.durationMinutes}</Text><Text style={[styles.metricUnit, light && styles.lightMetricUnit]}>{tr("workoutServices.card.minutes")}</Text></View><View><Text style={[styles.metricValue, light && styles.lightMetricValue]}>{volume}</Text><Text style={[styles.metricUnit, light && styles.lightMetricUnit]}>{tr("workoutServices.card.volumeKg")}</Text></View><View><Text style={[styles.metricValue, light && styles.lightMetricValue]}>{workout.sets?.length ?? 0}</Text><Text style={[styles.metricUnit, light && styles.lightMetricUnit]}>{tr("workoutServices.card.sets")}</Text></View><View><Text style={[styles.metricValue, light && styles.lightMetricValue]}>{calories}</Text><Text style={[styles.metricUnit, light && styles.lightMetricUnit]}>{tr("workoutServices.card.kcal")}</Text></View></View>
+    {(workout.averageHeartRateBpm || zoneLabel) && <View style={[styles.heartRatePanel, light && styles.lightHeartRatePanel]}><View><Text style={[styles.heartRateEyebrow, light && styles.lightHeartRateEyebrow]}>{tr("workoutServices.card.heartRateEyebrow")}</Text><Text style={[styles.heartRateValue, light && styles.lightHeartRateValue]}>{workout.averageHeartRateBpm ?? "—"}<Text style={[styles.heartRateUnit, light && styles.lightHeartRateUnit]}>{" "}{tr("workoutServices.card.heartRateAverageUnit")}</Text></Text></View><View style={styles.heartRateZone}><Text style={[styles.heartRateZoneLabel, light && styles.lightHeartRateUnit]}>{tr("workoutServices.card.dominantZone")}</Text><Text style={[styles.heartRateZoneValue, light && styles.lightHeartRateValue]}>{zoneLabel ?? "—"}</Text>{dominantZone && <Text style={[styles.heartRateZoneMeta, light && styles.lightHeartRateUnit]}>{tr("workoutServices.card.zoneRange", { from: dominantZone.fromBpm, to: dominantZone.toBpm })}</Text>}</View>{activeZones.length > 0 && <View style={[styles.shareZones, { borderTopColor: light ? "#21133524" : "#FFFFFF28" }]}><Text style={[styles.shareZonesLabel, light && styles.lightHeartRateUnit]}>{tr("workoutServices.card.zonesTime")}</Text><Text numberOfLines={2} style={[styles.shareZonesValue, light && styles.lightHeartRateValue]}>{activeZones.slice(0, 3).map((zone) => `${tr(zoneShortKeys[zone.id as HeartRateZoneId] ?? "workoutServices.card.zoneShort.maximum")} ${formatZone(zone.seconds)}`).join(" · ")}</Text></View>}</View>}
+    <View style={[styles.recordPanel, light && styles.lightRecordPanel]}><Text style={[styles.recordEyebrow, light && styles.lightRecordEyebrow]}>{records.length ? tr("workoutServices.card.newRecords", { count: records.length }) : tr("workoutServices.card.finished")}</Text>{records.length ? records.slice(0, 3).map((record) => <View key={record.exerciseId} style={styles.recordRow}><View style={{ flex: 1 }}><Text numberOfLines={1} style={[styles.recordName, light && styles.lightRecordName]}>{record.name}</Text><Text style={[styles.recordMeta, light && styles.lightRecordMeta]}>{tr("workoutServices.card.recordMeta", { weight: record.weight, reps: record.reps })}</Text></View><Text style={styles.oneRm}>{tr("workoutServices.card.oneRm", { value: record.estimatedOneRepMax.toFixed(1) })}</Text></View>) : <Text style={[styles.noRecords, light && styles.lightRecordMeta]}>{tr("workoutServices.card.noRecords")}</Text>}</View>
     {photoUri ? <Image source={{ uri: photoUri }} style={styles.sharePhoto} /> : null}
-    {note.trim() ? <View style={[styles.notePanel, light && styles.lightNotePanel]}><Text style={[styles.noteLabel, light && styles.lightNoteLabel]}>МОЯ ЗАМЕТКА</Text><Text numberOfLines={3} style={[styles.noteText, light && styles.lightRecordName]}>{note.trim()}</Text></View> : null}
-    <View style={styles.footer}><View style={styles.footerMark}><Text style={styles.footerMarkText}>IR</Text></View><Text style={[styles.footerText, light && styles.lightFooterText]}>Сильнее, чем вчера</Text></View>
-  </ViewShotComponent><View style={[styles.studioHint, light && styles.lightStudioHint]}><Text style={[styles.studioHintText, light && styles.lightStudioHintText]}>НАЖМИТЕ, ЧТОБЫ ДОБАВИТЬ ФОТО И ОПУБЛИКОВАТЬ В VK</Text></View></Pressable>;
+    {note.trim() ? <View style={[styles.notePanel, light && styles.lightNotePanel]}><Text style={[styles.noteLabel, light && styles.lightNoteLabel]}>{tr("workoutServices.card.noteLabel")}</Text><Text numberOfLines={3} style={[styles.noteText, light && styles.lightRecordName]}>{note.trim()}</Text></View> : null}
+    <View style={styles.footer}><View style={styles.footerMark}><Text style={styles.footerMarkText}>IR</Text></View><Text style={[styles.footerText, light && styles.lightFooterText]}>{tr("workoutServices.card.footerTagline")}</Text></View>
+  </ViewShotComponent><View style={[styles.studioHint, light && styles.lightStudioHint]}><Text style={[styles.studioHintText, light && styles.lightStudioHintText]}>{tr("workoutServices.card.studioHint")}</Text></View></Pressable>;
 }
 
 const styles = StyleSheet.create({

@@ -1,7 +1,22 @@
 import { describe, expect, it } from "vitest";
-import { analyzeHeartRate, estimateMaximumHeartRate, getActualHeartRateZoneColor } from "../lib/heart-rate-analysis";
+import { analyzeHeartRate, estimateMaximumHeartRate, getActualHeartRateZoneColor, heartRateZoneLabel } from "../lib/heart-rate-analysis";
 
 describe("анализ зон пульса", () => {
+  it("называет зоны пульса на языке вызывающего, по умолчанию по-русски", () => {
+    // Язык — необязательный параметр: прежние вызовы получают русскую подпись.
+    expect(heartRateZoneLabel("recovery")).toBe("Восстановление");
+    expect(heartRateZoneLabel("easy", "ru")).toBe("Лёгкая");
+    expect(heartRateZoneLabel("aerobic", "en")).toBe("Aerobic");
+    expect(heartRateZoneLabel("threshold", "en")).toBe("Threshold");
+    expect(heartRateZoneLabel("maximum", "en")).toBe("Maximum");
+    // Сохранённые зоны не зависят от языка: подпись переводится при показе.
+    const analysis = analyzeHeartRate([
+      { time: "2026-08-20T10:00:00.000Z", beatsPerMinute: 100 },
+      { time: "2026-08-20T10:00:30.000Z", beatsPerMinute: 135 },
+    ], 40, "2026-08-20T10:01:00.000Z");
+    expect(analysis.zones.every((zone) => zone.labelKey.startsWith("workout.summary.zone"))).toBe(true);
+  });
+
   it("использует оценку Tanaka и распределяет наблюдаемые интервалы по зонам", () => {
     expect(estimateMaximumHeartRate(40)).toBe(180);
     const analysis = analyzeHeartRate([

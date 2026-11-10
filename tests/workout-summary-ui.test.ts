@@ -2,14 +2,21 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
-const workout = readFileSync(resolve(process.cwd(), "app/workout.tsx"), "utf8");
-const summary = readFileSync(resolve(process.cwd(), "app/workout-summary.tsx"), "utf8");
+// Русские подписи живут в словаре домена workout, поэтому экран проверяется
+// вместе со своим словарём локализации (как экран настроек с доменом settings).
+const workoutDict = readFileSync(
+  resolve(process.cwd(), "lib/i18n/domains/workout.ts"),
+  "utf8",
+);
+
+const workout = readFileSync(resolve(process.cwd(), "app/workout.tsx"), "utf8") + workoutDict;
+const summary = readFileSync(resolve(process.cwd(), "app/workout-summary.tsx"), "utf8") + workoutDict;
 const catalog = readFileSync(resolve(process.cwd(), "app/(tabs)/exercises.tsx"), "utf8");
 
 describe("editorial workout completion interface", () => {
   it("routes completed workouts to a dedicated summary page", () => {
     expect(workout).toContain('pathname: "/workout-summary" as never');
-    expect(summary).toContain("ТРЕНИРОВКА{`\\n`}ЗАВЕРШЕНА");
+    expect(summary).toContain("ТРЕНИРОВКА\\nЗАВЕРШЕНА");
     expect(summary).toContain("ЛИЧНЫЕ РЕКОРДЫ");
   });
 

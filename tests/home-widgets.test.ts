@@ -4,8 +4,15 @@ import { describe, expect, it } from "vitest";
 
 import { DEFAULT_HOME_WIDGETS, HOME_WIDGETS } from "../lib/home-widgets";
 
-const home = readFileSync(resolve(process.cwd(), "app/(tabs)/index.tsx"), "utf8");
-const settings = readFileSync(resolve(process.cwd(), "app/settings.tsx"), "utf8");
+const home = readFileSync(resolve(process.cwd(), "app/(tabs)/index.tsx"), "utf8") + readFileSync(resolve(process.cwd(), "lib/i18n/domains/tabs.ts"), "utf8");
+// Русские подписи экрана настроек живут в словаре домена settings,
+// поэтому экран проверяется вместе со своим словарём локализации.
+const settings =
+  readFileSync(resolve(process.cwd(), "app/settings.tsx"), "utf8") +
+  readFileSync(
+    resolve(process.cwd(), "lib/i18n/domains/settings.ts"),
+    "utf8",
+  );
 const tabs = readFileSync(resolve(process.cwd(), "app/(tabs)/_layout.tsx"), "utf8");
 
 describe("home widgets", () => {
@@ -19,8 +26,10 @@ describe("home widgets", () => {
   it("exposes each widget toggle in settings and uses the correct exercises tab title", () => {
     expect(settings).toContain("Виджеты на экране «Сегодня»");
     expect(settings).toContain("setWidgetVisible");
-    expect(tabs).toContain('title: "УПРАЖНЕНИЯ"');
+    // Подпись вкладки — ключ словаря из данных вкладок, а не литерал в layout.
+    expect(tabs).toContain("title: t(TAB_TITLE_KEYS.exercises)");
     expect(tabs).not.toContain('title: "ЖИМ"');
+    expect(tabs).not.toContain('title: "УПРАЖНЕНИЯ"');
   });
   it("supports reordering directly on the home screen and positions the vertical motto safely", () => {
     expect(home).toContain("PanResponder.create");

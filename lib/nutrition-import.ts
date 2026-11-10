@@ -31,9 +31,9 @@ const splitCsvLine = (line: string, separator: string) => {
 
 const toProduct = (name: string, kcal: number, protein: number, fat: number, carbs: number): FoodProduct => ({ id: `imported-${normalize(name).replace(/[^а-яёa-z0-9]+/g, "-")}`, name, category: "Импорт", kcalPer100g: kcal, proteinPer100g: protein, fatPer100g: fat, carbsPer100g: carbs });
 
-export function previewNutritionCsv(text: string): NutritionImportPreview {
+export function previewNutritionCsv(text: string, lang: "ru" | "en" = "ru"): NutritionImportPreview {
   const lines = text.replace(/^\uFEFF/, "").split(/\r?\n/).filter((line) => line.trim());
-  if (lines.length < 2) return { entries: [], skipped: 0, error: "Файл не содержит строк дневника." };
+  if (lines.length < 2) return { entries: [], skipped: 0, error: lang === "en" ? "The file contains no diary rows." : "Файл не содержит строк дневника." };
   const separator = (lines[0].match(/;/g)?.length ?? 0) >= (lines[0].match(/,/g)?.length ?? 0) ? ";" : ",";
   const headers = splitCsvLine(lines[0], separator).map(normalize); const entries: Omit<FoodEntry, "id">[] = []; let skipped = 0;
   lines.slice(1).forEach((line) => {
@@ -45,7 +45,7 @@ export function previewNutritionCsv(text: string): NutritionImportPreview {
     const matched = byName ?? undefined; const customProduct = matched ? undefined : toProduct(name, Number.isFinite(kcalTotal) ? kcalTotal * 100 / grams : 0, Number.isFinite(proteinTotal) ? proteinTotal * 100 / grams : 0, Number.isFinite(fatTotal) ? fatTotal * 100 / grams : 0, Number.isFinite(carbsTotal) ? carbsTotal * 100 / grams : 0);
     entries.push({ date, meal: parseMeal(field(row, ["meal", "meal name", "приём пищи", "прием пищи", "категория"])), productId: matched?.id ?? customProduct?.id ?? `imported-${entries.length}`, grams, customProduct });
   });
-  return { entries, skipped, error: entries.length ? undefined : "Не удалось распознать дату, продукт и вес порции." };
+  return { entries, skipped, error: entries.length ? undefined : lang === "en" ? "Could not recognize the date, product and serving weight." : "Не удалось распознать дату, продукт и вес порции." };
 }
 
 export const nutritionEntryFingerprint = (entry: Omit<FoodEntry, "id"> | FoodEntry) => `${entry.date}|${entry.meal}|${entry.productId}|${entry.grams}|${entry.customProduct?.name ?? ""}`;
